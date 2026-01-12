@@ -109,15 +109,19 @@ export default function HomePage() {
           </div>
         </div>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
-          <Button size="lg" asChild>
-            <Link href="/research" className="inline-flex items-center">
-              <span>Explore Research</span>
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Link>
-          </Button>
-          <Button variant="outline" size="lg" asChild>
-            <Link href="/contact">Join Our Team</Link>
-          </Button>
+          <Link
+            href="/research"
+            className="inline-flex items-center justify-center px-8 py-4 text-lg rounded-lg bg-[#030116] text-white hover:bg-[#06041f] shadow-lg shadow-primary/20 hover:shadow-primary/30 font-medium transition-all duration-200"
+          >
+            <span>Explore Research</span>
+            <ArrowRight className="ml-2 h-5 w-5" />
+          </Link>
+          <Link
+            href="/contact"
+            className="inline-flex items-center justify-center px-8 py-4 text-lg rounded-lg border-2 border-white/30 text-white hover:bg-white/10 font-medium transition-all duration-200"
+          >
+            Join Our Team
+          </Link>
         </div>
       </Hero>
 
@@ -310,15 +314,19 @@ export default function HomePage() {
               Join Canada's premier quantitative finance organization and begin building your future in institutional markets.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button size="lg" asChild variant="secondary">
-                <Link href="/contact" className="inline-flex items-center">
-                  Get In Touch
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-              <Button variant="outline" size="lg" asChild>
-                <Link href="/team">Meet The Team</Link>
-              </Button>
+              <Link
+                href="/contact"
+                className="inline-flex items-center justify-center px-8 py-4 text-lg rounded-lg bg-white/10 text-white hover:bg-white/20 border border-white/20 font-medium transition-all duration-200"
+              >
+                Get In Touch
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Link>
+              <Link
+                href="/team"
+                className="inline-flex items-center justify-center px-8 py-4 text-lg rounded-lg border-2 border-white/30 text-white hover:bg-white/10 font-medium transition-all duration-200"
+              >
+                Meet The Team
+              </Link>
             </div>
           </motion.div>
         </div>
