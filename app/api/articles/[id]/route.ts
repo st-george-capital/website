@@ -5,6 +5,7 @@ import { requireAdmin } from '@/lib/auth';
 // Force dynamic rendering and Node.js runtime to prevent static generation issues
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+export const dynamicParams = true;
 
 // GET /api/articles/[id] - Get single article
 export async function GET(
