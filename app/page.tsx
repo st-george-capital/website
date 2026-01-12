@@ -286,7 +286,7 @@ export default function HomePage() {
             className="relative h-[400px] rounded-2xl overflow-hidden"
           >
             <img 
-              src="/images/exec-team/charity/sgcsoccer.jpeg" 
+              src="/images/charity/sgcsoccer.jpeg" 
               alt="SGC Charity Soccer Event" 
               className="w-full h-full object-cover"
             />

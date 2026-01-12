@@ -19,7 +19,7 @@ export function Hero({ title, subtitle, children, height = 'full', pattern = tru
   };
 
   return (
-    <section className={`relative ${heightClasses[height]} flex items-center justify-center overflow-hidden bg-[#030116]`}>
+    <section className={`relative ${heightClasses[height]} flex items-center justify-center overflow-hidden bg-[#030116] pt-20`}>
       {/* Background Pattern */}
       {pattern && (
         <div className="absolute inset-0 opacity-10">
@@ -45,7 +45,7 @@ export function Hero({ title, subtitle, children, height = 'full', pattern = tru
           transition={{ duration: 0.8, ease: 'easeOut' }}
         >
           {typeof title === 'string' ? (
-            <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-6 leading-tight">
+            <h1 className="font-serif text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-6 leading-tight">
               {title.split('\n').map((line, index) => (
                 <motion.div
                   key={index}
@@ -58,7 +58,7 @@ export function Hero({ title, subtitle, children, height = 'full', pattern = tru
               ))}
             </h1>
           ) : (
-            <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-6 leading-tight">
+            <h1 className="font-serif text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-6 leading-tight">
               {title}
             </h1>
           )}
@@ -85,23 +85,6 @@ export function Hero({ title, subtitle, children, height = 'full', pattern = tru
           )}
         </motion.div>
 
-        {/* Scroll Indicator (only for full height) */}
-        {height === 'full' && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1, delay: 1 }}
-            className="absolute bottom-12 left-1/2 -translate-x-1/2"
-          >
-            <div className="w-6 h-10 border-2 border-white/30 rounded-full flex items-start justify-center p-2">
-              <motion.div
-                animate={{ y: [0, 12, 0] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-                className="w-1.5 h-1.5 bg-white/60 rounded-full"
-              />
-            </div>
-          </motion.div>
-        )}
       </div>
     </section>
   );
