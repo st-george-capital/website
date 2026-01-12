@@ -163,12 +163,13 @@ export default function QuantTradingPage() {
             <p className="text-xl mb-10">
               Join our team and work on cutting-edge trading systems with industry-standard tools and methodologies.
             </p>
-            <Button size="lg" asChild>
-              <Link href="/contact" className="inline-flex items-center">
-                <span>Contact Our Team</span>
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Link>
-            </Button>
+            <Link 
+              href="/contact" 
+              className="inline-flex items-center justify-center px-8 py-4 text-lg rounded-lg bg-[#030116] text-white hover:bg-[#06041f] shadow-lg shadow-primary/20 hover:shadow-primary/30 font-medium transition-all duration-200"
+            >
+              <span>Contact Our Team</span>
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Link>
           </motion.div>
         </div>
       </Section>

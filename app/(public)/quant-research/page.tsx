@@ -192,11 +192,12 @@ export default function QuantResearchPage() {
               <span>Get Involved</span>
               <ArrowRight className="ml-2 h-5 w-5" />
             </Link>
-              <Button variant="outline" size="lg" asChild>
-                <Link href="/research" className="inline-flex items-center">
-                  <span>View Research</span>
-                </Link>
-              </Button>
+              <Link 
+                href="/research" 
+                className="inline-flex items-center justify-center px-8 py-4 text-lg rounded-lg border-2 border-white/30 text-white hover:bg-white/10 font-medium transition-all duration-200"
+              >
+                <span>View Research</span>
+              </Link>
             </div>
           </motion.div>
         </div>
