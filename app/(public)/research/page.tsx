@@ -6,6 +6,9 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { ArrowRight, Calendar, User } from 'lucide-react';
 
+// Force dynamic rendering to prevent static generation issues with database calls
+export const dynamic = 'force-dynamic';
+
 async function getArticles() {
   const articles = await prisma.article.findMany({
     where: {

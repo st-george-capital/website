@@ -7,6 +7,9 @@ import { Linkedin, ArrowRight } from 'lucide-react';
 import { prisma } from '@/lib/prisma';
 import { TeamMemberCard } from '@/components/team-member-card';
 
+// Force dynamic rendering to prevent static generation issues with database calls
+export const dynamic = 'force-dynamic';
+
 const divisions = [
   {
     name: 'Quantitative Trading',

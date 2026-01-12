@@ -6,6 +6,9 @@ import Link from 'next/link';
 import { ArrowLeft, Calendar, User, Tag } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
+// Force dynamic rendering to prevent static generation issues with database calls
+export const dynamic = 'force-dynamic';
+
 async function getArticle(slug: string) {
   const article = await prisma.article.findUnique({
     where: { slug },
