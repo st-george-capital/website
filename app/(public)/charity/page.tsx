@@ -4,6 +4,9 @@ import { Heart, Users, TrendingUp, Calendar } from 'lucide-react';
 import { Button } from '@/components/button';
 import { prisma } from '@/lib/prisma';
 
+// Force dynamic rendering to prevent static generation issues with database calls
+export const dynamic = 'force-dynamic';
+
 async function getCharityAmount() {
   try {
     const setting = await prisma.settings.findUnique({
