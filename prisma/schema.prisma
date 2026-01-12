@@ -98,6 +98,19 @@ model ContactSubmission {
   createdAt DateTime @default(now())
 }
 
+// Market Data Cache
+model MarketData {
+  id           String   @id @default(cuid())
+  ticker       String   @unique
+  price        Float
+  change       Float
+  changePercent Float
+  volume       Int
+  lastUpdated  DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 // Site Settings
 model Settings {
   id            String   @id @default(cuid())
