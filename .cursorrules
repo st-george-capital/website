@@ -1,0 +1,45 @@
+# SGC Website Development Rules
+
+## Code Style
+- Use TypeScript for all new files
+- Follow Next.js 14 App Router conventions
+- Use Tailwind CSS for styling
+- Prefer server components unless interactivity is needed
+- Use 'use client' directive only when necessary
+
+## Component Structure
+- Keep components small and focused
+- Extract reusable logic into custom hooks
+- Use composition over inheritance
+- Prefer named exports over default exports
+
+## Database
+- Always use Prisma for database operations
+- Never expose raw SQL unless necessary
+- Use transactions for multi-step operations
+- Validate input before database queries
+
+## API Routes
+- Require authentication for protected routes
+- Return proper HTTP status codes
+- Handle errors gracefully
+- Log errors for debugging
+
+## Security
+- Never commit API keys or secrets
+- Use environment variables for sensitive data
+- Validate and sanitize user input
+- Implement proper authentication checks
+
+## Performance
+- Use Next.js Image component for images
+- Implement loading states
+- Cache API responses when appropriate
+- Lazy load heavy components
+
+## Accessibility
+- Use semantic HTML
+- Include ARIA labels
+- Ensure keyboard navigation works
+- Maintain proper color contrast
+
