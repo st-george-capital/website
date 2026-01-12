@@ -8,8 +8,8 @@ interface TeamMember {
   id: string;
   name: string;
   title: string;
-  program: string;
-  year: string;
+  program: string | null;
+  year: string | null;
   headshot: string | null;
   linkedin: string | null;
 }
@@ -54,8 +54,8 @@ export function TeamMemberCard({ member, index }: TeamMemberCardProps) {
           <p className="text-primary font-semibold mb-3">{member.title}</p>
 
           {/* Program & Year */}
-          <p className="text-muted-foreground mb-1">{member.program}</p>
-          <p className="text-sm text-muted-foreground mb-4">{member.year}</p>
+          {member.program && <p className="text-muted-foreground mb-1">{member.program}</p>}
+          {member.year && <p className="text-sm text-muted-foreground mb-4">{member.year}</p>}
 
           {/* LinkedIn Link */}
           {member.linkedin && (
