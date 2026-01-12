@@ -13,6 +13,11 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Prevent execution during build time
+    if (typeof window === 'undefined' && !req) {
+      return NextResponse.json({ error: 'Build time' }, { status: 500 });
+    }
+
     const article = await prisma.article.findUnique({
       where: { id: params.id },
     });
@@ -40,8 +45,13 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Prevent execution during build time
+    if (typeof window === 'undefined' && !req) {
+      return NextResponse.json({ error: 'Build time' }, { status: 500 });
+    }
+
     await requireAdmin();
-    
+
     const data = await req.json();
     
     const article = await prisma.article.update({
@@ -77,8 +87,13 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Prevent execution during build time
+    if (typeof window === 'undefined' && !req) {
+      return NextResponse.json({ error: 'Build time' }, { status: 500 });
+    }
+
     await requireAdmin();
-    
+
     await prisma.article.delete({
       where: { id: params.id },
     });
