@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic';
+
 // GET /api/articles/[id] - Get single article
 export async function GET(
   req: NextRequest,
@@ -35,10 +38,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Skip auth check during build time
-    if (process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV) {
-      await requireAdmin();
-    }
+    await requireAdmin();
     
     const data = await req.json();
     
@@ -75,10 +75,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Skip auth check during build time
-    if (process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV) {
-      await requireAdmin();
-    }
+    await requireAdmin();
     
     await prisma.article.delete({
       where: { id: params.id },
