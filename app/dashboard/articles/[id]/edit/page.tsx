@@ -364,12 +364,14 @@ export default function EditArticlePage() {
                   className="hidden"
                   disabled={uploading}
                 />
-                <Button type="button" variant="outline" disabled={uploading} asChild>
-                  <span className="cursor-pointer">
-                    <Upload className="w-4 h-4 mr-2" />
-                    {uploading ? 'Uploading...' : 'Upload Cover Image'}
-                  </span>
-                </Button>
+                <button
+                  type="button"
+                  disabled={uploading}
+                  className="inline-flex items-center justify-center px-4 py-2 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-medium transition-all duration-200 cursor-pointer"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  {uploading ? 'Uploading...' : 'Upload Cover Image'}
+                </button>
               </label>
             </div>
           </CardContent>
@@ -407,12 +409,14 @@ export default function EditArticlePage() {
                   className="hidden"
                   disabled={uploadingContent}
                 />
-                <Button type="button" variant="outline" disabled={uploadingContent} asChild>
-                  <span className="cursor-pointer">
-                    <ImageIcon className="w-4 h-4 mr-2" />
-                    {uploadingContent ? 'Uploading...' : 'Upload Image'}
-                  </span>
-                </Button>
+                <button
+                  type="button"
+                  disabled={uploadingContent}
+                  className="inline-flex items-center justify-center px-4 py-2 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-medium transition-all duration-200 cursor-pointer"
+                >
+                  <ImageIcon className="w-4 h-4 mr-2" />
+                  {uploadingContent ? 'Uploading...' : 'Upload Image'}
+                </button>
               </label>
 
               {uploadedImages.length > 0 && (
