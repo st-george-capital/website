@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,28 +7,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// User model for authentication
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
   passwordHash String
   name         String?
-  role         String   @default("user") // "admin" or "user"
+  role         String   @default("user")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
 
-// Research Articles / Blog Posts
 model Article {
   id          String    @id @default(cuid())
   title       String
   slug        String    @unique
   excerpt     String
-  content     String    // Markdown content
+  content     String
   coverImage  String?
-  author      String    // Author name as string
-  division    String    // Division/Category
-  tags        String    @default("") // Comma-separated tags
+  author      String
+  division    String
+  tags        String    @default("")
   featured    Boolean   @default(false)
   published   Boolean   @default(false)
   publishedAt DateTime?
@@ -39,83 +34,77 @@ model Article {
   updatedAt   DateTime  @updatedAt
 }
 
-// Team Members
 model TeamMember {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   name        String
-  title       String   @default("")
-  role        String   @default("")
+  title       String  @default("")
+  role        String  @default("")
   division    String
   program     String?
   year        String?
   bio         String?
   linkedin    String?
   headshot    String?
-  isExecutive Boolean  @default(false)
-  order       Int      @default(0)
+  isExecutive Boolean @default(false)
+  order       Int     @default(0)
 }
 
-// Portfolio Holdings
 model Holding {
-  id            String        @id @default(cuid())
-  ticker        String        @unique
-  assetType     String        // "Equity", "ETF", "Commodity", "Crypto", "Cash"
-  quantity      Float
-  costBasis     Float?
-  entryDate     DateTime      @default(now())
-  notes         String?
-  sector        String?
-  region        String?
-  strategyTag   String?
-  visible       Boolean       @default(true)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  transactions  Transaction[]
+  id           String        @id @default(cuid())
+  ticker       String        @unique
+  assetType    String
+  quantity     Float
+  costBasis    Float?
+  entryDate    DateTime      @default(now())
+  notes        String?
+  sector       String?
+  region       String?
+  strategyTag  String?
+  visible      Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  transactions Transaction[]
 }
 
-// Transactions for holdings
 model Transaction {
   id        String   @id @default(cuid())
   holdingId String
-  holding   Holding  @relation(fields: [holdingId], references: [id], onDelete: Cascade)
-  type      String   // "BUY" or "SELL"
+  type      String
   quantity  Float
   price     Float
   fees      Float    @default(0)
   date      DateTime @default(now())
   notes     String?
   createdAt DateTime @default(now())
+  holding   Holding  @relation(fields: [holdingId], references: [id], onDelete: Cascade)
 }
 
-// Contact Form Submissions
 model ContactSubmission {
   id        String   @id @default(cuid())
   firstName String
   lastName  String
   email     String
   message   String
-  status    String   @default("NEW") // "NEW", "READ", "ARCHIVED"
+  status    String   @default("NEW")
   createdAt DateTime @default(now())
 }
 
-// Market Data Cache
 model MarketData {
-  id           String   @id @default(cuid())
-  ticker       String   @unique
-  price        Float
-  change       Float
+  id            String   @id @default(cuid())
+  ticker        String   @unique
+  price         Float
+  change        Float
   changePercent Float
-  volume       Int
-  lastUpdated  DateTime @default(now())
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  volume        Int
+  lastUpdated   DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
-// Site Settings
 model Settings {
-  id            String   @id @default(cuid())
-  key           String   @unique
-  value         String
-  description   String?
-  updatedAt     DateTime @updatedAt
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
 }

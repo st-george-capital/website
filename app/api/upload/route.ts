@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
+import { put } from '@vercel/blob';
 
 // Force dynamic rendering to prevent static generation issues
 export const dynamic = 'force-dynamic';
@@ -37,27 +36,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
     // Create unique filename
     const timestamp = Date.now();
-    const filename = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '')}`;
-    
-    // Ensure upload directory exists
-    const uploadDir = join(process.cwd(), 'public', 'images', 'research');
-    try {
-      await mkdir(uploadDir, { recursive: true });
-    } catch (error) {
-      // Directory might already exist, that's fine
-    }
+    const filename = `research/${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '')}`;
 
-    // Write file
-    const filepath = join(uploadDir, filename);
-    await writeFile(filepath, buffer);
+    // Upload to Vercel Blob
+    const blob = await put(filename, file, {
+      access: 'public',
+    });
 
-    // Return public URL
-    const url = `/images/research/${filename}`;
+    // Return the blob URL
+    const url = blob.url;
     
     return NextResponse.json({ url });
   } catch (error: any) {
