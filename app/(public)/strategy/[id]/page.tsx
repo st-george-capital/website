@@ -127,12 +127,10 @@ export default async function StrategyDocumentPage({
               </div>
 
               {document.documentFile && (
-                <Button asChild>
-                  <a href={document.documentFile} target="_blank" rel="noopener noreferrer">
-                    <Download className="w-4 h-4 mr-2" />
-                    Download PDF Version
-                  </a>
-                </Button>
+                <a href={document.documentFile} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md text-sm font-medium transition-colors">
+                  <Download className="w-4 h-4 mr-2" />
+                  Download PDF Version
+                </a>
               )}
             </CardContent>
           </Card>
