@@ -295,11 +295,11 @@ export default function EditStrategyDocumentPage() {
                     className="hidden"
                     id="cover-image"
                   />
-                  <label htmlFor="cover-image">
-                    <button type="button" disabled={uploading} className="inline-flex items-center px-4 py-2 border border-border rounded-md text-sm hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  <label htmlFor="cover-image" className="cursor-pointer">
+                    <div className={`inline-flex items-center px-4 py-2 border border-border rounded-md text-sm hover:bg-accent transition-colors ${uploading ? 'opacity-50' : ''}`}>
                       <Upload className="w-4 h-4 mr-2" />
                       {uploading ? 'Uploading...' : 'Upload Cover Image'}
-                    </button>
+                    </div>
                   </label>
                 </div>
               )}

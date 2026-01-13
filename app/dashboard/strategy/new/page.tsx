@@ -232,7 +232,7 @@ export default function NewStrategyDocumentPage() {
                   </Button>
                 </div>
               ) : (
-                <div>
+                <div className="flex items-center space-x-4">
                   <input
                     type="file"
                     accept="image/*"
@@ -240,11 +240,11 @@ export default function NewStrategyDocumentPage() {
                     className="hidden"
                     id="cover-image"
                   />
-                  <label htmlFor="cover-image">
-                    <button type="button" disabled={uploading} className="inline-flex items-center px-4 py-2 border border-border rounded-md text-sm hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  <label htmlFor="cover-image" className="cursor-pointer">
+                    <div className={`inline-flex items-center px-4 py-2 border border-border rounded-md text-sm hover:bg-accent transition-colors ${uploading ? 'opacity-50' : ''}`}>
                       <Upload className="w-4 h-4 mr-2" />
                       {uploading ? 'Uploading...' : 'Upload Cover Image'}
-                    </button>
+                    </div>
                   </label>
                 </div>
               )}
@@ -276,11 +276,11 @@ export default function NewStrategyDocumentPage() {
                     className="hidden"
                     id="document-file"
                   />
-                  <label htmlFor="document-file">
-                    <button type="button" disabled={uploading} className="inline-flex items-center px-4 py-2 border border-border rounded-md text-sm hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  <label htmlFor="document-file" className="cursor-pointer">
+                    <div className={`inline-flex items-center px-4 py-2 border border-border rounded-md text-sm hover:bg-accent transition-colors ${uploading ? 'opacity-50' : ''}`}>
                       <Upload className="w-4 h-4 mr-2" />
                       {uploading ? 'Uploading...' : 'Upload PDF'}
-                    </button>
+                    </div>
                   </label>
                 </div>
               )}
