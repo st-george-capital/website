@@ -3,7 +3,7 @@ import { Section, SectionHeader } from '@/components/section';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
 import { Badge } from '@/components/ui/badge';
-import { FileText, TrendingUp, Download, Calendar } from 'lucide-react';
+import { FileText, TrendingUp, Download, Calendar, BarChart3, Shield, Search, Cpu, Heart, Banknote, Factory, ShoppingBag, Zap } from 'lucide-react';
 import Link from 'next/link';
 
 interface StrategyDocument {
@@ -65,8 +65,8 @@ export default async function StrategyPage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12 mb-16">
             <Card className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors">
               <CardHeader>
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <TrendingUp className="w-6 h-6 text-primary" />
+                <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center mb-4">
+                  <BarChart3 className="w-6 h-6 text-blue-400" />
                 </div>
                 <CardTitle className="text-white text-xl">Market Outlook</CardTitle>
                 <CardDescription className="text-white/80">
@@ -82,8 +82,8 @@ export default async function StrategyPage() {
 
             <Card className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors">
               <CardHeader>
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <FileText className="w-6 h-6 text-primary" />
+                <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center mb-4">
+                  <Shield className="w-6 h-6 text-green-400" />
                 </div>
                 <CardTitle className="text-white text-xl">Risk Framework</CardTitle>
                 <CardDescription className="text-white/80">
@@ -99,8 +99,8 @@ export default async function StrategyPage() {
 
             <Card className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors">
               <CardHeader>
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <Calendar className="w-6 h-6 text-primary" />
+                <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center mb-4">
+                  <Search className="w-6 h-6 text-purple-400" />
                 </div>
                 <CardTitle className="text-white text-xl">Investment Process</CardTitle>
                 <CardDescription className="text-white/80">
@@ -198,51 +198,102 @@ export default async function StrategyPage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12 mb-16">
             <Card className="hover:shadow-lg transition-shadow">
               <CardHeader>
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <TrendingUp className="w-6 h-6 text-primary" />
+                <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center mb-4">
+                  <Cpu className="w-6 h-6 text-blue-500" />
                 </div>
-                <CardTitle className="text-xl">Technology Sector</CardTitle>
+                <CardTitle className="text-xl">Technology & Software</CardTitle>
                 <CardDescription>
-                  Analysis of emerging technologies and digital transformation
+                  AI, cloud computing, semiconductors, and digital transformation
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground text-sm mb-4">
-                  Deep-dive into AI, cloud computing, and semiconductor trends shaping the future.
+                  Deep analysis of emerging technologies, software platforms, and digital innovation trends.
                 </p>
               </CardContent>
             </Card>
 
             <Card className="hover:shadow-lg transition-shadow">
               <CardHeader>
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <FileText className="w-6 h-6 text-primary" />
-                </div>
-                <CardTitle className="text-xl">Healthcare Innovation</CardTitle>
-                <CardDescription>
-                  Biotechnology and medical technology advancements
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground text-sm mb-4">
-                  Analysis of pharmaceutical pipelines, medical devices, and healthcare delivery models.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <Calendar className="w-6 h-6 text-primary" />
+                <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center mb-4">
+                  <Banknote className="w-6 h-6 text-green-500" />
                 </div>
                 <CardTitle className="text-xl">Financial Services</CardTitle>
                 <CardDescription>
-                  Fintech innovations and traditional banking evolution
+                  Fintech, banking, payments, and capital markets
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground text-sm mb-4">
-                  Digital payments, blockchain applications, and regulatory changes in finance.
+                  Digital payments, blockchain applications, regulatory changes, and financial technology evolution.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="w-12 h-12 bg-purple-500/10 rounded-lg flex items-center justify-center mb-4">
+                  <Heart className="w-6 h-6 text-purple-500" />
+                </div>
+                <CardTitle className="text-xl">Healthcare & Biotech</CardTitle>
+                <CardDescription>
+                  Pharmaceuticals, medical devices, and biotechnology
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground text-sm mb-4">
+                  Analysis of pharmaceutical pipelines, medical devices, biotech innovation, and healthcare delivery.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="w-12 h-12 bg-orange-500/10 rounded-lg flex items-center justify-center mb-4">
+                  <ShoppingBag className="w-6 h-6 text-orange-500" />
+                </div>
+                <CardTitle className="text-xl">Consumer & Retail</CardTitle>
+                <CardDescription>
+                  E-commerce, consumer goods, and retail transformation
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground text-sm mb-4">
+                  Digital commerce trends, consumer behavior shifts, and retail industry evolution.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="w-12 h-12 bg-yellow-500/10 rounded-lg flex items-center justify-center mb-4">
+                  <Zap className="w-6 h-6 text-yellow-500" />
+                </div>
+                <CardTitle className="text-xl">Energy & Materials</CardTitle>
+                <CardDescription>
+                  Renewable energy, commodities, and raw materials
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground text-sm mb-4">
+                  Clean energy transition, commodity markets, and sustainable materials analysis.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="w-12 h-12 bg-red-500/10 rounded-lg flex items-center justify-center mb-4">
+                  <Factory className="w-6 h-6 text-red-500" />
+                </div>
+                <CardTitle className="text-xl">Industrials</CardTitle>
+                <CardDescription>
+                  Manufacturing, infrastructure, and industrial technology
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground text-sm mb-4">
+                  Automation, infrastructure development, and industrial technology advancements.
                 </p>
               </CardContent>
             </Card>
