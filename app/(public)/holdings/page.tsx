@@ -12,14 +12,16 @@ interface Investment {
   title: string;
   company?: string;
   ticker?: string;
-  year: number;
+  year: string;
   season: string;
+  content: string;
   thesis?: string;
   entryDate?: string;
   priceAtEntry?: number;
   initialTarget?: number;
   currentTarget?: number;
   tags: string;
+  coverImage?: string;
   published: boolean;
   createdAt: string;
 }
