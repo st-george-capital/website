@@ -39,7 +39,7 @@ export default function InvestmentsDashboardPage() {
 
   useEffect(() => {
     fetchInvestments();
-  }, []);
+  }, [filterType, filterPublished]);
 
   const fetchInvestments = async () => {
     try {
