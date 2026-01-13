@@ -1,6 +1,6 @@
 import { Hero } from '@/components/hero';
 import { Section, SectionHeader } from '@/components/section';
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { TrendingUp, Shield, FileText } from 'lucide-react';
 
 export default function FundPage() {
