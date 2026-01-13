@@ -59,7 +59,7 @@ export default async function StrategyDocumentPage({
       <Hero
         title={document.title}
         subtitle={`${document.type === 'investment_strategy' ? 'Investment Strategy' : 'Industry Report'} • ${document.year}`}
-        height="small"
+        height="medium"
       />
 
       <Section className="pt-8">
