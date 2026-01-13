@@ -53,14 +53,75 @@ export default async function StrategyPage() {
         height="medium"
       />
 
-      {/* Investment Strategies */}
+      {/* Market Strategy & Outlooks */}
       <Section className="pt-16" dark>
         <div className="max-w-6xl mx-auto">
           <SectionHeader
-            title="Investment Strategies"
-            subtitle="Annual investment strategies and market positioning"
+            title="Market Strategy & Outlooks"
+            subtitle="Our approach to investment strategy and risk management"
             centered
           />
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12 mb-16">
+            <Card className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors">
+              <CardHeader>
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <TrendingUp className="w-6 h-6 text-primary" />
+                </div>
+                <CardTitle className="text-white text-xl">Market Outlook</CardTitle>
+                <CardDescription className="text-white/80">
+                  Our latest market analysis and strategic positioning
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-white/80 text-sm mb-4">
+                  Comprehensive market analysis covering economic trends, sector rotations, and investment themes.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors">
+              <CardHeader>
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <FileText className="w-6 h-6 text-primary" />
+                </div>
+                <CardTitle className="text-white text-xl">Risk Framework</CardTitle>
+                <CardDescription className="text-white/80">
+                  Our approach to portfolio risk management
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-white/80 text-sm mb-4">
+                  Systematic risk assessment and position sizing methodologies.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors">
+              <CardHeader>
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <Calendar className="w-6 h-6 text-primary" />
+                </div>
+                <CardTitle className="text-white text-xl">Investment Process</CardTitle>
+                <CardDescription className="text-white/80">
+                  How we research and evaluate opportunities
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-white/80 text-sm mb-4">
+                  Rigorous fundamental analysis and quantitative evaluation methods.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="border-t border-white/10 pt-16">
+            <SectionHeader
+              title="Investment Strategies"
+              subtitle="Annual investment strategies and market positioning"
+              centered
+            />
+          </div>
 
           {investmentStrategies.length > 0 ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
@@ -133,6 +194,63 @@ export default async function StrategyPage() {
             subtitle="Deep-dive analysis of key industries and sectors"
             centered
           />
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12 mb-16">
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <TrendingUp className="w-6 h-6 text-primary" />
+                </div>
+                <CardTitle className="text-xl">Technology Sector</CardTitle>
+                <CardDescription>
+                  Analysis of emerging technologies and digital transformation
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground text-sm mb-4">
+                  Deep-dive into AI, cloud computing, and semiconductor trends shaping the future.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <FileText className="w-6 h-6 text-primary" />
+                </div>
+                <CardTitle className="text-xl">Healthcare Innovation</CardTitle>
+                <CardDescription>
+                  Biotechnology and medical technology advancements
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground text-sm mb-4">
+                  Analysis of pharmaceutical pipelines, medical devices, and healthcare delivery models.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <Calendar className="w-6 h-6 text-primary" />
+                </div>
+                <CardTitle className="text-xl">Financial Services</CardTitle>
+                <CardDescription>
+                  Fintech innovations and traditional banking evolution
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground text-sm mb-4">
+                  Digital payments, blockchain applications, and regulatory changes in finance.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="border-t border-border pt-16">
+            <h3 className="font-serif text-3xl font-bold mb-8 text-center">Published Industry Reports</h3>
+          </div>
 
           {industryReports.length > 0 ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
