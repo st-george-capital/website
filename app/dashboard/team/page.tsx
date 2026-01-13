@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
 import { Users, Linkedin, Plus, UserCheck } from 'lucide-react';
 import Link from 'next/link';
