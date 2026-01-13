@@ -89,9 +89,17 @@ export default async function HoldingsPage() {
                 <Card key={thesis.id} className="hover:shadow-lg transition-shadow">
                   <CardHeader>
                     <div className="flex items-start justify-between mb-4">
-                      <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <div className="w-6 h-6 bg-primary rounded"></div>
-                      </div>
+                      {thesis.coverImage ? (
+                        <img
+                          src={thesis.coverImage}
+                          alt={thesis.title}
+                          className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <div className="w-6 h-6 bg-primary rounded"></div>
+                        </div>
+                      )}
                       <Badge variant="default" className="text-xs">
                         Active Position
                       </Badge>

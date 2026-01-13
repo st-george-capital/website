@@ -14,7 +14,7 @@ interface Investment {
   title: string;
   company?: string;
   ticker?: string;
-  year: number;
+  year: string;
   season: string;
   content: string;
   thesis?: string;
@@ -23,6 +23,7 @@ interface Investment {
   initialTarget?: number;
   currentTarget?: number;
   tags: string;
+  coverImage?: string;
   published: boolean;
   createdAt: string;
 }
@@ -145,7 +146,7 @@ export default function InvestmentsDashboardPage() {
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              {type === 'all' ? 'All' : type.charAt(0).toUpperCase() + type.slice(1) + 's'}
+              {type === 'all' ? 'All' : type === 'thesis' ? 'Theses' : type.charAt(0).toUpperCase() + type.slice(1) + 's'}
             </button>
           ))}
         </div>

@@ -14,7 +14,7 @@ interface Investment {
   title: string;
   company?: string;
   ticker?: string;
-  year: number;
+  year: string;
   season: string;
   content: string;
   thesis?: string;
@@ -23,6 +23,7 @@ interface Investment {
   initialTarget?: number;
   currentTarget?: number;
   tags: string;
+  coverImage?: string;
   published: boolean;
   createdAt: string;
 }
@@ -105,6 +106,16 @@ export default async function InvestmentPage({ params }: { params: { id: string 
                 {investment.company}
                 {investment.ticker && <span className="ml-2 text-white/60">({investment.ticker})</span>}
               </p>
+            )}
+
+            {investment.coverImage && (
+              <div className="mt-6">
+                <img
+                  src={investment.coverImage}
+                  alt={investment.title}
+                  className="w-full max-w-2xl h-64 object-cover rounded-lg shadow-lg"
+                />
+              </div>
             )}
 
             <div className="flex flex-wrap gap-2 mt-4">

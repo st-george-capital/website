@@ -15,7 +15,7 @@ export default function NewInvestmentPage() {
     title: '',
     company: '',
     ticker: '',
-    year: new Date().getFullYear(),
+    year: new Date().getFullYear().toString(),
     season: 'Fall',
     content: '',
     thesis: '',
@@ -24,6 +24,7 @@ export default function NewInvestmentPage() {
     initialTarget: '',
     currentTarget: '',
     tags: 'Equity',
+    coverImage: '',
     published: false,
   });
 
@@ -136,19 +137,18 @@ export default function NewInvestmentPage() {
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Year</label>
-                  <select
-                    name="year"
-                    value={formData.year}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-border rounded-md"
-                  >
-                    <option value={2023}>2023</option>
-                    <option value={2024}>2024</option>
-                    <option value={2025}>2025</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Year</label>
+                <input
+                  type="text"
+                  name="year"
+                  value={formData.year}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-border rounded-md"
+                  placeholder="e.g., 2024"
+                  required
+                />
+              </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Season</label>
                   <select
@@ -264,6 +264,22 @@ export default function NewInvestmentPage() {
                 <option value="Macro">Macro</option>
                 <option value="Investment Strategy">Investment Strategy</option>
               </select>
+            </div>
+
+            {/* Cover Image */}
+            <div>
+              <label className="block text-sm font-medium mb-2">Cover Image URL (Optional)</label>
+              <input
+                type="url"
+                name="coverImage"
+                value={formData.coverImage}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-border rounded-md"
+                placeholder="https://example.com/image.jpg"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Upload image to get URL, or use external image URL. This will be displayed as the cover image.
+              </p>
             </div>
 
             {/* Publish */}

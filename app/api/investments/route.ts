@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
         title: data.title,
         company: data.company,
         ticker: data.ticker,
-        year: parseInt(data.year),
+        year: data.year,
         season: data.season,
         content: data.content,
         thesis: data.thesis,
@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
         initialTarget: data.initialTarget ? parseFloat(data.initialTarget) : null,
         currentTarget: data.currentTarget ? parseFloat(data.currentTarget) : null,
         tags: data.tags || '',
+        coverImage: data.coverImage || null,
         published: data.published || false,
       },
     });

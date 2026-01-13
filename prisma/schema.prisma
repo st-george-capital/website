@@ -121,7 +121,7 @@ model Investment {
   title           String
   company         String?
   ticker          String?
-  year            Int
+  year            String   // Year as string to allow any year
   season          String   // "Fall", "Winter", "Summer"
   content         String   // Full thesis/outlook content
   thesis          String?  // Why we invested
@@ -130,6 +130,7 @@ model Investment {
   initialTarget   Float?   // Price target when invested
   currentTarget   Float?   // Current price target
   tags            String   // Comma-separated: "Equity", "Macro", "Investment Strategy"
+  coverImage      String?  // Cover image URL
   published       Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
