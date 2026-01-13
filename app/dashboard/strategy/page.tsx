@@ -117,18 +117,14 @@ export default function StrategyDashboardPage() {
         </div>
         {isAdmin && (
           <div className="flex gap-2">
-            <Button asChild>
-              <Link href="/dashboard/strategy/new?type=investment_strategy">
-                <Plus className="w-4 h-4 mr-2" />
-                New Strategy
-              </Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/dashboard/strategy/new?type=industry_report">
-                <Plus className="w-4 h-4 mr-2" />
-                New Industry Report
-              </Link>
-            </Button>
+            <Link href="/dashboard/strategy/new?type=investment_strategy" className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md text-sm font-medium transition-colors">
+              <Plus className="w-4 h-4 mr-2" />
+              New Strategy
+            </Link>
+            <Link href="/dashboard/strategy/new?type=industry_report" className="inline-flex items-center px-4 py-2 border border-border rounded-md text-sm hover:bg-accent transition-colors">
+              <Plus className="w-4 h-4 mr-2" />
+              New Industry Report
+            </Link>
           </div>
         )}
       </div>
@@ -206,11 +202,9 @@ export default function StrategyDashboardPage() {
                     >
                       {doc.published ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </Button>
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/dashboard/strategy/${doc.id}/edit`}>
-                        <Edit className="w-4 h-4" />
-                      </Link>
-                    </Button>
+                    <Link href={`/dashboard/strategy/${doc.id}/edit`} className="inline-flex items-center px-3 py-1 border border-border rounded-md text-sm hover:bg-accent transition-colors">
+                      <Edit className="w-4 h-4" />
+                    </Link>
                     <Button
                       variant="destructive"
                       size="sm"
@@ -240,12 +234,10 @@ export default function StrategyDashboardPage() {
                   )}
                 </div>
                 {doc.documentFile && (
-                  <Button variant="outline" size="sm" asChild>
-                    <a href={doc.documentFile} target="_blank" rel="noopener noreferrer">
-                      <Download className="w-4 h-4 mr-2" />
-                      Download PDF
-                    </a>
-                  </Button>
+                  <a href={doc.documentFile} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-3 py-1 border border-border rounded-md text-sm hover:bg-accent transition-colors">
+                    <Download className="w-4 h-4 mr-2" />
+                    Download PDF
+                  </a>
                 )}
               </div>
             </CardContent>
