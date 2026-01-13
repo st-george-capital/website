@@ -130,12 +130,12 @@ export default async function StrategyPage() {
                   <CardHeader>
                     <div className="flex items-start gap-4">
                       <div className="flex-shrink-0">
-                        <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                          <TrendingUp className="w-6 h-6 text-primary" />
+                        <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center">
+                          <TrendingUp className="w-6 h-6 text-white" />
                         </div>
                       </div>
                       <div className="flex-1">
-                        <Badge variant="outline" className="mb-2 text-xs">
+                        <Badge variant="outline" className="mb-2 text-xs text-white border-white/30">
                           Investment Strategy
                         </Badge>
                         <CardTitle className="font-serif text-xl text-white mb-2">
@@ -160,12 +160,12 @@ export default async function StrategyPage() {
                       </div>
                       <div className="flex gap-2">
                         {strategy.documentFile && (
-                          <a href={strategy.documentFile} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-3 py-1 border border-border rounded-md text-sm hover:bg-accent transition-colors">
+                          <a href={strategy.documentFile} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-3 py-1 border border-white/30 rounded-md text-sm text-white hover:bg-white/10 transition-colors">
                             <Download className="w-4 h-4 mr-1" />
                             PDF
                           </a>
                         )}
-                        <Link href={`/strategy/${strategy.id}`} className="inline-flex items-center px-3 py-1 border border-border rounded-md text-sm hover:bg-accent transition-colors">
+                        <Link href={`/strategy/${strategy.id}`} className="inline-flex items-center px-3 py-1 border border-white/30 rounded-md text-sm text-white hover:bg-white/10 transition-colors">
                           View
                         </Link>
                       </div>
