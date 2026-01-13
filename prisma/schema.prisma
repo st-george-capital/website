@@ -129,6 +129,7 @@ model Investment {
   priceAtEntry    Float?
   initialTarget   Float?   // Price target when invested
   currentTarget   Float?   // Current price target
+  publishDate     DateTime? // When to publish/display on holdings
   tags            String   // Comma-separated: "Equity", "Macro", "Investment Strategy"
   coverImage      String?  // Cover image URL
   published       Boolean  @default(false)

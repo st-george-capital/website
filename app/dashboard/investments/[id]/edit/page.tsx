@@ -21,6 +21,7 @@ interface Investment {
   priceAtEntry?: string;
   initialTarget?: string;
   currentTarget?: string;
+  publishDate?: string;
   tags: string;
   coverImage?: string;
   published: boolean;
@@ -49,6 +50,7 @@ export default function EditInvestmentPage() {
     priceAtEntry: '',
     initialTarget: '',
     currentTarget: '',
+    publishDate: '',
     tags: 'Equity',
     coverImage: '',
     published: false,
@@ -73,6 +75,7 @@ export default function EditInvestmentPage() {
           content: investment.content,
           thesis: investment.thesis || '',
           entryDate: investment.entryDate ? investment.entryDate.split('T')[0] : '',
+          publishDate: investment.publishDate ? investment.publishDate.split('T')[0] : '',
           priceAtEntry: investment.priceAtEntry?.toString() || '',
           initialTarget: investment.initialTarget?.toString() || '',
           currentTarget: investment.currentTarget?.toString() || '',
@@ -324,6 +327,17 @@ export default function EditInvestmentPage() {
                       value={formData.entryDate}
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-border rounded-md"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Publish Date</label>
+                    <input
+                      type="date"
+                      name="publishDate"
+                      value={formData.publishDate}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-border rounded-md"
+                      placeholder="Defaults to entry date"
                     />
                   </div>
                   <div>

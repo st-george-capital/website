@@ -20,6 +20,7 @@ interface Investment {
   priceAtEntry?: number;
   initialTarget?: number;
   currentTarget?: number;
+  publishDate?: string;
   tags: string;
   coverImage?: string;
   published: boolean;
@@ -42,6 +43,17 @@ async function getInvestmentTheses() {
 
 export default async function HoldingsPage() {
   const theses = await getInvestmentTheses();
+
+  // Sort by publishDate (newest first), fallback to entryDate or createdAt
+  const sortedTheses = theses.sort((a, b) => {
+    const dateA = a.publishDate ? new Date(a.publishDate).getTime() :
+                 a.entryDate ? new Date(a.entryDate).getTime() :
+                 new Date(a.createdAt).getTime();
+    const dateB = b.publishDate ? new Date(b.publishDate).getTime() :
+                 b.entryDate ? new Date(b.entryDate).getTime() :
+                 new Date(b.createdAt).getTime();
+    return dateB - dateA; // Newest first
+  });
 
   const formatCurrency = (value?: number) => {
     if (!value) return 'N/A';

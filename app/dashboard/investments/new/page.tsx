@@ -26,6 +26,7 @@ export default function NewInvestmentPage() {
     priceAtEntry: '',
     initialTarget: '',
     currentTarget: '',
+    publishDate: '',
     tags: 'Equity',
     coverImage: '',
     published: false,
@@ -252,6 +253,17 @@ export default function NewInvestmentPage() {
                       value={formData.entryDate}
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-border rounded-md"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Publish Date</label>
+                    <input
+                      type="date"
+                      name="publishDate"
+                      value={formData.publishDate}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-border rounded-md"
+                      placeholder="Defaults to entry date"
                     />
                   </div>
                   <div>

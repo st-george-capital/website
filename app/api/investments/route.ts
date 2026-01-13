@@ -59,6 +59,9 @@ export async function POST(request: NextRequest) {
 
     const data = await request.json();
 
+    const entryDate = data.entryDate ? new Date(data.entryDate) : null;
+    const publishDate = data.publishDate ? new Date(data.publishDate) : entryDate;
+
     const investment = await prisma.investment.create({
       data: {
         type: data.type,
@@ -69,10 +72,11 @@ export async function POST(request: NextRequest) {
         season: data.season,
         content: data.content,
         thesis: data.thesis,
-        entryDate: data.entryDate ? new Date(data.entryDate) : null,
+        entryDate,
         priceAtEntry: data.priceAtEntry ? parseFloat(data.priceAtEntry) : null,
         initialTarget: data.initialTarget ? parseFloat(data.initialTarget) : null,
         currentTarget: data.currentTarget ? parseFloat(data.currentTarget) : null,
+        publishDate,
         tags: data.tags || '',
         coverImage: data.coverImage || null,
         published: data.published || false,
