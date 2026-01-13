@@ -18,13 +18,16 @@ interface Investment {
   content: string;
   thesis?: string;
   entryDate?: string;
-  priceAtEntry?: string;
-  initialTarget?: string;
-  currentTarget?: string;
+  priceAtEntry?: number;
+  initialTarget?: number;
+  currentTarget?: number;
+  exitPrice?: number;
+  active: boolean;
   publishDate?: string;
   tags: string;
   coverImage?: string;
   published: boolean;
+  createdAt: string;
 }
 
 export default function EditInvestmentPage() {
