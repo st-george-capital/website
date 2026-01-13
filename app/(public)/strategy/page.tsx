@@ -99,18 +99,14 @@ export default async function StrategyPage() {
                       </div>
                       <div className="flex gap-2">
                         {strategy.documentFile && (
-                          <Button variant="outline" size="sm" asChild>
-                            <a href={strategy.documentFile} target="_blank" rel="noopener noreferrer">
-                              <Download className="w-4 h-4 mr-1" />
-                              PDF
-                            </a>
-                          </Button>
+                          <a href={strategy.documentFile} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-3 py-1 border border-border rounded-md text-sm hover:bg-accent transition-colors">
+                            <Download className="w-4 h-4 mr-1" />
+                            PDF
+                          </a>
                         )}
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/strategy/${strategy.id}`}>
-                            View
-                          </Link>
-                        </Button>
+                        <Link href={`/strategy/${strategy.id}`} className="inline-flex items-center px-3 py-1 border border-border rounded-md text-sm hover:bg-accent transition-colors">
+                          View
+                        </Link>
                       </div>
                     </div>
                   </CardContent>
@@ -175,18 +171,14 @@ export default async function StrategyPage() {
                       </div>
                       <div className="flex gap-2">
                         {report.documentFile && (
-                          <Button variant="outline" size="sm" asChild>
-                            <a href={report.documentFile} target="_blank" rel="noopener noreferrer">
-                              <Download className="w-4 h-4 mr-1" />
-                              PDF
-                            </a>
-                          </Button>
+                          <a href={report.documentFile} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-3 py-1 border border-border rounded-md text-sm hover:bg-accent transition-colors">
+                            <Download className="w-4 h-4 mr-1" />
+                            PDF
+                          </a>
                         )}
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/strategy/${report.id}`}>
-                            View
-                          </Link>
-                        </Button>
+                        <Link href={`/strategy/${report.id}`} className="inline-flex items-center px-3 py-1 border border-border rounded-md text-sm hover:bg-accent transition-colors">
+                          View
+                        </Link>
                       </div>
                     </div>
                   </CardContent>
