@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { Badge } from '@/components/badge';
+import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 
