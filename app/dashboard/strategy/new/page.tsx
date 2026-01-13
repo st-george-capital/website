@@ -96,12 +96,10 @@ export default function NewStrategyDocumentPage() {
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" asChild>
-          <Link href="/dashboard/strategy">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Strategy
-          </Link>
-        </Button>
+        <Link href="/dashboard/strategy" className="inline-flex items-center px-4 py-2 text-sm font-medium text-white/60 hover:text-white hover:bg-white/10 rounded-md transition-colors">
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Strategy
+        </Link>
         <div>
           <h1 className="text-3xl font-bold">
             New {type === 'investment_strategy' ? 'Investment Strategy' : 'Industry Report'}
@@ -242,12 +240,10 @@ export default function NewStrategyDocumentPage() {
                     id="cover-image"
                   />
                   <label htmlFor="cover-image">
-                    <Button type="button" variant="outline" disabled={uploading} asChild>
-                      <span className="cursor-pointer">
-                        <Upload className="w-4 h-4 mr-2" />
-                        {uploading ? 'Uploading...' : 'Upload Cover Image'}
-                      </span>
-                    </Button>
+                    <button type="button" disabled={uploading} className="inline-flex items-center px-4 py-2 border border-border rounded-md text-sm hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                      <Upload className="w-4 h-4 mr-2" />
+                      {uploading ? 'Uploading...' : 'Upload Cover Image'}
+                    </button>
                   </label>
                 </div>
               )}
@@ -280,12 +276,10 @@ export default function NewStrategyDocumentPage() {
                     id="document-file"
                   />
                   <label htmlFor="document-file">
-                    <Button type="button" variant="outline" disabled={uploading} asChild>
-                      <span className="cursor-pointer">
-                        <Upload className="w-4 h-4 mr-2" />
-                        {uploading ? 'Uploading...' : 'Upload PDF'}
-                      </span>
-                    </Button>
+                    <button type="button" disabled={uploading} className="inline-flex items-center px-4 py-2 border border-border rounded-md text-sm hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                      <Upload className="w-4 h-4 mr-2" />
+                      {uploading ? 'Uploading...' : 'Upload PDF'}
+                    </button>
                   </label>
                 </div>
               )}
@@ -328,12 +322,10 @@ export default function NewStrategyDocumentPage() {
             {saving ? 'Creating...' : 'Create Document'}
           </Button>
 
-          <Button type="button" variant="outline" asChild>
-            <Link href="/dashboard/strategy">
-              <Eye className="w-4 h-4 mr-2" />
-              Preview
-            </Link>
-          </Button>
+          <Link href="/dashboard/strategy" className="inline-flex items-center px-4 py-2 border border-border rounded-md text-sm hover:bg-accent transition-colors">
+            <Eye className="w-4 h-4 mr-2" />
+            Preview
+          </Link>
         </div>
       </form>
     </div>
