@@ -53,7 +53,7 @@ export default function StrategyDashboardPage() {
     try {
       const params = new URLSearchParams();
       if (filterType !== 'all') params.append('type', filterType);
-      if (filterPublished !== 'all') params.append('published', filterPublished === 'published');
+      if (filterPublished !== 'all') params.append('published', (filterPublished === 'published').toString());
 
       const response = await fetch(`/api/strategy?${params}`);
       const data = await response.json();
