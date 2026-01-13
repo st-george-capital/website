@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 // Force dynamic rendering to prevent static generation issues
 export const dynamic = 'force-dynamic';
-import { requireAdmin } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
-    await requireAdmin();
+    // Check authentication
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Unauthorized: Admin access required' },
+        { status: 401 }
+      );
+    }
     
     const formData = await req.formData();
     const file = formData.get('file') as File;
