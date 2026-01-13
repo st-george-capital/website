@@ -120,9 +120,9 @@ export default function FundPage() {
                   <p className="text-sm text-muted-foreground mb-4">
                     Comprehensive market analysis covering economic trends, sector rotations, and investment themes.
                   </p>
-                  <Button variant="outline" className="w-full" asChild>
-                    <Link href="/strategy">View Strategy</Link>
-                  </Button>
+                  <Link href="/strategy">
+                    <Button variant="outline" className="w-full">View Strategy</Button>
+                  </Link>
                 </CardContent>
               </Card>
 
@@ -140,9 +140,9 @@ export default function FundPage() {
                   <p className="text-sm text-muted-foreground mb-4">
                     Systematic risk assessment and position sizing methodologies.
                   </p>
-                  <Button variant="outline" className="w-full" asChild>
-                    <Link href="/strategy">Learn More</Link>
-                  </Button>
+                  <Link href="/strategy">
+                    <Button variant="outline" className="w-full">Learn More</Button>
+                  </Link>
                 </CardContent>
               </Card>
 
@@ -160,9 +160,9 @@ export default function FundPage() {
                   <p className="text-sm text-muted-foreground mb-4">
                     Our rigorous investment process combining quantitative and fundamental analysis.
                   </p>
-                  <Button variant="outline" className="w-full" asChild>
-                    <Link href="/strategy">View Process</Link>
-                  </Button>
+                  <Link href="/strategy">
+                    <Button variant="outline" className="w-full">View Process</Button>
+                  </Link>
                 </CardContent>
               </Card>
             </div>
