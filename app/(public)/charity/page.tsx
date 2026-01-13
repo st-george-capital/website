@@ -1,6 +1,6 @@
 import { Section, SectionHeader } from '@/components/section';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
-import { Heart, Users, TrendingUp, Calendar } from 'lucide-react';
+import { Heart, Users, TrendingUp, Calendar, DollarSign } from 'lucide-react';
 import { Button } from '@/components/button';
 import { prisma } from '@/lib/prisma';
 
@@ -95,7 +95,7 @@ export default async function CharityPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             <Card className="bg-white/5 border-white/10">
               <CardHeader>
                 <Calendar className="w-8 h-8 mb-4 text-white" />
@@ -129,8 +129,22 @@ export default async function CharityPage() {
               </CardHeader>
               <CardContent>
                 <CardDescription className="text-white/80">
-                  Year over year, we're expanding our fundraising efforts and deepening our partnership 
+                  Year over year, we're expanding our fundraising efforts and deepening our partnership
                   to maximize our collective impact.
+                </CardDescription>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/5 border-white/10">
+              <CardHeader>
+                <DollarSign className="w-8 h-8 mb-4 text-white" />
+                <CardTitle className="font-serif text-xl text-white">SGC Charity Fund</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="text-white/80">
+                  Our dedicated charity fund accepts donations and invests them using our quantitative
+                  investment philosophy. A percentage of returns is donated yearly to causes our team
+                  holds dear, creating sustainable impact through strategic finance.
                 </CardDescription>
               </CardContent>
             </Card>

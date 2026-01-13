@@ -5,6 +5,12 @@
       "password": "2003",
       "name": "Kabir Dhillon",
       "role": "admin"
+    },
+    {
+        "email": "zackgwillson@gmail.com",
+        "password": "willson123",
+        "name": "Zack Willson",
+        "role": "admin"
     }
   ]
 }

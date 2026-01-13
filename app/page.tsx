@@ -104,9 +104,6 @@ export default function HomePage() {
             <span className="text-white/30">·</span>
             <span className="inline-block mx-2">Quod Victum</span>
           </div>
-          <div className="text-white/50 text-sm mt-3 italic">
-            Unforeseen · Adapted · Conquered
-          </div>
         </div>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
           <Link
