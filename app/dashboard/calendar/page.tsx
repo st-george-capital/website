@@ -184,12 +184,10 @@ export default function CalendarDashboardPage() {
           </p>
         </div>
         {isEditor && (
-          <Button asChild>
-            <Link href="/dashboard/calendar/new">
-              <Plus className="w-4 h-4 mr-2" />
-              New Event
-            </Link>
-          </Button>
+          <Link href="/dashboard/calendar/new" className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md text-sm font-medium transition-colors">
+            <Plus className="w-4 h-4 mr-2" />
+            New Event
+          </Link>
         )}
       </div>
 
@@ -333,20 +331,17 @@ export default function CalendarDashboardPage() {
 
               {isEditor && (
                 <div className="flex gap-2 mt-6 pt-4 border-t border-border">
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/dashboard/calendar/${selectedEvent.id}/edit`}>
-                      <Edit className="w-4 h-4 mr-1" />
-                      Edit
-                    </Link>
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
+                  <Link href={`/dashboard/calendar/${selectedEvent.id}/edit`} className="inline-flex items-center px-3 py-1 border border-border rounded-md text-sm hover:bg-accent transition-colors">
+                    <Edit className="w-4 h-4 mr-1" />
+                    Edit
+                  </Link>
+                  <button
+                    className="inline-flex items-center px-3 py-1 border border-red-400 text-red-400 rounded-md text-sm hover:bg-red-400/10 transition-colors"
                     onClick={() => deleteEvent(selectedEvent.id)}
                   >
                     <Trash2 className="w-4 h-4 mr-1" />
                     Delete
-                  </Button>
+                  </button>
                 </div>
               )}
             </div>
