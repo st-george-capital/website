@@ -23,6 +23,8 @@ interface Investment {
   priceAtEntry?: number;
   initialTarget?: number;
   currentTarget?: number;
+  exitPrice?: number;
+  active: boolean;
   tags: string;
   coverImage?: string;
   published: boolean;
@@ -153,8 +155,12 @@ export default async function InvestmentPage({ params }: { params: { id: string 
                     <div className="text-lg font-semibold">{formatCurrency(investment.initialTarget)}</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-sm text-muted-foreground mb-1">Current Target</div>
-                    <div className="text-lg font-semibold text-primary">{formatCurrency(investment.currentTarget)}</div>
+                    <div className="text-sm text-muted-foreground mb-1">
+                      {investment.active ? "Current Target" : "Exit Price"}
+                    </div>
+                    <div className={`text-lg font-semibold ${investment.active ? "text-primary" : "text-red-600"}`}>
+                      {formatCurrency(investment.active ? investment.currentTarget : investment.exitPrice)}
+                    </div>
                   </div>
                 </div>
               </CardContent>

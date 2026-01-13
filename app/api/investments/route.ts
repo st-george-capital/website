@@ -76,6 +76,8 @@ export async function POST(request: NextRequest) {
         priceAtEntry: data.priceAtEntry ? parseFloat(data.priceAtEntry) : null,
         initialTarget: data.initialTarget ? parseFloat(data.initialTarget) : null,
         currentTarget: data.currentTarget ? parseFloat(data.currentTarget) : null,
+        exitPrice: data.exitPrice ? parseFloat(data.exitPrice) : null,
+        active: data.active !== undefined ? data.active : true,
         publishDate,
         tags: data.tags || '',
         coverImage: data.coverImage || null,

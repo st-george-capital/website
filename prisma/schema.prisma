@@ -129,6 +129,8 @@ model Investment {
   priceAtEntry    Float?
   initialTarget   Float?   // Price target when invested
   currentTarget   Float?   // Current price target
+  exitPrice       Float?   // Price when position was exited
+  active          Boolean  @default(true) // Whether position is still active
   publishDate     DateTime? // When to publish/display on holdings
   tags            String   // Comma-separated: "Equity", "Macro", "Investment Strategy"
   coverImage      String?  // Cover image URL

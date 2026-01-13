@@ -50,6 +50,8 @@ export default function EditInvestmentPage() {
     priceAtEntry: '',
     initialTarget: '',
     currentTarget: '',
+    exitPrice: '',
+    active: true,
     publishDate: '',
     tags: 'Equity',
     coverImage: '',
@@ -75,10 +77,12 @@ export default function EditInvestmentPage() {
           content: investment.content,
           thesis: investment.thesis || '',
           entryDate: investment.entryDate ? investment.entryDate.split('T')[0] : '',
-          publishDate: investment.publishDate ? investment.publishDate.split('T')[0] : '',
           priceAtEntry: investment.priceAtEntry?.toString() || '',
           initialTarget: investment.initialTarget?.toString() || '',
           currentTarget: investment.currentTarget?.toString() || '',
+          exitPrice: investment.exitPrice?.toString() || '',
+          active: investment.active,
+          publishDate: investment.publishDate ? investment.publishDate.split('T')[0] : '',
           tags: investment.tags,
           coverImage: investment.coverImage || '',
           published: investment.published,
@@ -377,6 +381,33 @@ export default function EditInvestmentPage() {
                     className="w-full px-3 py-2 border border-border rounded-md"
                     placeholder="155.00"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Exit Price ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    name="exitPrice"
+                    value={formData.exitPrice}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-border rounded-md"
+                    placeholder="160.00 (leave empty if still active)"
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="active"
+                    name="active"
+                    checked={formData.active}
+                    onChange={(e) => setFormData(prev => ({ ...prev, active: e.target.checked }))}
+                    className="rounded"
+                  />
+                  <label htmlFor="active" className="text-sm font-medium">
+                    Position is active
+                  </label>
                 </div>
               </>
             )}

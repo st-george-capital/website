@@ -20,6 +20,8 @@ interface Investment {
   priceAtEntry?: number;
   initialTarget?: number;
   currentTarget?: number;
+  exitPrice?: number;
+  active: boolean;
   publishDate?: string;
   tags: string;
   coverImage?: string;
@@ -114,8 +116,8 @@ export default async function HoldingsPage() {
                           <div className="w-6 h-6 bg-primary rounded"></div>
                         </div>
                       )}
-                      <Badge variant="default" className="text-xs">
-                        Active Position
+                      <Badge variant={thesis.active ? "default" : "secondary"} className="text-xs">
+                        {thesis.active ? "Active Position" : "Exited Position"}
                       </Badge>
                     </div>
 
@@ -140,8 +142,12 @@ export default async function HoldingsPage() {
                           <div className="font-semibold">{formatCurrency(thesis.priceAtEntry)}</div>
                         </div>
                         <div>
-                          <div className="text-muted-foreground">Current Target</div>
-                          <div className="font-semibold">{formatCurrency(thesis.currentTarget)}</div>
+                          <div className="text-muted-foreground">
+                            {thesis.active ? "Current Target" : "Exit Price"}
+                          </div>
+                          <div className={`font-semibold ${!thesis.active ? "text-red-600" : ""}`}>
+                            {formatCurrency(thesis.active ? thesis.currentTarget : thesis.exitPrice)}
+                          </div>
                         </div>
                       </div>
 
