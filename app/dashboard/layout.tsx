@@ -17,6 +17,7 @@ import {
   Briefcase,
   Mail,
   BarChart3,
+  Calendar,
 } from 'lucide-react';
 
 const navigation: Array<{
@@ -29,6 +30,7 @@ const navigation: Array<{
   { name: 'Articles', href: '/dashboard/articles', icon: FileText },
   { name: 'Investments', href: '/dashboard/investments', icon: BarChart3 },
   { name: 'Strategy', href: '/dashboard/strategy', icon: BarChart3 },
+  { name: 'Calendar', href: '/dashboard/calendar', icon: Calendar },
   { name: 'Holdings', href: '/dashboard/holdings', icon: Briefcase },
   { name: 'Team', href: '/dashboard/team', icon: Users },
   { name: 'Contact Forms', href: '/dashboard/contact', icon: Mail },

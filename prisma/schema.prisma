@@ -155,3 +155,21 @@ model StrategyDocument {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
+
+model CalendarEvent {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  startDate   DateTime
+  endDate     DateTime?
+  allDay      Boolean  @default(false)
+  location    String?
+  category    String   // "quant_trading", "quant_research", "macro", "equity"
+  subcategory String?  // For macro/equity: "financials", "consumer", "energy", "healthcare", "macro_technology"
+  priority    String   @default("medium") // "low", "medium", "high", "urgent"
+  status      String   @default("scheduled") // "scheduled", "in_progress", "completed", "cancelled"
+  attendees   String?  // Comma-separated user IDs
+  createdBy   String   // User ID who created the event
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
