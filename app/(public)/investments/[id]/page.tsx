@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 // Force dynamic rendering for database queries
 export const dynamic = 'force-dynamic';
@@ -187,11 +188,57 @@ export default async function InvestmentPage({ params }: { params: { id: string 
             </CardHeader>
             <CardContent>
               <div className="prose prose-lg max-w-none">
-                {investment.content.split('\n').map((paragraph, index) => (
-                  <p key={index} className="mb-4">
-                    {paragraph}
-                  </p>
-                ))}
+                <ReactMarkdown
+                  components={{
+                    h1: ({ node, ...props }) => (
+                      <h1 className="font-serif text-4xl font-bold mt-12 mb-6" {...props} />
+                    ),
+                    h2: ({ node, ...props }) => (
+                      <h2 className="font-serif text-3xl font-bold mt-10 mb-4" {...props} />
+                    ),
+                    h3: ({ node, ...props }) => (
+                      <h3 className="font-serif text-2xl font-bold mt-8 mb-3" {...props} />
+                    ),
+                    h4: ({ node, ...props }) => (
+                      <h4 className="font-serif text-2xl font-semibold mt-6 mb-2" {...props} />
+                    ),
+                    p: ({ node, ...props }) => (
+                      <p className="mb-6 leading-relaxed" {...props} />
+                    ),
+                    ul: ({ node, ...props }) => (
+                      <ul className="mb-6 ml-6 list-disc space-y-2" {...props} />
+                    ),
+                    ol: ({ node, ...props }) => (
+                      <ol className="mb-6 ml-6 list-decimal space-y-2" {...props} />
+                    ),
+                    li: ({ node, ...props }) => (
+                      <li className="leading-relaxed" {...props} />
+                    ),
+                    blockquote: ({ node, ...props }) => (
+                      <blockquote className="border-l-4 border-primary pl-6 italic text-gray-600 my-6" {...props} />
+                    ),
+                    strong: ({ node, ...props }) => (
+                      <strong className="font-semibold text-gray-900" {...props} />
+                    ),
+                    em: ({ node, ...props }) => (
+                      <em className="italic text-gray-700" {...props} />
+                    ),
+                    code: ({ node, ...props }) => (
+                      <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono" {...props} />
+                    ),
+                    pre: ({ node, ...props }) => (
+                      <pre className="bg-gray-100 p-4 rounded-lg overflow-x-auto my-6" {...props} />
+                    ),
+                    img: ({ node, ...props }) => (
+                      <img className="max-w-full h-auto rounded-lg shadow-lg my-6" {...props} />
+                    ),
+                    a: ({ node, ...props }) => (
+                      <a className="text-primary hover:text-primary/80 underline" {...props} />
+                    ),
+                  }}
+                >
+                  {investment.content}
+                </ReactMarkdown>
               </div>
             </CardContent>
           </Card>
