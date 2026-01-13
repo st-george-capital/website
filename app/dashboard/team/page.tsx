@@ -7,53 +7,58 @@ import { Button } from '@/components/button';
 import { Users, Linkedin, Plus } from 'lucide-react';
 import Link from 'next/link';
 
-interface TeamMember {
+interface User {
   id: string;
+  email: string;
   name: string;
-  title: string;
   role: string;
-  division: string;
-  program: string | null;
-  year: string | null;
-  headshot: string | null;
-  linkedin: string | null;
-  isExecutive: boolean;
+  emailVerified: boolean;
+  createdAt: string;
+  teamMember?: {
+    id: string;
+    name: string;
+    division: string;
+    title: string;
+    isExecutive: boolean;
+  } | null;
 }
 
 export default function TeamDashboardPage() {
   const { data: session } = useSession();
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDivision, setSelectedDivision] = useState<string>('all');
-  
+  const [selectedRole, setSelectedRole] = useState<string>('all');
+
   const isAdmin = session?.user?.role === 'admin';
 
   useEffect(() => {
-    fetchTeamMembers();
+    fetchUsers();
   }, []);
 
-  const fetchTeamMembers = async () => {
+  const fetchUsers = async () => {
     try {
-      const response = await fetch('/api/team');
+      const response = await fetch('/api/users');
       const data = await response.json();
-      setTeamMembers(data);
+      setUsers(data);
     } catch (error) {
-      console.error('Failed to fetch team members:', error);
+      console.error('Failed to fetch users:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const divisions = ['all', ...new Set(teamMembers.map(m => m.division))];
-  
-  const filteredMembers = selectedDivision === 'all' 
-    ? teamMembers 
-    : teamMembers.filter(m => m.division === selectedDivision);
+  const roles = ['all', 'admin', 'user'];
 
-  const divisionCounts = teamMembers.reduce((acc, member) => {
-    acc[member.division] = (acc[member.division] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const filteredUsers = selectedRole === 'all'
+    ? users
+    : users.filter(u => u.role === selectedRole);
+
+  const stats = {
+    total: users.length,
+    admins: users.filter(u => u.role === 'admin').length,
+    users: users.filter(u => u.role === 'user').length,
+    verified: users.filter(u => u.emailVerified).length,
+  };
 
   if (loading) {
     return (
@@ -88,166 +93,126 @@ export default function TeamDashboardPage() {
       <div className="grid md:grid-cols-4 gap-6">
         <Card>
           <CardHeader>
-            <CardDescription>Total Members</CardDescription>
-            <CardTitle className="text-3xl">{teamMembers.length}</CardTitle>
+            <CardDescription>Total Users</CardDescription>
+            <CardTitle className="text-3xl">{stats.total}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader>
-            <CardDescription>On Website</CardDescription>
-            <CardTitle className="text-3xl text-green-600">
-              {teamMembers.filter(m => m.isExecutive).length}
-            </CardTitle>
+            <CardDescription>Admins</CardDescription>
+            <CardTitle className="text-3xl text-blue-600">{stats.admins}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader>
-            <CardDescription>Internal Only</CardDescription>
-            <CardTitle className="text-3xl text-gray-600">
-              {teamMembers.filter(m => !m.isExecutive).length}
-            </CardTitle>
+            <CardDescription>Members</CardDescription>
+            <CardTitle className="text-3xl text-green-600">{stats.users}</CardTitle>
           </CardHeader>
         </Card>
-        {Object.entries(divisionCounts).slice(0, 1).map(([division, count]) => (
-          <Card key={division}>
-            <CardHeader>
-              <CardDescription>{division}</CardDescription>
-              <CardTitle className="text-3xl">{count}</CardTitle>
-            </CardHeader>
-          </Card>
-        ))}
+        <Card>
+          <CardHeader>
+            <CardDescription>Verified Emails</CardDescription>
+            <CardTitle className="text-3xl text-purple-600">{stats.verified}</CardTitle>
+          </CardHeader>
+        </Card>
       </div>
 
       {/* Filters */}
       <div className="flex items-center space-x-4 overflow-x-auto pb-2">
-        {divisions.map((division) => (
+        {roles.map((role) => (
           <button
-            key={division}
-            onClick={() => setSelectedDivision(division)}
+            key={role}
+            onClick={() => setSelectedRole(role)}
             className={`px-4 py-2 rounded-lg whitespace-nowrap ${
-              selectedDivision === division
+              selectedRole === role
                 ? 'bg-primary text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            {division === 'all' ? 'All Members' : division}
+            {role === 'all' ? 'All Users' : role.charAt(0).toUpperCase() + role.slice(1) + 's'}
           </button>
         ))}
       </div>
 
-      {/* Team Grid */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredMembers.map((member) => (
-          <Card key={member.id}>
-            <CardHeader>
-              <div className="flex items-start space-x-4">
-                <div className="w-16 h-16 bg-primary/10 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
-                  {member.headshot ? (
-                    <img
-                      src={member.headshot}
-                      alt={member.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-xl font-bold text-primary">
-                      {member.name
-                        .split(' ')
-                        .map((n) => n[0])
-                        .join('')}
-                    </span>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <CardTitle className="text-lg">{member.name}</CardTitle>
-                    {member.isExecutive ? (
-                      <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">
-                        On Website
+      {/* Users Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Registered Users</CardTitle>
+          <CardDescription>
+            Manage user accounts and their team member associations
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-3 px-4 font-medium">User</th>
+                  <th className="text-left py-3 px-4 font-medium">Role</th>
+                  <th className="text-left py-3 px-4 font-medium">Status</th>
+                  <th className="text-left py-3 px-4 font-medium">Team Member</th>
+                  <th className="text-left py-3 px-4 font-medium">Joined</th>
+                  {isAdmin && <th className="text-left py-3 px-4 font-medium">Actions</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsers.map((user) => (
+                  <tr key={user.id} className="border-b hover:bg-gray-50">
+                    <td className="py-3 px-4">
+                      <div>
+                        <div className="font-medium">{user.name}</div>
+                        <div className="text-sm text-muted-foreground">{user.email}</div>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-1 text-xs rounded ${
+                        user.role === 'admin'
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-green-100 text-green-700'
+                      }`}>
+                        {user.role}
                       </span>
-                    ) : (
-                      <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                        Internal Only
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-1 text-xs rounded ${
+                        user.emailVerified
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {user.emailVerified ? 'Verified' : 'Pending'}
                       </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      {user.teamMember ? (
+                        <div>
+                          <div className="font-medium text-sm">{user.teamMember.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {user.teamMember.title} • {user.teamMember.division}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">Not linked</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-muted-foreground">
+                      {new Date(user.createdAt).toLocaleDateString()}
+                    </td>
+                    {isAdmin && (
+                      <td className="py-3 px-4">
+                        <div className="flex space-x-2">
+                          <Button variant="outline" size="sm">
+                            Link Member
+                          </Button>
+                        </div>
+                      </td>
                     )}
-                  </div>
-                  <CardDescription className="text-sm mb-2">
-                    {member.title || member.role || 'No title'}
-                  </CardDescription>
-                  <div className="flex flex-wrap gap-2 text-xs">
-                    <span className="px-2 py-1 bg-primary/10 text-primary rounded">
-                      {member.division}
-                    </span>
-                    {member.program && (
-                      <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded">
-                        {member.program}
-                      </span>
-                    )}
-                    {member.year && (
-                      <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded">
-                        {member.year}
-                      </span>
-                    )}
-                  </div>
-                  {member.linkedin && (
-                    <a
-                      href={member.linkedin}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center mt-3 text-sm text-primary hover:underline"
-                    >
-                      <Linkedin className="w-4 h-4 mr-1" />
-                      LinkedIn
-                    </a>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
-        ))}
-      </div>
-
-      {filteredMembers.length === 0 && (
-        <Card>
-          <CardHeader className="text-center py-12">
-            <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <CardTitle>No Team Members Found</CardTitle>
-            <CardDescription>
-              No team members match the selected filter.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      )}
-
-      {/* Division Breakdown */}
-      {Object.keys(divisionCounts).length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Members by Division</CardTitle>
-            <CardDescription>Distribution across teams</CardDescription>
-            <div className="mt-6 space-y-4">
-              {Object.entries(divisionCounts).map(([division, count]) => {
-                const percentage = (count / teamMembers.length) * 100;
-                return (
-                  <div key={division}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium">{division}</span>
-                      <span className="text-muted-foreground">
-                        {count} ({percentage.toFixed(0)}%)
-                      </span>
-                    </div>
-                    <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary"
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardHeader>
-        </Card>
-      )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

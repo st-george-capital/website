@@ -98,8 +98,11 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="text-center">
-              <Link href="/" className="text-sm text-primary hover:underline">
+            <div className="text-center space-y-2">
+              <Link href="/register" className="text-sm text-primary hover:underline block">
+                Need an account? Sign up
+              </Link>
+              <Link href="/" className="text-sm text-primary hover:underline block">
                 ← Back to Home
               </Link>
             </div>
@@ -107,7 +110,7 @@ export default function LoginPage() {
         </Card>
 
         <p className="text-center mt-6 text-sm text-white/40">
-          For access, please contact your administrator
+          Access the SGC dashboard for team management and content creation
         </p>
       </div>
     </div>

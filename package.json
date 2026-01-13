@@ -12,7 +12,6 @@
     "db:generate": "prisma generate",
     "create-admin": "node scripts/create-admin.js",
     "seed-team": "node scripts/seed-team.js",
-    "sync-users": "node scripts/sync-users.js",
     "init-settings": "node scripts/init-settings.js"
   },
   "dependencies": {

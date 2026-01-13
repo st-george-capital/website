@@ -8,13 +8,18 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  name         String?
-  role         String   @default("user")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String     @id @default(cuid())
+  email          String     @unique
+  passwordHash   String
+  name           String?
+  role           String     @default("user")
+  emailVerified  Boolean    @default(false)
+  emailToken     String?    @unique
+  emailTokenExpiry DateTime?
+  teamMemberId   String?    @unique
+  teamMember     TeamMember? @relation(fields: [teamMemberId], references: [id])
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 }
 
 model Article {
@@ -47,6 +52,7 @@ model TeamMember {
   headshot    String?
   isExecutive Boolean @default(false)
   order       Int     @default(0)
+  user        User?
 }
 
 model Holding {
