@@ -435,6 +435,25 @@ export default function EditInvestmentPage() {
               </div>
             </div>
 
+            {/* Content */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                {formData.type === 'thesis' ? 'Full Analysis' : 'Market Outlook'}
+              </label>
+              <textarea
+                name="content"
+                value={formData.content}
+                onChange={handleChange}
+                rows={12}
+                className="w-full px-3 py-2 border border-border rounded-md"
+                placeholder={`${formData.type === 'thesis'
+                  ? "Detailed analysis, valuation, risks, catalysts..."
+                  : "Market outlook, economic analysis, sector views..."
+                }\n\nTo add images:\n1. Upload images using the button above\n2. Click an uploaded image to copy markdown\n3. Paste it here where you want the image`}
+                required
+              />
+            </div>
+
             {/* Publish */}
             <div className="flex items-center space-x-2">
               <input

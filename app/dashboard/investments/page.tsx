@@ -227,7 +227,7 @@ export default function InvestmentsDashboardPage() {
                     <div className="flex space-x-2">
                       <Link href={`/dashboard/investments/${investment.id}/edit`}>
                         <Button variant="outline" size="sm">
-                          <Edit className="w-4 h-4" />
+                          <Edit className="w-4 h-4 text-gray-600" />
                         </Button>
                       </Link>
                       <Button
