@@ -45,7 +45,7 @@ export default function InvestmentsDashboardPage() {
     try {
       const params = new URLSearchParams();
       if (filterType !== 'all') params.append('type', filterType);
-      if (filterPublished !== 'all') params.append('published', filterPublished === 'published' ? 'true' : 'false');
+      if (filterPublished !== 'all') params.append('published', filterPublished);
 
       const response = await fetch(`/api/investments?${params}`);
       const data = await response.json();

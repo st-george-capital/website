@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type'); // 'thesis' or 'outlook'
-    const published = searchParams.get('published') === 'true';
+    const publishedFilter = searchParams.get('published'); // 'all', 'published', or 'draft'
 
     const session = await getServerSession(authOptions);
     const isAdmin = session?.user?.role === 'admin';
@@ -16,9 +16,12 @@ export async function GET(request: NextRequest) {
     const whereClause: any = {};
     if (!isAdmin) {
       whereClause.published = true;
-    } else if (published !== null) {
-      whereClause.published = published;
+    } else if (publishedFilter === 'published') {
+      whereClause.published = true;
+    } else if (publishedFilter === 'draft') {
+      whereClause.published = false;
     }
+    // If publishedFilter is 'all' or null, don't filter by published status (admins see all)
 
     if (type) {
       whereClause.type = type;
