@@ -24,6 +24,7 @@ const navItems = [
       { name: 'Quant Trading', href: '/quant-trading' },
       { name: 'Quant Research', href: '/quant-research' },
       { name: 'Equity & Macro Research', href: '/equity-macro-research' },
+      { name: 'Our Holdings', href: '/holdings' },
       { name: 'Our Strategy', href: '/fund' },
     ],
   },

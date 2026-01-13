@@ -114,3 +114,23 @@ model Settings {
   description String?
   updatedAt   DateTime @updatedAt
 }
+
+model Investment {
+  id              String   @id @default(cuid())
+  type            String   // "thesis" or "outlook"
+  title           String
+  company         String?
+  ticker          String?
+  year            Int
+  season          String   // "Fall", "Winter", "Summer"
+  content         String   // Full thesis/outlook content
+  thesis          String?  // Why we invested
+  entryDate       DateTime?
+  priceAtEntry    Float?
+  initialTarget   Float?   // Price target when invested
+  currentTarget   Float?   // Current price target
+  tags            String   // Comma-separated: "Equity", "Macro", "Investment Strategy"
+  published       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
