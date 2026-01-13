@@ -66,12 +66,10 @@ export default async function StrategyDocumentPage({
         <div className="max-w-4xl mx-auto">
           {/* Back Button */}
           <div className="mb-8">
-            <Button variant="ghost" asChild>
-              <Link href="/strategy">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Strategy & Research
-              </Link>
-            </Button>
+            <Link href="/strategy" className="inline-flex items-center px-4 py-2 text-sm font-medium text-white/60 hover:text-white hover:bg-white/10 rounded-md transition-colors">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Strategy & Research
+            </Link>
           </div>
 
           {/* Document Header */}
