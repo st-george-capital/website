@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { Upload, Image as ImageIcon, Copy, X } from 'lucide-react';
+import { Upload, Image as ImageIcon, Copy, X, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 export default function NewInvestmentPage() {
