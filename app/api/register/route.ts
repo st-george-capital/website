@@ -6,7 +6,7 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const ADMIN_CODE = process.env.ADMIN_CODE || 'SGC2024ADMIN';
+const ADMIN_CODE = process.env.ADMIN_CODE || 'stgeorge2025';
 
 export async function POST(request: NextRequest) {
   try {
