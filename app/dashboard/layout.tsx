@@ -28,6 +28,7 @@ const navigation: Array<{
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Articles', href: '/dashboard/articles', icon: FileText },
   { name: 'Investments', href: '/dashboard/investments', icon: BarChart3 },
+  { name: 'Strategy', href: '/dashboard/strategy', icon: BarChart3 },
   { name: 'Holdings', href: '/dashboard/holdings', icon: Briefcase },
   { name: 'Team', href: '/dashboard/team', icon: Users },
   { name: 'Contact Forms', href: '/dashboard/contact', icon: Mail },

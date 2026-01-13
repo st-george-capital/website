@@ -15,6 +15,7 @@ const footerLinks = {
   ],
   resources: [
     { name: 'Research Articles', href: '/research' },
+    { name: 'Strategy & Research', href: '/strategy' },
     { name: 'The Fund', href: '/fund' },
     { name: 'Join Us', href: '/contact' },
   ],

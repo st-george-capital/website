@@ -138,3 +138,20 @@ model Investment {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
+
+model StrategyDocument {
+  id              String   @id @default(cuid())
+  type            String   // "investment_strategy" or "industry_report"
+  title           String
+  year            String   // Year as string
+  content         String   // Full document content (markdown)
+  executiveSummary String? // Brief summary for display
+  industries      String?  // Comma-separated industries covered
+  sectors         String?  // Comma-separated sectors covered
+  coverImage      String?  // Cover image URL
+  documentFile    String?  // PDF document URL if uploaded
+  published       Boolean  @default(false)
+  publishDate     DateTime? // When to publish/display
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
