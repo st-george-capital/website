@@ -47,6 +47,7 @@ export default function NewStrategyDocumentPage() {
       const res = await fetch('/api/upload', {
         method: 'POST',
         body: formDataUpload,
+        credentials: 'include',
       });
 
       if (!res.ok) throw new Error('Upload failed');

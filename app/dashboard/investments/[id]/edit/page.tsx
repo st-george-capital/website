@@ -111,6 +111,7 @@ export default function EditInvestmentPage() {
       const res = await fetch('/api/upload', {
         method: 'POST',
         body: formDataUpload,
+        credentials: 'include',
       });
 
       if (res.ok) {
@@ -137,6 +138,7 @@ export default function EditInvestmentPage() {
       const res = await fetch('/api/upload', {
         method: 'POST',
         body: formDataUpload,
+        credentials: 'include',
       });
 
       if (res.ok) {
