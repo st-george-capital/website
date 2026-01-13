@@ -206,9 +206,10 @@ export default function StrategyDashboardPage() {
                       <Edit className="w-4 h-4" />
                     </Link>
                     <Button
-                      variant="destructive"
+                      variant="outline"
                       size="sm"
                       onClick={() => deleteDocument(doc.id)}
+                      className="text-red-400 border-red-400 hover:bg-red-400/10"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
