@@ -12,7 +12,8 @@
     "db:generate": "prisma generate",
     "create-admin": "node scripts/create-admin.js",
     "seed-team": "node scripts/seed-team.js",
-    "init-settings": "node scripts/init-settings.js"
+    "init-settings": "node scripts/init-settings.js",
+    "create-admin-user": "node scripts/create-admin.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
