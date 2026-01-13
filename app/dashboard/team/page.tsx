@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { Users, Linkedin, Plus, UserCheck } from 'lucide-react';
+import { Users, Linkedin, Plus, UserCheck, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
 interface User {
@@ -43,6 +43,7 @@ export default function TeamDashboardPage() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRole, setSelectedRole] = useState<string>('all');
+  const [deletingUser, setDeletingUser] = useState<string | null>(null);
 
   const isAdmin = session?.user?.role === 'admin';
 
@@ -75,6 +76,30 @@ export default function TeamDashboardPage() {
       console.error('Failed to fetch team members:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const deleteUser = async (userId: string) => {
+    try {
+      const response = await fetch('/api/users', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete user');
+      }
+
+      // Remove user from local state
+      setUsers(users.filter(u => u.id !== userId));
+      setDeletingUser(null);
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      alert('Failed to delete user: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
@@ -319,6 +344,14 @@ export default function TeamDashboardPage() {
                             <Button variant="outline" size="sm">
                               Link Member
                             </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setDeletingUser(user.id)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </div>
                         </td>
                       )}
@@ -406,6 +439,33 @@ export default function TeamDashboardPage() {
                 </CardHeader>
               </Card>
             ))}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Delete User</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete this user? This action cannot be undone.
+            </p>
+            <div className="flex space-x-3">
+              <Button
+                onClick={() => setDeletingUser(null)}
+                variant="outline"
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => deleteUser(deletingUser)}
+                className="flex-1 bg-red-600 hover:bg-red-700"
+              >
+                Delete User
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
