@@ -82,8 +82,8 @@ export default function InvestmentPitchesDashboardPage() {
     return [];
   };
 
-  const getUniqueSubcategories = () => {
-    const subcategories = pitches.map(pitch => pitch.subcategory).filter(Boolean);
+  const getUniqueSubcategories = (): string[] => {
+    const subcategories = pitches.map(pitch => pitch.subcategory).filter((sub): sub is string => sub !== null && sub !== undefined);
     return [...new Set(subcategories)].sort();
   };
 
