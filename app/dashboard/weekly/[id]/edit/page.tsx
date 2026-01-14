@@ -63,6 +63,8 @@ export default function EditWeeklyContentPage() {
           season: data.season,
           week: data.week.toString(),
           description: data.description || '',
+          contentType: data.contentType || 'pdf',
+          content: data.content || '',
           documentFile: data.documentFile || '',
           published: data.published,
           publishDate: data.publishDate ? new Date(data.publishDate).toISOString().slice(0, 16) : '',
