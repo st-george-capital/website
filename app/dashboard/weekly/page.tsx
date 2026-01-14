@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
 import { BookOpen, Plus, Edit, Trash2, FileText, Download, Eye } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
 
 interface WeeklyContent {
   id: string;
@@ -32,8 +31,6 @@ export default function WeeklyContentDashboardPage() {
   const [filterYear, setFilterYear] = useState<string>('all');
   const [filterSeason, setFilterSeason] = useState<string>('all');
   const [filterPublished, setFilterPublished] = useState<string>('all');
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [selectedContent, setSelectedContent] = useState<WeeklyContent | null>(null);
 
   const isAdmin = session?.user?.role === 'admin';
 
@@ -59,11 +56,6 @@ export default function WeeklyContentDashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleViewContent = (content: WeeklyContent) => {
-    setSelectedContent(content);
-    setShowViewModal(true);
   };
 
   const deleteWeeklyContent = async (id: string) => {
@@ -236,13 +228,13 @@ export default function WeeklyContentDashboardPage() {
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => handleViewContent(item)}
+                    <Link
+                      href={`/dashboard/weekly/${item.id}/view`}
                       className="p-2 text-muted-foreground hover:text-primary transition-colors"
                       title="View content"
                     >
                       <Eye className="w-4 h-4" />
-                    </button>
+                    </Link>
                     {item.documentFile && (
                       <a
                         href={item.documentFile}
@@ -280,88 +272,6 @@ export default function WeeklyContentDashboardPage() {
         </CardContent>
       </Card>
 
-      {/* View Content Modal */}
-      {showViewModal && selectedContent && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-card rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
-            <div className="p-6 border-b border-border">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold">{selectedContent.title}</h3>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className={`px-2 py-1 text-xs rounded ${
-                      selectedContent.category === 'news'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-green-100 text-green-700'
-                    }`}>
-                      {selectedContent.category}
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      {selectedContent.year} • {selectedContent.season} • Week {selectedContent.week}
-                    </span>
-                    {selectedContent.contentType && (
-                      <span className="text-sm text-muted-foreground">
-                        • {selectedContent.contentType === 'pdf' ? 'PDF Document' : 'Markdown Content'}
-                      </span>
-                    )}
-                  </div>
-                  {selectedContent.description && (
-                    <p className="text-sm text-muted-foreground mt-2">{selectedContent.description}</p>
-                  )}
-                </div>
-                <button
-                  onClick={() => setShowViewModal(false)}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            <div className="max-h-[70vh] overflow-y-auto">
-              {selectedContent.contentType === 'pdf' && selectedContent.documentFile ? (
-                <div className="p-6">
-                  <iframe
-                    src={selectedContent.documentFile}
-                    className="w-full h-[600px] border border-border rounded-lg"
-                    title={selectedContent.title}
-                  />
-                </div>
-              ) : selectedContent.contentType === 'markdown' && selectedContent.content ? (
-                <div className="p-6 prose prose-sm max-w-none dark:prose-invert">
-                  <ReactMarkdown>{selectedContent.content}</ReactMarkdown>
-                </div>
-              ) : selectedContent.documentFile ? (
-                <div className="p-6">
-                  <div className="text-center">
-                    <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                    <h4 className="text-lg font-medium mb-2">PDF Document</h4>
-                    <p className="text-muted-foreground mb-4">
-                      This content is available as a PDF document.
-                    </p>
-                    <a
-                      href={selectedContent.documentFile}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Open PDF
-                    </a>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-6">
-                  <div className="text-center text-muted-foreground">
-                    <FileText className="w-16 h-16 mx-auto mb-4" />
-                    <p>No content available to display.</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
