@@ -66,22 +66,46 @@ export async function PATCH(
       publishDate,
     } = await req.json();
 
-    const weeklyContent = await prisma.weeklyContent.update({
-      where: { id: params.id },
-      data: {
-        title,
-        category,
-        year,
-        season,
-        week: parseInt(week),
-        description,
-        contentType,
-        content: contentType === 'markdown' ? content : null,
-        documentFile: contentType === 'pdf' ? documentFile : null,
-        published,
-        publishDate: publishDate ? new Date(publishDate) : null,
-      },
-    });
+    // Try to update with new schema first, fall back to old schema if contentType column doesn't exist
+    let weeklyContent;
+    try {
+      weeklyContent = await prisma.weeklyContent.update({
+        where: { id: params.id },
+        data: {
+          title,
+          category,
+          year,
+          season,
+          week: parseInt(week),
+          description,
+          contentType,
+          content: contentType === 'markdown' ? content : null,
+          documentFile: contentType === 'pdf' ? documentFile : null,
+          published,
+          publishDate: publishDate ? new Date(publishDate) : null,
+        },
+      });
+    } catch (error: any) {
+      // If contentType column doesn't exist, fall back to old schema
+      if (error.code === 'P2022' && error.meta?.column === 'contentType') {
+        weeklyContent = await prisma.weeklyContent.update({
+          where: { id: params.id },
+          data: {
+            title,
+            category,
+            year,
+            season,
+            week: parseInt(week),
+            description,
+            documentFile,
+            published,
+            publishDate: publishDate ? new Date(publishDate) : null,
+          },
+        });
+      } else {
+        throw error;
+      }
+    }
 
     return NextResponse.json(weeklyContent);
   } catch (error) {
