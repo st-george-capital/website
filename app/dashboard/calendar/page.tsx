@@ -328,7 +328,7 @@ export default function CalendarDashboardPage() {
                 <div
                   key={index}
                   className="border border-border rounded-lg p-4 cursor-pointer hover:bg-accent/50 transition-colors"
-                  onClick={() => handleMonthClick(monthIndex)}
+                  onClick={() => handleMonthClick(index)}
                 >
                   <h3 className="font-semibold mb-3 text-center">{monthName}</h3>
                   <div className="space-y-1">
