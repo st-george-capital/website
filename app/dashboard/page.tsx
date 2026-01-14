@@ -77,20 +77,29 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="mt-4 space-y-2">
-              {isAdmin && (
-                <Link href="/dashboard/articles/new">
-                  <Button size="sm" className="w-full justify-start">
-                    <Plus className="w-4 h-4 mr-2" />
-                    New Article
+              {isAdmin ? (
+                <>
+                  <Link href="/dashboard/articles/new">
+                    <Button size="sm" className="w-full justify-start">
+                      <Plus className="w-4 h-4 mr-2" />
+                      New Article
+                    </Button>
+                  </Link>
+                  <Link href="/dashboard/articles">
+                    <Button variant="outline" size="sm" className="w-full justify-start">
+                      <Eye className="w-4 h-4 mr-2" />
+                      View Articles
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <Link href="/dashboard/articles">
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Eye className="w-4 h-4 mr-2" />
+                    View Articles
                   </Button>
                 </Link>
               )}
-              <Link href="/dashboard/articles">
-                <Button variant="outline" size="sm" className="w-full justify-start">
-                  <Eye className="w-4 h-4 mr-2" />
-                  View Articles
-                </Button>
-              </Link>
             </div>
           </CardHeader>
         </Card>
@@ -124,6 +133,9 @@ export default function DashboardPage() {
                   </Button>
                 </Link>
               )}
+              {!isAdmin && (
+                <div className="h-[38px]"></div> // Spacer to align with admin cards
+              )}
             </div>
           </CardHeader>
         </Card>
@@ -149,13 +161,15 @@ export default function DashboardPage() {
                   View Calendar
                 </Button>
               </Link>
-              {isAdmin && (
+              {isAdmin ? (
                 <Link href="/dashboard/calendar/new">
                   <Button size="sm" className="w-full justify-start">
                     <Plus className="w-4 h-4 mr-2" />
                     New Event
                   </Button>
                 </Link>
+              ) : (
+                <div className="h-[38px]"></div> // Spacer to align with admin cards
               )}
             </div>
           </CardHeader>
@@ -182,13 +196,15 @@ export default function DashboardPage() {
                   View Holdings
                 </Button>
               </Link>
-              {isAdmin && (
+              {isAdmin ? (
                 <Link href="/dashboard/investments/new">
                   <Button size="sm" className="w-full justify-start">
                     <Plus className="w-4 h-4 mr-2" />
                     New Investment
                   </Button>
                 </Link>
+              ) : (
+                <div className="h-[38px]"></div> // Spacer to align with admin cards
               )}
             </div>
           </CardHeader>
@@ -215,13 +231,15 @@ export default function DashboardPage() {
                   View Strategy
                 </Button>
               </Link>
-              {isAdmin && (
+              {isAdmin ? (
                 <Link href="/dashboard/strategy/new">
                   <Button size="sm" className="w-full justify-start">
                     <Plus className="w-4 h-4 mr-2" />
                     New Document
                   </Button>
                 </Link>
+              ) : (
+                <div className="h-[38px]"></div> // Spacer to align with admin cards
               )}
             </div>
           </CardHeader>
@@ -259,41 +277,6 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Admin Quick Stats */}
-      {isAdmin && (
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold mb-4">Quick Overview</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-blue-600" />
-                  <CardDescription>Content Management</CardDescription>
-                </div>
-                <CardTitle className="text-sm">Articles, Strategy, Pitches</CardTitle>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-green-600" />
-                  <CardDescription>Team Management</CardDescription>
-                </div>
-                <CardTitle className="text-sm">User roles & permissions</CardTitle>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-purple-600" />
-                  <CardDescription>Event Planning</CardDescription>
-                </div>
-                <CardTitle className="text-sm">Schedule & coordination</CardTitle>
-              </CardHeader>
-            </Card>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

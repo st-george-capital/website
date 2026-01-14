@@ -102,7 +102,7 @@ export default async function HoldingsPage() {
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {theses.map((thesis) => (
-                <Card key={thesis.id} className="hover:shadow-lg transition-shadow">
+                <Card key={thesis.id} className="hover:shadow-lg transition-shadow flex flex-col h-full">
                   <CardHeader>
                     <div className="flex items-start justify-between mb-4">
                       {thesis.coverImage ? (
@@ -133,8 +133,8 @@ export default async function HoldingsPage() {
                     </div>
                   </CardHeader>
 
-                  <CardContent>
-                    <div className="space-y-4">
+                  <CardContent className="flex flex-col h-full">
+                    <div className="flex-grow space-y-4">
                       {/* Price Information */}
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
@@ -169,8 +169,10 @@ export default async function HoldingsPage() {
                           </div>
                         </div>
                       )}
+                    </div>
 
-                      {/* View Full Analysis */}
+                    {/* View Full Analysis - Always at bottom */}
+                    <div className="mt-4">
                       <Link href={`/investments/${thesis.id}`}>
                         <div className="w-full bg-primary text-primary-foreground px-4 py-2 rounded-md text-center text-sm font-medium hover:bg-primary/90 transition-colors">
                           View Full Analysis

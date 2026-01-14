@@ -20,6 +20,8 @@ export default function NewWeeklyContentPage() {
     season: 'fall',
     week: '1',
     description: '',
+    contentType: 'pdf',
+    content: '',
     documentFile: '',
     published: false,
     publishDate: '',
@@ -78,6 +80,9 @@ export default function NewWeeklyContentPage() {
           ...formData,
           week: parseInt(formData.week),
           publishDate: formData.publishDate ? formData.publishDate : null,
+          // Only include content or documentFile based on contentType
+          content: formData.contentType === 'markdown' ? formData.content : null,
+          documentFile: formData.contentType === 'pdf' ? formData.documentFile : null,
         }),
       });
 
@@ -127,7 +132,7 @@ export default function NewWeeklyContentPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <label className="block text-sm font-medium mb-2">Title *</label>
                 <input
@@ -148,6 +153,18 @@ export default function NewWeeklyContentPage() {
                 >
                   <option value="news">News</option>
                   <option value="learning">Learning</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Content Type *</label>
+                <select
+                  value={formData.contentType}
+                  onChange={(e) => setFormData(prev => ({ ...prev, contentType: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-primary focus:outline-none"
+                  required
+                >
+                  <option value="pdf">PDF Document</option>
+                  <option value="markdown">Markdown Content</option>
                 </select>
               </div>
             </div>
@@ -201,32 +218,49 @@ export default function NewWeeklyContentPage() {
               />
             </div>
 
-            {/* File Upload */}
-            <div>
-              <label className="block text-sm font-medium mb-2">PDF Document</label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-                <div className="text-center">
-                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <div className="space-y-2">
-                    <label className="cursor-pointer">
-                      <span className="text-sm text-gray-600">
-                        {uploading ? 'Uploading...' : 'Click to upload PDF'}
-                      </span>
-                      <input
-                        type="file"
-                        accept=".pdf"
-                        onChange={handleFileChange}
-                        className="hidden"
-                        disabled={uploading}
-                      />
-                    </label>
-                    {formData.documentFile && (
-                      <p className="text-sm text-green-600">File uploaded successfully</p>
-                    )}
+            {/* Content Input */}
+            {formData.contentType === 'pdf' ? (
+              <div>
+                <label className="block text-sm font-medium mb-2">PDF Document</label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                  <div className="text-center">
+                    <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <div className="space-y-2">
+                      <label className="cursor-pointer">
+                        <span className="text-sm text-gray-600">
+                          {uploading ? 'Uploading...' : 'Click to upload PDF'}
+                        </span>
+                        <input
+                          type="file"
+                          accept=".pdf"
+                          onChange={handleFileChange}
+                          className="hidden"
+                          disabled={uploading}
+                        />
+                      </label>
+                      {formData.documentFile && (
+                        <p className="text-sm text-green-600">File uploaded successfully</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium mb-2">Markdown Content</label>
+                <textarea
+                  value={formData.content}
+                  onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
+                  rows={12}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-primary focus:outline-none font-mono text-sm"
+                  placeholder="Write your content in Markdown format..."
+                  required={formData.contentType === 'markdown'}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Use Markdown syntax for formatting. Supports **bold**, *italic*, [links](url), and more.
+                </p>
+              </div>
+            )}
 
             {/* Publish Settings */}
             <div className="space-y-4">
