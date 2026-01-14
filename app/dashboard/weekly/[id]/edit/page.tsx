@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
@@ -23,8 +23,9 @@ interface WeeklyContent {
 
 export default function EditWeeklyContentPage() {
   const { data: session } = useSession();
-  const router = useParams();
-  const id = router.id as string;
+  const router = useRouter();
+  const params = useParams();
+  const id = params.id as string;
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
