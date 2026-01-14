@@ -12,7 +12,7 @@ export default function RegisterPage() {
     password: '',
     confirmPassword: '',
     name: '',
-    role: 'user',
+    role: 'visitor',
     adminCode: '',
   });
   const [loading, setLoading] = useState(false);
@@ -149,7 +149,7 @@ export default function RegisterPage() {
                 onChange={handleChange}
                 className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-white/30"
               >
-                <option value="user" className="bg-[#030116]">Member</option>
+                <option value="visitor" className="bg-[#030116]">Visitor</option>
                 <option value="admin" className="bg-[#030116]">Admin</option>
               </select>
             </div>

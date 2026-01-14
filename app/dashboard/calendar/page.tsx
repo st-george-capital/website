@@ -69,16 +69,25 @@ export default function CalendarDashboardPage() {
 
   useEffect(() => {
     fetchEvents();
-  }, [currentDate, selectedCategory]);
+  }, [currentDate, selectedCategory, viewMode]);
 
   const fetchEvents = async () => {
     try {
-      const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-      const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+      let startDate: Date, endDate: Date;
+
+      if (viewMode === 'year') {
+        // Fetch events for the entire year when in year view
+        startDate = new Date(currentDate.getFullYear(), 0, 1); // January 1st
+        endDate = new Date(currentDate.getFullYear() + 1, 0, 0); // December 31st
+      } else {
+        // Fetch events for the current month when in month view
+        startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+      }
 
       const params = new URLSearchParams({
-        start: startOfMonth.toISOString(),
-        end: endOfMonth.toISOString(),
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
       });
 
       if (selectedCategory !== 'all') {
@@ -157,6 +166,11 @@ export default function CalendarDashboardPage() {
 
   const handleNextMonth = () => {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  };
+
+  const handleMonthClick = (monthIndex: number) => {
+    setCurrentDate(new Date(currentDate.getFullYear(), monthIndex, 1));
+    setViewMode('month');
   };
 
   const handleEventClick = (event: CalendarEvent) => {
@@ -311,7 +325,11 @@ export default function CalendarDashboardPage() {
               const monthName = monthDate.toLocaleDateString('en-US', { month: 'long' });
 
               return (
-                <div key={index} className="border border-border rounded-lg p-4">
+                <div
+                  key={index}
+                  className="border border-border rounded-lg p-4 cursor-pointer hover:bg-accent/50 transition-colors"
+                  onClick={() => handleMonthClick(monthIndex)}
+                >
                   <h3 className="font-semibold mb-3 text-center">{monthName}</h3>
                   <div className="space-y-1">
                     {monthEvents.slice(0, 4).map((event) => {
