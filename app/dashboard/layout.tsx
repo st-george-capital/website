@@ -18,6 +18,8 @@ import {
   Mail,
   BarChart3,
   Calendar,
+  BookOpen,
+  Presentation,
 } from 'lucide-react';
 
 const navigation: Array<{
@@ -25,15 +27,18 @@ const navigation: Array<{
   href: string;
   icon: any;
   adminOnly?: boolean;
+  userMinRole?: 'user' | 'admin'; // Minimum role required to access
 }> = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Articles', href: '/dashboard/articles', icon: FileText },
-  { name: 'Investments', href: '/dashboard/investments', icon: BarChart3 },
-  { name: 'Strategy', href: '/dashboard/strategy', icon: BarChart3 },
-  { name: 'Calendar', href: '/dashboard/calendar', icon: Calendar },
-  { name: 'Holdings', href: '/dashboard/holdings', icon: Briefcase },
-  { name: 'Team', href: '/dashboard/team', icon: Users },
-  { name: 'Contact Forms', href: '/dashboard/contact', icon: Mail },
+  { name: 'Articles', href: '/dashboard/articles', icon: FileText, userMinRole: 'user' },
+  { name: 'Investments', href: '/dashboard/investments', icon: BarChart3, userMinRole: 'user' },
+  { name: 'Strategy', href: '/dashboard/strategy', icon: BarChart3, userMinRole: 'user' },
+  { name: 'Calendar', href: '/dashboard/calendar', icon: Calendar, userMinRole: 'user' },
+  { name: 'Weekly Content', href: '/dashboard/weekly', icon: BookOpen, userMinRole: 'user' },
+  { name: 'Investment Pitches', href: '/dashboard/pitches', icon: Presentation, userMinRole: 'user' },
+  { name: 'Holdings', href: '/dashboard/holdings', icon: Briefcase, userMinRole: 'user' },
+  { name: 'Team', href: '/dashboard/team', icon: Users, userMinRole: 'user' },
+  { name: 'Contact Forms', href: '/dashboard/contact', icon: Mail, userMinRole: 'user' },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings, adminOnly: true },
 ];
 
@@ -120,7 +125,12 @@ export default function DashboardLayout({
               if (item.adminOnly && session.user.role !== 'admin') {
                 return null;
               }
-              
+
+              // Hide items requiring user role from visitors
+              if (item.userMinRole === 'user' && (session.user.role === 'visitor' || !session.user.role)) {
+                return null;
+              }
+
               return (
                 <Link
                   key={item.name}

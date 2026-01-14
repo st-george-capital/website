@@ -20,10 +20,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate role
-    if (!['user', 'admin'].includes(role)) {
+    // Validate role - new users can only register as visitor or admin
+    if (!['visitor', 'admin'].includes(role)) {
       return NextResponse.json(
-        { error: 'Invalid role. Must be user or admin' },
+        { error: 'Invalid role. Must be visitor or admin' },
         { status: 400 }
       );
     }

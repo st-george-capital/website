@@ -60,6 +60,7 @@ export default function CalendarDashboardPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState<'month' | 'year'>('month');
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'quant_trading' | 'quant_research' | 'macro' | 'equity'>('all');
   const [showEventModal, setShowEventModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -115,6 +116,23 @@ export default function CalendarDashboardPage() {
     }
 
     return days;
+  };
+
+  const getMonthsInYear = () => {
+    const months = [];
+    for (let month = 0; month < 12; month++) {
+      months.push(new Date(currentDate.getFullYear(), month, 1));
+    }
+    return months;
+  };
+
+  const getEventsForMonth = (monthDate: Date) => {
+    const month = monthDate.getMonth();
+    const year = monthDate.getFullYear();
+    return events.filter(event => {
+      const eventDate = new Date(event.startDate);
+      return eventDate.getMonth() === month && eventDate.getFullYear() === year;
+    });
   };
 
   const getEventsForDate = (date: Date) => {
@@ -214,35 +232,89 @@ export default function CalendarDashboardPage() {
         {/* Calendar Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
           <h2 className="text-xl font-semibold">
-            {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            {viewMode === 'month'
+              ? currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+              : currentDate.getFullYear()
+            }
           </h2>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handlePrevMonth}>
+            <div className="flex items-center gap-1 mr-4">
+              <button
+                onClick={() => setViewMode('month')}
+                className={`px-3 py-1 text-xs rounded ${viewMode === 'month' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
+              >
+                Month
+              </button>
+              <button
+                onClick={() => setViewMode('year')}
+                className={`px-3 py-1 text-xs rounded ${viewMode === 'year' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
+              >
+                Year
+              </button>
+            </div>
+            <Button variant="outline" size="sm" onClick={viewMode === 'month' ? handlePrevMonth : () => setCurrentDate(new Date(currentDate.getFullYear() - 1, 0, 1))}>
               ‹
             </Button>
-            <Button variant="outline" size="sm" onClick={handleNextMonth}>
+            <Button variant="outline" size="sm" onClick={viewMode === 'month' ? handleNextMonth : () => setCurrentDate(new Date(currentDate.getFullYear() + 1, 0, 1))}>
               ›
             </Button>
           </div>
         </div>
 
         {/* Calendar Grid */}
-        <div className="grid grid-cols-7">
-          {/* Day Headers */}
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-            <div key={day} className="p-4 text-center font-medium text-muted-foreground border-b border-border">
-              {day}
-            </div>
-          ))}
+        {viewMode === 'month' ? (
+          <div className="grid grid-cols-7">
+            {/* Day Headers */}
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+              <div key={day} className="p-4 text-center font-medium text-muted-foreground border-b border-border">
+                {day}
+              </div>
+            ))}
 
-          {/* Calendar Days */}
-          {days.map((date, index) => (
-            <div key={index} className="min-h-[120px] p-2 border-r border-b border-border">
-              {date && (
-                <>
-                  <div className="text-sm font-medium mb-2">{date.getDate()}</div>
+            {/* Calendar Days */}
+            {days.map((date, index) => (
+              <div key={index} className="min-h-[120px] p-2 border-r border-b border-border">
+                {date && (
+                  <>
+                    <div className="text-sm font-medium mb-2">{date.getDate()}</div>
+                    <div className="space-y-1">
+                      {getEventsForDate(date).slice(0, 3).map((event) => {
+                        const StatusIcon = statusIcons[event.status];
+                        return (
+                          <div
+                            key={event.id}
+                            onClick={() => handleEventClick(event)}
+                            className={`text-xs p-1 rounded cursor-pointer ${categoryColors[event.category]} text-white truncate hover:opacity-80`}
+                          >
+                            <div className="flex items-center gap-1">
+                              <StatusIcon className="w-3 h-3" />
+                              <span>{event.title}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {getEventsForDate(date).length > 3 && (
+                        <div className="text-xs text-muted-foreground">
+                          +{getEventsForDate(date).length - 3} more
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 md:grid-cols-4 gap-4 p-6">
+            {getMonthsInYear().map((monthDate, index) => {
+              const monthEvents = getEventsForMonth(monthDate);
+              const monthName = monthDate.toLocaleDateString('en-US', { month: 'long' });
+
+              return (
+                <div key={index} className="border border-border rounded-lg p-4">
+                  <h3 className="font-semibold mb-3 text-center">{monthName}</h3>
                   <div className="space-y-1">
-                    {getEventsForDate(date).slice(0, 3).map((event) => {
+                    {monthEvents.slice(0, 4).map((event) => {
                       const StatusIcon = statusIcons[event.status];
                       return (
                         <div
@@ -257,17 +329,22 @@ export default function CalendarDashboardPage() {
                         </div>
                       );
                     })}
-                    {getEventsForDate(date).length > 3 && (
+                    {monthEvents.length > 4 && (
                       <div className="text-xs text-muted-foreground">
-                        +{getEventsForDate(date).length - 3} more
+                        +{monthEvents.length - 4} more events
+                      </div>
+                    )}
+                    {monthEvents.length === 0 && (
+                      <div className="text-xs text-muted-foreground text-center">
+                        No events
                       </div>
                     )}
                   </div>
-                </>
-              )}
-            </div>
-          ))}
-        </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Event Modal */}

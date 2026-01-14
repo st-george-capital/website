@@ -11,6 +11,28 @@ import { FileText, Users, Mail, TrendingUp } from 'lucide-react';
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+
+  // Show visitor message
+  if (session?.user?.role === 'visitor') {
+    return (
+      <div className="space-y-8">
+        <div className="text-center py-16">
+          <div className="max-w-md mx-auto">
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Users className="w-8 h-8 text-primary" />
+            </div>
+            <h1 className="text-3xl font-bold mb-4">Welcome to SGC</h1>
+            <p className="text-muted-foreground mb-8">
+              Your account is currently set to visitor status. Please contact an administrator to gain access to dashboard features.
+            </p>
+            <div className="text-sm text-muted-foreground">
+              <p>You can view your team profile and public content, but dashboard access requires user privileges.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const [stats, setStats] = useState({
     articles: 0,
     teamMembers: 0,

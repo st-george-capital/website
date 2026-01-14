@@ -12,7 +12,7 @@ model User {
   email          String     @unique
   passwordHash   String
   name           String?
-  role           String     @default("user")
+  role           String     @default("visitor") // "visitor", "user", "admin"
   emailVerified  Boolean    @default(false)
   emailToken     String?    @unique
   emailTokenExpiry DateTime?
@@ -170,6 +170,36 @@ model CalendarEvent {
   status      String   @default("scheduled") // "scheduled", "in_progress", "completed", "cancelled"
   attendees   String?  // Comma-separated user IDs
   createdBy   String   // User ID who created the event
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model WeeklyContent {
+  id          String   @id @default(cuid())
+  title       String
+  category    String   // "news", "learning"
+  year        String   // Year as string
+  season      String   // "winter", "summer", "fall"
+  week        Int      // Week number 1-52
+  description String?
+  documentFile String? // PDF file URL
+  published   Boolean  @default(false)
+  publishDate DateTime? // When to publish
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model InvestmentPitch {
+  id          String   @id @default(cuid())
+  title       String
+  company     String?
+  sector      String   // "macro", "equity"
+  subcategory String?  // For macro/equity subsectors
+  pitchDate   DateTime
+  description String?
+  documentFile String? // PDF file URL
+  published   Boolean  @default(false)
+  publishDate DateTime? // When to publish
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

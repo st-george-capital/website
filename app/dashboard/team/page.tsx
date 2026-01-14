@@ -79,6 +79,29 @@ export default function TeamDashboardPage() {
     }
   };
 
+  const updateUserRole = async (userId: string, newRole: string) => {
+    try {
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ role: newRole }),
+      });
+
+      if (response.ok) {
+        setUsers(users.map(user =>
+          user.id === userId ? { ...user, role: newRole } : user
+        ));
+      } else {
+        alert('Failed to update user role');
+      }
+    } catch (error) {
+      console.error('Error updating user role:', error);
+      alert('Failed to update user role');
+    }
+  };
+
   const deleteUser = async (userId: string) => {
     try {
       const response = await fetch('/api/users', {
@@ -306,13 +329,27 @@ export default function TeamDashboardPage() {
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <span className={`px-2 py-1 text-xs rounded ${
-                          user.role === 'admin'
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'bg-green-100 text-green-700'
-                        }`}>
-                          {user.role}
-                        </span>
+                        {isAdmin ? (
+                          <select
+                            value={user.role}
+                            onChange={(e) => updateUserRole(user.id, e.target.value)}
+                            className="px-2 py-1 text-xs rounded border border-gray-300 focus:border-primary focus:outline-none"
+                          >
+                            <option value="visitor">Visitor</option>
+                            <option value="user">User</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                        ) : (
+                          <span className={`px-2 py-1 text-xs rounded ${
+                            user.role === 'admin'
+                              ? 'bg-blue-100 text-blue-700'
+                              : user.role === 'visitor'
+                              ? 'bg-yellow-100 text-yellow-700'
+                              : 'bg-green-100 text-green-700'
+                          }`}>
+                            {user.role}
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 px-4">
                         <span className={`px-2 py-1 text-xs rounded ${
