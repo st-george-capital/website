@@ -87,6 +87,7 @@ export async function POST(req: NextRequest) {
     // Try to create with new schema first, fall back to old schema if contentType column doesn't exist
     let weeklyContent;
     try {
+      console.log('Trying to create with contentType:', contentType);
       weeklyContent = await prisma.weeklyContent.create({
         data: {
           title,
@@ -102,9 +103,12 @@ export async function POST(req: NextRequest) {
           publishDate: publishDate ? new Date(publishDate) : null,
         },
       });
+      console.log('Created successfully with contentType');
     } catch (error: any) {
+      console.log('Error caught:', error.code, error.meta);
       // If contentType column doesn't exist, fall back to old schema
       if (error.code === 'P2022' && error.meta?.column === 'contentType') {
+        console.log('Falling back to old schema without contentType');
         weeklyContent = await prisma.weeklyContent.create({
           data: {
             title,
@@ -118,7 +122,9 @@ export async function POST(req: NextRequest) {
             publishDate: publishDate ? new Date(publishDate) : null,
           },
         });
+        console.log('Created successfully with old schema');
       } else {
+        console.log('Throwing error:', error);
         throw error;
       }
     }
