@@ -7,7 +7,7 @@ import { Section } from '@/components/section';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '@/components/card';
 import { Button } from '@/components/button';
 import { Badge } from '@/components/ui/badge';
-import { Mail, MapPin, Linkedin, Instagram, Send, Briefcase, Users, TrendingUp, Target } from 'lucide-react';
+import { Mail, MapPin, Linkedin, Instagram, Send, Briefcase, Users, TrendingUp, Target, FileText } from 'lucide-react';
 interface JobPosting {
   id: string;
   title: string;
@@ -15,6 +15,7 @@ interface JobPosting {
   team: 'quant_trading' | 'quant_research' | 'macro' | 'equity';
   endDate: string;
   published: boolean;
+  documentFile?: string;
 }
 
 
@@ -459,12 +460,25 @@ function JobPostingCard({ posting }: { posting: JobPosting }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button
-            onClick={() => setShowApplicationForm(true)}
-            className="w-full"
-          >
-            Apply Now
-          </Button>
+          <div className="space-y-3">
+            {posting.documentFile && (
+              <a
+                href={posting.documentFile}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                View Job Description PDF
+              </a>
+            )}
+            <Button
+              onClick={() => setShowApplicationForm(true)}
+              className="w-full"
+            >
+              Apply Now
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

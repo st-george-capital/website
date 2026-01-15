@@ -182,9 +182,7 @@ model WeeklyContent {
   season       String   // "winter", "summer", "fall"
   week         Int      // Week number 1-52
   description  String?
-  contentType  String   @default("pdf") // "pdf" or "markdown"
-  content      String?  // Markdown content when contentType is "markdown"
-  documentFile String?  // PDF file URL when contentType is "pdf"
+  documentFile String?  // PDF file URL
   published    Boolean  @default(false)
   publishDate  DateTime? // When to publish
   createdAt    DateTime @default(now())
@@ -207,14 +205,15 @@ model InvestmentPitch {
 }
 
 model JobPosting {
-  id          String   @id @default(cuid())
-  title       String
-  description String
-  team        String   // "quant_trading", "quant_research", "macro", "equity"
-  endDate     DateTime
-  published   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  title        String
+  description  String
+  team         String   // "quant_trading", "quant_research", "macro", "equity"
+  endDate      DateTime
+  published    Boolean  @default(false)
+  documentFile String?  // PDF document URL
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   applications JobApplication[]
 }

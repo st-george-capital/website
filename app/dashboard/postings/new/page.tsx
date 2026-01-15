@@ -6,21 +6,60 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Upload } from 'lucide-react';
 
 export default function NewJobPostingPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     team: 'quant_trading',
     endDate: '',
     published: false,
+    documentFile: '',
   });
 
   const isAdmin = session?.user?.role === 'admin';
+
+  const handleFileUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append('file', file);
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formDataUpload,
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setFormData(prev => ({ ...prev, documentFile: data.url }));
+      } else {
+        alert('Failed to upload file');
+      }
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      alert('Failed to upload file');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        alert('File size must be less than 10MB');
+        return;
+      }
+      handleFileUpload(file);
+    }
+  };
 
   if (!isAdmin) {
     return (
@@ -133,11 +172,40 @@ export default function NewJobPostingPage() {
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                rows={8}
+                rows={6}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-primary focus:outline-none"
                 required
                 placeholder="Describe the role, responsibilities, requirements, and what makes this position exciting..."
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Job Posting PDF (Optional)</label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                <div className="text-center">
+                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <div className="space-y-2">
+                    <label className="cursor-pointer">
+                      <span className="text-sm text-gray-600">
+                        {uploading ? 'Uploading...' : 'Click to upload job posting PDF'}
+                      </span>
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        onChange={handleFileChange}
+                        className="hidden"
+                        disabled={uploading}
+                      />
+                    </label>
+                    {formData.documentFile && (
+                      <p className="text-sm text-green-600">File uploaded successfully</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Upload a detailed job description PDF (max 10MB)
+              </p>
             </div>
 
             {/* Publish Settings */}

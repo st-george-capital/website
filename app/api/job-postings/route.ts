@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { title, description, team, endDate, published } = await req.json();
+    const { title, description, team, endDate, published, documentFile } = await req.json();
 
     // Validate required fields
     if (!title || !description || !team || !endDate) {
@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
         team,
         endDate: new Date(endDate),
         published,
+        documentFile,
       },
     });
 
