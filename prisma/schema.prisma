@@ -182,6 +182,8 @@ model WeeklyContent {
   season       String   // "winter", "summer", "fall"
   week         Int      // Week number 1-52
   description  String?
+  contentType  String   @default("pdf") // "pdf" or "markdown"
+  content      String?  // Markdown content when contentType is "markdown"
   documentFile String?  // PDF file URL
   published    Boolean  @default(false)
   publishDate  DateTime? // When to publish

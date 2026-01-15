@@ -117,9 +117,6 @@ export default function EditWeeklyContentPage() {
           ...formData,
           week: parseInt(formData.week),
           publishDate: formData.publishDate ? formData.publishDate : null,
-          // Only include content or documentFile based on contentType
-          content: formData.contentType === 'markdown' ? formData.content : null,
-          documentFile: formData.contentType === 'pdf' ? formData.documentFile : null,
         }),
       });
 
