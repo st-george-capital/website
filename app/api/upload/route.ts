@@ -8,12 +8,24 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    // Check authentication
+    // Check authentication - allow both admin users and public users for resume uploads
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== 'admin') {
+    const isAdmin = session?.user?.role === 'admin';
+    const isPublicUser = !session; // Public users have no session
+
+    // If not admin and not a public user (somehow), deny access
+    if (!isAdmin && !isPublicUser) {
       return NextResponse.json(
-        { error: 'Unauthorized: Admin access required' },
+        { error: 'Unauthorized' },
         { status: 401 }
+      );
+    }
+
+    // For public users, restrict to PDF files only (resumes)
+    if (isPublicUser && file.type !== 'application/pdf') {
+      return NextResponse.json(
+        { error: 'Public users can only upload PDF resume files' },
+        { status: 400 }
       );
     }
     
@@ -47,7 +59,14 @@ export async function POST(req: NextRequest) {
 
     // Create unique filename
     const timestamp = Date.now();
-    const folder = file.type === 'application/pdf' ? 'resumes' : 'research';
+    let folder = 'research'; // Default for admin image uploads
+
+    if (isPublicUser) {
+      folder = 'resumes'; // Public users upload resumes
+    } else if (isAdmin && file.type === 'application/pdf') {
+      folder = 'documents'; // Admin PDF uploads
+    }
+
     const filename = `${folder}/${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '')}`;
 
     // Upload to Vercel Blob
