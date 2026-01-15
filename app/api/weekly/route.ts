@@ -84,25 +84,44 @@ export async function POST(req: NextRequest) {
       publishDate,
     } = await req.json();
 
-    // Create weekly content (handle both old and new schema)
-    const weeklyContent = await prisma.weeklyContent.create({
-      data: {
-        title,
-        category,
-        year,
-        season,
-        week: parseInt(week),
-        description,
-        // Only include contentType if provided (for backward compatibility)
-        ...(contentType && { contentType }),
-        ...(contentType === 'markdown' && content && { content }),
-        ...(contentType === 'pdf' && documentFile && { documentFile }),
-        // If no contentType specified, assume it's a PDF with documentFile
-        ...(!contentType && documentFile && { documentFile }),
-        published,
-        publishDate: publishDate ? new Date(publishDate) : null,
-      },
-    });
+    // Try to create with new schema first, fall back to old schema if contentType column doesn't exist
+    let weeklyContent;
+    try {
+      weeklyContent = await prisma.weeklyContent.create({
+        data: {
+          title,
+          category,
+          year,
+          season,
+          week: parseInt(week),
+          description,
+          contentType,
+          content: contentType === 'markdown' ? content : null,
+          documentFile: contentType === 'pdf' ? documentFile : null,
+          published,
+          publishDate: publishDate ? new Date(publishDate) : null,
+        },
+      });
+    } catch (error: any) {
+      // If contentType column doesn't exist, fall back to old schema
+      if (error.code === 'P2022' && error.meta?.column === 'contentType') {
+        weeklyContent = await prisma.weeklyContent.create({
+          data: {
+            title,
+            category,
+            year,
+            season,
+            week: parseInt(week),
+            description,
+            documentFile,
+            published,
+            publishDate: publishDate ? new Date(publishDate) : null,
+          },
+        });
+      } else {
+        throw error;
+      }
+    }
 
     return NextResponse.json(weeklyContent, { status: 201 });
   } catch (error) {
