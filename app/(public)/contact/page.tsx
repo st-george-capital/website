@@ -298,8 +298,11 @@ export default function ContactPage() {
             </p>
           </div>
 
-          {/* Job Postings - At the top of Join Our Team section */}
-          <JobPostingsSection />
+          {/* 🔥 JOB POSTINGS - RIGHT HERE AT THE TOP */}
+          <div style={{backgroundColor: 'red', padding: '20px', margin: '20px 0', border: '2px solid yellow'}}>
+            <h3 style={{color: 'white', fontSize: '24px', fontWeight: 'bold'}}>🚨 JOB POSTINGS SHOULD BE HERE 🚨</h3>
+            <JobPostingsSection />
+          </div>
 
           {/* Team Sections */}
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
