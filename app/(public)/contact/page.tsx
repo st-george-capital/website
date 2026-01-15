@@ -400,9 +400,7 @@ function JobPostingsSection() {
   };
 
   return (
-    <div className="mb-16">
-      <h3 className="font-serif text-2xl font-bold text-center mb-8">Open Positions</h3>
-
+    <div>
       {loading ? (
         <div className="text-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
