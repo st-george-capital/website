@@ -8,6 +8,16 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
+    const formData = await req.formData();
+    const file = formData.get('file') as File;
+
+    if (!file) {
+      return NextResponse.json(
+        { error: 'No file provided' },
+        { status: 400 }
+      );
+    }
+
     // Check authentication - allow both admin users and public users for resume uploads
     const session = await getServerSession(authOptions);
     const isAdmin = session?.user?.role === 'admin';
@@ -25,16 +35,6 @@ export async function POST(req: NextRequest) {
     if (isPublicUser && file.type !== 'application/pdf') {
       return NextResponse.json(
         { error: 'Public users can only upload PDF resume files' },
-        { status: 400 }
-      );
-    }
-    
-    const formData = await req.formData();
-    const file = formData.get('file') as File;
-    
-    if (!file) {
-      return NextResponse.json(
-        { error: 'No file provided' },
         { status: 400 }
       );
     }
