@@ -8,6 +8,24 @@ import { Card, CardHeader, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
 import { Badge } from '@/components/ui/badge';
 import { Mail, MapPin, Linkedin, Instagram, Send, Briefcase, Users, TrendingUp, Target } from 'lucide-react';
+interface JobPosting {
+  id: string;
+  title: string;
+  description: string;
+  team: string;
+  endDate: string;
+  published: boolean;
+}
+
+
+interface JobPosting {
+  id: string;
+  title: string;
+  description: string;
+  team: string;
+  endDate: string;
+  published: boolean;
+}
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -364,7 +382,7 @@ export default function ContactPage() {
 }
 
 function JobPostingsSection() {
-  const [jobPostings, setJobPostings] = useState([]);
+  const [jobPostings, setJobPostings] = useState<JobPosting[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -416,7 +434,7 @@ function JobPostingsSection() {
   );
 }
 
-function JobPostingCard({ posting }) {
+function JobPostingCard({ posting }: { posting: JobPosting }) {
   const [showApplicationForm, setShowApplicationForm] = useState(false);
 
   const teamColors = {
@@ -463,7 +481,7 @@ function JobPostingCard({ posting }) {
   );
 }
 
-function ApplicationModal({ posting, onClose }) {
+function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: () => void }) {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
