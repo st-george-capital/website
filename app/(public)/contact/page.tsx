@@ -483,7 +483,7 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const handleFileUpload = async (file) => {
+  const handleFileUpload = async (file: File) => {
     setUploading(true);
     try {
       const formDataUpload = new FormData();
