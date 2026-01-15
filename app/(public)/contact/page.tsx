@@ -69,6 +69,92 @@ export default function ContactPage() {
         height="medium"
       />
 
+      {/* Join Our Team Section - MOVED TO TOP */}
+      <Section dark>
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="font-serif text-4xl font-bold mb-6">Join Our Team</h2>
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+              We're always looking for talented individuals to join our quantitative trading and fundamental research teams.
+              Explore our current opportunities below.
+            </p>
+          </div>
+
+          {/* 🔥 JOB POSTINGS - RIGHT HERE AT THE TOP */}
+          <div className="mb-16">
+            <h3 className="font-serif text-2xl font-bold text-center mb-8">Open Positions</h3>
+            <JobPostingsSection />
+          </div>
+
+          {/* Team Sections */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <TrendingUp className="w-8 h-8 text-blue-400" />
+              </div>
+              <h3 className="font-serif text-xl font-bold mb-3">Quant Trading</h3>
+              <p className="text-muted-foreground mb-4">
+                Develop and implement algorithmic trading strategies across multiple asset classes.
+              </p>
+              <div className="space-y-1 text-sm text-muted-foreground">
+                <div>• High-frequency trading</div>
+                <div>• Risk management systems</div>
+                <div>• Portfolio optimization</div>
+                <div>• Execution algorithms</div>
+              </div>
+            </div>
+
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Users className="w-8 h-8 text-green-400" />
+              </div>
+              <h3 className="font-serif text-xl font-bold mb-3">Quant Research</h3>
+              <p className="text-muted-foreground mb-4">
+                Conduct fundamental research and develop quantitative models for investment decisions.
+              </p>
+              <div className="space-y-1 text-sm text-muted-foreground">
+                <div>• Statistical modeling</div>
+                <div>• Machine learning</div>
+                <div>• Factor analysis</div>
+                <div>• Backtesting frameworks</div>
+              </div>
+            </div>
+
+            <div className="text-center">
+              <div className="w-16 h-16 bg-purple-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Target className="w-8 h-8 text-purple-400" />
+              </div>
+              <h3 className="font-serif text-xl font-bold mb-3">Macro Research</h3>
+              <p className="text-muted-foreground mb-4">
+                Analyze macroeconomic trends and their impact on global markets and asset allocation.
+              </p>
+              <div className="space-y-1 text-sm text-muted-foreground">
+                <div>• Economic forecasting</div>
+                <div>• Policy analysis</div>
+                <div>• Currency markets</div>
+                <div>• Global trade dynamics</div>
+              </div>
+            </div>
+
+            <div className="text-center">
+              <div className="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Briefcase className="w-8 h-8 text-orange-400" />
+              </div>
+              <h3 className="font-serif text-xl font-bold mb-3">Equity Research</h3>
+              <p className="text-muted-foreground mb-4">
+                Perform in-depth fundamental analysis of individual companies and sectors.
+              </p>
+              <div className="space-y-1 text-sm text-muted-foreground">
+                <div>• Company analysis</div>
+                <div>• Sector research</div>
+                <div>• Valuation modeling</div>
+                <div>• Investment theses</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Section>
+
       <Section>
         <div className="grid lg:grid-cols-2 gap-16">
           {/* Contact Form */}
@@ -287,93 +373,6 @@ export default function ContactPage() {
         </div>
       </Section>
 
-      {/* Join Our Team Section */}
-      <Section dark>
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="font-serif text-4xl font-bold mb-6">Join Our Team</h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              We're always looking for talented individuals to join our quantitative trading and fundamental research teams.
-              Explore our current opportunities below.
-            </p>
-          </div>
-
-          {/* 🔥 JOB POSTINGS - RIGHT HERE AT THE TOP */}
-          <div style={{backgroundColor: 'red', padding: '20px', margin: '20px 0', border: '2px solid yellow'}}>
-            <h3 style={{color: 'white', fontSize: '24px', fontWeight: 'bold'}}>🚨 JOB POSTINGS SHOULD BE HERE 🚨</h3>
-            <JobPostingsSection />
-          </div>
-
-          {/* Team Sections */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <TrendingUp className="w-8 h-8 text-blue-400" />
-              </div>
-              <h3 className="font-serif text-xl font-bold mb-3">Quant Trading</h3>
-              <p className="text-muted-foreground mb-4">
-                Develop and implement algorithmic trading strategies across multiple asset classes.
-              </p>
-              <div className="space-y-1 text-sm text-muted-foreground">
-                <div>• High-frequency trading</div>
-                <div>• Risk management systems</div>
-                <div>• Portfolio optimization</div>
-                <div>• Execution algorithms</div>
-              </div>
-            </div>
-
-            <div className="text-center">
-              <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Users className="w-8 h-8 text-green-400" />
-              </div>
-              <h3 className="font-serif text-xl font-bold mb-3">Quant Research</h3>
-              <p className="text-muted-foreground mb-4">
-                Conduct fundamental research and develop quantitative models for investment decisions.
-              </p>
-              <div className="space-y-1 text-sm text-muted-foreground">
-                <div>• Statistical modeling</div>
-                <div>• Machine learning</div>
-                <div>• Factor analysis</div>
-                <div>• Backtesting frameworks</div>
-              </div>
-            </div>
-
-            <div className="text-center">
-              <div className="w-16 h-16 bg-purple-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Target className="w-8 h-8 text-purple-400" />
-              </div>
-              <h3 className="font-serif text-xl font-bold mb-3">Macro Research</h3>
-              <p className="text-muted-foreground mb-4">
-                Analyze macroeconomic trends and their impact on global markets and asset allocation.
-              </p>
-              <div className="space-y-1 text-sm text-muted-foreground">
-                <div>• Economic forecasting</div>
-                <div>• Policy analysis</div>
-                <div>• Currency markets</div>
-                <div>• Global trade dynamics</div>
-              </div>
-            </div>
-
-            <div className="text-center">
-              <div className="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Briefcase className="w-8 h-8 text-orange-400" />
-              </div>
-              <h3 className="font-serif text-xl font-bold mb-3">Equity Research</h3>
-              <p className="text-muted-foreground mb-4">
-                Perform in-depth fundamental analysis of individual companies and sectors.
-              </p>
-              <div className="space-y-1 text-sm text-muted-foreground">
-                <div>• Company analysis</div>
-                <div>• Sector research</div>
-                <div>• Valuation modeling</div>
-                <div>• Investment theses</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Job Postings */}
-        </div>
-      </Section>
     </>
   );
 }
