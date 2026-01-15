@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
 import { Badge } from '@/components/ui/badge';
-import { Briefcase, Plus, Users, Eye, Download, Calendar } from 'lucide-react';
+import { Briefcase, Plus, Users, Eye, Download, Calendar, Trash2 } from 'lucide-react';
 
 interface JobPosting {
   id: string;
@@ -101,6 +101,25 @@ export default function PostingsDashboardPage() {
     } catch (error) {
       console.error('Error deleting posting:', error);
       alert('Failed to delete posting');
+    }
+  };
+
+  const deleteApplication = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this job application?')) return;
+
+    try {
+      const response = await fetch(`/api/job-applications/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setApplications(applications.filter(a => a.id !== id));
+      } else {
+        alert('Failed to delete application');
+      }
+    } catch (error) {
+      console.error('Error deleting application:', error);
+      alert('Failed to delete application');
     }
   };
 
@@ -275,11 +294,18 @@ export default function PostingsDashboardPage() {
                           target="_blank"
                           rel="noopener noreferrer"
                           className="p-2 text-muted-foreground hover:text-primary transition-colors"
-                          title="Download resume"
+                          title="View resume"
                         >
-                          <Download className="w-4 h-4" />
+                          <Eye className="w-4 h-4" />
                         </a>
                       )}
+                      <button
+                        onClick={() => deleteApplication(application.id)}
+                        className="p-2 text-muted-foreground hover:text-red-500 transition-colors"
+                        title="Delete application"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 ))}
