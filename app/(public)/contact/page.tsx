@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Hero } from '@/components/hero';
 import { Section } from '@/components/section';
-import { Card, CardHeader } from '@/components/card';
+import { Card, CardHeader, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
+import { Badge } from '@/components/ui/badge';
 import { Mail, MapPin, Linkedin, Instagram, Send, Briefcase, Users, TrendingUp, Target } from 'lucide-react';
 
 export default function ContactPage() {
