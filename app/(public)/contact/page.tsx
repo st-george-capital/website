@@ -508,7 +508,7 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
     }
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 10 * 1024 * 1024) { // 10MB limit
