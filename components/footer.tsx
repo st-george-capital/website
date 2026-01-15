@@ -54,7 +54,7 @@ export function Footer() {
               />
             </Link>
             <p className="text-white/60 text-sm leading-relaxed mb-6 max-w-sm">
-              Canada's premier student-led quantitative finance organization at the University of Toronto.
+              Canada's premier student-led quantitative and fundamental research organization at the University of Toronto.
               Empowering the next generation of market leaders.
             </p>
             

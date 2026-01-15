@@ -91,7 +91,7 @@ export default function HomePage() {
             <div>Excellence</div>
           </>
         }
-        subtitle="Canada's premier student-led quantitative finance organization. Empowering the next generation of market leaders at the University of Toronto."
+        subtitle="Canada's premier student-led quantitative and fundamental research organization. Empowering the next generation of market leaders at the University of Toronto."
       >
         <div className="mt-8 mb-2">
           <div className="text-white/40 text-xs uppercase tracking-[0.3em] mb-4">
@@ -169,7 +169,7 @@ export default function HomePage() {
       <Section>
         <SectionHeader
           title="Engineered @ UofT For UofT"
-          subtitle="St. George Capital is Canada's premier student-led quantitative finance organization at the University of Toronto. We develop tomorrow's market leaders through rigorous training, cutting-edge research, and real-world market experience."
+          subtitle="St. George Capital is Canada's premier student-led quantitative and fundamental research organization at the University of Toronto. We develop tomorrow's market leaders through rigorous training, cutting-edge research, and real-world market experience."
           centered
         />
 
@@ -250,7 +250,7 @@ export default function HomePage() {
               Market Leaders
             </h2>
             <p className="text-xl text-white/70 leading-relaxed">
-              Our vision is to establish the preeminent student-led investment organization in Canada—recognized for producing exceptional talent, pioneering quantitative research, and maintaining institutional-grade standards. We cultivate a culture of excellence where ambitious students develop into the next generation of portfolio managers, quantitative researchers, and investment professionals.
+              Our vision is to establish the preeminent student-led investment organization in Canada—recognized for producing exceptional talent, pioneering quantitative and fundamental research, and maintaining institutional-grade standards. We cultivate a culture of excellence where ambitious students develop into the next generation of portfolio managers, quantitative researchers, and investment professionals.
             </p>
           </motion.div>
         </div>
@@ -308,7 +308,7 @@ export default function HomePage() {
               Interested in Learning More?
             </h2>
             <p className="text-xl text-white/70 mb-10">
-              Join Canada's premier quantitative finance organization and begin building your future in institutional markets.
+              Join Canada's premier quantitative and fundamental research organization and begin building your future in institutional markets.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
