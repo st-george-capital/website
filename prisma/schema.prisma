@@ -205,3 +205,27 @@ model InvestmentPitch {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+model JobPosting {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  team        String   // "quant_trading", "quant_research", "macro", "equity"
+  endDate     DateTime
+  published   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  applications JobApplication[]
+}
+
+model JobApplication {
+  id            String     @id @default(cuid())
+  jobPostingId  String
+  name          String
+  email         String
+  resumeFile    String?    // Resume file URL
+  appliedAt     DateTime   @default(now())
+
+  jobPosting    JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+}

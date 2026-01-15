@@ -36,6 +36,7 @@ const navigation: Array<{
   { name: 'Calendar', href: '/dashboard/calendar', icon: Calendar, userMinRole: 'user' },
   { name: 'Weekly Content', href: '/dashboard/weekly', icon: BookOpen, userMinRole: 'user' },
   { name: 'Investment Pitches', href: '/dashboard/pitches', icon: Presentation, userMinRole: 'user' },
+  { name: 'Postings', href: '/dashboard/postings', icon: Briefcase, adminOnly: true },
   { name: 'Holdings', href: '/dashboard/holdings', icon: Briefcase, userMinRole: 'user' },
   { name: 'Team', href: '/dashboard/team', icon: Users, userMinRole: 'user' },
   { name: 'Contact Forms', href: '/dashboard/contact', icon: Mail, userMinRole: 'user' },
