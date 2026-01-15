@@ -13,6 +13,7 @@ model User {
   passwordHash   String
   name           String?
   role           String     @default("visitor") // "visitor", "user", "admin"
+  tags           String[]   @default([]) // Array of tags for categorization
   emailVerified  Boolean    @default(false)
   emailToken     String?    @unique
   emailTokenExpiry DateTime?

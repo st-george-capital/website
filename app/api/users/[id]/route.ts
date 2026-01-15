@@ -18,55 +18,43 @@ export async function PATCH(
       );
     }
 
-    const { role } = await req.json();
+    const { tags, role } = await req.json();
 
-    if (!['visitor', 'user', 'admin'].includes(role)) {
+    // Build update object
+    const updateData: any = {};
+    if (tags !== undefined) {
+      updateData.tags = tags;
+    }
+    if (role !== undefined) {
+      updateData.role = role;
+    }
+
+    if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
-        { error: 'Invalid role' },
+        { error: 'No valid fields to update' },
         { status: 400 }
       );
     }
 
     const user = await prisma.user.update({
       where: { id: params.id },
-      data: { role },
+      data: updateData,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        tags: true,
+        emailVerified: true,
+        createdAt: true,
+      },
     });
 
-    return NextResponse.json({
-      id: user.id,
-      role: user.role,
-    });
+    return NextResponse.json(user);
   } catch (error) {
-    console.error('Error updating user role:', error);
+    console.error('Error updating user:', error);
     return NextResponse.json(
-      { error: 'Failed to update user role' },
-      { status: 500 }
-    );
-  }
-}
-
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    await prisma.user.delete({
-      where: { id: params.id },
-    });
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Error deleting user:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete user' },
+      { error: 'Failed to update user' },
       { status: 500 }
     );
   }
