@@ -293,10 +293,14 @@ export default function ContactPage() {
           <div className="text-center mb-16">
             <h2 className="font-serif text-4xl font-bold mb-6">Join Our Team</h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              We're always looking for talented individuals to join our quantitative trading and research teams.
+              We're always looking for talented individuals to join our quantitative trading and fundamental research teams.
               Explore our current opportunities below.
             </p>
           </div>
+
+          {/* Job Postings - Moved to top */}
+          <JobPostingsSection />
+
 
           {/* Team Sections */}
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
@@ -366,7 +370,6 @@ export default function ContactPage() {
           </div>
 
           {/* Job Postings */}
-          <JobPostingsSection />
         </div>
       </Section>
     </>
@@ -545,9 +548,7 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
     } finally {
       setSubmitting(false);
     }
-  };
-
-  if (submitted) {
+  };  if (submitted) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
         <Card className="w-full max-w-md">
