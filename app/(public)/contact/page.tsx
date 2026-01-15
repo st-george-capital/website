@@ -69,6 +69,17 @@ export default function ContactPage() {
         height="medium"
       />
 
+      {/* 🔥 JOB POSTINGS - NOW AT THE VERY TOP OF THE PAGE */}
+      <Section dark>
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="font-serif text-3xl font-bold mb-6">Join Our Team</h2>
+          <p className="text-xl text-muted-foreground mb-8">
+            We're always looking for talented individuals to join our quantitative trading and fundamental research teams.
+          </p>
+          <JobPostingsSection />
+        </div>
+      </Section>
+
       <Section>
         <div className="grid lg:grid-cols-2 gap-16">
           {/* Contact Form */}
@@ -297,10 +308,6 @@ export default function ContactPage() {
               Explore our current opportunities below.
             </p>
           </div>
-
-          {/* Job Postings - Moved to top */}
-          <JobPostingsSection />
-
 
           {/* Team Sections */}
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
