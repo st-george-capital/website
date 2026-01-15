@@ -19,6 +19,7 @@ interface CalendarEvent {
   priority: 'low' | 'medium' | 'high' | 'urgent';
   status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
   attendees?: string;
+  tags: string[];
 }
 
 export default function EditCalendarEventPage() {
@@ -42,6 +43,7 @@ export default function EditCalendarEventPage() {
     priority: 'medium',
     status: 'scheduled',
     attendees: '',
+    tags: [] as string[],
   });
 
   const [saving, setSaving] = useState(false);
@@ -75,6 +77,7 @@ export default function EditCalendarEventPage() {
           priority: eventData.priority,
           status: eventData.status,
           attendees: eventData.attendees || '',
+          tags: eventData.tags || [],
         });
       } else {
         alert('Event not found');
@@ -126,6 +129,7 @@ export default function EditCalendarEventPage() {
         priority: formData.priority,
         status: formData.status,
         attendees: formData.attendees,
+        tags: formData.tags,
       };
 
       const response = await fetch(`/api/calendar/${eventId}`, {
@@ -395,6 +399,30 @@ export default function EditCalendarEventPage() {
                 User tagging will be implemented in a future update
               </span>
             </div>
+          </div>
+        </div>
+
+        {/* Tags */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">Tags</h3>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Event Tags
+            </label>
+            <input
+              type="text"
+              value={formData.tags.join(', ')}
+              onChange={(e) => {
+                const tags = e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+                setFormData(prev => ({ ...prev, tags }));
+              }}
+              placeholder="Enter tags separated by commas (e.g., important, deadline, meeting)"
+              className="w-full px-3 py-2 border border-border rounded-md"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Separate multiple tags with commas
+            </p>
           </div>
         </div>
 

@@ -170,7 +170,8 @@ model CalendarEvent {
   priority    String   @default("medium") // "low", "medium", "high", "urgent"
   status      String   @default("scheduled") // "scheduled", "in_progress", "completed", "cancelled"
   attendees   String?  // Comma-separated user IDs
-  createdBy   String   // User ID who created the event
+  tags         String[] @default([]) // Array of tags for categorization
+  createdBy    String   // User ID who created the event
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

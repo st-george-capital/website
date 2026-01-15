@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { Users, Linkedin, Plus, UserCheck, Trash2 } from 'lucide-react';
+import { Users, Linkedin, Plus, UserCheck, Trash2, Edit, Save, X } from 'lucide-react';
 import Link from 'next/link';
 
 interface User {
@@ -44,6 +44,8 @@ export default function TeamDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [selectedRole, setSelectedRole] = useState<string>('all');
   const [deletingUser, setDeletingUser] = useState<string | null>(null);
+  const [editingMember, setEditingMember] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Partial<TeamMember>>({});
 
   const isAdmin = session?.user?.role === 'admin';
 
@@ -123,6 +125,54 @@ export default function TeamDashboardPage() {
     } catch (error) {
       console.error('Failed to delete user:', error);
       alert('Failed to delete user: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    }
+  };
+
+  const startEditingMember = (member: TeamMember) => {
+    setEditingMember(member.id);
+    setEditForm({
+      name: member.name,
+      title: member.title,
+      role: member.role,
+      division: member.division,
+      program: member.program,
+      year: member.year,
+      bio: member.bio,
+      linkedin: member.linkedin,
+      headshot: member.headshot,
+      isExecutive: member.isExecutive,
+      order: member.order,
+    });
+  };
+
+  const cancelEditingMember = () => {
+    setEditingMember(null);
+    setEditForm({});
+  };
+
+  const saveMemberEdits = async () => {
+    if (!editingMember) return;
+
+    try {
+      const response = await fetch(`/api/team-members/${editingMember}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editForm),
+      });
+
+      if (response.ok) {
+        const updatedMember = await response.json();
+        setTeamMembers(teamMembers.map(m => m.id === editingMember ? updatedMember : m));
+        setEditingMember(null);
+        setEditForm({});
+      } else {
+        alert('Failed to update team member');
+      }
+    } catch (error) {
+      console.error('Error updating team member:', error);
+      alert('Failed to update team member');
     }
   };
 
@@ -473,7 +523,141 @@ export default function TeamDashboardPage() {
                       )}
                     </div>
                   </div>
+
+                  {/* Edit Actions */}
+                  <div className="flex items-center gap-2 mt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => startEditingMember(member)}
+                    >
+                      <Edit className="w-3 h-3 mr-1" />
+                      Edit
+                    </Button>
+                  </div>
                 </CardHeader>
+
+                {/* Edit Form */}
+                {editingMember === member.id && (
+                  <CardContent className="border-t">
+                    <div className="space-y-4 pt-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Name</label>
+                          <input
+                            type="text"
+                            value={editForm.name || ''}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Title</label>
+                          <input
+                            type="text"
+                            value={editForm.title || ''}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Division</label>
+                          <select
+                            value={editForm.division || ''}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, division: e.target.value }))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          >
+                            <option value="Quantitative Trading">Quantitative Trading</option>
+                            <option value="Quantitative Research">Quantitative Research</option>
+                            <option value="Equity & Macro Research">Equity & Macro Research</option>
+                            <option value="Technology">Technology</option>
+                            <option value="Operations">Operations</option>
+                            <option value="Charity & Impact">Charity & Impact</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Program</label>
+                          <input
+                            type="text"
+                            value={editForm.program || ''}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, program: e.target.value }))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                            placeholder="e.g., Computer Science"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Year</label>
+                          <input
+                            type="text"
+                            value={editForm.year || ''}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, year: e.target.value }))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                            placeholder="e.g., 2024"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Display Order</label>
+                          <input
+                            type="number"
+                            value={editForm.order || 0}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, order: parseInt(e.target.value) || 0 }))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-1">LinkedIn URL</label>
+                        <input
+                          type="url"
+                          value={editForm.linkedin || ''}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, linkedin: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          placeholder="https://linkedin.com/in/username"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Headshot URL</label>
+                        <input
+                          type="url"
+                          value={editForm.headshot || ''}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, headshot: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          placeholder="https://example.com/image.jpg"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <label className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={editForm.isExecutive || false}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, isExecutive: e.target.checked }))}
+                          />
+                          Show on public website
+                        </label>
+                      </div>
+
+                      <div className="flex gap-2 pt-4">
+                        <Button size="sm" onClick={saveMemberEdits}>
+                          <Save className="w-3 h-3 mr-1" />
+                          Save Changes
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={cancelEditingMember}>
+                          <X className="w-3 h-3 mr-1" />
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                )}
               </Card>
             ))}
         </div>
