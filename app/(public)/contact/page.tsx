@@ -16,30 +16,8 @@ interface JobPosting {
   endDate: string;
   published: boolean;
 }
-  id: string;
-  title: string;
-  description: string;
-  team: string;
-  endDate: string;
-  published: boolean;
-}
 
 
-interface JobPosting {
-  id: string;
-  title: string;
-  description: string;
-  team: 'quant_trading' | 'quant_research' | 'macro' | 'equity';
-  endDate: string;
-  published: boolean;
-}
-  id: string;
-  title: string;
-  description: string;
-  team: string;
-  endDate: string;
-  published: boolean;
-}
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
