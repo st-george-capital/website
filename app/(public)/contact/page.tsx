@@ -398,24 +398,27 @@ function JobPostingsSection() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="text-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-      </div>
-    );
-  }
-
   return (
-    <div>
+    <div className="mb-16 bg-blue-500/10 border-2 border-blue-500/20 rounded-lg p-6">
       <h3 className="font-serif text-2xl font-bold text-center mb-8">Open Positions</h3>
 
-      {jobPostings.length === 0 ? (
-        <div className="text-center py-12">
+      {loading ? (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+        </div>
+      ) : jobPostings.length === 0 ? (
+        <div className="text-center py-12 bg-white/5 rounded-lg border border-white/10">
           <Briefcase className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
           <h4 className="text-xl font-medium mb-2">No Open Positions</h4>
-          <p className="text-muted-foreground">
-            Check back soon for new opportunities, or send us your resume for future consideration.
+          <p className="text-muted-foreground mb-4">
+            We don't have any open positions at the moment.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Check back soon for new opportunities, or send us your resume at{' '}
+            <a href="mailto:outreach@stgeorgecapital.ca" className="text-primary hover:underline">
+              outreach@stgeorgecapital.ca
+            </a>{' '}
+            for future consideration.
           </p>
         </div>
       ) : (
