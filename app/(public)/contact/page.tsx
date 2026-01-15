@@ -412,9 +412,9 @@ function JobPostingsSection() {
           <p className="text-muted-foreground mb-4">
             We don't have any open positions at the moment.
           </p>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-white/80">
             Check back soon for new opportunities, or send us your resume at{' '}
-            <a href="mailto:outreach@stgeorgecapital.ca" className="text-primary hover:underline">
+            <a href="mailto:outreach@stgeorgecapital.ca" className="text-blue-400 hover:text-blue-300 hover:underline">
               outreach@stgeorgecapital.ca
             </a>{' '}
             for future consideration.
