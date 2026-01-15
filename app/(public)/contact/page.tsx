@@ -12,6 +12,13 @@ interface JobPosting {
   id: string;
   title: string;
   description: string;
+  team: 'quant_trading' | 'quant_research' | 'macro' | 'equity';
+  endDate: string;
+  published: boolean;
+}
+  id: string;
+  title: string;
+  description: string;
   team: string;
   endDate: string;
   published: boolean;
@@ -19,6 +26,13 @@ interface JobPosting {
 
 
 interface JobPosting {
+  id: string;
+  title: string;
+  description: string;
+  team: 'quant_trading' | 'quant_research' | 'macro' | 'equity';
+  endDate: string;
+  published: boolean;
+}
   id: string;
   title: string;
   description: string;
@@ -449,7 +463,7 @@ function JobPostingCard({ posting }: { posting: JobPosting }) {
       <Card className="hover:shadow-lg transition-shadow">
         <CardHeader>
           <div className="flex items-start justify-between mb-3">
-            <Badge className={`${teamColors[posting.team] || 'bg-gray-100 text-gray-700 border-gray-200'} border`}>
+            <Badge className={`${teamColors[posting.team as keyof typeof teamColors] || 'bg-gray-100 text-gray-700 border-gray-200'} border`}>
               {posting.team.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
             </Badge>
             <span className="text-sm text-muted-foreground">
