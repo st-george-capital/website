@@ -519,7 +519,7 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
 
