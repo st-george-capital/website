@@ -31,9 +31,11 @@ interface TeamMember {
   division: string;
   program: string | null;
   year: string | null;
+  bio: string | null;
   headshot: string | null;
   linkedin: string | null;
   isExecutive: boolean;
+  order: number;
 }
 
 export default function TeamDashboardPage() {
@@ -620,6 +622,17 @@ export default function TeamDashboardPage() {
                           onChange={(e) => setEditForm(prev => ({ ...prev, linkedin: e.target.value }))}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                           placeholder="https://linkedin.com/in/username"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Bio</label>
+                        <textarea
+                          value={editForm.bio || ''}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, bio: e.target.value }))}
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          placeholder="Brief bio or description..."
                         />
                       </div>
 
