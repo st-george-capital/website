@@ -28,25 +28,27 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate file type
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
     if (!validTypes.includes(file.type)) {
       return NextResponse.json(
-        { error: 'Invalid file type. Only JPG, PNG, and WebP are allowed.' },
+        { error: 'Invalid file type. Only JPG, PNG, WebP, and PDF files are allowed.' },
         { status: 400 }
       );
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    // Validate file size (max 10MB for PDFs, 5MB for images)
+    const maxSize = file.type === 'application/pdf' ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+    if (file.size > maxSize) {
       return NextResponse.json(
-        { error: 'File too large. Maximum size is 5MB.' },
+        { error: `File too large. Maximum size is ${file.type === 'application/pdf' ? '10MB' : '5MB'}.` },
         { status: 400 }
       );
     }
 
     // Create unique filename
     const timestamp = Date.now();
-    const filename = `research/${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '')}`;
+    const folder = file.type === 'application/pdf' ? 'resumes' : 'research';
+    const filename = `${folder}/${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '')}`;
 
     // Upload to Vercel Blob
     const blob = await put(filename, file, {
