@@ -419,7 +419,7 @@ export default function DCFToolPage() {
         : metrics.ebit || [];
 
       const workingCapital = metrics.currentAssets && metrics.currentLiabilities
-        ? metrics.currentAssets.map((ca, i) => ca - (metrics.currentLiabilities[i] || 0))
+        ? metrics.currentAssets.map((ca, i) => ca - (metrics.currentLiabilities![i] || 0))
         : [];
 
       // Ensure all arrays have the same length (use the minimum available periods)
