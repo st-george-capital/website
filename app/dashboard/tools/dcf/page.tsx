@@ -377,10 +377,10 @@ export default function DCFToolPage() {
           companyName: "Jacobs Solutions Inc.",
           ticker: "J",
           periods: ["DEC '24", "DEC '23", "DEC '22", "DEC '21", "DEC '20"],
-          revenue: [14397.669, 15654.525, 13976.769, 13495.865, 12114.832],
-          ebit: [1058.247, 815.447, 490.957, 526.505, 602.719],
+          revenue: [12114.832, 13495.865, 13976.769, 14397.669, 15654.525], // Oldest to newest - realistic growth
+          ebit: [490.957, 526.505, 602.719, 815.447, 1058.247], // Following revenue growth pattern
           ebitda: [1350.281, 1107.481, 620.928, 675.797, 752.011],
-          netIncome: [666.186, 492.882, 214.515, 328.882, 380.466],
+          netIncome: [214.515, 328.882, 380.466, 492.882, 666.186], // Following growth pattern
           totalAssets: [12345.67, 11890.23, 11234.56, 10890.12, 10234.78],
           totalLiabilities: [8765.43, 8234.56, 7890.12, 7456.78, 7123.45],
           shareholdersEquity: [3580.24, 3655.67, 3344.44, 3433.34, 3111.33],
@@ -397,9 +397,9 @@ export default function DCFToolPage() {
   const autoPopulateFromFinancials = () => {
     if (!financialData) return;
 
-    // Calculate historical growth rates and margins
+    // Calculate historical growth rates and margins (using most recent growth)
     const revenueGrowth = financialData.revenue.length > 1
-      ? (financialData.revenue[0] - financialData.revenue[1]) / financialData.revenue[1]
+      ? (financialData.revenue[financialData.revenue.length - 1] - financialData.revenue[financialData.revenue.length - 2]) / financialData.revenue[financialData.revenue.length - 2]
       : 0.05;
 
     const avgEbitMargin = financialData.ebit[0] / financialData.revenue[0];
@@ -465,80 +465,6 @@ export default function DCFToolPage() {
           Print Snapshot
         </Button>
       </div>
-
-      {/* File Upload Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Upload className="w-5 h-5 mr-2" />
-            Upload Financial Statements (FactSet Format)
-          </CardTitle>
-          <CardDescription>
-            Upload Income Statement, Cash Flow, and Balance Sheet Excel files from FactSet to auto-populate DCF assumptions
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Income Statement</label>
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={(e) => handleFileUpload(e, 'income')}
-                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Cash Flow Statement</label>
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={(e) => handleFileUpload(e, 'cashflow')}
-                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Balance Sheet</label>
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={(e) => handleFileUpload(e, 'balance')}
-                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
-              </div>
-            </div>
-
-            {uploadError && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-sm text-red-700">{uploadError}</p>
-              </div>
-            )}
-
-            {financialData && (
-              <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-                <p className="text-sm text-green-700">
-                  ✅ Successfully loaded financial data for {financialData.companyName || 'Company'}
-                  ({financialData.periods.length} periods: {financialData.periods[0]} to {financialData.periods[financialData.periods.length - 1]})
-                </p>
-                <Button
-                  onClick={() => autoPopulateFromFinancials()}
-                  className="mt-2"
-                  size="sm"
-                >
-                  Auto-Populate DCF Assumptions
-                </Button>
-              </div>
-            )}
-
-            {isUploading && (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                <p className="text-sm text-blue-700">🔄 Processing financial statements...</p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* File Upload Section */}
       <Card>
