@@ -634,31 +634,56 @@ export default function DCFToolPage() {
   const autoPopulateFromFinancials = () => {
     if (!financialData) return;
 
+    console.log('Financial data for auto-population:', financialData);
+
     // Calculate historical growth rates and margins (using most recent growth)
     const revenueGrowth = financialData.revenue.length > 1
       ? (financialData.revenue[financialData.revenue.length - 1] - financialData.revenue[financialData.revenue.length - 2]) / financialData.revenue[financialData.revenue.length - 2]
       : 0.05;
 
-    const avgEbitMargin = financialData.ebit[0] / financialData.revenue[0];
-    const avgTaxRate = financialData.ebit[0] > 0
+    const avgEbitMargin = financialData.ebit.length > 0 && financialData.revenue.length > 0 && financialData.revenue[0] !== 0
+      ? financialData.ebit[0] / financialData.revenue[0]
+      : 0.10; // Default 10% margin
+
+    const avgTaxRate = financialData.ebit.length > 0 && financialData.netIncome.length > 0 && financialData.ebit[0] > 0
       ? (1 - financialData.netIncome[0] / financialData.ebit[0])
       : 0.25;
 
     // Calculate CapEx and depreciation rates
-    const avgCapexRate = financialData.capex[0] / financialData.revenue[0];
-    const avgDepreciationRate = financialData.depreciation[0] / financialData.revenue[0];
+    const avgCapexRate = financialData.capex.length > 0 && financialData.revenue.length > 0 && financialData.revenue[0] !== 0
+      ? financialData.capex[0] / financialData.revenue[0]
+      : 0.08; // Default 8%
+
+    const avgDepreciationRate = financialData.depreciation.length > 0 && financialData.revenue.length > 0 && financialData.revenue[0] !== 0
+      ? financialData.depreciation[0] / financialData.revenue[0]
+      : 0.05; // Default 5%
 
     // Estimate WACC (simplified)
-    const estimatedWACC = 0.08 + (financialData.totalDebt[0] / (financialData.totalDebt[0] + financialData.shareholdersEquity[0])) * 0.02;
+    const totalDebt = financialData.totalDebt.length > 0 ? financialData.totalDebt[0] : 0;
+    const equity = financialData.shareholdersEquity.length > 0 ? financialData.shareholdersEquity[0] : 1;
+    const estimatedWACC = 0.08 + (totalDebt / (totalDebt + equity)) * 0.02;
+
+    console.log('Calculated assumptions:', {
+      revenueGrowth,
+      avgEbitMargin,
+      avgTaxRate,
+      avgCapexRate,
+      avgDepreciationRate,
+      estimatedWACC,
+      totalDebt,
+      equity,
+      startingRevenue: financialData.revenue[0]
+    });
 
     // Auto-populate inputs
     setInputs(prev => ({
       ...prev,
       companyName: financialData.companyName || prev.companyName,
       ticker: financialData.ticker || prev.ticker,
-      totalDebt: financialData.totalDebt[0] || prev.totalDebt,
-      cashEquivalents: financialData.cashAndEquivalents[0] || prev.cashEquivalents,
-      startingRevenue: financialData.revenue[0] || prev.startingRevenue,
+      totalDebt: totalDebt || prev.totalDebt,
+      cashEquivalents: financialData.cashAndEquivalents.length > 0 ? financialData.cashAndEquivalents[0] : prev.cashEquivalents,
+      startingRevenue: financialData.revenue.length > 0 ? financialData.revenue[0] : prev.startingRevenue,
+      sharesDiluted: prev.sharesDiluted || 100000000, // Default shares if not set
       revenueGrowth: [revenueGrowth, revenueGrowth * 0.9, revenueGrowth * 0.8, revenueGrowth * 0.7, revenueGrowth * 0.6],
       ebitMargin: Array(5).fill(avgEbitMargin),
       capexPercentOfRevenue: avgCapexRate,
@@ -666,7 +691,7 @@ export default function DCFToolPage() {
       cashTaxRate: avgTaxRate,
       riskFreeRate: 0.0425, // Keep current
       equityRiskPremium: 0.06, // Keep current
-      targetDebtRatio: financialData.totalDebt[0] / (financialData.totalDebt[0] + financialData.shareholdersEquity[0]),
+      targetDebtRatio: totalDebt / (totalDebt + equity),
       costOfDebt: estimatedWACC + 0.02, // Estimate cost of debt
     }));
   };
@@ -693,6 +718,12 @@ export default function DCFToolPage() {
         </Button>
         <Button onClick={resetInputs} variant="outline">
           Reset Assumptions
+        </Button>
+        <Button onClick={() => console.log('Current inputs:', inputs)} variant="outline">
+          Debug Inputs
+        </Button>
+        <Button onClick={() => console.log('Current outputs:', outputs)} variant="outline">
+          Debug Outputs
         </Button>
         <Button onClick={() => exportToCSV(inputs, outputs)} variant="outline" className="flex items-center">
           <Download className="w-4 h-4 mr-2" />
@@ -1973,6 +2004,9 @@ function SensitivityAnalysis({ inputs, outputs }: { inputs: DCFInputs; outputs: 
 
   // Generate WACC × Terminal Growth sensitivity table
   const generateWaccGrowthSensitivity = () => {
+    console.log('Generating WACC × Growth sensitivity, outputs:', outputs);
+    console.log('FCF length:', outputs.freeCashFlow.length, 'FCF values:', outputs.freeCashFlow);
+
     const waccRange = [];
     const growthRange = [];
 
@@ -1994,7 +2028,13 @@ function SensitivityAnalysis({ inputs, outputs }: { inputs: DCFInputs; outputs: 
           row[(growth * 100).toFixed(1) + '%'] = 'Error';
         } else {
           // Calculate intrinsic value for this WACC/growth combination
-          const terminalValue = outputs.freeCashFlow[outputs.freeCashFlow.length - 1] * (1 + growth) / (wacc - growth);
+          const lastFCF = outputs.freeCashFlow[outputs.freeCashFlow.length - 1];
+          if (!lastFCF || lastFCF === 0) {
+            row[(growth * 100).toFixed(1) + '%'] = '0.00';
+            continue;
+          }
+
+          const terminalValue = lastFCF * (1 + growth) / (wacc - growth);
           const pvTerminal = terminalValue / Math.pow(1 + wacc, inputs.forecastYears);
           let pvFcff = 0;
           for (let i = 0; i < outputs.freeCashFlow.length; i++) {
@@ -2167,6 +2207,8 @@ function SensitivityAnalysis({ inputs, outputs }: { inputs: DCFInputs; outputs: 
 
 // DCF Calculation Logic
 function calculateDCF(inputs: DCFInputs): DCFOutputs {
+  console.log('DCF Calculation Inputs:', inputs);
+
   const revenues: number[] = [];
   const ebit: number[] = [];
   const nopat: number[] = [];
@@ -2174,9 +2216,13 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
 
   // Calculate operating forecasts
   let revenue = inputs.startingRevenue;
+  console.log('Starting revenue:', revenue);
+
   for (let year = 0; year < inputs.forecastYears; year++) {
     revenue *= (1 + inputs.revenueGrowth[year]);
     revenues.push(revenue);
+
+    console.log(`Year ${year + 1} revenue:`, revenue);
 
     // EBIT calculation - use advanced mode if available, otherwise simple mode
     const ebitMargin = inputs.forecastMode === 'advanced' && inputs.ebitMarginAdvanced
@@ -2185,12 +2231,16 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
     const ebitValue = revenue * ebitMargin;
     ebit.push(ebitValue);
 
+    console.log(`Year ${year + 1} EBIT:`, ebitValue, 'margin:', ebitMargin);
+
     // Tax rate - use advanced mode if available, otherwise simple mode
     const taxRate = inputs.forecastMode === 'advanced' && inputs.cashTaxRateByYear
       ? inputs.cashTaxRateByYear[year]
       : inputs.cashTaxRate;
     const nopatValue = ebitValue * (1 - taxRate);
     nopat.push(nopatValue);
+
+    console.log(`Year ${year + 1} NOPAT:`, nopatValue, 'tax rate:', taxRate);
 
     // Working capital changes
     let nwcChange = 0;
@@ -2218,15 +2268,26 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
       ? inputs.capexByYear[year]
       : inputs.capexPercentOfRevenue);
 
+    console.log(`Year ${year + 1} - Dep:`, depreciation, 'Capex:', capex, 'NWC change:', nwcChange);
+
     // FCFF calculation
     const fcff = nopatValue + depreciation - capex - nwcChange;
     freeCashFlow.push(fcff);
+
+    console.log(`Year ${year + 1} FCFF:`, fcff);
   }
 
   // Calculate WACC
   const costOfEquity = inputs.riskFreeRate + inputs.beta * inputs.equityRiskPremium;
   const afterTaxCostOfDebt = inputs.costOfDebt * (1 - inputs.taxRate);
   const wacc = costOfEquity * (1 - inputs.targetDebtRatio) + afterTaxCostOfDebt * inputs.targetDebtRatio;
+
+  console.log('WACC calculation:', {
+    costOfEquity,
+    afterTaxCostOfDebt,
+    targetDebtRatio: inputs.targetDebtRatio,
+    wacc
+  });
 
   // Calculate terminal value
   let terminalValue = 0;
@@ -2268,6 +2329,9 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
     terminalValue = (perpetualTV * inputs.terminalWeighting) + (multipleTV * (1 - inputs.terminalWeighting));
   }
 
+  console.log('Terminal value:', terminalValue);
+  console.log('Free cash flows:', freeCashFlow);
+
   // Calculate present values (with mid-year convention if enabled)
   let pvFcff = 0;
   for (let i = 0; i < freeCashFlow.length; i++) {
@@ -2276,12 +2340,24 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
   }
   const pvTerminal = terminalValue / Math.pow(1 + wacc, inputs.forecastYears);
 
+  console.log('Present values - PV FCF:', pvFcff, 'PV Terminal:', pvTerminal);
+
   // Calculate enterprise and equity value
   const enterpriseValue = pvFcff + pvTerminal;
   const netDebt = inputs.totalDebt - inputs.cashEquivalents;
   const equityValue = enterpriseValue - netDebt - inputs.preferredEquity - inputs.minorityInterest + inputs.nonOperatingAssets;
-  const intrinsicValuePerShare = equityValue / inputs.sharesDiluted;
-  const upsideDownside = (intrinsicValuePerShare - inputs.currentPrice) / inputs.currentPrice;
+  const sharesDiluted = inputs.sharesDiluted || 100000000; // Default if not set
+  const intrinsicValuePerShare = equityValue / sharesDiluted;
+  const upsideDownside = inputs.currentPrice !== 0 ? (intrinsicValuePerShare - inputs.currentPrice) / inputs.currentPrice : 0;
+
+  console.log('Final calculations:', {
+    enterpriseValue,
+    equityValue,
+    intrinsicValuePerShare,
+    sharesDiluted,
+    netDebt,
+    upsideDownside
+  });
 
   return {
     revenues,
