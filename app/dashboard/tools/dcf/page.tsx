@@ -294,12 +294,30 @@ interface ExtractedFinancials {
   ticker?: string;
 }
 
+interface CompanyOverview {
+  symbol: string;
+  name: string;
+  description?: string;
+  exchange: string;
+  currency: string;
+  sector: string;
+  industry: string;
+  employees?: number;
+  marketCapitalization?: number;
+  peRatio?: number;
+  beta?: number;
+  week52High?: number;
+  week52Low?: number;
+  sharesOutstanding?: number;
+}
+
 export default function DCFToolPage() {
   const [inputs, setInputs] = useState<DCFInputs>(getDefaultInputs());
   const [activeTab, setActiveTab] = useState('inputs');
   const [financialData, setFinancialData] = useState<ExtractedFinancials | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [selectedCompany, setSelectedCompany] = useState<CompanyOverview | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   // Calculate outputs whenever inputs change
   const outputs = useMemo(() => calculateDCF(inputs), [inputs]);
@@ -333,39 +351,53 @@ export default function DCFToolPage() {
     });
   };
 
-  // File upload state
-  const [uploadedFiles, setUploadedFiles] = useState({
-    income: null as File | null,
-    cashflow: null as File | null,
-    balance: null as File | null,
-  });
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'income' | 'cashflow' | 'balance') => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploadedFiles(prev => ({ ...prev, [type]: file }));
-
-    // If all three files are uploaded, process them
-    const newFiles = { ...uploadedFiles, [type]: file };
-    if (newFiles.income && newFiles.cashflow && newFiles.balance) {
-      await processFinancialFiles(newFiles.income, newFiles.cashflow, newFiles.balance);
-    }
+  // Company selection and analysis
+  const handleCompanySelect = (company: CompanyOverview) => {
+    setSelectedCompany(company);
+    setAnalysisError(null);
   };
 
-  const processFinancialFiles = async (incomeFile: File, cashFlowFile: File, balanceFile: File) => {
-    setIsUploading(true);
-    setUploadError(null);
+  const runFullAnalysis = async (ticker: string) => {
+    setIsAnalyzing(true);
+    setAnalysisError(null);
 
     try {
-      // In a real implementation, you'd send these files to an API endpoint
-      // For now, we'll simulate parsing with sample data structure
-      const extractedData = await parseFactSetFiles(incomeFile, cashFlowFile, balanceFile);
-      setFinancialData(extractedData);
+      console.log('Starting full analysis for:', ticker);
+
+      // Fetch all data in parallel
+      const [overview, quote, income, balance, cashflow] = await Promise.all([
+        fetch(`/api/alpha-vantage/overview/${ticker}`).then(r => r.json()),
+        fetch(`/api/alpha-vantage/quote/${ticker}`).then(r => r.json()),
+        fetch(`/api/alpha-vantage/income-statement/${ticker}`).then(r => r.json()),
+        fetch(`/api/alpha-vantage/balance-sheet/${ticker}`).then(r => r.json()),
+        fetch(`/api/alpha-vantage/cash-flow/${ticker}`).then(r => r.json())
+      ]);
+
+      console.log('API responses:', { overview, quote, income, balance, cashflow });
+
+      // Check for errors
+      if (overview.error || quote.error || income.error || balance.error || cashflow.error) {
+        throw new Error(
+          overview.error?.details ||
+          quote.error?.details ||
+          income.error?.details ||
+          balance.error?.details ||
+          cashflow.error?.details ||
+          'Failed to fetch complete financial data'
+        );
+      }
+
+      // Process and combine the data
+      const processedData = processAlphaVantageData(overview, quote, income, balance, cashflow);
+      setFinancialData(processedData);
+
+      console.log('Processed financial data:', processedData);
+
     } catch (error) {
-      setUploadError(error instanceof Error ? error.message : 'Failed to process financial files');
+      console.error('Analysis error:', error);
+      setAnalysisError(error instanceof Error ? error.message : 'Analysis failed');
     } finally {
-      setIsUploading(false);
+      setIsAnalyzing(false);
     }
   };
 
@@ -631,6 +663,60 @@ export default function DCFToolPage() {
     return null;
   };
 
+  // Process Alpha Vantage data into our format
+  const processAlphaVantageData = (
+    overview: any,
+    quote: any,
+    income: any,
+    balance: any,
+    cashflow: any
+  ): ExtractedFinancials => {
+    // Extract periods from annual reports
+    const periods = income.annualReports?.map((report: any) => report.fiscalDateEnding) || [];
+
+    // Extract financial metrics
+    const revenue = income.annualReports?.map((report: any) => report.totalRevenue) || [];
+    const ebit = income.annualReports?.map((report: any) => report.ebit) || [];
+    const ebitda = income.annualReports?.map((report: any) => report.ebitda) || [];
+    const netIncome = income.annualReports?.map((report: any) => report.netIncome) || [];
+
+    // Balance sheet data
+    const totalAssets = balance.annualReports?.map((report: any) => report.totalAssets) || [];
+    const totalLiabilities = balance.annualReports?.map((report: any) => report.totalLiabilities) || [];
+    const shareholdersEquity = balance.annualReports?.map((report: any) => report.totalShareholderEquity) || [];
+    const cashAndEquivalents = balance.annualReports?.map((report: any) => report.cashAndCashEquivalentsAtCarryingValue || report.cashAndShortTermInvestments) || [];
+    const totalDebt = balance.annualReports?.map((report: any) =>
+      (report.longTermDebt || 0) + (report.shortLongTermDebtTotal || 0)
+    ) || [];
+
+    // Cash flow data
+    const capex = cashflow.annualReports?.map((report: any) => Math.abs(report.capitalExpenditures || 0)) || [];
+    const depreciation = income.annualReports?.map((report: any) => report.depreciationAndAmortization) || [];
+
+    // Calculate working capital (Current Assets - Current Liabilities)
+    const currentAssets = balance.annualReports?.map((report: any) => report.totalCurrentAssets) || [];
+    const currentLiabilities = balance.annualReports?.map((report: any) => report.totalCurrentLiabilities) || [];
+    const workingCapital = currentAssets.map((ca, i) => ca - (currentLiabilities[i] || 0));
+
+    return {
+      companyName: overview.name,
+      ticker: overview.symbol,
+      periods,
+      revenue,
+      ebit,
+      ebitda,
+      netIncome,
+      totalAssets,
+      totalLiabilities,
+      shareholdersEquity,
+      cashAndEquivalents,
+      totalDebt,
+      capex,
+      depreciation,
+      workingCapital,
+    };
+  };
+
   const autoPopulateFromFinancials = () => {
     if (!financialData) return;
 
@@ -734,52 +820,51 @@ export default function DCFToolPage() {
         </Button>
       </div>
 
-      {/* File Upload Section */}
+      {/* Company Search Section */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
-            <Upload className="w-5 h-5 mr-2" />
-            Upload Financial Statements (FactSet Format)
+            <FileText className="w-5 h-5 mr-2" />
+            Company Analysis - Alpha Vantage API
           </CardTitle>
           <CardDescription>
-            Upload Income Statement, Cash Flow, and Balance Sheet Excel files from FactSet to auto-populate DCF assumptions
+            Search for any public company by ticker symbol to automatically fetch financial data and run DCF analysis
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Income Statement</label>
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={(e) => handleFileUpload(e, 'income')}
-                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Cash Flow Statement</label>
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={(e) => handleFileUpload(e, 'cashflow')}
-                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Balance Sheet</label>
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={(e) => handleFileUpload(e, 'balance')}
-                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
-              </div>
-            </div>
+            <TickerSearch onSelectCompany={handleCompanySelect} />
 
-            {uploadError && (
+            {selectedCompany && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="font-semibold text-blue-900">
+                      {selectedCompany.name} ({selectedCompany.symbol})
+                    </h3>
+                    <p className="text-sm text-blue-700 mt-1">
+                      {selectedCompany.exchange} • {selectedCompany.sector} • {selectedCompany.industry}
+                    </p>
+                    {selectedCompany.description && (
+                      <p className="text-sm text-blue-600 mt-2 line-clamp-2">
+                        {selectedCompany.description.substring(0, 200)}...
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    onClick={() => runFullAnalysis(selectedCompany.symbol)}
+                    disabled={isAnalyzing}
+                    className="ml-4"
+                  >
+                    {isAnalyzing ? '🔄 Analyzing...' : '🚀 Run DCF Analysis'}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {analysisError && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-sm text-red-700">{uploadError}</p>
+                <p className="text-sm text-red-700">{analysisError}</p>
               </div>
             )}
 
@@ -793,15 +878,10 @@ export default function DCFToolPage() {
                   onClick={() => autoPopulateFromFinancials()}
                   className="mt-2"
                   size="sm"
+                  variant="outline"
                 >
                   Auto-Populate DCF Assumptions
                 </Button>
-              </div>
-            )}
-
-            {isUploading && (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                <p className="text-sm text-blue-700">🔄 Processing financial statements...</p>
               </div>
             )}
           </div>
@@ -2373,4 +2453,117 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
     afterTaxCostOfDebt,
     wacc,
   };
+}
+
+// Ticker Search Component with Autocomplete
+function TickerSearch({ onSelectCompany }: { onSelectCompany: (company: CompanyOverview) => void }) {
+  const [query, setQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const searchTickers = async (searchQuery: string) => {
+    if (searchQuery.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(`/api/alpha-vantage/search?q=${encodeURIComponent(searchQuery)}`);
+      const data = await response.json();
+
+      if (data.error) {
+        console.error('Search error:', data.error);
+        setSuggestions([]);
+      } else {
+        setSuggestions(data.results || []);
+        setShowSuggestions(true);
+      }
+    } catch (error) {
+      console.error('Search failed:', error);
+      setSuggestions([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setQuery(value);
+    searchTickers(value);
+  };
+
+  const selectCompany = async (symbol: string) => {
+    try {
+      const response = await fetch(`/api/alpha-vantage/overview/${symbol}`);
+      const companyData = await response.json();
+
+      if (companyData.error) {
+        console.error('Company fetch error:', companyData.error);
+        return;
+      }
+
+      onSelectCompany(companyData);
+      setQuery(`${companyData.name} (${companyData.symbol})`);
+      setShowSuggestions(false);
+    } catch (error) {
+      console.error('Company fetch failed:', error);
+    }
+  };
+
+  return (
+    <div className="relative">
+      <div className="flex gap-2">
+        <div className="flex-1 relative">
+          <input
+            type="text"
+            value={query}
+            onChange={handleInputChange}
+            placeholder="Search for a company (e.g., AAPL, Microsoft, Tesla)..."
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          {isSearching && (
+            <div className="absolute right-3 top-3">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Suggestions Dropdown */}
+      {showSuggestions && suggestions.length > 0 && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+          {suggestions.map((suggestion, index) => (
+            <div
+              key={index}
+              onClick={() => selectCompany(suggestion.symbol)}
+              className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-semibold text-gray-900">
+                    {suggestion.name}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {suggestion.symbol} • {suggestion.region} • {suggestion.type}
+                  </div>
+                </div>
+                <div className="text-xs text-gray-500">
+                  {suggestion.matchScore}% match
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* No results */}
+      {showSuggestions && query.length >= 2 && suggestions.length === 0 && !isSearching && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4 text-center text-gray-500">
+          No companies found for "{query}"
+        </div>
+      )}
+    </div>
+  );
 }
