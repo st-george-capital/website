@@ -1233,9 +1233,9 @@ function DCFCharts({ inputs, outputs }: { inputs: DCFInputs; outputs: DCFOutputs
             <BarChart data={priceData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
-              <YAxis tickFormatter={(value) => `$${value.toFixed(2)}`} />
-              <Tooltip formatter={(value) => [`$${value.toFixed(2)}`, 'Price']} />
-              <Bar dataKey="value" fill={(entry) => entry.type === 'current' ? '#ff7c7c' : '#82ca9d'} />
+              <YAxis tickFormatter={(value) => `$${Number(value).toFixed(2)}`} />
+              <Tooltip formatter={(value) => [`$${Number(value).toFixed(2)}`, 'Price']} />
+              <Bar dataKey="value" fill="#8884d8" />
             </BarChart>
           </ResponsiveContainer>
           <div className="mt-4 text-center">
