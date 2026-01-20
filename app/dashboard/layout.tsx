@@ -20,6 +20,7 @@ import {
   Calendar,
   BookOpen,
   Presentation,
+  Calculator,
 } from 'lucide-react';
 
 const navigation: Array<{
@@ -37,6 +38,7 @@ const navigation: Array<{
   { name: 'Weekly Content', href: '/dashboard/weekly', icon: BookOpen, userMinRole: 'user' },
   { name: 'Investment Pitches', href: '/dashboard/pitches', icon: Presentation, userMinRole: 'user' },
   { name: 'Postings', href: '/dashboard/postings', icon: Briefcase, adminOnly: true },
+  { name: 'Tools', href: '/dashboard/tools', icon: Calculator, userMinRole: 'user' },
   { name: 'Users', href: '/dashboard/users', icon: Users, adminOnly: true },
   { name: 'Holdings', href: '/dashboard/holdings', icon: BarChart3, userMinRole: 'user' },
   { name: 'Team', href: '/dashboard/team', icon: Users, userMinRole: 'user' },
