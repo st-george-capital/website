@@ -378,60 +378,79 @@ export default function DCFToolPage() {
         readExcelFile(balanceFile)
       ]);
 
-      // Extract company info from the first file
+      // Extract company info from the income statement file
       const companyName = extractCompanyName(incomeData);
       const ticker = extractTicker(incomeData);
       const periods = extractPeriods(incomeData);
 
-      // Extract financial metrics
-      const revenue = extractMetric(incomeData, 'Sales');
-      const ebit = extractMetric(incomeData, 'EBIT');
-      const netIncome = extractMetric(incomeData, 'Net Income');
+      console.log('Extracted periods:', periods);
+      console.log('Company:', companyName, 'Ticker:', ticker);
 
-      // Calculate EBITDA (EBIT + Depreciation)
-      const depreciation = extractMetric(incomeData, 'Depreciation & Amortization') ||
-                          extractMetric(incomeData, 'Depreciation');
-      const ebitda = ebit && depreciation ? ebit.map((e, i) => e + (depreciation[i] || 0)) : ebit || [];
+      // Extract financial metrics with better error handling
+      const metrics = {
+        revenue: extractMetric(incomeData, 'Sales'),
+        ebit: extractMetric(incomeData, 'EBIT'),
+        netIncome: extractMetric(incomeData, 'Net Income'),
+        depreciation: extractMetric(incomeData, 'Depreciation & Amortization') ||
+                     extractMetric(incomeData, 'Depreciation'),
 
-      // Extract balance sheet data
-      const totalAssets = extractMetric(balanceData, 'Total Assets');
-      const totalLiabilities = extractMetric(balanceData, 'Total Liabilities');
-      const shareholdersEquity = extractMetric(balanceData, 'Total Shareholders\' Equity') ||
-                                extractMetric(balanceData, 'Total Equity');
-      const cashAndEquivalents = extractMetric(balanceData, 'Cash & Short-Term Investments') ||
-                                extractMetric(balanceData, 'Cash Only');
-      const totalDebt = extractMetric(balanceData, 'Total Debt') ||
-                       extractMetric(balanceData, 'Long-Term Debt');
+        totalAssets: extractMetric(balanceData, 'Total Assets'),
+        totalLiabilities: extractMetric(balanceData, 'Total Liabilities'),
+        shareholdersEquity: extractMetric(balanceData, 'Total Shareholders\' Equity') ||
+                           extractMetric(balanceData, 'Total Equity'),
+        cashAndEquivalents: extractMetric(balanceData, 'Cash & Short-Term Investments') ||
+                           extractMetric(balanceData, 'Cash Only'),
+        totalDebt: extractMetric(balanceData, 'Total Debt') ||
+                  extractMetric(balanceData, 'Long-Term Debt'),
+        currentAssets: extractMetric(balanceData, 'Total Current Assets'),
+        currentLiabilities: extractMetric(balanceData, 'Total Current Liabilities'),
 
-      // Calculate working capital
-      const currentAssets = extractMetric(balanceData, 'Total Current Assets');
-      const currentLiabilities = extractMetric(balanceData, 'Total Current Liabilities');
-      const workingCapital = currentAssets && currentLiabilities
-        ? currentAssets.map((ca, i) => ca - (currentLiabilities[i] || 0))
+        capex: extractMetric(cashFlowData, 'Capital Expenditures'),
+        depreciation_cf: extractMetric(cashFlowData, 'Depreciation')
+      };
+
+      console.log('Extracted metrics:', Object.fromEntries(
+        Object.entries(metrics).map(([key, value]) => [key, value ? value.length : 0])
+      ));
+
+      // Calculate derived metrics
+      const ebitda = metrics.ebit && metrics.depreciation
+        ? metrics.ebit.map((e, i) => e + (metrics.depreciation![i] || 0))
+        : metrics.ebit || [];
+
+      const workingCapital = metrics.currentAssets && metrics.currentLiabilities
+        ? metrics.currentAssets.map((ca, i) => ca - (metrics.currentLiabilities[i] || 0))
         : [];
 
-      // Extract cash flow data
-      const capex = extractMetric(cashFlowData, 'Capital Expenditures');
-      const depreciation_cf = extractMetric(cashFlowData, 'Depreciation');
+      // Ensure all arrays have the same length (use the minimum available periods)
+      const minLength = Math.min(...Object.values(metrics)
+        .filter(arr => arr && arr.length > 0)
+        .map(arr => arr!.length));
+
+      const normalizeArray = (arr: number[] | null): number[] => {
+        if (!arr || arr.length === 0) return [];
+        return arr.slice(0, minLength);
+      };
 
       return {
         companyName: companyName || 'Unknown Company',
         ticker: ticker || 'TICKER',
-        periods: periods || [],
-        revenue: revenue || [],
-        ebit: ebit || [],
-        ebitda: ebitda || [],
-        netIncome: netIncome || [],
-        totalAssets: totalAssets || [],
-        totalLiabilities: totalLiabilities || [],
-        shareholdersEquity: shareholdersEquity || [],
-        cashAndEquivalents: cashAndEquivalents || [],
-        totalDebt: totalDebt || [],
-        capex: capex || [],
-        depreciation: depreciation || depreciation_cf || [],
-        workingCapital: workingCapital || [],
+        periods: periods.slice(0, minLength) || [],
+        revenue: normalizeArray(metrics.revenue),
+        ebit: normalizeArray(metrics.ebit),
+        ebitda: normalizeArray(ebitda),
+        netIncome: normalizeArray(metrics.netIncome),
+        totalAssets: normalizeArray(metrics.totalAssets),
+        totalLiabilities: normalizeArray(metrics.totalLiabilities),
+        shareholdersEquity: normalizeArray(metrics.shareholdersEquity),
+        cashAndEquivalents: normalizeArray(metrics.cashAndEquivalents),
+        totalDebt: normalizeArray(metrics.totalDebt),
+        capex: normalizeArray(metrics.capex),
+        depreciation: normalizeArray(metrics.depreciation || metrics.depreciation_cf),
+        workingCapital: normalizeArray(workingCapital),
       };
     } catch (error) {
+      console.error('Excel parsing error:', error);
       throw new Error(`Failed to parse Excel files: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
@@ -487,49 +506,128 @@ export default function DCFToolPage() {
 
   // Extract periods from Excel data
   const extractPeriods = (data: any[][]): string[] => {
-    // Look for period headers (usually in row 6-8)
-    for (let i = 6; i < Math.min(12, data.length); i++) {
+    // Look for period headers (usually in row 6-9, can be SEP '24, DEC '23, etc.)
+    for (let i = 5; i < Math.min(15, data.length); i++) {
       const row = data[i];
       if (row && row.length > 2) {
         const periods: string[] = [];
         for (let j = 1; j < row.length; j++) {
           const cell = row[j];
-          if (cell && typeof cell === 'string' && (cell.includes('DEC') || cell.includes('MAR') || cell.includes('JUN') || cell.includes('SEP') || cell.includes('LTM'))) {
+          if (cell && typeof cell === 'string' &&
+              (cell.includes("'") || cell.includes('LTM') || cell.includes('FY'))) {
+            // Handle various period formats: SEP '24, DEC '23, FY2024, LTM, etc.
             periods.push(cell.trim());
           }
         }
-        if (periods.length >= 3) {
-          return periods;
+        // Look for patterns like SEP '24, DEC '23, etc.
+        const periodPattern = periods.filter(p =>
+          /\b(SEP|DEC|MAR|JUN|AUG|NOV|JAN|FEB|APR|MAY|JUL|OCT|FY|LTM)\b/.test(p)
+        );
+        if (periodPattern.length >= 3) {
+          return periodPattern;
         }
       }
     }
     return [];
   };
 
-  // Extract metric values from Excel data
-  const extractMetric = (data: any[][], metricName: string): number[] | null => {
-    // Find the row with the metric name
-    for (let i = 8; i < data.length; i++) {
-      const row = data[i];
-      if (row && row.length > 0) {
-        const firstCell = row[0];
-        if (typeof firstCell === 'string' &&
-            (firstCell.toLowerCase().includes(metricName.toLowerCase()) ||
-             metricName.toLowerCase().includes(firstCell.toLowerCase()))) {
+  // Create a dataframe-like structure from Excel data
+  const createDataFrame = (data: any[][]): { [key: string]: number[] } => {
+    const periods = extractPeriods(data);
+    if (periods.length === 0) return {};
 
+    // Find the data start row (after periods row)
+    let dataStartRow = -1;
+    for (let i = 8; i < Math.min(15, data.length); i++) {
+      const row = data[i];
+      if (row && row.length > 0 && typeof row[0] === 'string' && row[0].trim()) {
+        // Check if this looks like a metric name (not empty, not a header)
+        const cell = row[0].trim();
+        if (cell && !cell.includes('Source:') && !cell.includes('Restate') && cell.length > 2) {
+          dataStartRow = i;
+          break;
+        }
+      }
+    }
+
+    if (dataStartRow === -1) return {};
+
+    const dataframe: { [key: string]: number[] } = {};
+
+    // Extract data rows
+    for (let i = dataStartRow; i < data.length; i++) {
+      const row = data[i];
+      if (row && row.length > 1 && typeof row[0] === 'string') {
+        const metricName = row[0].trim();
+        if (metricName && !metricName.includes('Total') && metricName.length > 2) {
           const values: number[] = [];
-          for (let j = 1; j < row.length; j++) {
+
+          // Extract values for each period
+          for (let j = 1; j <= periods.length && j < row.length; j++) {
             const cell = row[j];
-            if (typeof cell === 'number' && !isNaN(cell)) {
+            if (typeof cell === 'number' && !isNaN(cell) && isFinite(cell)) {
               values.push(cell);
+            } else if (typeof cell === 'string') {
+              // Try to parse string numbers
+              const parsed = parseFloat(cell.replace(/,/g, ''));
+              if (!isNaN(parsed) && isFinite(parsed)) {
+                values.push(parsed);
+              }
             }
           }
-          if (values.length >= 3) {
+
+          if (values.length >= Math.min(3, periods.length)) {
+            dataframe[metricName] = values;
+          }
+        }
+      }
+    }
+
+    return dataframe;
+  };
+
+  // Extract metric values from Excel data
+  const extractMetric = (data: any[][], metricName: string): number[] | null => {
+    const dataframe = createDataFrame(data);
+
+    // Try exact match first
+    if (dataframe[metricName]) {
+      return dataframe[metricName];
+    }
+
+    // Try partial matches
+    for (const [key, values] of Object.entries(dataframe)) {
+      if (key.toLowerCase().includes(metricName.toLowerCase()) ||
+          metricName.toLowerCase().includes(key.toLowerCase())) {
+        return values;
+      }
+    }
+
+    // Try common variations
+    const variations = {
+      'Sales': ['Revenue', 'Total Revenue', 'Net Sales'],
+      'EBIT': ['Operating Income', 'EBIT', 'Earnings Before Interest and Taxes'],
+      'Net Income': ['Net Earnings', 'Net Profit', 'Profit After Tax'],
+      'Capital Expenditures': ['CapEx', 'Capital Expense', 'Property Plant Equipment'],
+      'Depreciation': ['Depreciation & Amortization', 'D&A', 'Depreciation Expense'],
+      'Total Assets': ['Assets', 'Total Assets'],
+      'Total Liabilities': ['Liabilities', 'Total Liabilities'],
+      'Total Shareholders\' Equity': ['Shareholders Equity', 'Equity', 'Stockholders Equity'],
+      'Cash & Short-Term Investments': ['Cash', 'Cash and Equivalents', 'Cash & ST Investments'],
+      'Total Current Assets': ['Current Assets'],
+      'Total Current Liabilities': ['Current Liabilities']
+    };
+
+    if (variations[metricName as keyof typeof variations]) {
+      for (const variation of variations[metricName as keyof typeof variations]) {
+        for (const [key, values] of Object.entries(dataframe)) {
+          if (key.toLowerCase().includes(variation.toLowerCase())) {
             return values;
           }
         }
       }
     }
+
     return null;
   };
 
