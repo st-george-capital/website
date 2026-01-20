@@ -2463,6 +2463,7 @@ function TickerSearch({ onSelectCompany }: { onSelectCompany: (company: CompanyO
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const searchTickers = async (searchQuery: string) => {
+    console.log('Searching for:', searchQuery);
     if (searchQuery.length < 2) {
       setSuggestions([]);
       return;
@@ -2470,13 +2471,18 @@ function TickerSearch({ onSelectCompany }: { onSelectCompany: (company: CompanyO
 
     setIsSearching(true);
     try {
+      console.log('Making API call to:', `/api/alpha-vantage/search?q=${encodeURIComponent(searchQuery)}`);
       const response = await fetch(`/api/alpha-vantage/search?q=${encodeURIComponent(searchQuery)}`);
+      console.log('API response status:', response.status);
+
       const data = await response.json();
+      console.log('API response data:', data);
 
       if (data.error) {
         console.error('Search error:', data.error);
         setSuggestions([]);
       } else {
+        console.log('Setting suggestions:', data.results);
         setSuggestions(data.results || []);
         setShowSuggestions(true);
       }
@@ -2490,6 +2496,7 @@ function TickerSearch({ onSelectCompany }: { onSelectCompany: (company: CompanyO
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
+    console.log('Input changed to:', value);
     setQuery(value);
     searchTickers(value);
   };
@@ -2560,8 +2567,20 @@ function TickerSearch({ onSelectCompany }: { onSelectCompany: (company: CompanyO
 
       {/* No results */}
       {showSuggestions && query.length >= 2 && suggestions.length === 0 && !isSearching && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4 text-center text-gray-500">
-          No companies found for "{query}"
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4 text-center">
+          <div className="text-gray-500 mb-2">No companies found for "{query}"</div>
+          <div className="text-xs text-gray-400">
+            Check browser console for API debug info
+          </div>
+        </div>
+      )}
+
+      {/* Debug info */}
+      {query.length >= 2 && (
+        <div className="mt-2 text-xs text-gray-500">
+          Searching: {isSearching ? '🔄' : '✅'} |
+          Suggestions: {suggestions.length} |
+          Query: "{query}"
         </div>
       )}
     </div>
