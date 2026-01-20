@@ -3,9 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+// Using native HTML form elements instead of custom UI components
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Calculator, TrendingUp, BarChart3, AlertTriangle, Info } from 'lucide-react';
 import Link from 'next/link';
@@ -175,31 +173,52 @@ export default function DCFToolPage() {
         </Button>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="inputs">Assumptions</TabsTrigger>
-          <TabsTrigger value="valuation">Valuation</TabsTrigger>
-          <TabsTrigger value="charts">Charts</TabsTrigger>
-          <TabsTrigger value="sensitivity">Sensitivity</TabsTrigger>
-        </TabsList>
+      {/* Custom Tabs Implementation */}
+      <div className="space-y-6">
+        <div className="border-b border-gray-200">
+          <nav className="flex space-x-8">
+            {[
+              { id: 'inputs', label: 'Assumptions' },
+              { id: 'valuation', label: 'Valuation' },
+              { id: 'charts', label: 'Charts' },
+              { id: 'sensitivity', label: 'Sensitivity' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === tab.id
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
 
-        <TabsContent value="inputs" className="space-y-6">
-          <DCFInputsForm inputs={inputs} updateInput={updateInput} updateArrayInput={updateArrayInput} />
-        </TabsContent>
+        <div className="space-y-6">
+          {activeTab === 'inputs' && (
+            <DCFInputsForm inputs={inputs} updateInput={updateInput} updateArrayInput={updateArrayInput} />
+          )}
 
-        <TabsContent value="valuation" className="space-y-6">
-          <ValuationSummary inputs={inputs} outputs={outputs} />
-          <CashFlowTable outputs={outputs} />
-        </TabsContent>
+          {activeTab === 'valuation' && (
+            <>
+              <ValuationSummary inputs={inputs} outputs={outputs} />
+              <CashFlowTable outputs={outputs} />
+            </>
+          )}
 
-        <TabsContent value="charts" className="space-y-6">
-          <DCFCharts outputs={outputs} />
-        </TabsContent>
+          {activeTab === 'charts' && (
+            <DCFCharts outputs={outputs} />
+          )}
 
-        <TabsContent value="sensitivity" className="space-y-6">
-          <SensitivityAnalysis inputs={inputs} />
-        </TabsContent>
-      </Tabs>
+          {activeTab === 'sensitivity' && (
+            <SensitivityAnalysis inputs={inputs} />
+          )}
+        </div>
+      </div>
 
       {/* Disclaimer */}
       <Card className="border-yellow-200 bg-yellow-50">
@@ -248,7 +267,9 @@ function DCFInputsForm({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Company Name</label>
-              <Input
+              <input
+                type="text"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={inputs.companyName}
                 onChange={(e) => updateInput('companyName', e.target.value)}
                 placeholder="e.g., Apple Inc."
@@ -256,7 +277,9 @@ function DCFInputsForm({
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Ticker</label>
-              <Input
+              <input
+                type="text"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={inputs.ticker}
                 onChange={(e) => updateInput('ticker', e.target.value)}
                 placeholder="e.g., AAPL"
@@ -267,31 +290,32 @@ function DCFInputsForm({
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Currency</label>
-              <Select value={inputs.currency} onValueChange={(value) => updateInput('currency', value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="EUR">EUR</SelectItem>
-                  <SelectItem value="GBP">GBP</SelectItem>
-                  <SelectItem value="CAD">CAD</SelectItem>
-                </SelectContent>
-              </Select>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={inputs.currency}
+                onChange={(e) => updateInput('currency', e.target.value)}
+              >
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="GBP">GBP</option>
+                <option value="CAD">CAD</option>
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Current Price</label>
-              <Input
+              <input
                 type="number"
                 step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={inputs.currentPrice}
                 onChange={(e) => updateInput('currentPrice', parseFloat(e.target.value) || 0)}
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Shares Outstanding (M)</label>
-              <Input
+              <input
                 type="number"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={inputs.sharesOutstanding / 1000000}
                 onChange={(e) => updateInput('sharesOutstanding', (parseFloat(e.target.value) || 0) * 1000000)}
               />
@@ -308,17 +332,16 @@ function DCFInputsForm({
         <CardContent>
           <div className="max-w-xs">
             <label className="block text-sm font-medium mb-1">Years to Forecast</label>
-            <Select value={inputs.forecastYears.toString()} onValueChange={(value) => updateInput('forecastYears', parseInt(value))}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="3">3 Years</SelectItem>
-                <SelectItem value="5">5 Years</SelectItem>
-                <SelectItem value="7">7 Years</SelectItem>
-                <SelectItem value="10">10 Years</SelectItem>
-              </SelectContent>
-            </Select>
+            <select
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={inputs.forecastYears.toString()}
+              onChange={(e) => updateInput('forecastYears', parseInt(e.target.value))}
+            >
+              <option value="3">3 Years</option>
+              <option value="5">5 Years</option>
+              <option value="7">7 Years</option>
+              <option value="10">10 Years</option>
+            </select>
           </div>
         </CardContent>
       </Card>
@@ -363,8 +386,9 @@ function DCFInputsForm({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Starting Revenue ($M)</label>
-              <Input
+              <input
                 type="number"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={inputs.startingRevenue / 1000000}
                 onChange={(e) => updateInput('startingRevenue', (parseFloat(e.target.value) || 0) * 1000000)}
               />
@@ -379,12 +403,12 @@ function DCFInputsForm({
                 {inputs.revenueGrowth.slice(0, inputs.forecastYears).map((growth, index) => (
                   <div key={index} className="flex items-center gap-2">
                     <span className="text-sm w-12">Year {index + 1}:</span>
-                    <Input
+                    <input
                       type="number"
                       step="0.01"
+                      className="w-20 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                       value={(growth * 100).toFixed(1)}
                       onChange={(e) => updateArrayInput('revenueGrowth', index, (parseFloat(e.target.value) || 0) / 100)}
-                      className="w-20"
                     />
                     <span className="text-sm">%</span>
                   </div>
@@ -398,12 +422,12 @@ function DCFInputsForm({
                 {inputs.ebitMargin.slice(0, inputs.forecastYears).map((margin, index) => (
                   <div key={index} className="flex items-center gap-2">
                     <span className="text-sm w-12">Year {index + 1}:</span>
-                    <Input
+                    <input
                       type="number"
                       step="0.01"
+                      className="w-20 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                       value={(margin * 100).toFixed(1)}
                       onChange={(e) => updateArrayInput('ebitMargin', index, (parseFloat(e.target.value) || 0) / 100)}
-                      className="w-20"
                     />
                     <span className="text-sm">%</span>
                   </div>
@@ -426,27 +450,30 @@ function DCFInputsForm({
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Risk-Free Rate (%)</label>
-              <Input
+              <input
                 type="number"
                 step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={(inputs.riskFreeRate * 100).toFixed(2)}
                 onChange={(e) => updateInput('riskFreeRate', (parseFloat(e.target.value) || 0) / 100)}
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Equity Risk Premium (%)</label>
-              <Input
+              <input
                 type="number"
                 step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={(inputs.equityRiskPremium * 100).toFixed(2)}
                 onChange={(e) => updateInput('equityRiskPremium', (parseFloat(e.target.value) || 0) / 100)}
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Beta</label>
-              <Input
+              <input
                 type="number"
                 step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={inputs.beta}
                 onChange={(e) => updateInput('beta', parseFloat(e.target.value) || 0)}
               />
@@ -456,27 +483,30 @@ function DCFInputsForm({
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Cost of Debt (%)</label>
-              <Input
+              <input
                 type="number"
                 step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={(inputs.costOfDebt * 100).toFixed(2)}
                 onChange={(e) => updateInput('costOfDebt', (parseFloat(e.target.value) || 0) / 100)}
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Tax Rate (%)</label>
-              <Input
+              <input
                 type="number"
                 step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={(inputs.taxRate * 100).toFixed(2)}
                 onChange={(e) => updateInput('taxRate', (parseFloat(e.target.value) || 0) / 100)}
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Target Debt Ratio (%)</label>
-              <Input
+              <input
                 type="number"
                 step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={(inputs.targetDebtRatio * 100).toFixed(1)}
                 onChange={(e) => updateInput('targetDebtRatio', (parseFloat(e.target.value) || 0) / 100)}
               />
@@ -496,49 +526,49 @@ function DCFInputsForm({
         <CardContent className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-2">Terminal Value Method</label>
-            <Select value={inputs.terminalMethod} onValueChange={(value: any) => updateInput('terminalMethod', value)}>
-              <SelectTrigger className="w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="perpetual">Perpetual Growth</SelectItem>
-                <SelectItem value="multiple">Exit Multiple</SelectItem>
-                <SelectItem value="both">Both (Average)</SelectItem>
-              </SelectContent>
-            </Select>
+            <select
+              className="w-48 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={inputs.terminalMethod}
+              onChange={(e) => updateInput('terminalMethod', e.target.value as any)}
+            >
+              <option value="perpetual">Perpetual Growth</option>
+              <option value="multiple">Exit Multiple</option>
+              <option value="both">Both (Average)</option>
+            </select>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Perpetual Growth (%)</label>
-              <Input
+              <input
                 type="number"
                 step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={(inputs.perpetualGrowth * 100).toFixed(2)}
                 onChange={(e) => updateInput('perpetualGrowth', (parseFloat(e.target.value) || 0) / 100)}
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Exit Multiple</label>
-              <Input
+              <input
                 type="number"
                 step="0.1"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={inputs.exitMultiple}
                 onChange={(e) => updateInput('exitMultiple', parseFloat(e.target.value) || 0)}
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Exit Multiple Metric</label>
-              <Select value={inputs.exitMultipleMetric} onValueChange={(value: any) => updateInput('exitMultipleMetric', value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ebitda">EBITDA</SelectItem>
-                  <SelectItem value="ebit">EBIT</SelectItem>
-                  <SelectItem value="fcf">Free Cash Flow</SelectItem>
-                </SelectContent>
-              </Select>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={inputs.exitMultipleMetric}
+                onChange={(e) => updateInput('exitMultipleMetric', e.target.value as any)}
+              >
+                <option value="ebitda">EBITDA</option>
+                <option value="ebit">EBIT</option>
+                <option value="fcf">Free Cash Flow</option>
+              </select>
             </div>
           </div>
         </CardContent>
