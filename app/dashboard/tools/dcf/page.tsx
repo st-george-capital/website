@@ -696,7 +696,7 @@ export default function DCFToolPage() {
     // Calculate working capital (Current Assets - Current Liabilities)
     const currentAssets = balance.annualReports?.map((report: any) => report.totalCurrentAssets) || [];
     const currentLiabilities = balance.annualReports?.map((report: any) => report.totalCurrentLiabilities) || [];
-    const workingCapital = currentAssets.map((ca, i) => ca - (currentLiabilities[i] || 0));
+    const workingCapital = currentAssets.map((ca: number, i: number) => ca - (currentLiabilities[i] || 0));
 
     return {
       companyName: overview.name,
