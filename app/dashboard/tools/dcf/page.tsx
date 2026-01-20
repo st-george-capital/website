@@ -1369,9 +1369,9 @@ function SensitivityAnalysis({ inputs, outputs }: { inputs: DCFInputs; outputs: 
       growthRange.push(inputs.perpetualGrowth + i * 0.005);
     }
 
-    const tableData = [];
+    const tableData: Array<Record<string, string>> = [];
     for (const wacc of waccRange) {
-      const row = { wacc: (wacc * 100).toFixed(1) + '%' };
+      const row: Record<string, string> = { wacc: (wacc * 100).toFixed(1) + '%' };
       for (const growth of growthRange) {
         if (wacc <= growth) {
           row[(growth * 100).toFixed(1) + '%'] = 'Error';
@@ -1412,9 +1412,9 @@ function SensitivityAnalysis({ inputs, outputs }: { inputs: DCFInputs; outputs: 
       marginRange.push(inputs.ebitMargin[0] + i * 0.005); // Use first year margin
     }
 
-    const tableData = [];
+    const tableData: Array<Record<string, string>> = [];
     for (const growth of growthRange) {
-      const row = { growth: (growth * 100).toFixed(1) + '%' };
+      const row: Record<string, string> = { growth: (growth * 100).toFixed(1) + '%' };
       for (const margin of marginRange) {
         // Recalculate with new assumptions
         const testInputs = { ...inputs, revenueGrowth: [growth, ...inputs.revenueGrowth.slice(1)], ebitMargin: [margin, ...inputs.ebitMargin.slice(1)] };
@@ -1427,13 +1427,13 @@ function SensitivityAnalysis({ inputs, outputs }: { inputs: DCFInputs; outputs: 
     return { tableData, growthRange, marginRange };
   };
 
-  const getSensitivityData = () => {
+  const getSensitivityData = (): { tableData: Array<Record<string, string>>, waccRange?: number[], growthRange?: number[], marginRange?: number[] } => {
     if (selectedSensitivity === 'wacc_growth') {
       return generateWaccGrowthSensitivity();
     } else if (selectedSensitivity === 'growth_margin') {
       return generateGrowthMarginSensitivity();
     }
-    return { tableData: [], waccRange: [], growthRange: [] };
+    return { tableData: [] };
   };
 
   const { tableData } = getSensitivityData();
