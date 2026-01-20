@@ -6,6 +6,7 @@ import { Button } from '@/components/button';
 // Using native HTML form elements instead of custom UI components
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Calculator, TrendingUp, BarChart3, AlertTriangle, Info, Download, Upload, FileText } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import {
   BarChart,
   Bar,
@@ -369,29 +370,167 @@ export default function DCFToolPage() {
   };
 
   const parseFactSetFiles = async (incomeFile: File, cashFlowFile: File, balanceFile: File): Promise<ExtractedFinancials> => {
-    // This is a simplified parser - in production you'd use a proper Excel parsing library
-    // For now, return mock data based on the structure we analyzed
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          companyName: "Jacobs Solutions Inc.",
-          ticker: "J",
-          periods: ["DEC '24", "DEC '23", "DEC '22", "DEC '21", "DEC '20"],
-          revenue: [12114.832, 13495.865, 13976.769, 14397.669, 15654.525], // Oldest to newest - realistic growth
-          ebit: [490.957, 526.505, 602.719, 815.447, 1058.247], // Following revenue growth pattern
-          ebitda: [1350.281, 1107.481, 620.928, 675.797, 752.011],
-          netIncome: [214.515, 328.882, 380.466, 492.882, 666.186], // Following growth pattern
-          totalAssets: [12345.67, 11890.23, 11234.56, 10890.12, 10234.78],
-          totalLiabilities: [8765.43, 8234.56, 7890.12, 7456.78, 7123.45],
-          shareholdersEquity: [3580.24, 3655.67, 3344.44, 3433.34, 3111.33],
-          cashAndEquivalents: [16.127, 14.890, 8.909, 6.123, 5.919],
-          totalDebt: [2345.67, 2189.34, 1956.78, 1823.45, 1689.12],
-          capex: [292.034, 265.789, 129.971, 149.292, 134.567],
-          depreciation: [94.985, 89.234, 82.363, 99.924, 87.456],
-          workingCapital: [1234.56, 1189.34, 1056.78, 989.12, 923.45],
-        });
-      }, 2000); // Simulate processing time
+    try {
+      // Read all three Excel files
+      const [incomeData, cashFlowData, balanceData] = await Promise.all([
+        readExcelFile(incomeFile),
+        readExcelFile(cashFlowFile),
+        readExcelFile(balanceFile)
+      ]);
+
+      // Extract company info from the first file
+      const companyName = extractCompanyName(incomeData);
+      const ticker = extractTicker(incomeData);
+      const periods = extractPeriods(incomeData);
+
+      // Extract financial metrics
+      const revenue = extractMetric(incomeData, 'Sales');
+      const ebit = extractMetric(incomeData, 'EBIT');
+      const netIncome = extractMetric(incomeData, 'Net Income');
+
+      // Calculate EBITDA (EBIT + Depreciation)
+      const depreciation = extractMetric(incomeData, 'Depreciation & Amortization') ||
+                          extractMetric(incomeData, 'Depreciation');
+      const ebitda = ebit && depreciation ? ebit.map((e, i) => e + (depreciation[i] || 0)) : ebit || [];
+
+      // Extract balance sheet data
+      const totalAssets = extractMetric(balanceData, 'Total Assets');
+      const totalLiabilities = extractMetric(balanceData, 'Total Liabilities');
+      const shareholdersEquity = extractMetric(balanceData, 'Total Shareholders\' Equity') ||
+                                extractMetric(balanceData, 'Total Equity');
+      const cashAndEquivalents = extractMetric(balanceData, 'Cash & Short-Term Investments') ||
+                                extractMetric(balanceData, 'Cash Only');
+      const totalDebt = extractMetric(balanceData, 'Total Debt') ||
+                       extractMetric(balanceData, 'Long-Term Debt');
+
+      // Calculate working capital
+      const currentAssets = extractMetric(balanceData, 'Total Current Assets');
+      const currentLiabilities = extractMetric(balanceData, 'Total Current Liabilities');
+      const workingCapital = currentAssets && currentLiabilities
+        ? currentAssets.map((ca, i) => ca - (currentLiabilities[i] || 0))
+        : [];
+
+      // Extract cash flow data
+      const capex = extractMetric(cashFlowData, 'Capital Expenditures');
+      const depreciation_cf = extractMetric(cashFlowData, 'Depreciation');
+
+      return {
+        companyName: companyName || 'Unknown Company',
+        ticker: ticker || 'TICKER',
+        periods: periods || [],
+        revenue: revenue || [],
+        ebit: ebit || [],
+        ebitda: ebitda || [],
+        netIncome: netIncome || [],
+        totalAssets: totalAssets || [],
+        totalLiabilities: totalLiabilities || [],
+        shareholdersEquity: shareholdersEquity || [],
+        cashAndEquivalents: cashAndEquivalents || [],
+        totalDebt: totalDebt || [],
+        capex: capex || [],
+        depreciation: depreciation || depreciation_cf || [],
+        workingCapital: workingCapital || [],
+      };
+    } catch (error) {
+      throw new Error(`Failed to parse Excel files: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  // Helper function to read Excel file
+  const readExcelFile = (file: File): Promise<any[][]> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          resolve(jsonData as any[][]);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(file);
     });
+  };
+
+  // Extract company name from Excel data
+  const extractCompanyName = (data: any[][]): string | null => {
+    // Look for company name in the first few rows
+    for (let i = 0; i < Math.min(10, data.length); i++) {
+      for (let j = 0; j < data[i].length; j++) {
+        const cell = data[i][j];
+        if (typeof cell === 'string' && (cell.includes('Inc.') || cell.includes('Corp') || cell.includes('Ltd') || cell.includes('Company'))) {
+          return cell.trim();
+        }
+      }
+    }
+    return null;
+  };
+
+  // Extract ticker from Excel data
+  const extractTicker = (data: any[][]): string | null => {
+    // Look for ticker in the first few rows
+    for (let i = 0; i < Math.min(10, data.length); i++) {
+      for (let j = 0; j < data[i].length; j++) {
+        const cell = data[i][j];
+        if (typeof cell === 'string' && /^\s*[A-Z]{1,5}\s*$/.test(cell.trim())) {
+          return cell.trim();
+        }
+      }
+    }
+    return null;
+  };
+
+  // Extract periods from Excel data
+  const extractPeriods = (data: any[][]): string[] => {
+    // Look for period headers (usually in row 6-8)
+    for (let i = 6; i < Math.min(12, data.length); i++) {
+      const row = data[i];
+      if (row && row.length > 2) {
+        const periods: string[] = [];
+        for (let j = 1; j < row.length; j++) {
+          const cell = row[j];
+          if (cell && typeof cell === 'string' && (cell.includes('DEC') || cell.includes('MAR') || cell.includes('JUN') || cell.includes('SEP') || cell.includes('LTM'))) {
+            periods.push(cell.trim());
+          }
+        }
+        if (periods.length >= 3) {
+          return periods;
+        }
+      }
+    }
+    return [];
+  };
+
+  // Extract metric values from Excel data
+  const extractMetric = (data: any[][], metricName: string): number[] | null => {
+    // Find the row with the metric name
+    for (let i = 8; i < data.length; i++) {
+      const row = data[i];
+      if (row && row.length > 0) {
+        const firstCell = row[0];
+        if (typeof firstCell === 'string' &&
+            (firstCell.toLowerCase().includes(metricName.toLowerCase()) ||
+             metricName.toLowerCase().includes(firstCell.toLowerCase()))) {
+
+          const values: number[] = [];
+          for (let j = 1; j < row.length; j++) {
+            const cell = row[j];
+            if (typeof cell === 'number' && !isNaN(cell)) {
+              values.push(cell);
+            }
+          }
+          if (values.length >= 3) {
+            return values;
+          }
+        }
+      }
+    }
+    return null;
   };
 
   const autoPopulateFromFinancials = () => {
