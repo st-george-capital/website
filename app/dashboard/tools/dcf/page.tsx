@@ -2502,20 +2502,29 @@ function TickerSearch({ onSelectCompany }: { onSelectCompany: (company: CompanyO
   };
 
   const selectCompany = async (symbol: string) => {
+    console.log('Selecting company:', symbol);
     try {
+      console.log('Fetching company overview for:', symbol);
       const response = await fetch(`/api/alpha-vantage/overview/${symbol}`);
+      console.log('Overview response status:', response.status);
+
       const companyData = await response.json();
+      console.log('Company data received:', companyData);
 
       if (companyData.error) {
         console.error('Company fetch error:', companyData.error);
+        alert(`Error loading company data: ${companyData.error}`);
         return;
       }
 
+      console.log('Calling onSelectCompany with:', companyData);
       onSelectCompany(companyData);
       setQuery(`${companyData.name} (${companyData.symbol})`);
       setShowSuggestions(false);
+      console.log('Company selection completed');
     } catch (error) {
       console.error('Company fetch failed:', error);
+      alert(`Failed to load company data: ${error}`);
     }
   };
 
@@ -2528,11 +2537,18 @@ function TickerSearch({ onSelectCompany }: { onSelectCompany: (company: CompanyO
             value={query}
             onChange={handleInputChange}
             placeholder="Search for a company (e.g., AAPL, Microsoft, Tesla)..."
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
           />
           {isSearching && (
             <div className="absolute right-3 top-3">
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+            </div>
+          )}
+          {query && !isSearching && (
+            <div className="absolute right-3 top-3 text-gray-400">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
             </div>
           )}
         </div>
@@ -2540,24 +2556,29 @@ function TickerSearch({ onSelectCompany }: { onSelectCompany: (company: CompanyO
 
       {/* Suggestions Dropdown */}
       {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+        <div className="absolute z-50 w-full mt-2 bg-white border border-gray-300 rounded-lg shadow-xl max-h-80 overflow-y-auto">
           {suggestions.map((suggestion, index) => (
             <div
               key={index}
               onClick={() => selectCompany(suggestion.symbol)}
-              className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+              className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors duration-150"
             >
               <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-semibold text-gray-900">
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-gray-900 truncate">
                     {suggestion.name}
                   </div>
-                  <div className="text-sm text-gray-600">
-                    {suggestion.symbol} • {suggestion.region} • {suggestion.type}
+                  <div className="text-sm text-gray-600 truncate">
+                    {suggestion.symbol} • {suggestion.region}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {suggestion.type}
                   </div>
                 </div>
-                <div className="text-xs text-gray-500">
-                  {suggestion.matchScore}% match
+                <div className="ml-3 flex-shrink-0">
+                  <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    {Math.round(parseFloat(suggestion.matchScore) * 100)}% match
+                  </div>
                 </div>
               </div>
             </div>
@@ -2567,20 +2588,25 @@ function TickerSearch({ onSelectCompany }: { onSelectCompany: (company: CompanyO
 
       {/* No results */}
       {showSuggestions && query.length >= 2 && suggestions.length === 0 && !isSearching && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4 text-center">
-          <div className="text-gray-500 mb-2">No companies found for "{query}"</div>
-          <div className="text-xs text-gray-400">
-            Check browser console for API debug info
+        <div className="absolute z-50 w-full mt-2 bg-white border border-gray-300 rounded-lg shadow-xl p-6 text-center">
+          <div className="text-gray-400 mb-2">
+            <svg className="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-.966-5.5-2.5" />
+            </svg>
           </div>
+          <div className="text-gray-600 font-medium">No companies found</div>
+          <div className="text-sm text-gray-500 mt-1">Try a different search term or check spelling</div>
         </div>
       )}
 
-      {/* Debug info */}
-      {query.length >= 2 && (
-        <div className="mt-2 text-xs text-gray-500">
-          Searching: {isSearching ? '🔄' : '✅'} |
-          Suggestions: {suggestions.length} |
-          Query: "{query}"
+      {/* Debug info - only show in development */}
+      {typeof window !== 'undefined' && window.location.hostname === 'localhost' && query.length >= 2 && (
+        <div className="mt-2 text-xs text-gray-500 bg-gray-50 p-2 rounded border">
+          <div className="font-mono">
+            Status: {isSearching ? '🔄 Searching...' : '✅ Ready'} |
+            Results: {suggestions.length} |
+            Query: "{query}"
+          </div>
         </div>
       )}
     </div>
