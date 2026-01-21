@@ -998,13 +998,13 @@ export default function DCFToolPage() {
       <div className="space-y-6">
         <div className="border-b border-gray-200">
           <nav className="flex space-x-8">
-            {[
-              { id: 'assumptions', label: 'Assumptions' },
-              { id: 'valuation', label: 'DCF Valuation' },
-              { id: 'charts', label: 'Charts & Analysis' },
-              { id: 'sensitivity', label: 'Sensitivity Analysis' },
-              { id: 'financials', label: 'Financial Deep Dive' },
-            ].map((tab) => (
+            {([
+              { id: 'assumptions' as const, label: 'Assumptions' },
+              { id: 'valuation' as const, label: 'DCF Valuation' },
+              { id: 'charts' as const, label: 'Charts & Analysis' },
+              { id: 'sensitivity' as const, label: 'Sensitivity Analysis' },
+              { id: 'financials' as const, label: 'Financial Deep Dive' },
+            ] as const).map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
