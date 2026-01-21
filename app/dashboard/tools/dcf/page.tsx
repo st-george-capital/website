@@ -718,9 +718,13 @@ export default function DCFToolPage() {
     const totalLiabilities = balance.annualReports?.map((report: any) => report.totalLiabilities) || [];
     const shareholdersEquity = balance.annualReports?.map((report: any) => report.totalShareholderEquity) || [];
     const cashAndEquivalents = balance.annualReports?.map((report: any) => report.cashAndCashEquivalentsAtCarryingValue || report.cashAndShortTermInvestments) || [];
-    const totalDebt = balance.annualReports?.map((report: any) =>
-      (report.longTermDebt || 0) + (report.shortLongTermDebtTotal || 0)
-    ) || [];
+    const totalDebt = balance.annualReports?.map((report: any) => {
+      // Sum all debt components: long-term debt, short-term debt, current debt
+      const longTerm = report.longTermDebt || report.longTermDebtNoncurrent || 0;
+      const shortTerm = report.shortTermDebt || report.shortLongTermDebtTotal || 0;
+      const currentDebt = report.currentDebt || report.currentLongTermDebt || 0;
+      return longTerm + shortTerm + currentDebt;
+    }) || [];
 
     // Cash flow data
     const capex = cashflow.annualReports?.map((report: any) => Math.abs(report.capitalExpenditures || 0)) || [];
@@ -768,7 +772,8 @@ export default function DCFToolPage() {
     // Calculate historical growth rates (most recent 2-3 years for stability)
     let revenueGrowth = 0.05; // Default
     if (financialData.revenue.length >= 2) {
-      const recentRevenue = financialData.revenue.slice(-3); // Last 3 years
+      // Data comes newest first, so take last 3 and reverse to get oldest to newest
+      const recentRevenue = financialData.revenue.slice(-3).reverse(); // Last 3 years, reversed
       const growthRates = [];
       for (let i = 1; i < recentRevenue.length; i++) {
         if (recentRevenue[i-1] > 0) {
@@ -777,8 +782,11 @@ export default function DCFToolPage() {
       }
       if (growthRates.length > 0) {
         revenueGrowth = growthRates.reduce((sum, rate) => sum + rate, 0) / growthRates.length;
+        console.log('Individual growth rates:', growthRates.map(r => (r * 100).toFixed(1) + '%'));
+        console.log('Average growth rate before capping:', (revenueGrowth * 100).toFixed(1) + '%');
         // Cap extreme growth rates
         revenueGrowth = Math.max(-0.5, Math.min(0.5, revenueGrowth));
+        console.log('Final growth rate after capping:', (revenueGrowth * 100).toFixed(1) + '%');
       }
     }
 
@@ -787,6 +795,7 @@ export default function DCFToolPage() {
     if (financialData.ebit.length > 0 && financialData.revenue.length > 0) {
       const recentMargins = [];
       const minLength = Math.min(financialData.ebit.length, financialData.revenue.length, 3);
+      // Use most recent years for margin calculation
       for (let i = 0; i < minLength; i++) {
         if (financialData.revenue[i] > 0) {
           recentMargins.push(financialData.ebit[i] / financialData.revenue[i]);
@@ -871,9 +880,9 @@ export default function DCFToolPage() {
       capexRate: (avgCapexRate * 100).toFixed(1) + '%',
       depreciationRate: (avgDepreciationRate * 100).toFixed(1) + '%',
       wacc: (wacc * 100).toFixed(1) + '%',
-      totalDebt,
-      equity,
-      startingRevenue: financialData.revenue[0]
+      totalDebt: (totalDebt / 1000000).toFixed(0) + 'M',
+      equity: (equity / 1000000).toFixed(0) + 'M',
+      startingRevenue: (financialData.revenue[0] / 1000000).toFixed(0) + 'M'
     });
 
     // Create growth profile with deceleration (typical DCF approach)
@@ -908,6 +917,19 @@ export default function DCFToolPage() {
       costOfDebt: costOfDebt,
       perpetualGrowth: Math.max(0.015, Math.min(0.04, riskFreeRate - 0.01)), // Conservative terminal growth
     };
+
+    console.log('About to update DCF inputs with:', {
+      companyName: updatedInputs.companyName,
+      ticker: updatedInputs.ticker,
+      currentPrice: updatedInputs.currentPrice,
+      sharesOutstanding: (updatedInputs.sharesOutstanding / 1000000).toFixed(0) + 'M',
+      totalDebt: (updatedInputs.totalDebt / 1000000).toFixed(0) + 'M',
+      cashEquivalents: (updatedInputs.cashEquivalents / 1000000).toFixed(0) + 'M',
+      startingRevenue: (updatedInputs.startingRevenue / 1000000).toFixed(0) + 'M',
+      revenueGrowth: updatedInputs.revenueGrowth.map(g => (g * 100).toFixed(1) + '%'),
+      ebitMargin: updatedInputs.ebitMargin.map(m => (m * 100).toFixed(1) + '%'),
+      perpetualGrowth: (updatedInputs.perpetualGrowth * 100).toFixed(1) + '%'
+    });
 
     setInputs(updatedInputs);
     console.log('DCF inputs updated successfully:', updatedInputs);
