@@ -364,6 +364,7 @@ export default function DCFToolPage() {
   };
 
   const runFullAnalysis = async (ticker: string) => {
+    console.log('🚀 runFullAnalysis called with ticker:', ticker);
     setIsAnalyzing(true);
     setAnalysisError(null);
 
@@ -419,6 +420,11 @@ export default function DCFToolPage() {
       setFinancialData(processedData);
 
       console.log('Processed financial data:', processedData);
+
+      // Auto-populate DCF inputs with the financial data
+      autoPopulateFromFinancials();
+
+      console.log('DCF inputs auto-populated from financial data');
 
     } catch (error) {
       console.error('Analysis error:', error);
@@ -745,6 +751,7 @@ export default function DCFToolPage() {
   };
 
   const autoPopulateFromFinancials = () => {
+    console.log('🔄 autoPopulateFromFinancials called');
     if (!financialData) {
       console.log('No financial data available for auto-population');
       return;
@@ -908,6 +915,7 @@ export default function DCFToolPage() {
     // Force recalculation by triggering useEffect
     setTimeout(() => {
       setForceRecalc(prev => prev + 1);
+      console.log('✅ DCF recalculation triggered');
     }, 100);
   };
 
@@ -3074,10 +3082,15 @@ function TickerSearch({
             </div>
             <Button
               onClick={() => {
+                console.log('Run DCF Analysis button clicked');
+                console.log('Current query:', query);
                 // Extract ticker symbol from query (handle formats like "AAPL" or "APPLE INC (AAPL)")
                 const tickerMatch = query.trim().match(/\b([A-Z]{1,5})\b/);
                 const ticker = tickerMatch ? tickerMatch[1] : query.trim().split(' ')[0];
+                console.log('Extracted ticker:', ticker.toUpperCase());
+                console.log('Calling onRunAnalysis...');
                 onRunAnalysis(ticker.toUpperCase());
+                console.log('onRunAnalysis called');
               }}
               disabled={isAnalyzing}
               className="ml-4"
