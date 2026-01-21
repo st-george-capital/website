@@ -941,38 +941,12 @@ export default function DCFToolPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <TickerSearch onSelectCompany={handleCompanySelect} />
-
-            {/* Show Run Analysis button when there's a query (typed ticker) */}
-            {query.trim() && (
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-semibold text-blue-900">
-                      Analyze: {query.toUpperCase()}
-                    </h3>
-                    <p className="text-sm text-blue-700 mt-1">
-                      {selectedCompany
-                        ? `${selectedCompany.name} • ${selectedCompany.exchange} • ${selectedCompany.sector}`
-                        : 'Click "Run DCF Analysis" to fetch data and perform valuation'
-                      }
-                    </p>
-                    {selectedCompany?.description && (
-                      <p className="text-sm text-blue-600 mt-2 line-clamp-2">
-                        {selectedCompany.description.substring(0, 200)}...
-                      </p>
-                    )}
-                  </div>
-                  <Button
-                    onClick={() => runFullAnalysis(query.trim().toUpperCase())}
-                    disabled={isAnalyzing}
-                    className="ml-4"
-                  >
-                    {isAnalyzing ? '🔄 Analyzing...' : '🚀 Run DCF Analysis'}
-                  </Button>
-                </div>
-              </div>
-            )}
+            <TickerSearch
+              onSelectCompany={handleCompanySelect}
+              onRunAnalysis={runFullAnalysis}
+              selectedCompany={selectedCompany}
+              isAnalyzing={isAnalyzing}
+            />
 
             {analysisError && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-md">
@@ -2890,7 +2864,17 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
 }
 
 // Ticker Search Component with Autocomplete
-function TickerSearch({ onSelectCompany }: { onSelectCompany: (company: CompanyOverview) => Promise<void> }) {
+function TickerSearch({
+  onSelectCompany,
+  onRunAnalysis,
+  selectedCompany,
+  isAnalyzing
+}: {
+  onSelectCompany: (company: CompanyOverview) => Promise<void>;
+  onRunAnalysis: (ticker: string) => Promise<void>;
+  selectedCompany: CompanyOverview | null;
+  isAnalyzing: boolean;
+}) {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -3044,6 +3028,37 @@ function TickerSearch({ onSelectCompany }: { onSelectCompany: (company: CompanyO
           </div>
           <div className="text-gray-600 font-medium">No companies found</div>
           <div className="text-sm text-gray-500 mt-1">Try a different search term or check spelling</div>
+        </div>
+      )}
+
+      {/* Run Analysis Button - appears when user types a ticker */}
+      {query.trim() && (
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+          <div className="flex items-start justify-between">
+            <div>
+              <h3 className="font-semibold text-blue-900">
+                Analyze: {query.toUpperCase()}
+              </h3>
+              <p className="text-sm text-blue-700 mt-1">
+                {selectedCompany
+                  ? `${selectedCompany.name} • ${selectedCompany.exchange} • ${selectedCompany.sector}`
+                  : 'Click "Run DCF Analysis" to fetch data and perform valuation'
+                }
+              </p>
+              {selectedCompany?.description && (
+                <p className="text-sm text-blue-600 mt-2 line-clamp-2">
+                  {selectedCompany.description.substring(0, 200)}...
+                </p>
+              )}
+            </div>
+            <Button
+              onClick={() => onRunAnalysis(query.trim().toUpperCase())}
+              disabled={isAnalyzing}
+              className="ml-4"
+            >
+              {isAnalyzing ? '🔄 Analyzing...' : '🚀 Run DCF Analysis'}
+            </Button>
+          </div>
         </div>
       )}
 
