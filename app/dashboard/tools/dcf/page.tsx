@@ -2504,9 +2504,23 @@ function TickerSearch({ onSelectCompany }: { onSelectCompany: (company: CompanyO
   const selectCompany = async (symbol: string) => {
     console.log('Selecting company:', symbol);
     try {
-      console.log('Fetching company overview for:', symbol);
-      const response = await fetch(`/api/alpha-vantage/overview/${symbol}`);
+      const apiUrl = `/api/alpha-vantage/overview/${symbol}`;
+      console.log('Fetching company overview from:', apiUrl);
+
+      const response = await fetch(apiUrl);
       console.log('Overview response status:', response.status);
+      console.log('Overview response headers:', Object.fromEntries(response.headers.entries()));
+
+      // Check if response is HTML (error page)
+      const contentType = response.headers.get('content-type');
+      console.log('Response content-type:', contentType);
+
+      if (contentType && contentType.includes('text/html')) {
+        const htmlText = await response.text();
+        console.error('Received HTML instead of JSON:', htmlText.substring(0, 500));
+        alert(`API Error: Received HTML response instead of JSON. Status: ${response.status}`);
+        return;
+      }
 
       const companyData = await response.json();
       console.log('Company data received:', companyData);
