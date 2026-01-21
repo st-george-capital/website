@@ -1261,20 +1261,359 @@ export default function DCFToolPage() {
           )}
 
           {activeTab === 'sensitivity' && (
-            <SensitivityAnalysis inputs={inputs} outputs={outputs} />
+            <div className="space-y-6">
+              {/* Sensitivity Analysis Header */}
+              <Card className="bg-gradient-to-r from-green-50 to-teal-50 border-green-200">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-green-800">
+                    <BarChart3 className="w-5 h-5 mr-2" />
+                    DCF Sensitivity Analysis
+                  </CardTitle>
+                  <CardDescription>
+                    Two-way sensitivity tables showing valuation impact of key assumptions
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-white p-4 rounded-lg border border-green-200">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600 mb-1">
+                          ${(outputs.intrinsicValuePerShare * 0.8).toFixed(2)} - ${(outputs.intrinsicValuePerShare * 1.2).toFixed(2)}
+                        </div>
+                        <div className="text-sm text-gray-600">Price Range (±20%)</div>
+                      </div>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg border border-green-200">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600 mb-1">
+                          {((outputs.wacc - 0.005) * 100).toFixed(1)}% - {((outputs.wacc + 0.005) * 100).toFixed(1)}%
+                        </div>
+                        <div className="text-sm text-gray-600">WACC Range (±0.5%)</div>
+                      </div>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg border border-green-200">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-purple-600 mb-1">
+                          {((inputs.perpetualGrowth - 0.005) * 100).toFixed(1)}% - {((inputs.perpetualGrowth + 0.005) * 100).toFixed(1)}%
+                        </div>
+                        <div className="text-sm text-gray-600">Terminal Growth Range (±0.5%)</div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Sensitivity Analysis Navigation */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Sensitivity Tables</CardTitle>
+                  <CardDescription>
+                    Interactive tables showing how valuation changes with key assumptions
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className="text-center p-4 border rounded-lg bg-blue-50">
+                      <div className="font-semibold text-blue-800">WACC × Terminal Growth</div>
+                      <div className="text-sm text-blue-600 mt-1">Most important sensitivity</div>
+                      <div className="text-xs text-blue-500 mt-2">Shows discount rate vs long-term growth</div>
+                    </div>
+                    <div className="text-center p-4 border rounded-lg bg-green-50">
+                      <div className="font-semibold text-green-800">WACC × Exit Multiple</div>
+                      <div className="text-sm text-green-600 mt-1">Alternative terminal method</div>
+                      <div className="text-xs text-green-500 mt-2">For cyclical or high-growth companies</div>
+                    </div>
+                    <div className="text-center p-4 border rounded-lg bg-purple-50">
+                      <div className="font-semibold text-purple-800">Revenue Growth × EBIT Margin</div>
+                      <div className="text-sm text-purple-600 mt-1">Operating assumptions</div>
+                      <div className="text-xs text-purple-500 mt-2">Shows impact of business drivers</div>
+                    </div>
+                  </div>
+
+                  <SensitivityAnalysis inputs={inputs} outputs={outputs} />
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {activeTab === 'financials' && (
-            <FinancialDeepDive financialData={financialData} />
+            <div className="space-y-6">
+              {/* Financial Deep Dive Header */}
+              <Card className="bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-purple-800">
+                    <Calculator className="w-5 h-5 mr-2" />
+                    Financial Deep Dive
+                  </CardTitle>
+                  <CardDescription>
+                    Historical financial analysis and key metrics for DCF assumption validation
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    {financialData ? (
+                      <>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-purple-600">
+                            ${(financialData.revenue[0] / 1000000).toFixed(0)}M
+                          </div>
+                          <div className="text-sm text-gray-600">Latest Revenue</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-green-600">
+                            {(financialData.revenue.length > 1 ?
+                              ((financialData.revenue[0] - financialData.revenue[1]) / financialData.revenue[1] * 100) : 0
+                            ).toFixed(1)}%
+                          </div>
+                          <div className="text-sm text-gray-600">YoY Growth</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-blue-600">
+                            {(financialData.ebit.length > 0 && financialData.revenue[0] > 0 ?
+                              (financialData.ebit[0] / financialData.revenue[0] * 100) : 0
+                            ).toFixed(1)}%
+                          </div>
+                          <div className="text-sm text-gray-600">EBIT Margin</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-orange-600">
+                            {((financialData.totalDebt[0] - financialData.cashAndEquivalents[0]) / financialData.shareholdersEquity[0]).toFixed(2)}x
+                          </div>
+                          <div className="text-sm text-gray-600">Net Debt/Equity</div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="col-span-4 text-center py-8">
+                        <Calculator className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                        <h3 className="text-lg font-medium text-gray-600 mb-2">No Financial Data Available</h3>
+                        <p className="text-gray-500">
+                          Load financial data by selecting a company or uploading financial statements
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <FinancialDeepDive financialData={financialData} />
+
+              {/* Key Financial Ratios & Metrics */}
+              {financialData && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Key Financial Metrics</CardTitle>
+                    <CardDescription>
+                      Important ratios and metrics for valuation analysis
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-sm text-gray-800">Profitability</h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-sm">Gross Margin</span>
+                            <span className="font-medium">
+                              {financialData.revenue[0] > 0 && financialData.ebit[0] ?
+                                ((financialData.ebit[0] + (financialData.depreciation?.[0] || 0)) / financialData.revenue[0] * 100).toFixed(1) + '%' :
+                                'N/A'
+                              }
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm">EBIT Margin</span>
+                            <span className="font-medium">
+                              {financialData.revenue[0] > 0 ?
+                                (financialData.ebit[0] / financialData.revenue[0] * 100).toFixed(1) + '%' :
+                                'N/A'
+                              }
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Net Margin</span>
+                            <span className="font-medium">
+                              {financialData.revenue[0] > 0 ?
+                                (financialData.netIncome[0] / financialData.revenue[0] * 100).toFixed(1) + '%' :
+                                'N/A'
+                              }
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-sm text-gray-800">Efficiency</h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-sm">Asset Turnover</span>
+                            <span className="font-medium">
+                              {financialData.totalAssets[0] > 0 ?
+                                (financialData.revenue[0] / financialData.totalAssets[0]).toFixed(2) + 'x' :
+                                'N/A'
+                              }
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm">CapEx % Revenue</span>
+                            <span className="font-medium">
+                              {financialData.revenue[0] > 0 && financialData.capex[0] ?
+                                Math.abs(financialData.capex[0] / financialData.revenue[0] * 100).toFixed(1) + '%' :
+                                'N/A'
+                              }
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm">ROE</span>
+                            <span className="font-medium">
+                              {financialData.shareholdersEquity[0] > 0 ?
+                                (financialData.netIncome[0] / financialData.shareholdersEquity[0] * 100).toFixed(1) + '%' :
+                                'N/A'
+                              }
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-sm text-gray-800">Capital Structure</h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-sm">Debt/Equity</span>
+                            <span className="font-medium">
+                              {(financialData.totalDebt[0] / financialData.shareholdersEquity[0]).toFixed(2)}x
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Net Debt/EBITDA</span>
+                            <span className="font-medium">
+                              {financialData.ebitda && financialData.ebitda[0] > 0 ?
+                                ((financialData.totalDebt[0] - financialData.cashAndEquivalents[0]) / financialData.ebitda[0]).toFixed(1) + 'x' :
+                                'N/A'
+                              }
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Cash Conversion</span>
+                            <span className="font-medium">
+                              {financialData.netIncome[0] > 0 && financialData.operatingCashFlow && financialData.operatingCashFlow[0] ?
+                                (financialData.operatingCashFlow[0] / financialData.netIncome[0]).toFixed(2) + 'x' :
+                                'N/A'
+                              }
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           )}
         </div>
       </div>
 
-      {/* Quality Checks and Warnings */}
-      <DCFQualityChecks inputs={inputs} outputs={outputs} />
+      {/* DCF Quality Checks & Implied Multiples */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <DCFQualityChecks inputs={inputs} outputs={outputs} />
+        <DCFImpliedMultiples inputs={inputs} outputs={outputs} />
+      </div>
 
-      {/* Implied Multiples */}
-      <DCFImpliedMultiples inputs={inputs} outputs={outputs} />
+      {/* DCF Summary & Investment Thesis */}
+      <Card className="bg-gradient-to-r from-gray-50 to-slate-50 border-gray-200">
+        <CardHeader>
+          <CardTitle className="flex items-center text-gray-800">
+            <TrendingUp className="w-5 h-5 mr-2" />
+            DCF Valuation Summary & Investment Thesis
+          </CardTitle>
+          <CardDescription>
+            Professional valuation summary with key takeaways and investment implications
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            {/* Key Metrics Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-white p-4 rounded-lg border">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">
+                    ${outputs.intrinsicValuePerShare.toFixed(2)}
+                  </div>
+                  <div className="text-sm text-gray-600">Intrinsic Value</div>
+                </div>
+              </div>
+              <div className="bg-white p-4 rounded-lg border">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">
+                    {outputs.upsidedownsidePercent >= 0 ? '+' : ''}{outputs.upsidedownsidePercent.toFixed(1)}%
+                  </div>
+                  <div className="text-sm text-gray-600">Upside/Downside</div>
+                </div>
+              </div>
+              <div className="bg-white p-4 rounded-lg border">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-purple-600">
+                    {((outputs.terminalValue / outputs.enterpriseValue) * 100).toFixed(1)}%
+                  </div>
+                  <div className="text-sm text-gray-600">Terminal Value %</div>
+                </div>
+              </div>
+              <div className="bg-white p-4 rounded-lg border">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-orange-600">
+                    {(outputs.wacc * 100).toFixed(1)}%
+                  </div>
+                  <div className="text-sm text-gray-600">WACC</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Investment Thesis */}
+            <div className="bg-white p-6 rounded-lg border">
+              <h4 className="font-semibold text-lg mb-3">Investment Thesis</h4>
+              <div className="space-y-3 text-sm">
+                <div>
+                  <span className="font-medium">Valuation:</span>
+                  <span className={`ml-2 ${outputs.upsidedownsidePercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {outputs.companyName || 'The company'} is currently trading at
+                    {outputs.upsidedownsidePercent >= 0 ? ` ${outputs.upsidedownsidePercent.toFixed(1)}% below` : ` ${Math.abs(outputs.upsidedownsidePercent).toFixed(1)}% above`}
+                    our DCF-derived intrinsic value of ${outputs.intrinsicValuePerShare.toFixed(2)} per share.
+                  </span>
+                </div>
+
+                <div>
+                  <span className="font-medium">Key Drivers:</span>
+                  <span className="ml-2 text-gray-700">
+                    The valuation is most sensitive to {outputs.wacc > 0.12 ? 'WACC assumptions' : outputs.perpetualGrowth < 0.025 ? 'terminal growth rates' : 'revenue growth and margins'}.
+                    Terminal value represents {((outputs.terminalValue / outputs.enterpriseValue) * 100).toFixed(1)}% of enterprise value,
+                    which is {outputs.terminalValueContribution > 0.8 ? 'relatively high' : outputs.terminalValueContribution > 0.6 ? 'reasonable' : 'conservative'}.
+                  </span>
+                </div>
+
+                <div>
+                  <span className="font-medium">Recommendation:</span>
+                  <span className={`ml-2 font-medium ${outputs.upsidedownsidePercent >= 15 ? 'text-green-600' : outputs.upsidedownsidePercent <= -15 ? 'text-red-600' : 'text-yellow-600'}`}>
+                    {outputs.upsidedownsidePercent >= 15 ? 'BUY - Significant upside to intrinsic value' :
+                     outputs.upsidedownsidePercent <= -15 ? 'SELL/AVOID - Trading above intrinsic value' :
+                     'HOLD - Fairly valued, monitor key assumptions'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Methodology Notes */}
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <h4 className="font-semibold text-blue-800 mb-2">DCF Methodology Notes</h4>
+              <ul className="text-sm text-blue-700 space-y-1">
+                <li>• Enterprise value calculated using discounted cash flow to firm (FCFF) methodology</li>
+                <li>• {inputs.forecastYears}-year explicit forecast period with {inputs.perpetualGrowth.toFixed(1)}% terminal growth</li>
+                <li>• WACC of {(outputs.wacc * 100).toFixed(1)}% reflects cost of equity and debt weighted by capital structure</li>
+                <li>• All figures in millions except per-share values</li>
+                <li>• This analysis is for educational purposes and should not be considered investment advice</li>
+              </ul>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Disclaimer */}
       <Card className="border-yellow-200 bg-yellow-50">
