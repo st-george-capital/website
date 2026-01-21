@@ -316,7 +316,7 @@ interface CompanyOverview {
 
 export default function DCFToolPage() {
   const [inputs, setInputs] = useState<DCFInputs>(getDefaultInputs());
-  const [activeTab, setActiveTab] = useState('assumptions');
+  const [activeTab, setActiveTab] = useState<'assumptions' | 'valuation' | 'charts' | 'sensitivity' | 'financials'>('assumptions');
   const [financialData, setFinancialData] = useState<ExtractedFinancials | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<CompanyOverview | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
