@@ -1129,8 +1129,8 @@ export default function DCFToolPage() {
                           ${outputs.intrinsicValuePerShare.toFixed(2)}
                         </div>
                         <div className="text-sm text-gray-600 mb-2">Intrinsic Value per Share</div>
-                        <div className={`text-lg font-semibold ${outputs.upsidedownsidePercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {outputs.upsidedownsidePercent >= 0 ? '+' : ''}{outputs.upsidedownsidePercent.toFixed(1)}%
+                        <div className={`text-lg font-semibold ${outputs.upsideDownside >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {outputs.upsideDownside >= 0 ? '+' : ''}{(outputs.upsideDownside * 100).toFixed(1)}%
                         </div>
                         <div className="text-xs text-gray-500">vs Current Price</div>
                       </div>
@@ -1544,7 +1544,7 @@ export default function DCFToolPage() {
               <div className="bg-white p-4 rounded-lg border">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-green-600">
-                    {outputs.upsidedownsidePercent >= 0 ? '+' : ''}{outputs.upsidedownsidePercent.toFixed(1)}%
+                    {outputs.upsideDownside >= 0 ? '+' : ''}{(outputs.upsideDownside * 100).toFixed(1)}%
                   </div>
                   <div className="text-sm text-gray-600">Upside/Downside</div>
                 </div>
@@ -1573,9 +1573,9 @@ export default function DCFToolPage() {
               <div className="space-y-3 text-sm">
                 <div>
                   <span className="font-medium">Valuation:</span>
-                  <span className={`ml-2 ${outputs.upsidedownsidePercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <span className={`ml-2 ${outputs.upsideDownside >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {outputs.companyName || 'The company'} is currently trading at
-                    {outputs.upsidedownsidePercent >= 0 ? ` ${outputs.upsidedownsidePercent.toFixed(1)}% below` : ` ${Math.abs(outputs.upsidedownsidePercent).toFixed(1)}% above`}
+                    {outputs.upsideDownside >= 0 ? ` ${(outputs.upsideDownside * 100).toFixed(1)}% below` : ` ${Math.abs(outputs.upsideDownside * 100).toFixed(1)}% above`}
                     our DCF-derived intrinsic value of ${outputs.intrinsicValuePerShare.toFixed(2)} per share.
                   </span>
                 </div>
@@ -1591,9 +1591,9 @@ export default function DCFToolPage() {
 
                 <div>
                   <span className="font-medium">Recommendation:</span>
-                  <span className={`ml-2 font-medium ${outputs.upsidedownsidePercent >= 15 ? 'text-green-600' : outputs.upsidedownsidePercent <= -15 ? 'text-red-600' : 'text-yellow-600'}`}>
-                    {outputs.upsidedownsidePercent >= 15 ? 'BUY - Significant upside to intrinsic value' :
-                     outputs.upsidedownsidePercent <= -15 ? 'SELL/AVOID - Trading above intrinsic value' :
+                  <span className={`ml-2 font-medium ${outputs.upsideDownside >= 0.15 ? 'text-green-600' : outputs.upsideDownside <= -0.15 ? 'text-red-600' : 'text-yellow-600'}`}>
+                    {outputs.upsideDownside >= 0.15 ? 'BUY - Significant upside to intrinsic value' :
+                     outputs.upsideDownside <= -0.15 ? 'SELL/AVOID - Trading above intrinsic value' :
                      'HOLD - Fairly valued, monitor key assumptions'}
                   </span>
                 </div>
