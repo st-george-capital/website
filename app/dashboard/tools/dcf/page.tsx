@@ -89,6 +89,8 @@ interface DCFOutputs {
 
   // Valuation
   terminalValue: number;
+  pvOfFcff: number;
+  pvOfTerminalValue: number;
   enterpriseValue: number;
   equityValue: number;
   intrinsicValuePerShare: number;
@@ -3117,6 +3119,8 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
     nopat,
     freeCashFlow,
     terminalValue,
+    pvOfFcff: pvFcff,
+    pvOfTerminalValue: pvTerminal,
     enterpriseValue,
     equityValue,
     intrinsicValuePerShare,
