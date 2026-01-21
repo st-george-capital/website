@@ -857,7 +857,7 @@ export default function DCFToolPage() {
       ...inputs,
       companyName: financialData.companyName || inputs.companyName,
       ticker: financialData.ticker || inputs.ticker,
-      currentPrice: selectedCompany?.week52High ? (selectedCompany.week52High + selectedCompany.week52Low) / 2 : inputs.currentPrice,
+      currentPrice: selectedCompany?.week52High && selectedCompany?.week52Low ? (selectedCompany.week52High + selectedCompany.week52Low) / 2 : inputs.currentPrice,
       sharesOutstanding: selectedCompany?.sharesOutstanding || inputs.sharesOutstanding || 100000000,
       sharesDiluted: selectedCompany?.sharesOutstanding ? selectedCompany.sharesOutstanding * 1.05 : inputs.sharesDiluted || 105000000,
       totalDebt: totalDebt,
