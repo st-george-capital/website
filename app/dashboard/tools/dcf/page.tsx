@@ -388,12 +388,12 @@ export default function DCFToolPage() {
       if (overview.error) {
         throw new Error(`Company overview error: ${overview.details || overview.error}`);
       }
-      if (!overview.Symbol) {
+      if (!overview.symbol && !overview.Symbol) {
         throw new Error(`No data found for ticker "${ticker}". Please check the symbol and try again.`);
       }
 
       console.log('API responses received:', {
-        overview: !!overview.Symbol,
+        overview: !!(overview.symbol || overview.Symbol),
         quote: !!quote['Global Quote'],
         income: !!income.annualReports,
         balance: !!balance.annualReports,
