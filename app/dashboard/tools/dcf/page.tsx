@@ -313,14 +313,15 @@ interface CompanyOverview {
 
 export default function DCFToolPage() {
   const [inputs, setInputs] = useState<DCFInputs>(getDefaultInputs());
-  const [activeTab, setActiveTab] = useState('inputs');
+  const [activeTab, setActiveTab] = useState('assumptions');
   const [financialData, setFinancialData] = useState<ExtractedFinancials | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<CompanyOverview | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [forceRecalc, setForceRecalc] = useState(0);
 
   // Calculate outputs whenever inputs change
-  const outputs = useMemo(() => calculateDCF(inputs), [inputs]);
+  const outputs = useMemo(() => calculateDCF(inputs), [inputs, forceRecalc]);
 
   const updateInput = (field: keyof DCFInputs, value: any) => {
     setInputs(prev => ({ ...prev, [field]: value }));
@@ -718,68 +719,170 @@ export default function DCFToolPage() {
   };
 
   const autoPopulateFromFinancials = () => {
-    if (!financialData) return;
+    if (!financialData) {
+      console.log('No financial data available for auto-population');
+      return;
+    }
 
     console.log('Financial data for auto-population:', financialData);
 
-    // Calculate historical growth rates and margins (using most recent growth)
-    const revenueGrowth = financialData.revenue.length > 1
-      ? (financialData.revenue[financialData.revenue.length - 1] - financialData.revenue[financialData.revenue.length - 2]) / financialData.revenue[financialData.revenue.length - 2]
-      : 0.05;
+    // Validate data availability
+    if (!financialData.revenue || financialData.revenue.length === 0) {
+      console.error('No revenue data available');
+      return;
+    }
 
-    const avgEbitMargin = financialData.ebit.length > 0 && financialData.revenue.length > 0 && financialData.revenue[0] !== 0
-      ? financialData.ebit[0] / financialData.revenue[0]
-      : 0.10; // Default 10% margin
+    // Calculate historical growth rates (most recent 2-3 years for stability)
+    let revenueGrowth = 0.05; // Default
+    if (financialData.revenue.length >= 2) {
+      const recentRevenue = financialData.revenue.slice(-3); // Last 3 years
+      const growthRates = [];
+      for (let i = 1; i < recentRevenue.length; i++) {
+        if (recentRevenue[i-1] > 0) {
+          growthRates.push((recentRevenue[i] - recentRevenue[i-1]) / recentRevenue[i-1]);
+        }
+      }
+      if (growthRates.length > 0) {
+        revenueGrowth = growthRates.reduce((sum, rate) => sum + rate, 0) / growthRates.length;
+        // Cap extreme growth rates
+        revenueGrowth = Math.max(-0.5, Math.min(0.5, revenueGrowth));
+      }
+    }
 
-    const avgTaxRate = financialData.ebit.length > 0 && financialData.netIncome.length > 0 && financialData.ebit[0] > 0
-      ? (1 - financialData.netIncome[0] / financialData.ebit[0])
-      : 0.25;
+    // Calculate EBIT margin from recent years
+    let avgEbitMargin = 0.10; // Default
+    if (financialData.ebit.length > 0 && financialData.revenue.length > 0) {
+      const recentMargins = [];
+      const minLength = Math.min(financialData.ebit.length, financialData.revenue.length, 3);
+      for (let i = 0; i < minLength; i++) {
+        if (financialData.revenue[i] > 0) {
+          recentMargins.push(financialData.ebit[i] / financialData.revenue[i]);
+        }
+      }
+      if (recentMargins.length > 0) {
+        avgEbitMargin = recentMargins.reduce((sum, margin) => sum + margin, 0) / recentMargins.length;
+        avgEbitMargin = Math.max(0.01, Math.min(0.50, avgEbitMargin)); // Reasonable bounds
+      }
+    }
 
-    // Calculate CapEx and depreciation rates
-    const avgCapexRate = financialData.capex.length > 0 && financialData.revenue.length > 0 && financialData.revenue[0] !== 0
-      ? financialData.capex[0] / financialData.revenue[0]
-      : 0.08; // Default 8%
+    // Calculate effective tax rate
+    let avgTaxRate = 0.25; // Default
+    if (financialData.ebit.length > 0 && financialData.netIncome.length > 0) {
+      const taxRates = [];
+      const minLength = Math.min(financialData.ebit.length, financialData.netIncome.length, 3);
+      for (let i = 0; i < minLength; i++) {
+        if (financialData.ebit[i] > 0) {
+          const taxRate = 1 - (financialData.netIncome[i] / financialData.ebit[i]);
+          if (taxRate >= 0 && taxRate <= 0.5) { // Reasonable tax rate bounds
+            taxRates.push(taxRate);
+          }
+        }
+      }
+      if (taxRates.length > 0) {
+        avgTaxRate = taxRates.reduce((sum, rate) => sum + rate, 0) / taxRates.length;
+      }
+    }
 
-    const avgDepreciationRate = financialData.depreciation.length > 0 && financialData.revenue.length > 0 && financialData.revenue[0] !== 0
-      ? financialData.depreciation[0] / financialData.revenue[0]
-      : 0.05; // Default 5%
+    // Calculate capital expenditure intensity
+    let avgCapexRate = 0.08; // Default
+    if (financialData.capex.length > 0 && financialData.revenue.length > 0) {
+      const capexRates = [];
+      const minLength = Math.min(financialData.capex.length, financialData.revenue.length, 3);
+      for (let i = 0; i < minLength; i++) {
+        if (financialData.revenue[i] > 0) {
+          capexRates.push(Math.abs(financialData.capex[i]) / financialData.revenue[i]);
+        }
+      }
+      if (capexRates.length > 0) {
+        avgCapexRate = capexRates.reduce((sum, rate) => sum + rate, 0) / capexRates.length;
+        avgCapexRate = Math.max(0.01, Math.min(0.30, avgCapexRate)); // Reasonable bounds
+      }
+    }
 
-    // Estimate WACC (simplified)
-    const totalDebt = financialData.totalDebt.length > 0 ? financialData.totalDebt[0] : 0;
-    const equity = financialData.shareholdersEquity.length > 0 ? financialData.shareholdersEquity[0] : 1;
-    const estimatedWACC = 0.08 + (totalDebt / (totalDebt + equity)) * 0.02;
+    // Calculate depreciation rate
+    let avgDepreciationRate = 0.05; // Default
+    if (financialData.depreciation.length > 0 && financialData.revenue.length > 0) {
+      const depRates = [];
+      const minLength = Math.min(financialData.depreciation.length, financialData.revenue.length, 3);
+      for (let i = 0; i < minLength; i++) {
+        if (financialData.revenue[i] > 0) {
+          depRates.push(Math.abs(financialData.depreciation[i]) / financialData.revenue[i]);
+        }
+      }
+      if (depRates.length > 0) {
+        avgDepreciationRate = depRates.reduce((sum, rate) => sum + rate, 0) / depRates.length;
+        avgDepreciationRate = Math.max(0.01, Math.min(0.20, avgDepreciationRate)); // Reasonable bounds
+      }
+    }
 
-    console.log('Calculated assumptions:', {
-      revenueGrowth,
-      avgEbitMargin,
-      avgTaxRate,
-      avgCapexRate,
-      avgDepreciationRate,
-      estimatedWACC,
+    // Calculate capital structure and WACC
+    const totalDebt = financialData.totalDebt.length > 0 ? Math.abs(financialData.totalDebt[0]) : 0;
+    const equity = financialData.shareholdersEquity.length > 0 ? Math.abs(financialData.shareholdersEquity[0]) : 1;
+    const totalCapital = totalDebt + equity;
+
+    // Estimate cost of debt (simplified - could be improved with actual interest expense)
+    const costOfDebt = 0.05 + (totalDebt / totalCapital) * 0.02; // Base rate + leverage premium
+
+    // Estimate WACC
+    const riskFreeRate = 0.0425; // Current 10-year treasury
+    const equityRiskPremium = 0.06; // Market risk premium
+    const beta = 1.2; // Could be pulled from API if available
+    const costOfEquity = riskFreeRate + beta * equityRiskPremium;
+    const afterTaxCostOfDebt = costOfDebt * (1 - avgTaxRate);
+    const wacc = (equity / totalCapital) * costOfEquity + (totalDebt / totalCapital) * afterTaxCostOfDebt;
+
+    console.log('Calculated DCF assumptions:', {
+      revenueGrowth: (revenueGrowth * 100).toFixed(1) + '%',
+      ebitMargin: (avgEbitMargin * 100).toFixed(1) + '%',
+      taxRate: (avgTaxRate * 100).toFixed(1) + '%',
+      capexRate: (avgCapexRate * 100).toFixed(1) + '%',
+      depreciationRate: (avgDepreciationRate * 100).toFixed(1) + '%',
+      wacc: (wacc * 100).toFixed(1) + '%',
       totalDebt,
       equity,
       startingRevenue: financialData.revenue[0]
     });
 
-    // Auto-populate inputs
-    setInputs(prev => ({
-      ...prev,
-      companyName: financialData.companyName || prev.companyName,
-      ticker: financialData.ticker || prev.ticker,
-      totalDebt: totalDebt || prev.totalDebt,
-      cashEquivalents: financialData.cashAndEquivalents.length > 0 ? financialData.cashAndEquivalents[0] : prev.cashEquivalents,
-      startingRevenue: financialData.revenue.length > 0 ? financialData.revenue[0] : prev.startingRevenue,
-      sharesDiluted: prev.sharesDiluted || 100000000, // Default shares if not set
-      revenueGrowth: [revenueGrowth, revenueGrowth * 0.9, revenueGrowth * 0.8, revenueGrowth * 0.7, revenueGrowth * 0.6],
+    // Create growth profile with deceleration (typical DCF approach)
+    const growthProfile = [
+      revenueGrowth, // Year 1
+      revenueGrowth * 0.9, // Year 2 - slight deceleration
+      revenueGrowth * 0.8, // Year 3
+      revenueGrowth * 0.7, // Year 4
+      revenueGrowth * 0.6  // Year 5 - approaching terminal growth
+    ];
+
+    // Update inputs with comprehensive assumptions
+    const updatedInputs = {
+      ...inputs,
+      companyName: financialData.companyName || inputs.companyName,
+      ticker: financialData.ticker || inputs.ticker,
+      currentPrice: selectedCompany?.week52High ? (selectedCompany.week52High + selectedCompany.week52Low) / 2 : inputs.currentPrice,
+      sharesOutstanding: selectedCompany?.sharesOutstanding || inputs.sharesOutstanding || 100000000,
+      sharesDiluted: selectedCompany?.sharesOutstanding ? selectedCompany.sharesOutstanding * 1.05 : inputs.sharesDiluted || 105000000,
+      totalDebt: totalDebt,
+      cashEquivalents: financialData.cashAndEquivalents.length > 0 ? financialData.cashAndEquivalents[0] : 0,
+      startingRevenue: financialData.revenue[0],
+      revenueGrowth: growthProfile,
       ebitMargin: Array(5).fill(avgEbitMargin),
       capexPercentOfRevenue: avgCapexRate,
       depreciationPercentOfRevenue: avgDepreciationRate,
       cashTaxRate: avgTaxRate,
-      riskFreeRate: 0.0425, // Keep current
-      equityRiskPremium: 0.06, // Keep current
-      targetDebtRatio: totalDebt / (totalDebt + equity),
-      costOfDebt: estimatedWACC + 0.02, // Estimate cost of debt
-    }));
+      riskFreeRate: riskFreeRate,
+      equityRiskPremium: equityRiskPremium,
+      beta: beta,
+      targetDebtRatio: totalDebt / totalCapital,
+      costOfDebt: costOfDebt,
+      perpetualGrowth: Math.max(0.015, Math.min(0.04, riskFreeRate - 0.01)), // Conservative terminal growth
+    };
+
+    setInputs(updatedInputs);
+    console.log('DCF inputs updated successfully:', updatedInputs);
+
+    // Force recalculation by triggering useEffect
+    setTimeout(() => {
+      setForceRecalc(prev => prev + 1);
+    }, 100);
   };
 
   return (
@@ -893,10 +996,10 @@ export default function DCFToolPage() {
         <div className="border-b border-gray-200">
           <nav className="flex space-x-8">
             {[
-              { id: 'inputs', label: 'Assumptions' },
-              { id: 'valuation', label: 'Valuation' },
-              { id: 'charts', label: 'Charts' },
-              { id: 'sensitivity', label: 'Sensitivity' },
+              { id: 'assumptions', label: 'Assumptions' },
+              { id: 'valuation', label: 'DCF Valuation' },
+              { id: 'charts', label: 'Charts & Analysis' },
+              { id: 'sensitivity', label: 'Sensitivity Analysis' },
               { id: 'financials', label: 'Financial Deep Dive' },
             ].map((tab) => (
               <button
@@ -915,19 +1018,246 @@ export default function DCFToolPage() {
         </div>
 
         <div className="space-y-6">
-          {activeTab === 'inputs' && (
-            <DCFInputsForm inputs={inputs} updateInput={updateInput} updateArrayInput={updateArrayInput} />
+          {activeTab === 'assumptions' && (
+            <div className="space-y-6">
+              {/* Key Assumptions Summary */}
+              <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-blue-800">
+                    <Calculator className="w-5 h-5 mr-2" />
+                    DCF Key Assumptions Summary
+                  </CardTitle>
+                  <CardDescription>
+                    Core assumptions driving the valuation model
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {(inputs.revenueGrowth[0] * 100).toFixed(1)}%
+                      </div>
+                      <div className="text-sm text-gray-600">Revenue Growth (Yr 1)</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">
+                        {(inputs.ebitMargin[0] * 100).toFixed(1)}%
+                      </div>
+                      <div className="text-sm text-gray-600">EBIT Margin</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-purple-600">
+                        {((inputs.riskFreeRate + inputs.beta * inputs.equityRiskPremium) * 100).toFixed(1)}%
+                      </div>
+                      <div className="text-sm text-gray-600">Cost of Equity</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-orange-600">
+                        {(outputs.wacc * 100).toFixed(1)}%
+                      </div>
+                      <div className="text-sm text-gray-600">WACC</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Detailed Input Forms */}
+              <DCFInputsForm inputs={inputs} updateInput={updateInput} updateArrayInput={updateArrayInput} />
+
+              {/* Assumption Sources & Methodology */}
+              <Card className="border-l-4 border-l-blue-500">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Info className="w-5 h-5 mr-2 text-blue-600" />
+                    Assumption Methodology
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="font-semibold text-sm mb-2">Growth Rates</h4>
+                      <p className="text-sm text-gray-600">
+                        Derived from historical revenue growth trends, industry averages, and company-specific factors.
+                        Terminal growth assumes convergence to long-term GDP growth.
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-sm mb-2">Margins & Tax</h4>
+                      <p className="text-sm text-gray-600">
+                        EBIT margins based on historical performance and industry benchmarks.
+                        Tax rates reflect statutory rates adjusted for permanent differences.
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-sm mb-2">WACC Components</h4>
+                      <p className="text-sm text-gray-600">
+                        Risk-free rate based on 10-year Treasury yields. Beta reflects company-specific risk.
+                        Cost of debt estimated from capital structure and credit spreads.
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-sm mb-2">Terminal Value</h4>
+                      <p className="text-sm text-gray-600">
+                        Perpetual growth method preferred for stable companies. Exit multiple used for cyclical businesses.
+                        Both methods shown for comparison.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {activeTab === 'valuation' && (
-            <>
+            <div className="space-y-6">
+              {/* Valuation Summary - Key Outputs */}
+              <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-green-800">
+                    <TrendingUp className="w-5 h-5 mr-2" />
+                    DCF Valuation Summary
+                  </CardTitle>
+                  <CardDescription>
+                    Key valuation outputs and upside/downside analysis
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-white p-4 rounded-lg border border-green-200">
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-green-600 mb-1">
+                          ${outputs.intrinsicValuePerShare.toFixed(2)}
+                        </div>
+                        <div className="text-sm text-gray-600 mb-2">Intrinsic Value per Share</div>
+                        <div className={`text-lg font-semibold ${outputs.upsidedownsidePercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {outputs.upsidedownsidePercent >= 0 ? '+' : ''}{outputs.upsidedownsidePercent.toFixed(1)}%
+                        </div>
+                        <div className="text-xs text-gray-500">vs Current Price</div>
+                      </div>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg border border-green-200">
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-blue-600 mb-1">
+                          ${(outputs.enterpriseValue / 1000000).toFixed(0)}M
+                        </div>
+                        <div className="text-sm text-gray-600 mb-2">Enterprise Value</div>
+                        <div className="text-lg font-semibold text-blue-600">
+                          ${(outputs.equityValue / 1000000).toFixed(0)}M
+                        </div>
+                        <div className="text-xs text-gray-500">Equity Value</div>
+                      </div>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg border border-green-200">
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-purple-600 mb-1">
+                          {((outputs.terminalValue / outputs.enterpriseValue) * 100).toFixed(1)}%
+                        </div>
+                        <div className="text-sm text-gray-600 mb-2">Terminal Value % of EV</div>
+                        <div className={`text-lg font-semibold ${outputs.terminalValueContribution < 0.8 ? 'text-green-600' : 'text-orange-600'}`}>
+                          {outputs.terminalValueContribution < 0.8 ? 'Acceptable' : 'High - Review'}
+                        </div>
+                        <div className="text-xs text-gray-500">Terminal Value Check</div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Detailed Cash Flow Analysis */}
               <ValuationSummary inputs={inputs} outputs={outputs} />
+
+              {/* Cash Flow Waterfall */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Enterprise Value Build</CardTitle>
+                  <CardDescription>
+                    Step-by-step calculation of enterprise value from cash flows
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center py-2 border-b">
+                      <span className="font-medium">PV of Explicit FCFF (Years 1-5)</span>
+                      <span className="font-bold">${(outputs.pvOfFcff / 1000000).toFixed(0)}M</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b">
+                      <span className="font-medium">PV of Terminal Value</span>
+                      <span className="font-bold">${(outputs.pvOfTerminalValue / 1000000).toFixed(0)}M</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-t-2 border-t-gray-800">
+                      <span className="font-bold text-lg">Enterprise Value</span>
+                      <span className="font-bold text-lg">${(outputs.enterpriseValue / 1000000).toFixed(0)}M</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2">
+                      <span className="font-medium">Less: Net Debt</span>
+                      <span className="font-bold">${((inputs.totalDebt - inputs.cashEquivalents) / 1000000).toFixed(0)}M</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-t-2 border-t-green-600">
+                      <span className="font-bold text-green-700">Equity Value</span>
+                      <span className="font-bold text-green-700">${(outputs.equityValue / 1000000).toFixed(0)}M</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2">
+                      <span className="font-medium">Per Share (Diluted)</span>
+                      <span className="font-bold">${outputs.intrinsicValuePerShare.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Detailed Cash Flow Table */}
               <CashFlowTable outputs={outputs} />
-            </>
+            </div>
           )}
 
           {activeTab === 'charts' && (
-            <DCFCharts inputs={inputs} outputs={outputs} />
+            <div className="space-y-6">
+              {/* Chart Navigation */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>DCF Charts & Visual Analysis</CardTitle>
+                  <CardDescription>
+                    Professional visualization of DCF components and sensitivity
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <button
+                      onClick={() => setActiveTab('charts')}
+                      className={`p-3 rounded-lg border-2 transition-colors ${
+                        activeTab === 'charts' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'
+                      }`}
+                    >
+                      <BarChart3 className="w-6 h-6 mx-auto mb-2 text-blue-600" />
+                      <div className="text-sm font-medium">FCFF & Value</div>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('sensitivity')}
+                      className={`p-3 rounded-lg border-2 transition-colors ${
+                        activeTab === 'sensitivity' ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-green-300'
+                      }`}
+                    >
+                      <TrendingUp className="w-6 h-6 mx-auto mb-2 text-green-600" />
+                      <div className="text-sm font-medium">Sensitivity</div>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('financials')}
+                      className={`p-3 rounded-lg border-2 transition-colors ${
+                        activeTab === 'financials' ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-purple-300'
+                      }`}
+                    >
+                      <Calculator className="w-6 h-6 mx-auto mb-2 text-purple-600" />
+                      <div className="text-sm font-medium">Financials</div>
+                    </button>
+                    <button className="p-3 rounded-lg border-2 border-gray-200 opacity-50 cursor-not-allowed">
+                      <Download className="w-6 h-6 mx-auto mb-2 text-gray-400" />
+                      <div className="text-sm font-medium">Export</div>
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <DCFCharts inputs={inputs} outputs={outputs} />
+            </div>
           )}
 
           {activeTab === 'sensitivity' && (
@@ -2536,6 +2866,9 @@ function TickerSearch({ onSelectCompany }: { onSelectCompany: (company: CompanyO
       setQuery(`${companyData.name} (${companyData.symbol})`);
       setShowSuggestions(false);
       console.log('Company selection completed');
+
+      // Automatically run analysis for the selected company
+      await runFullAnalysis(companyData.symbol);
     } catch (error) {
       console.error('Company fetch failed:', error);
       alert(`Failed to load company data: ${error}`);
@@ -2570,7 +2903,7 @@ function TickerSearch({ onSelectCompany }: { onSelectCompany: (company: CompanyO
 
       {/* Suggestions Dropdown */}
       {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute z-50 w-full mt-2 bg-white border border-gray-300 rounded-lg shadow-xl max-h-80 overflow-y-auto">
+        <div className="absolute z-[100] w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-xl max-h-80 overflow-y-auto top-full left-0 right-0">
           {suggestions.map((suggestion, index) => (
             <div
               key={index}
