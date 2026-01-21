@@ -936,31 +936,35 @@ export default function DCFToolPage() {
             Company Analysis - Alpha Vantage API
           </CardTitle>
           <CardDescription>
-            Search for any public company by ticker symbol to automatically fetch financial data and run DCF analysis
+            Search for any public company by ticker symbol. Select from suggestions or type a ticker and click "Run DCF Analysis" to automatically fetch financial data and perform valuation.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <TickerSearch onSelectCompany={handleCompanySelect} />
 
-            {selectedCompany && (
+            {/* Show Run Analysis button when there's a query (typed ticker) */}
+            {query.trim() && (
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="font-semibold text-blue-900">
-                      {selectedCompany.name} ({selectedCompany.symbol})
+                      Analyze: {query.toUpperCase()}
                     </h3>
                     <p className="text-sm text-blue-700 mt-1">
-                      {selectedCompany.exchange} • {selectedCompany.sector} • {selectedCompany.industry}
+                      {selectedCompany
+                        ? `${selectedCompany.name} • ${selectedCompany.exchange} • ${selectedCompany.sector}`
+                        : 'Click "Run DCF Analysis" to fetch data and perform valuation'
+                      }
                     </p>
-                    {selectedCompany.description && (
+                    {selectedCompany?.description && (
                       <p className="text-sm text-blue-600 mt-2 line-clamp-2">
                         {selectedCompany.description.substring(0, 200)}...
                       </p>
                     )}
                   </div>
                   <Button
-                    onClick={() => runFullAnalysis(selectedCompany.symbol)}
+                    onClick={() => runFullAnalysis(query.trim().toUpperCase())}
                     disabled={isAnalyzing}
                     className="ml-4"
                   >
