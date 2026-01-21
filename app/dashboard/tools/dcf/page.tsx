@@ -93,6 +93,7 @@ interface DCFOutputs {
   equityValue: number;
   intrinsicValuePerShare: number;
   upsideDownside: number;
+  terminalValueContribution: number;
 
   // WACC
   costOfEquity: number;
@@ -3098,6 +3099,7 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
   const sharesDiluted = inputs.sharesDiluted || 100000000; // Default if not set
   const intrinsicValuePerShare = equityValue / sharesDiluted;
   const upsideDownside = inputs.currentPrice !== 0 ? (intrinsicValuePerShare - inputs.currentPrice) / inputs.currentPrice : 0;
+  const terminalValueContribution = enterpriseValue > 0 ? terminalValue / enterpriseValue : 0;
 
   console.log('Final calculations:', {
     enterpriseValue,
@@ -3105,7 +3107,8 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
     intrinsicValuePerShare,
     sharesDiluted,
     netDebt,
-    upsideDownside
+    upsideDownside,
+    terminalValueContribution
   });
 
   return {
@@ -3118,6 +3121,7 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
     equityValue,
     intrinsicValuePerShare,
     upsideDownside,
+    terminalValueContribution,
     costOfEquity,
     afterTaxCostOfDebt,
     wacc,
