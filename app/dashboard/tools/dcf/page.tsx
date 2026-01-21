@@ -1328,7 +1328,7 @@ export default function DCFToolPage() {
                 <div>
                   <span className="font-medium">Valuation:</span>
                   <span className={`ml-2 ${outputs.upsideDownside >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {outputs.companyName || 'The company'} is currently trading at
+                    {inputs.companyName || 'The company'} is currently trading at
                     {outputs.upsideDownside >= 0 ? ` ${(outputs.upsideDownside * 100).toFixed(1)}% below` : ` ${Math.abs(outputs.upsideDownside * 100).toFixed(1)}% above`}
                     our DCF-derived intrinsic value of ${outputs.intrinsicValuePerShare.toFixed(2)} per share.
                   </span>
