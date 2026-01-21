@@ -356,9 +356,11 @@ export default function DCFToolPage() {
   };
 
   // Company selection and analysis
-  const handleCompanySelect = (company: CompanyOverview) => {
+  const handleCompanySelect = async (company: CompanyOverview) => {
     setSelectedCompany(company);
     setAnalysisError(null);
+    // Automatically run analysis for the selected company
+    await runFullAnalysis(company.symbol);
   };
 
   const runFullAnalysis = async (ticker: string) => {
@@ -2884,7 +2886,7 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
 }
 
 // Ticker Search Component with Autocomplete
-function TickerSearch({ onSelectCompany }: { onSelectCompany: (company: CompanyOverview) => void }) {
+function TickerSearch({ onSelectCompany }: { onSelectCompany: (company: CompanyOverview) => Promise<void> }) {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -2960,13 +2962,10 @@ function TickerSearch({ onSelectCompany }: { onSelectCompany: (company: CompanyO
       }
 
       console.log('Calling onSelectCompany with:', companyData);
-      onSelectCompany(companyData);
+      await onSelectCompany(companyData);
       setQuery(`${companyData.name} (${companyData.symbol})`);
       setShowSuggestions(false);
       console.log('Company selection completed');
-
-      // Automatically run analysis for the selected company
-      await runFullAnalysis(companyData.symbol);
     } catch (error) {
       console.error('Company fetch failed:', error);
       alert(`Failed to load company data: ${error}`);
