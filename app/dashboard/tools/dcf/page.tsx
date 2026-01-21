@@ -1337,7 +1337,7 @@ export default function DCFToolPage() {
                 <div>
                   <span className="font-medium">Key Drivers:</span>
                   <span className="ml-2 text-gray-700">
-                    The valuation is most sensitive to {outputs.wacc > 0.12 ? 'WACC assumptions' : outputs.perpetualGrowth < 0.025 ? 'terminal growth rates' : 'revenue growth and margins'}.
+                    The valuation is most sensitive to {outputs.wacc > 0.12 ? 'WACC assumptions' : inputs.perpetualGrowth < 0.025 ? 'terminal growth rates' : 'revenue growth and margins'}.
                     Terminal value represents {((outputs.terminalValue / outputs.enterpriseValue) * 100).toFixed(1)}% of enterprise value,
                     which is {outputs.terminalValueContribution > 0.8 ? 'relatively high' : outputs.terminalValueContribution > 0.6 ? 'reasonable' : 'conservative'}.
                   </span>
