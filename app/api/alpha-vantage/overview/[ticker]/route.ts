@@ -21,6 +21,17 @@ export async function GET(
 
     const data = await response.json();
     console.log('Overview API raw response:', data);
+    console.log('Response keys:', Object.keys(data));
+
+    // Check if response is empty or invalid
+    if (!data || Object.keys(data).length === 0) {
+      console.log('Empty response from Alpha Vantage');
+      return NextResponse.json({
+        error: 'Empty response',
+        details: `No data returned for ticker ${ticker}. Please check the symbol.`,
+        ticker: ticker
+      }, { status: 404 });
+    }
 
     if (data.Note) {
       console.log('Alpha Vantage rate limit hit:', data.Note);

@@ -368,16 +368,37 @@ export default function DCFToolPage() {
     setAnalysisError(null);
 
     try {
-      console.log('Starting full analysis for:', ticker);
+      console.log('Starting full analysis for ticker:', ticker);
+
+      // Validate ticker format
+      if (!ticker || ticker.length < 1 || ticker.length > 5) {
+        throw new Error(`Invalid ticker symbol: ${ticker}. Please use a valid stock symbol like AAPL or TSLA.`);
+      }
 
       // Fetch all data in parallel
       const [overview, quote, income, balance, cashflow] = await Promise.all([
-        fetch(`/api/alpha-vantage/overview/${ticker}`).then(r => r.json()),
-        fetch(`/api/alpha-vantage/quote/${ticker}`).then(r => r.json()),
-        fetch(`/api/alpha-vantage/income-statement/${ticker}`).then(r => r.json()),
-        fetch(`/api/alpha-vantage/balance-sheet/${ticker}`).then(r => r.json()),
-        fetch(`/api/alpha-vantage/cash-flow/${ticker}`).then(r => r.json())
+        fetch(`/api/alpha-vantage/overview/${encodeURIComponent(ticker)}`).then(r => r.json()),
+        fetch(`/api/alpha-vantage/quote/${encodeURIComponent(ticker)}`).then(r => r.json()),
+        fetch(`/api/alpha-vantage/income-statement/${encodeURIComponent(ticker)}`).then(r => r.json()),
+        fetch(`/api/alpha-vantage/balance-sheet/${encodeURIComponent(ticker)}`).then(r => r.json()),
+        fetch(`/api/alpha-vantage/cash-flow/${encodeURIComponent(ticker)}`).then(r => r.json())
       ]);
+
+      // Check for API errors
+      if (overview.error) {
+        throw new Error(`Company overview error: ${overview.details || overview.error}`);
+      }
+      if (!overview.Symbol) {
+        throw new Error(`No data found for ticker "${ticker}". Please check the symbol and try again.`);
+      }
+
+      console.log('API responses received:', {
+        overview: !!overview.Symbol,
+        quote: !!quote['Global Quote'],
+        income: !!income.annualReports,
+        balance: !!balance.annualReports,
+        cashflow: !!cashflow.annualReports
+      });
 
       console.log('API responses:', { overview, quote, income, balance, cashflow });
 
@@ -3052,7 +3073,12 @@ function TickerSearch({
               )}
             </div>
             <Button
-              onClick={() => onRunAnalysis(query.trim().toUpperCase())}
+              onClick={() => {
+                // Extract ticker symbol from query (handle formats like "AAPL" or "APPLE INC (AAPL)")
+                const tickerMatch = query.trim().match(/\b([A-Z]{1,5})\b/);
+                const ticker = tickerMatch ? tickerMatch[1] : query.trim().split(' ')[0];
+                onRunAnalysis(ticker.toUpperCase());
+              }}
               disabled={isAnalyzing}
               className="ml-4"
             >
