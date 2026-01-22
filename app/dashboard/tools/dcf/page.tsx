@@ -2968,7 +2968,7 @@ function DCFCharts({ inputs, outputs }: { inputs: DCFInputs; outputs: DCFOutputs
 }
 
 // Sensitivity Analysis Component
-function SensitivityAnalysis({ inputs, outputs }: { inputs: DCFInputs; outputs: DCFOutputs }) {
+function SensitivityAnalysis({ inputs, outputs, financialData }: { inputs: DCFInputs; outputs: DCFOutputs; financialData: ExtractedFinancials | null }) {
   const [selectedSensitivity, setSelectedSensitivity] = useState<'wacc_growth' | 'wacc_multiple' | 'growth_margin'>('wacc_growth');
   const [selectedScenario, setSelectedScenario] = useState<'base' | 'bull' | 'bear'>('base');
 
@@ -3346,7 +3346,6 @@ function SensitivityAnalysis({ inputs, outputs }: { inputs: DCFInputs; outputs: 
 
                   const values = [pvFcff, enterpriseValue, equityValue, perShare * inputs.sharesOutstanding];
                   const maxValue = Math.max(...values);
-                  const scale = 100 / maxValue;
 
                   return (
                     <>
