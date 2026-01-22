@@ -125,8 +125,8 @@ export async function GET(
       console.log('Empty response from Alpha Vantage');
       return NextResponse.json({
         error: 'Empty response',
-        details: `No data returned for ticker ${ticker}. Please check the symbol.`,
-        ticker: ticker
+        details: `No data returned for ticker ${symbol}. Please check the symbol.`,
+        ticker: symbol
       }, { status: 404 });
     }
 
