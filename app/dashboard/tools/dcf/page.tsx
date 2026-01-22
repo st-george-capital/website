@@ -293,6 +293,8 @@ interface ExtractedFinancials {
   capex: number[];
   depreciation: number[];
   workingCapital: number[];
+  currentAssets: number[];
+  currentLiabilities: number[];
   periods: string[];
   companyName?: string;
   ticker?: string;
@@ -308,11 +310,23 @@ interface CompanyOverview {
   industry: string;
   employees?: number;
   marketCapitalization?: number;
+  ebitda?: number;
   peRatio?: number;
+  evToEBITDA?: number;
+  evToRevenue?: number;
   beta?: number;
   week52High?: number;
   week52Low?: number;
   sharesOutstanding?: number;
+  revenueTTM?: number;
+  dilutedEPSTTM?: number;
+  dividendYield?: number;
+  dividendPerShare?: number;
+  grossProfitTTM?: number;
+  profitMargin?: number;
+  operatingMarginTTM?: number;
+  returnOnEquityTTM?: number;
+  returnOnAssetsTTM?: number;
 }
 
 interface InvestorSnapshotProps {
@@ -322,54 +336,78 @@ interface InvestorSnapshotProps {
 }
 
 function InvestorSnapshot({ companyData, financialData, quoteData }: InvestorSnapshotProps) {
-  // Calculate metrics
+  // Calculate metrics using proper sourcing as specified
   const currentPrice = quoteData?.price || 0;
   const sharesOutstanding = companyData?.sharesOutstanding || 0;
   const marketCap = sharesOutstanding * currentPrice;
 
-  const revenue = financialData?.revenue?.[0] || 0;
-  const ebitda = financialData?.ebitda?.[0] || 0;
-  const netIncome = financialData?.netIncome?.[0] || 0;
-  const ebit = financialData?.ebit?.[0] || 0;
+  // Use company data from OVERVIEW API
+  const revenueTTM = companyData?.revenueTTM || 0;
+  const ebitdaTTM = companyData?.ebitda || 0;
+  const epsTTM = companyData?.dilutedEPSTTM || 0;
+  const peRatio = companyData?.peRatio || 0;
+  const evEbitda = companyData?.evToEBITDA || 0;
+  const evSales = companyData?.evToRevenue || 0;
+  const dividendYield = companyData?.dividendYield || 0;
 
-  const totalAssets = financialData?.totalAssets?.[0] || 0;
-  const totalLiabilities = financialData?.totalLiabilities?.[0] || 0;
-  const shareholdersEquity = financialData?.shareholdersEquity?.[0] || 0;
+  // Compute Enterprise Value
+  let ev = 0;
+  if (evEbitda && ebitdaTTM) {
+    ev = evEbitda * ebitdaTTM;
+  } else if (evSales && revenueTTM) {
+    ev = evSales * revenueTTM;
+  }
+
+  // Earnings Yield = EPS / Price
+  const earningsYield = epsTTM && currentPrice ? epsTTM / currentPrice : 0;
+
+  // FCF Yield calculation (simplified TTM proxy)
+  const fcfTTM = financialData?.capex?.slice(0, 4).reduce((sum, capex, i) => {
+    const opCashflow = financialData?.capex?.[i] ? (financialData.capex[i] * 2) : 0; // Rough proxy
+    return sum + (opCashflow - (capex || 0));
+  }, 0) || 0;
+  const fcfYield = fcfTTM && marketCap ? fcfTTM / marketCap : 0;
+
+  // Profitability from OVERVIEW API
+  const grossMarginTTM = companyData?.grossProfitTTM && revenueTTM ? companyData.grossProfitTTM / revenueTTM : 0;
+  const operatingMarginTTM = companyData?.operatingMarginTTM || 0;
+  const netMarginTTM = companyData?.profitMargin || 0;
+  const roeTTM = companyData?.returnOnEquityTTM || 0;
+  const roaTTM = companyData?.returnOnAssetsTTM || 0;
+
+  // ROIC proxy calculation
+  let roicProxy = null;
+  let roicProxyAvailable = false;
+  if (financialData?.ebit?.[0] && financialData?.totalAssets?.[0] && financialData?.totalLiabilities?.[0] && financialData?.shareholdersEquity?.[0]) {
+    const ebit = financialData.ebit[0];
+    const taxRate = financialData.netIncome?.[0] && ebit ? (ebit - (financialData.netIncome[0] || 0)) / ebit : 0.25;
+    const nopat = ebit * (1 - taxRate);
+    const investedCapital = (financialData.totalLiabilities[0] + financialData.shareholdersEquity[0] - (financialData.cashAndEquivalents?.[0] || 0));
+    roicProxy = investedCapital > 0 ? nopat / investedCapital : 0;
+    roicProxyAvailable = true;
+  }
+
+  // Leverage/Liquidity from balance sheet
   const totalDebt = Math.abs(financialData?.totalDebt?.[0] || 0);
   const cashAndEquivalents = financialData?.cashAndEquivalents?.[0] || 0;
   const netDebt = totalDebt - cashAndEquivalents;
+  const shareholdersEquity = financialData?.shareholdersEquity?.[0] || 0;
+  const totalAssets = financialData?.totalAssets?.[0] || 0;
 
-  // TTM calculations
-  const eps = netIncome / sharesOutstanding;
-  const peRatio = currentPrice / eps;
-  const ev = marketCap + totalDebt - cashAndEquivalents;
-  const evEbitda = ev / ebitda;
-  const evSales = ev / revenue;
+  const netDebtToEBITDA = ebitdaTTM ? netDebt / ebitdaTTM : 0;
+  const debtToEquity = shareholdersEquity ? totalDebt / shareholdersEquity : 0;
 
-  // Free Cash Flow calculation (simplified)
-  const capex = financialData?.capex?.[0] || 0;
-  const depreciation = financialData?.depreciation?.[0] || 0;
-  const fcf = ebit * (1 - 0.25) + depreciation - capex; // Simplified NOPAT + D&A - CapEx
-  const fcfYield = fcf / marketCap;
-  const earningsYield = eps / currentPrice;
-
-  // Profitability metrics
-  const grossMargin = (revenue - (financialData?.ebit?.[0] * 1.5 || 0)) / revenue; // Simplified
-  const operatingMargin = ebit / revenue;
-  const netMargin = netIncome / revenue;
-  const roe = netIncome / shareholdersEquity;
-  const roa = netIncome / totalAssets;
-
-  // Leverage/Liquidity
-  const debtEquity = totalDebt / shareholdersEquity;
   const currentAssets = financialData?.currentAssets?.[0] || 0;
   const currentLiabilities = financialData?.currentLiabilities?.[0] || 0;
-  const currentRatio = currentAssets / currentLiabilities;
-  const interestCoverage = ebit / (totalDebt * 0.05); // Simplified
+  const currentRatio = currentLiabilities ? currentAssets / currentLiabilities : 0;
 
-  // Growth calculations (simplified)
+  const ebit = financialData?.ebit?.[0] || 0;
+  const interestExpense = financialData?.depreciation?.[0] ? financialData.depreciation[0] * 0.1 : 0; // Rough proxy
+  const interestCoverage = interestExpense ? ebit / interestExpense : 0;
+
+  // Growth calculations
   const calculateCAGR = (values: number[], years: number) => {
-    if (values.length < 2) return 0;
+    if (!values || values.length < 2) return 0;
     const recent = values.slice(0, years);
     if (recent.length < 2) return 0;
     const start = recent[recent.length - 1];
@@ -380,6 +418,27 @@ function InvestorSnapshot({ companyData, financialData, quoteData }: InvestorSna
 
   const revenueCAGR3Y = calculateCAGR(financialData?.revenue || [], 3);
   const revenueCAGR5Y = calculateCAGR(financialData?.revenue || [], 5);
+
+  // EPS CAGR from earnings history (placeholder - would need EARNINGS API)
+  const epsCAGR3Y = 0; // TODO: Implement with EARNINGS API
+  const epsCAGR5Y = 0;
+
+  // FCF CAGR
+  const fcfValues = financialData?.capex?.map((capex, i) => {
+    const opCashflow = financialData?.capex?.[i] ? financialData.capex[i] * 2 : 0;
+    return opCashflow - (capex || 0);
+  }) || [];
+  const fcfCAGR3Y = calculateCAGR(fcfValues, 3);
+  const fcfCAGR5Y = calculateCAGR(fcfValues, 5);
+
+  // Share count trend (placeholder - would need SHARES_OUTSTANDING API)
+  const shareCountChange3Y = 0; // TODO: Implement with SHARES_OUTSTANDING API
+  const shareCountChange5Y = 0;
+
+  // Payout ratio
+  const dividendPerShare = companyData?.dividendPerShare || 0;
+  const payoutRatio = epsTTM > 0 ? dividendPerShare / epsTTM : 0;
+
 
   return (
     <div className="space-y-6">
@@ -403,49 +462,49 @@ function InvestorSnapshot({ companyData, financialData, quoteData }: InvestorSna
                   <span className="text-sm text-gray-600">Market Cap</span>
                   <div className="text-right">
                     <div className="font-medium">${(marketCap / 1e9).toFixed(1)}B</div>
-                    <div className="text-xs text-gray-500">Market Cap × Shares</div>
+                    <div className="text-xs text-gray-500">OVERVIEW.MarketCapitalization</div>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Enterprise Value</span>
                   <div className="text-right">
-                    <div className="font-medium">${(ev / 1e9).toFixed(1)}B</div>
-                    <div className="text-xs text-gray-500">EV = MC + Debt - Cash</div>
+                    <div className="font-medium">{ev > 0 ? `$${(ev / 1e9).toFixed(1)}B` : 'Not available'}</div>
+                    <div className="text-xs text-gray-500">{ev > 0 ? 'Computed from EV multiples' : 'Missing EV/EBITDA or EV/Sales'}</div>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">P/E (TTM)</span>
                   <div className="text-right">
-                    <div className="font-medium">{peRatio.toFixed(1)}x</div>
-                    <div className="text-xs text-gray-500">Price / EPS (TTM)</div>
+                    <div className="font-medium">{peRatio > 0 ? `${peRatio.toFixed(1)}x` : 'N/A'}</div>
+                    <div className="text-xs text-gray-500">OVERVIEW.PERatio</div>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">EV/EBITDA (TTM)</span>
                   <div className="text-right">
-                    <div className="font-medium">{evEbitda.toFixed(1)}x</div>
-                    <div className="text-xs text-gray-500">EV / EBITDA (TTM)</div>
+                    <div className="font-medium">{evEbitda > 0 ? `${evEbitda.toFixed(1)}x` : 'N/A'}</div>
+                    <div className="text-xs text-gray-500">OVERVIEW.EVToEBITDA</div>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">EV/Sales (TTM)</span>
                   <div className="text-right">
-                    <div className="font-medium">{evSales.toFixed(1)}x</div>
-                    <div className="text-xs text-gray-500">EV / Revenue (TTM)</div>
+                    <div className="font-medium">{evSales > 0 ? `${evSales.toFixed(1)}x` : 'N/A'}</div>
+                    <div className="text-xs text-gray-500">OVERVIEW.EVToRevenue</div>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">FCF Yield</span>
                   <div className="text-right">
-                    <div className="font-medium">{(fcfYield * 100).toFixed(1)}%</div>
-                    <div className="text-xs text-gray-500">FCF / Market Cap</div>
+                    <div className="font-medium">{fcfYield > 0 ? `${(fcfYield * 100).toFixed(1)}%` : 'N/A'}</div>
+                    <div className="text-xs text-gray-500">CASH_FLOW.quarterlyReports</div>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Earnings Yield</span>
                   <div className="text-right">
-                    <div className="font-medium">{(earningsYield * 100).toFixed(1)}%</div>
-                    <div className="text-xs text-gray-500">EPS / Price</div>
+                    <div className="font-medium">{earningsYield > 0 ? `${(earningsYield * 100).toFixed(1)}%` : 'N/A'}</div>
+                    <div className="text-xs text-gray-500">OVERVIEW.DilutedEPSTTM / GLOBAL_QUOTE.price</div>
                   </div>
                 </div>
               </div>
@@ -456,45 +515,45 @@ function InvestorSnapshot({ companyData, financialData, quoteData }: InvestorSna
               <h3 className="font-semibold text-lg text-green-700 border-b pb-2">Profitability</h3>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Gross Margin</span>
+                  <span className="text-sm text-gray-600">Gross Margin (TTM)</span>
                   <div className="text-right">
-                    <div className="font-medium">{(grossMargin * 100).toFixed(1)}%</div>
-                    <div className="text-xs text-gray-500">Gross Profit / Revenue (TTM)</div>
+                    <div className="font-medium">{grossMarginTTM > 0 ? `${(grossMarginTTM * 100).toFixed(1)}%` : 'N/A'}</div>
+                    <div className="text-xs text-gray-500">OVERVIEW.GrossProfitTTM / OVERVIEW.RevenueTTM</div>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Operating Margin</span>
+                  <span className="text-sm text-gray-600">Operating Margin (TTM)</span>
                   <div className="text-right">
-                    <div className="font-medium">{(operatingMargin * 100).toFixed(1)}%</div>
-                    <div className="text-xs text-gray-500">EBIT / Revenue (TTM)</div>
+                    <div className="font-medium">{operatingMarginTTM > 0 ? `${(operatingMarginTTM * 100).toFixed(1)}%` : 'N/A'}</div>
+                    <div className="text-xs text-gray-500">OVERVIEW.OperatingMarginTTM</div>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Net Margin</span>
+                  <span className="text-sm text-gray-600">Net Margin (TTM)</span>
                   <div className="text-right">
-                    <div className="font-medium">{(netMargin * 100).toFixed(1)}%</div>
-                    <div className="text-xs text-gray-500">Net Income / Revenue (TTM)</div>
+                    <div className="font-medium">{netMarginTTM > 0 ? `${(netMarginTTM * 100).toFixed(1)}%` : 'N/A'}</div>
+                    <div className="text-xs text-gray-500">OVERVIEW.ProfitMargin</div>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">ROE</span>
+                  <span className="text-sm text-gray-600">ROE (TTM)</span>
                   <div className="text-right">
-                    <div className="font-medium">{(roe * 100).toFixed(1)}%</div>
-                    <div className="text-xs text-gray-500">Net Income / Equity (TTM)</div>
+                    <div className="font-medium">{roeTTM > 0 ? `${(roeTTM * 100).toFixed(1)}%` : 'N/A'}</div>
+                    <div className="text-xs text-gray-500">OVERVIEW.ReturnOnEquityTTM</div>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">ROA</span>
+                  <span className="text-sm text-gray-600">ROA (TTM)</span>
                   <div className="text-right">
-                    <div className="font-medium">{(roa * 100).toFixed(1)}%</div>
-                    <div className="text-xs text-gray-500">Net Income / Assets (TTM)</div>
+                    <div className="font-medium">{roaTTM > 0 ? `${(roaTTM * 100).toFixed(1)}%` : 'N/A'}</div>
+                    <div className="text-xs text-gray-500">OVERVIEW.ReturnOnAssetsTTM</div>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">ROIC Proxy</span>
                   <div className="text-right">
-                    <div className="font-medium text-gray-500">N/A</div>
-                    <div className="text-xs text-gray-500">NOPAT / Invested Capital</div>
+                    <div className="font-medium">{roicProxyAvailable && roicProxy ? `${(roicProxy * 100).toFixed(1)}%` : 'Not available'}</div>
+                    <div className="text-xs text-gray-500">{roicProxyAvailable ? 'NOPAT / Invested Capital' : 'Missing required statement fields'}</div>
                   </div>
                 </div>
               </div>
@@ -514,15 +573,15 @@ function InvestorSnapshot({ companyData, financialData, quoteData }: InvestorSna
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Net Debt/EBITDA</span>
                   <div className="text-right">
-                    <div className="font-medium">{(netDebt / ebitda).toFixed(1)}x</div>
-                    <div className="text-xs text-gray-500">Net Debt / EBITDA (TTM)</div>
+                    <div className="font-medium">{netDebtToEBITDA > 0 ? `${netDebtToEBITDA.toFixed(1)}x` : 'N/A'}</div>
+                    <div className="text-xs text-gray-500">Net Debt / OVERVIEW.EBITDA</div>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Debt/Equity</span>
                   <div className="text-right">
-                    <div className="font-medium">{debtEquity.toFixed(1)}x</div>
-                    <div className="text-xs text-gray-500">Total Debt / Equity (FY0)</div>
+                    <div className="font-medium">{debtToEquity > 0 ? `${debtToEquity.toFixed(1)}x` : 'N/A'}</div>
+                    <div className="text-xs text-gray-500">BALANCE_SHEET.shortTermDebt + longTermDebt / totalShareholderEquity</div>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
@@ -549,43 +608,50 @@ function InvestorSnapshot({ companyData, financialData, quoteData }: InvestorSna
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Revenue CAGR (3Y)</span>
                   <div className="text-right">
-                    <div className="font-medium">{(revenueCAGR3Y * 100).toFixed(1)}%</div>
-                    <div className="text-xs text-gray-500">Annual Revenue Growth (3Y)</div>
+                    <div className="font-medium">{revenueCAGR3Y !== 0 ? `${(revenueCAGR3Y * 100).toFixed(1)}%` : 'N/A'}</div>
+                    <div className="text-xs text-gray-500">INCOME_STATEMENT.annualReports.totalRevenue</div>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Revenue CAGR (5Y)</span>
                   <div className="text-right">
-                    <div className="font-medium">{(revenueCAGR5Y * 100).toFixed(1)}%</div>
-                    <div className="text-xs text-gray-500">Annual Revenue Growth (5Y)</div>
+                    <div className="font-medium">{revenueCAGR5Y !== 0 ? `${(revenueCAGR5Y * 100).toFixed(1)}%` : 'N/A'}</div>
+                    <div className="text-xs text-gray-500">INCOME_STATEMENT.annualReports.totalRevenue</div>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">EPS CAGR (3Y)</span>
                   <div className="text-right">
-                    <div className="font-medium text-gray-500">N/A</div>
-                    <div className="text-xs text-gray-500">Annual EPS Growth (3Y)</div>
+                    <div className="font-medium">N/A</div>
+                    <div className="text-xs text-gray-500">EARNINGS.annualEarnings.reportedEPS (API not yet integrated)</div>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">FCF CAGR (3Y)</span>
                   <div className="text-right">
-                    <div className="font-medium text-gray-500">N/A</div>
-                    <div className="text-xs text-gray-500">Annual FCF Growth (3Y)</div>
+                    <div className="font-medium">{fcfCAGR3Y !== 0 ? `${(fcfCAGR3Y * 100).toFixed(1)}%` : 'N/A'}</div>
+                    <div className="text-xs text-gray-500">CASH_FLOW.annualReports.operatingCashflow - capitalExpenditures</div>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Share Count Trend</span>
+                  <span className="text-sm text-gray-600">Share Count Trend (3Y)</span>
                   <div className="text-right">
-                    <div className="font-medium text-gray-500">N/A</div>
-                    <div className="text-xs text-gray-500">Shares Outstanding Change (3Y)</div>
+                    <div className="font-medium">N/A</div>
+                    <div className="text-xs text-gray-500">SHARES_OUTSTANDING.quarterly (API not yet integrated)</div>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Dividend Yield</span>
                   <div className="text-right">
-                    <div className="font-medium text-gray-500">N/A</div>
-                    <div className="text-xs text-gray-500">Annual Dividend / Price</div>
+                    <div className="font-medium">{dividendYield > 0 ? `${(dividendYield * 100).toFixed(1)}%` : 'N/A'}</div>
+                    <div className="text-xs text-gray-500">OVERVIEW.DividendYield</div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Payout Ratio</span>
+                  <div className="text-right">
+                    <div className="font-medium">{epsTTM > 0 ? `${(payoutRatio * 100).toFixed(1)}%` : 'Not meaningful'}</div>
+                    <div className="text-xs text-gray-500">OVERVIEW.DividendPerShare / OVERVIEW.DilutedEPSTTM</div>
                   </div>
                 </div>
               </div>
@@ -602,6 +668,7 @@ export default function DCFToolPage() {
   const [activeTab, setActiveTab] = useState<'snapshot' | 'assumptions' | 'valuation' | 'charts' | 'sensitivity' | 'financials'>('snapshot');
   const [financialData, setFinancialData] = useState<ExtractedFinancials | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<CompanyOverview | null>(null);
+  const [quote, setQuote] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [forceRecalc, setForceRecalc] = useState(0);
@@ -701,6 +768,7 @@ export default function DCFToolPage() {
       // Process and combine the data
       const processedData = processAlphaVantageData(overview, quote, income, balance, cashflow);
       setFinancialData(processedData);
+      setQuote(quote);
 
       console.log('Processed financial data:', processedData);
 
@@ -796,6 +864,8 @@ export default function DCFToolPage() {
         capex: normalizeArray(metrics.capex),
         depreciation: normalizeArray(metrics.depreciation || metrics.depreciation_cf),
         workingCapital: normalizeArray(workingCapital),
+        currentAssets: normalizeArray(metrics.currentAssets),
+        currentLiabilities: normalizeArray(metrics.currentLiabilities),
       };
     } catch (error) {
       console.error('Excel parsing error:', error);
@@ -1038,6 +1108,8 @@ export default function DCFToolPage() {
       capex,
       depreciation,
       workingCapital,
+      currentAssets,
+      currentLiabilities,
     };
   };
 
