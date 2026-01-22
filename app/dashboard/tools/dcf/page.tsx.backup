@@ -830,7 +830,14 @@ export default function DCFToolPage() {
       setDebugInfo({
         ticker,
         error: errorMessage,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        apiResponses: {
+          overview: overview?.error || 'No error',
+          quote: quote?.error || 'No error',
+          income: income?.error || 'No error',
+          balance: balance?.error || 'No error',
+          cashflow: cashflow?.error || 'No error'
+        }
       });
     } finally {
       setIsAnalyzing(false);
@@ -1425,7 +1432,7 @@ export default function DCFToolPage() {
                       <ul className="ml-4 mt-1">
                         {Object.entries(debugInfo.apiResponses || {}).map(([api, status]) => (
                           <li key={api} className={status !== 'No error' ? 'text-red-800' : 'text-gray-600'}>
-                            {api}: {String(status)}
+                            {api}: {status}
                           </li>
                         ))}
                       </ul>
@@ -2126,23 +2133,13 @@ export default function DCFToolPage() {
 }
 
 // Input Forms Component
-function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
-  inputs: DCFInputs;
-  updateInput: (field: keyof DCFInputs, value: any) => void;
-  updateArrayInput: (field: keyof DCFInputs, index: number, value: number) => void;
-}) {
+function DCFInputsForm({ inputs, updateInput, updateArrayInput }: any) {
   return (
     <div className="grid gap-6">
-      {/* Company Setup */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Calculator className="w-5 h-5 mr-2" />
-            Company Setup
-          </CardTitle>
-          <CardDescription>
-            Basic company information and capital structure
-          </CardDescription>
+      <div>Test component</div>
+    </div>
+  );
+}
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -2157,7 +2154,7 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Ticker Symbol</label>
+              <label className="block text-sm font-medium mb-1">Ticker</label>
               <input
                 type="text"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -2170,7 +2167,20 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
 
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Current Price ($)</label>
+              <label className="block text-sm font-medium mb-1">Currency</label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={inputs.currency}
+                onChange={(e) => updateInput('currency', e.target.value)}
+              >
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="GBP">GBP</option>
+                <option value="CAD">CAD</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Current Price</label>
               <input
                 type="number"
                 step="0.01"
@@ -2183,52 +2193,510 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
               <label className="block text-sm font-medium mb-1">Shares Outstanding (M)</label>
               <input
                 type="number"
-                step="0.001"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={inputs.sharesOutstanding / 1000000}
                 onChange={(e) => updateInput('sharesOutstanding', (parseFloat(e.target.value) || 0) * 1000000)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Shares Diluted (M)</label>
-              <input
-                type="number"
-                step="0.001"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={inputs.sharesDiluted / 1000000}
-                onChange={(e) => updateInput('sharesDiluted', (parseFloat(e.target.value) || 0) * 1000000)}
               />
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Capital Structure */}
+      {/* Forecast Horizon */}
       <Card>
         <CardHeader>
-          <CardTitle>Capital Structure</CardTitle>
+          <CardTitle>Forecast Horizon</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="max-w-xs">
+            <label className="block text-sm font-medium mb-1">Years to Forecast</label>
+            <select
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={inputs.forecastYears.toString()}
+              onChange={(e) => updateInput('forecastYears', parseInt(e.target.value))}
+            >
+              <option value="3">3 Years</option>
+              <option value="5">5 Years</option>
+              <option value="7">7 Years</option>
+              <option value="10">10 Years</option>
+            </select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Operating Forecast */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Operating Forecast</CardTitle>
           <CardDescription>
-            Debt and cash positions for enterprise value calculation
+            Revenue and margin assumptions for the forecast period
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium mb-2">Forecast Mode</label>
+            <div className="flex gap-4">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="forecastMode"
+                  value="simple"
+                  checked={inputs.forecastMode === 'simple'}
+                  onChange={(e) => updateInput('forecastMode', e.target.value)}
+                  className="mr-2"
+                />
+                Simple Mode
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="forecastMode"
+                  value="advanced"
+                  checked={inputs.forecastMode === 'advanced'}
+                  onChange={(e) => updateInput('forecastMode', e.target.value)}
+                  className="mr-2"
+                />
+                Advanced Mode
+              </label>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Starting Revenue ($M)</label>
+              <input
+                type="number"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={inputs.startingRevenue / 1000000}
+                onChange={(e) => updateInput('startingRevenue', (parseFloat(e.target.value) || 0) * 1000000)}
+              />
+            </div>
+          </div>
+
+          {/* Growth and Margin Tables */}
+          <div className="grid grid-cols-2 gap-8">
+            <div>
+              <h4 className="font-medium mb-3">Revenue Growth (%)</h4>
+              <div className="space-y-2">
+                {inputs.revenueGrowth.slice(0, inputs.forecastYears).map((growth, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <span className="text-sm w-12">Year {index + 1}:</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="-50"
+                      max="100"
+                      className="w-20 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-right"
+                      value={(growth * 100).toFixed(1)}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val)) {
+                          updateArrayInput('revenueGrowth', index, val / 100);
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (isNaN(val)) {
+                          e.target.value = (growth * 100).toFixed(1);
+                        }
+                      }}
+                    />
+                    <span className="text-sm">%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-medium mb-3">
+                EBIT Margin (%)
+                {inputs.forecastMode === 'advanced' && (
+                  <span className="text-xs text-muted-foreground ml-2">(Advanced mode allows year-by-year)</span>
+                )}
+              </h4>
+              <div className="space-y-2">
+                {(inputs.forecastMode === 'advanced' && inputs.ebitMarginAdvanced
+                  ? inputs.ebitMarginAdvanced
+                  : inputs.ebitMargin
+                ).slice(0, inputs.forecastYears).map((margin, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <span className="text-sm w-12">Year {index + 1}:</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="-20"
+                      max="50"
+                      className="w-20 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-right"
+                      value={(margin * 100).toFixed(1)}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val)) {
+                          if (inputs.forecastMode === 'advanced') {
+                            const newArray = [...(inputs.ebitMarginAdvanced || inputs.ebitMargin)];
+                            newArray[index] = val / 100;
+                            updateInput('ebitMarginAdvanced', newArray);
+                          } else {
+                            updateArrayInput('ebitMargin', index, val / 100);
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (isNaN(val)) {
+                          e.target.value = (margin * 100).toFixed(1);
+                        }
+                      }}
+                    />
+                    <span className="text-sm">%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Mode-specific inputs */}
+          {inputs.forecastMode === 'simple' ? (
+            <div className="grid grid-cols-4 gap-4 mt-6">
+              <div>
+                <label className="block text-sm font-medium mb-1">Capex (% of Revenue)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={(inputs.capexPercentOfRevenue * 100).toFixed(1)}
+                  onChange={(e) => updateInput('capexPercentOfRevenue', (parseFloat(e.target.value) || 0) / 100)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">D&A (% of Revenue)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={(inputs.depreciationPercentOfRevenue * 100).toFixed(1)}
+                  onChange={(e) => updateInput('depreciationPercentOfRevenue', (parseFloat(e.target.value) || 0) / 100)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">ΔNWC (% of Rev Change)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={(inputs.nwcChangePercentOfRevenueChange * 100).toFixed(1)}
+                  onChange={(e) => updateInput('nwcChangePercentOfRevenueChange', (parseFloat(e.target.value) || 0) / 100)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Cash Tax Rate (%)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={(inputs.cashTaxRate * 100).toFixed(1)}
+                  onChange={(e) => updateInput('cashTaxRate', (parseFloat(e.target.value) || 0) / 100)}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="mt-6 space-y-4">
+              <h4 className="font-medium">Advanced Mode Settings</h4>
+
+              {/* Capex by year */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Capex (% of Revenue by Year)</label>
+                <div className="grid grid-cols-5 gap-2">
+                  {(inputs.capexByYear || Array(inputs.forecastYears).fill(inputs.capexPercentOfRevenue)).map((capex, index) => (
+                    <div key={index} className="text-center">
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        value={(capex * 100).toFixed(1)}
+                        onChange={(e) => {
+                          const newArray = [...(inputs.capexByYear || Array(inputs.forecastYears).fill(inputs.capexPercentOfRevenue))];
+                          newArray[index] = (parseFloat(e.target.value) || 0) / 100;
+                          updateInput('capexByYear', newArray);
+                        }}
+                      />
+                      <div className="text-xs text-gray-500 mt-1">Y{index + 1}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Depreciation by year */}
+              <div>
+                <label className="block text-sm font-medium mb-2">D&A (% of Revenue by Year)</label>
+                <div className="grid grid-cols-5 gap-2">
+                  {(inputs.depreciationByYear || Array(inputs.forecastYears).fill(inputs.depreciationPercentOfRevenue)).map((dep, index) => (
+                    <div key={index} className="text-center">
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        value={(dep * 100).toFixed(1)}
+                        onChange={(e) => {
+                          const newArray = [...(inputs.depreciationByYear || Array(inputs.forecastYears).fill(inputs.depreciationPercentOfRevenue))];
+                          newArray[index] = (parseFloat(e.target.value) || 0) / 100;
+                          updateInput('depreciationByYear', newArray);
+                        }}
+                      />
+                      <div className="text-xs text-gray-500 mt-1">Y{index + 1}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Mid-year convention */}
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="midYearConvention"
+                  checked={inputs.midYearConvention}
+                  onChange={(e) => updateInput('midYearConvention', e.target.checked)}
+                  className="mr-2"
+                />
+                <label htmlFor="midYearConvention" className="text-sm font-medium">
+                  Use mid-year discounting convention
+                </label>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Discount Rate (WACC) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Discount Rate (WACC)</CardTitle>
+          <CardDescription>
+            Cost of equity, debt, and weighted average cost of capital
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Total Debt ($M)</label>
+              <label className="block text-sm font-medium mb-1">Risk-Free Rate (%)</label>
               <input
                 type="number"
+                step="0.01"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={inputs.totalDebt / 1000000}
-                onChange={(e) => updateInput('totalDebt', (parseFloat(e.target.value) || 0) * 1000000)}
+                value={(inputs.riskFreeRate * 100).toFixed(2)}
+                onChange={(e) => updateInput('riskFreeRate', (parseFloat(e.target.value) || 0) / 100)}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Cash & Equivalents ($M)</label>
+              <label className="block text-sm font-medium mb-1">
+                Equity Risk Premium (%)
+              </label>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={(inputs.equityRiskPremium * 100).toFixed(2)}
+                    onChange={(e) => updateInput('equityRiskPremium', (parseFloat(e.target.value) || 0) / 100)}
+                  />
+                  {marketData && marketData.erp > 0 && (
+                    <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                      Market: {(marketData.erp * 100).toFixed(1)}%
+                    </span>
+                  )}
+                </div>
+                {marketData && (
+                  <div className="text-xs text-gray-500">
+                    S&P 500 yield: {(marketData.spxEarningsYield * 100).toFixed(1)}% |
+                    10Y Treasury: {(marketData.treasuryYield * 100).toFixed(1)}% |
+                    Updated: {marketData.lastUpdated ? new Date(marketData.lastUpdated).toLocaleDateString() : 'N/A'}
+                    {marketData.sources && (
+                      <div className="text-xs text-gray-400 mt-1">
+                        Sources: {marketData.sources.spx} | {marketData.sources.treasury}
+                      </div>
+                    )}
+                  </div>
+                )}
+                </div>
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-gray-600 hover:text-gray-800">Advanced: Manual Override</summary>
+                  <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                    <p className="text-yellow-800 text-xs mb-2">
+                      ⚠️ Override computed ERP with custom value. Only use if you have specific market data.
+                    </p>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="Custom ERP %"
+                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val)) {
+                          updateInput('equityRiskPremium', val / 100);
+                        }
+                      }}
+                    />
+                  </div>
+                </details>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Beta</label>
               <input
                 type="number"
+                step="0.01"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={inputs.cashEquivalents / 1000000}
-                onChange={(e) => updateInput('cashEquivalents', (parseFloat(e.target.value) || 0) * 1000000)}
+                value={inputs.beta}
+                onChange={(e) => updateInput('beta', parseFloat(e.target.value) || 0)}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Cost of Debt (%)</label>
+              <input
+                type="number"
+                step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={(inputs.costOfDebt * 100).toFixed(2)}
+                onChange={(e) => updateInput('costOfDebt', (parseFloat(e.target.value) || 0) / 100)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Tax Rate (%)</label>
+              <input
+                type="number"
+                step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={(inputs.taxRate * 100).toFixed(2)}
+                onChange={(e) => updateInput('taxRate', (parseFloat(e.target.value) || 0) / 100)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Target Debt Ratio (%)</label>
+              <input
+                type="number"
+                step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={(inputs.targetDebtRatio * 100).toFixed(1)}
+                onChange={(e) => updateInput('targetDebtRatio', (parseFloat(e.target.value) || 0) / 100)}
+              />
+            </div>
+          </div>
+
+          {/* WACC Calculation Display */}
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+            <h4 className="font-semibold text-sm mb-3">WACC Breakdown</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <div className="text-gray-600">Cost of Equity</div>
+                <div className="font-medium">{((inputs.riskFreeRate + inputs.beta * inputs.equityRiskPremium) * 100).toFixed(2)}%</div>
+                <div className="text-xs text-gray-500">
+                  {inputs.riskFreeRate * 100}% + ({inputs.beta} × {inputs.equityRiskPremium * 100}%)
+                </div>
+              </div>
+              <div>
+                <div className="text-gray-600">After-Tax Cost of Debt</div>
+                <div className="font-medium">{((inputs.costOfDebt * (1 - inputs.taxRate)) * 100).toFixed(2)}%</div>
+                <div className="text-xs text-gray-500">
+                  {inputs.costOfDebt * 100}% × (1 - {inputs.taxRate * 100}%)
+                </div>
+              </div>
+              <div>
+                <div className="text-gray-600">Equity Weight</div>
+                <div className="font-medium">{((1 - inputs.targetDebtRatio) * 100).toFixed(1)}%</div>
+                <div className="text-xs text-gray-500">1 - {inputs.targetDebtRatio * 100}% debt</div>
+              </div>
+              <div>
+                <div className="text-gray-600">Debt Weight</div>
+                <div className="font-medium">{(inputs.targetDebtRatio * 100).toFixed(1)}%</div>
+                <div className="text-xs text-gray-500">Target debt ratio</div>
+              </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-gray-200">
+              <div className="flex justify-between items-center">
+                <span className="font-semibold">WACC</span>
+                <span className="text-lg font-bold text-blue-600">
+                  {(() => {
+                    const costOfEquity = inputs.riskFreeRate + inputs.beta * inputs.equityRiskPremium;
+                    const afterTaxCostOfDebt = inputs.costOfDebt * (1 - inputs.taxRate);
+                    const wacc = (1 - inputs.targetDebtRatio) * costOfEquity + inputs.targetDebtRatio * afterTaxCostOfDebt;
+                    return (wacc * 100).toFixed(2) + '%';
+                  })()}
+                </span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Terminal Value */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Terminal Value</CardTitle>
+          <CardDescription>
+            Method for calculating the value beyond the forecast period
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Terminal Value Method</label>
+            <select
+              className="w-48 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={inputs.terminalMethod}
+              onChange={(e) => updateInput('terminalMethod', e.target.value as any)}
+            >
+              <option value="perpetual">Perpetual Growth</option>
+              <option value="multiple">Exit Multiple</option>
+              <option value="both">Both (Average)</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Perpetual Growth (%)</label>
+              <input
+                type="number"
+                step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={(inputs.perpetualGrowth * 100).toFixed(2)}
+                onChange={(e) => updateInput('perpetualGrowth', (parseFloat(e.target.value) || 0) / 100)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Exit Multiple</label>
+              <input
+                type="number"
+                step="0.1"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={inputs.exitMultiple}
+                onChange={(e) => updateInput('exitMultiple', parseFloat(e.target.value) || 0)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Exit Multiple Metric</label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={inputs.exitMultipleMetric}
+                onChange={(e) => updateInput('exitMultipleMetric', e.target.value as any)}
+              >
+                <option value="ebitda">EBITDA</option>
+                <option value="ebit">EBIT</option>
+                <option value="fcf">Free Cash Flow</option>
+              </select>
+            </div>
+            <div className={inputs.terminalMethod === 'both' ? '' : 'opacity-50'}>
+              <label className="block text-sm font-medium mb-1">Terminal Weighting (% Perpetual)</label>
+              <input
+                type="number"
+                step="1"
+                min="0"
+                max="100"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={(inputs.terminalWeighting * 100).toFixed(0)}
+                onChange={(e) => updateInput('terminalWeighting', (parseFloat(e.target.value) || 0) / 100)}
+                disabled={inputs.terminalMethod !== 'both'}
               />
             </div>
           </div>
@@ -2237,6 +2705,8 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
     </div>
   );
 }
+
+// Valuation Summary Component
 function ValuationSummary({ inputs, outputs }: { inputs: DCFInputs; outputs: DCFOutputs }) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
