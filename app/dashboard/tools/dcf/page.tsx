@@ -785,13 +785,24 @@ export default function DCFToolPage() {
         }
       };
 
-      const [overview, quote, income, balance, cashflow] = await Promise.all([
-        fetchWithError(`/api/alpha-vantage/overview/${encodeURIComponent(ticker)}`, 'company overview'),
-        fetchWithError(`/api/alpha-vantage/quote/${encodeURIComponent(ticker)}`, 'stock quote'),
-        fetchWithError(`/api/alpha-vantage/income-statement/${encodeURIComponent(ticker)}`, 'income statement'),
-        fetchWithError(`/api/alpha-vantage/balance-sheet/${encodeURIComponent(ticker)}`, 'balance sheet'),
-        fetchWithError(`/api/alpha-vantage/cash-flow/${encodeURIComponent(ticker)}`, 'cash flow statement')
-      ]);
+      let overview, quote, income, balance, cashflow;
+      try {
+        [overview, quote, income, balance, cashflow] = await Promise.all([
+          fetchWithError(`/api/alpha-vantage/overview/${encodeURIComponent(ticker)}`, 'company overview'),
+          fetchWithError(`/api/alpha-vantage/quote/${encodeURIComponent(ticker)}`, 'stock quote'),
+          fetchWithError(`/api/alpha-vantage/income-statement/${encodeURIComponent(ticker)}`, 'income statement'),
+          fetchWithError(`/api/alpha-vantage/balance-sheet/${encodeURIComponent(ticker)}`, 'balance sheet'),
+          fetchWithError(`/api/alpha-vantage/cash-flow/${encodeURIComponent(ticker)}`, 'cash flow statement')
+        ]);
+      } catch (fetchError) {
+        // If any fetch fails, set debug info with the error
+        setDebugInfo({
+          ticker,
+          error: fetchError instanceof Error ? fetchError.message : 'Network error during data fetch',
+          timestamp: new Date().toISOString()
+        });
+        throw fetchError;
+      }
 
       // Check for API errors
       if (overview.error) {
@@ -847,12 +858,14 @@ export default function DCFToolPage() {
       const errorMessage = error instanceof Error ? error.message : 'Analysis failed';
       setAnalysisError(errorMessage);
 
-      // Store debug info for troubleshooting
-      setDebugInfo({
-        ticker,
-        error: errorMessage,
-        timestamp: new Date().toISOString()
-      });
+      // Store debug info for troubleshooting (only if not already set)
+      if (!debugInfo || debugInfo.ticker !== ticker) {
+        setDebugInfo({
+          ticker,
+          error: errorMessage,
+          timestamp: new Date().toISOString()
+        });
+      }
     } finally {
       setIsAnalyzing(false);
     }
