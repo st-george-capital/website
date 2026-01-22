@@ -1310,9 +1310,9 @@ export default function DCFToolPage() {
     const costOfDebt = 0.05 + (totalDebt / totalCapital) * 0.02; // Base rate + leverage premium
 
     // Estimate WACC
-    const riskFreeRate = 0.0425; // Current 10-year treasury
-    const equityRiskPremium = 0.06; // Market risk premium
-    const beta = selectedCompany?.beta || 1.2; // Use actual beta from API
+    const riskFreeRate = inputs.riskFreeRate; // Use input value
+    const equityRiskPremium = inputs.equityRiskPremium; // Use input value
+    const beta = selectedCompany?.beta || inputs.beta; // Use actual beta from API or input
     const costOfEquity = riskFreeRate + beta * equityRiskPremium;
     const afterTaxCostOfDebt = costOfDebt * (1 - avgTaxRate);
     const wacc = (equity / totalCapital) * costOfEquity + (totalDebt / totalCapital) * afterTaxCostOfDebt;
