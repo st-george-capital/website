@@ -673,6 +673,7 @@ export default function DCFToolPage() {
   const [selectedScenario, setSelectedScenario] = useState<'base' | 'bull' | 'bear'>('base');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
   const [forceRecalc, setForceRecalc] = useState(0);
 
   // Fetch market data for ERP calculation
@@ -822,7 +823,22 @@ export default function DCFToolPage() {
 
     } catch (error) {
       console.error('Analysis error:', error);
-      setAnalysisError(error instanceof Error ? error.message : 'Analysis failed');
+      const errorMessage = error instanceof Error ? error.message : 'Analysis failed';
+      setAnalysisError(errorMessage);
+
+      // Store debug info for troubleshooting
+      setDebugInfo({
+        ticker,
+        error: errorMessage,
+        timestamp: new Date().toISOString(),
+        apiResponses: {
+          overview: overview?.error || 'No error',
+          quote: quote?.error || 'No error',
+          income: income?.error || 'No error',
+          balance: balance?.error || 'No error',
+          cashflow: cashflow?.error || 'No error'
+        }
+      });
     } finally {
       setIsAnalyzing(false);
     }
@@ -1404,6 +1420,25 @@ export default function DCFToolPage() {
             {analysisError && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-md">
                 <p className="text-sm text-red-700">{analysisError}</p>
+                {debugInfo && (
+                  <details className="mt-2">
+                    <summary className="text-xs text-red-600 cursor-pointer hover:text-red-800">
+                      🔍 Debug Information
+                    </summary>
+                    <div className="mt-2 p-2 bg-red-100 rounded text-xs font-mono">
+                      <div><strong>Ticker:</strong> {debugInfo.ticker}</div>
+                      <div><strong>Timestamp:</strong> {debugInfo.timestamp}</div>
+                      <div><strong>API Status:</strong></div>
+                      <ul className="ml-4 mt-1">
+                        {Object.entries(debugInfo.apiResponses || {}).map(([api, status]) => (
+                          <li key={api} className={status !== 'No error' ? 'text-red-800' : 'text-gray-600'}>
+                            {api}: {status}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </details>
+                )}
               </div>
             )}
 
@@ -2478,13 +2513,24 @@ function DCFInputsForm({
                     value={(inputs.equityRiskPremium * 100).toFixed(2)}
                     onChange={(e) => updateInput('equityRiskPremium', (parseFloat(e.target.value) || 0) / 100)}
                   />
-                  {/* Market ERP display */}
-                  <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
-                    Market ERP: 6.0%
-                  </span>
+                  {marketData && marketData.erp > 0 && (
+                    <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                      Market: {(marketData.erp * 100).toFixed(1)}%
+                    </span>
+                  )}
                 </div>
-                <div className="text-xs text-gray-500">
-                  S&P 500 earnings yield - 10Y Treasury yield (auto-updated)
+                {marketData && (
+                  <div className="text-xs text-gray-500">
+                    S&P 500 yield: {(marketData.spxEarningsYield * 100).toFixed(1)}% |
+                    10Y Treasury: {(marketData.treasuryYield * 100).toFixed(1)}% |
+                    Updated: {marketData.lastUpdated ? new Date(marketData.lastUpdated).toLocaleDateString() : 'N/A'}
+                    {marketData.sources && (
+                      <div className="text-xs text-gray-400 mt-1">
+                        Sources: {marketData.sources.spx} | {marketData.sources.treasury}
+                      </div>
+                    )}
+                  </div>
+                )}
                 </div>
                 <details className="text-xs">
                   <summary className="cursor-pointer text-gray-600 hover:text-gray-800">Advanced: Manual Override</summary>
