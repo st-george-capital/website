@@ -702,10 +702,8 @@ export default function DCFToolPage() {
 
       setMarketData(fetchedMarketData);
 
-      // Update ERP in inputs if we have valid data
-      if (fetchedMarketData.erp > 0) {
-        updateInput('equityRiskPremium', fetchedMarketData.erp);
-      }
+      // Update ERP in inputs with calculated value (even if using fallbacks)
+      updateInput('equityRiskPremium', fetchedMarketData.erp);
 
     } catch (error) {
       console.warn('Failed to fetch market data for ERP:', error);

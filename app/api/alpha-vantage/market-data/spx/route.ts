@@ -21,9 +21,9 @@ export async function GET(request: NextRequest) {
     }
 
     if (!overviewData.Symbol) {
-      // Fallback to reasonable S&P 500 earnings yield (around 4-5% historically)
+      // Fallback to reasonable S&P 500 earnings yield (around 8.5% for realistic ERP)
       return NextResponse.json({
-        earningsYield: 0.045, // 4.5%
+        earningsYield: 0.085, // 8.5%
         ebitda: 0,
         evToEbitda: 0,
         symbol: 'SPX',
