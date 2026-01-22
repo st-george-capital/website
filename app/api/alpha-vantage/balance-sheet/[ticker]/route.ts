@@ -11,10 +11,9 @@ export async function GET(
   const routeName = 'balance';
   const symbol = params.ticker.toUpperCase();
   const internalPath = new URL(request.url).pathname;
+  const upstreamUrl = `https://www.alphavantage.co/query?function=BALANCE_SHEET&symbol=${symbol}&apikey=[REDACTED]`;
 
   try {
-    // Alpha Vantage Balance Sheet API
-    const upstreamUrl = `https://www.alphavantage.co/query?function=BALANCE_SHEET&symbol=${symbol}&apikey=[REDACTED]`;
 
     const response = await fetch(upstreamUrl.replace('[REDACTED]', ALPHA_VANTAGE_API_KEY));
     const upstreamStatus = response.status;

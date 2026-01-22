@@ -9,6 +9,8 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const keywords = searchParams.get('q') || '';
 
+  let upstreamUrl: string;
+
   try {
     if (!keywords) {
       return NextResponse.json({
@@ -23,7 +25,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Alpha Vantage Symbol Search API
-    const upstreamUrl = `https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=${encodeURIComponent(keywords)}&apikey=[REDACTED]`;
+    upstreamUrl = `https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=${encodeURIComponent(keywords)}&apikey=[REDACTED]`;
 
     const response = await fetch(upstreamUrl.replace('[REDACTED]', ALPHA_VANTAGE_API_KEY));
     const upstreamStatus = response.status;

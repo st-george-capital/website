@@ -11,10 +11,9 @@ export async function GET(
   const routeName = 'cash';
   const symbol = params.ticker.toUpperCase();
   const internalPath = new URL(request.url).pathname;
+  const upstreamUrl = `https://www.alphavantage.co/query?function=CASH_FLOW&symbol=${symbol}&apikey=[REDACTED]`;
 
   try {
-    // Alpha Vantage Cash Flow API
-    const upstreamUrl = `https://www.alphavantage.co/query?function=CASH_FLOW&symbol=${symbol}&apikey=[REDACTED]`;
 
     const response = await fetch(upstreamUrl.replace('[REDACTED]', ALPHA_VANTAGE_API_KEY));
     const upstreamStatus = response.status;
