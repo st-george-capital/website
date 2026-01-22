@@ -159,7 +159,7 @@ export async function GET(
     if (data['Error Message'] || !data.Symbol) {
       return NextResponse.json({
         error: 'Symbol not found',
-        ticker
+        ticker: symbol
       }, { status: 404 });
     }
 
