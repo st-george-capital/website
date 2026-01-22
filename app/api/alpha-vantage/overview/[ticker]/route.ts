@@ -152,7 +152,7 @@ export async function GET(
       return NextResponse.json({
         error: 'HTTP error',
         details: `Status: ${response.status}`,
-        url: url
+        url: upstreamUrl
       }, { status: response.status });
     }
 
