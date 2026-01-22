@@ -770,13 +770,27 @@ export default function DCFToolPage() {
         throw new Error(`Invalid ticker symbol: ${ticker}. Please use a valid stock symbol like AAPL or TSLA.`);
       }
 
-      // Fetch all data in parallel
+      // Fetch all data in parallel with better error handling
+      const fetchWithError = async (url: string, name: string) => {
+        try {
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          const data = await response.json();
+          return data;
+        } catch (error) {
+          console.error(`Failed to fetch ${name}:`, error);
+          throw new Error(`Failed to fetch ${name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      };
+
       const [overview, quote, income, balance, cashflow] = await Promise.all([
-        fetch(`/api/alpha-vantage/overview/${encodeURIComponent(ticker)}`).then(r => r.json()),
-        fetch(`/api/alpha-vantage/quote/${encodeURIComponent(ticker)}`).then(r => r.json()),
-        fetch(`/api/alpha-vantage/income-statement/${encodeURIComponent(ticker)}`).then(r => r.json()),
-        fetch(`/api/alpha-vantage/balance-sheet/${encodeURIComponent(ticker)}`).then(r => r.json()),
-        fetch(`/api/alpha-vantage/cash-flow/${encodeURIComponent(ticker)}`).then(r => r.json())
+        fetchWithError(`/api/alpha-vantage/overview/${encodeURIComponent(ticker)}`, 'company overview'),
+        fetchWithError(`/api/alpha-vantage/quote/${encodeURIComponent(ticker)}`, 'stock quote'),
+        fetchWithError(`/api/alpha-vantage/income-statement/${encodeURIComponent(ticker)}`, 'income statement'),
+        fetchWithError(`/api/alpha-vantage/balance-sheet/${encodeURIComponent(ticker)}`, 'balance sheet'),
+        fetchWithError(`/api/alpha-vantage/cash-flow/${encodeURIComponent(ticker)}`, 'cash flow statement')
       ]);
 
       // Check for API errors
@@ -795,7 +809,13 @@ export default function DCFToolPage() {
         cashflow: !!cashflow.annualReports
       });
 
-      console.log('API responses:', { overview, quote, income, balance, cashflow });
+      console.log('API response details:', {
+        overview: { symbol: overview.symbol, error: overview.error },
+        quote: { hasQuote: !!quote['Global Quote'], error: quote.error },
+        income: { hasReports: !!income.annualReports, error: income.error },
+        balance: { hasReports: !!balance.annualReports, error: balance.error },
+        cashflow: { hasReports: !!cashflow.annualReports, error: cashflow.error }
+      });
 
       // Check for errors
       if (overview.error || quote.error || income.error || balance.error || cashflow.error) {
@@ -817,7 +837,8 @@ export default function DCFToolPage() {
       console.log('Processed financial data:', processedData);
 
       // Auto-populate DCF inputs with the financial data
-      autoPopulateFromFinancials(quote);
+      // Pass processedData directly to avoid race condition with state update
+      autoPopulateFromFinancials(quote, processedData);
 
       console.log('DCF inputs auto-populated from financial data');
 
@@ -1165,26 +1186,27 @@ export default function DCFToolPage() {
     };
   };
 
-  const autoPopulateFromFinancials = (quote?: any) => {
+  const autoPopulateFromFinancials = (quote?: any, processedData?: ExtractedFinancials) => {
     console.log('🔄 autoPopulateFromFinancials called');
-    if (!financialData) {
+    const dataToUse = processedData || financialData;
+    if (!dataToUse) {
       console.log('No financial data available for auto-population');
       return;
     }
 
-    console.log('Financial data for auto-population:', financialData);
+    console.log('Financial data for auto-population:', dataToUse);
 
     // Validate data availability
-    if (!financialData.revenue || financialData.revenue.length === 0) {
+    if (!dataToUse.revenue || dataToUse.revenue.length === 0) {
       console.error('No revenue data available');
       return;
     }
 
     // Calculate historical growth rates (most recent 2-3 years for stability)
     let revenueGrowth = 0.05; // Default
-    if (financialData.revenue.length >= 2) {
+    if (dataToUse.revenue.length >= 2) {
       // Data is newest → oldest. Take first 3 (most recent) and reverse for CAGR calculation (oldest → newest)
-      const recentRevenue = financialData.revenue.slice(0, 3).reverse(); // First 3 years, reversed to oldest→newest
+      const recentRevenue = dataToUse.revenue.slice(0, 3).reverse(); // First 3 years, reversed to oldest→newest
       const growthRates = [];
       for (let i = 1; i < recentRevenue.length; i++) {
         if (recentRevenue[i-1] > 0) {
@@ -1203,13 +1225,13 @@ export default function DCFToolPage() {
 
     // Calculate EBIT margin from recent years
     let avgEbitMargin = 0.10; // Default
-    if (financialData.ebit.length > 0 && financialData.revenue.length > 0) {
+    if (dataToUse.ebit.length > 0 && dataToUse.revenue.length > 0) {
       const recentMargins = [];
-      const minLength = Math.min(financialData.ebit.length, financialData.revenue.length, 3);
+      const minLength = Math.min(dataToUse.ebit.length, dataToUse.revenue.length, 3);
       // Use most recent years for margin calculation
       for (let i = 0; i < minLength; i++) {
-        if (financialData.revenue[i] > 0) {
-          recentMargins.push(financialData.ebit[i] / financialData.revenue[i]);
+        if (dataToUse.revenue[i] > 0) {
+          recentMargins.push(dataToUse.ebit[i] / dataToUse.revenue[i]);
         }
       }
       if (recentMargins.length > 0) {
@@ -1220,12 +1242,12 @@ export default function DCFToolPage() {
 
     // Calculate effective tax rate
     let avgTaxRate = 0.25; // Default
-    if (financialData.ebit.length > 0 && financialData.netIncome.length > 0) {
+    if (dataToUse.ebit.length > 0 && dataToUse.netIncome.length > 0) {
       const taxRates = [];
-      const minLength = Math.min(financialData.ebit.length, financialData.netIncome.length, 3);
+      const minLength = Math.min(dataToUse.ebit.length, dataToUse.netIncome.length, 3);
       for (let i = 0; i < minLength; i++) {
-        if (financialData.ebit[i] > 0) {
-          const taxRate = 1 - (financialData.netIncome[i] / financialData.ebit[i]);
+        if (dataToUse.ebit[i] > 0) {
+          const taxRate = 1 - (dataToUse.netIncome[i] / dataToUse.ebit[i]);
           if (taxRate >= 0 && taxRate <= 0.5) { // Reasonable tax rate bounds
             taxRates.push(taxRate);
           }
@@ -1238,12 +1260,12 @@ export default function DCFToolPage() {
 
     // Calculate capital expenditure intensity
     let avgCapexRate = 0.08; // Default
-    if (financialData.capex.length > 0 && financialData.revenue.length > 0) {
+    if (dataToUse.capex.length > 0 && dataToUse.revenue.length > 0) {
       const capexRates = [];
-      const minLength = Math.min(financialData.capex.length, financialData.revenue.length, 3);
+      const minLength = Math.min(dataToUse.capex.length, dataToUse.revenue.length, 3);
       for (let i = 0; i < minLength; i++) {
-        if (financialData.revenue[i] > 0) {
-          capexRates.push(Math.abs(financialData.capex[i]) / financialData.revenue[i]);
+        if (dataToUse.revenue[i] > 0) {
+          capexRates.push(Math.abs(dataToUse.capex[i]) / dataToUse.revenue[i]);
         }
       }
       if (capexRates.length > 0) {
@@ -1254,12 +1276,12 @@ export default function DCFToolPage() {
 
     // Calculate depreciation rate
     let avgDepreciationRate = 0.05; // Default
-    if (financialData.depreciation.length > 0 && financialData.revenue.length > 0) {
+    if (dataToUse.depreciation.length > 0 && dataToUse.revenue.length > 0) {
       const depRates = [];
-      const minLength = Math.min(financialData.depreciation.length, financialData.revenue.length, 3);
+      const minLength = Math.min(dataToUse.depreciation.length, dataToUse.revenue.length, 3);
       for (let i = 0; i < minLength; i++) {
-        if (financialData.revenue[i] > 0) {
-          depRates.push(Math.abs(financialData.depreciation[i]) / financialData.revenue[i]);
+        if (dataToUse.revenue[i] > 0) {
+          depRates.push(Math.abs(dataToUse.depreciation[i]) / dataToUse.revenue[i]);
         }
       }
       if (depRates.length > 0) {
@@ -1269,8 +1291,8 @@ export default function DCFToolPage() {
     }
 
     // Calculate capital structure and WACC
-    const totalDebt = financialData.totalDebt.length > 0 ? Math.abs(financialData.totalDebt[0]) : 0;
-    const equity = financialData.shareholdersEquity.length > 0 ? Math.abs(financialData.shareholdersEquity[0]) : 1;
+    const totalDebt = dataToUse.totalDebt.length > 0 ? Math.abs(dataToUse.totalDebt[0]) : 0;
+    const equity = dataToUse.shareholdersEquity.length > 0 ? Math.abs(dataToUse.shareholdersEquity[0]) : 1;
     const totalCapital = totalDebt + equity;
 
     // Estimate cost of debt (simplified - could be improved with actual interest expense)
@@ -1293,7 +1315,7 @@ export default function DCFToolPage() {
       wacc: (wacc * 100).toFixed(1) + '%',
       totalDebt: (totalDebt / 1000000).toFixed(0) + 'M',
       equity: (equity / 1000000).toFixed(0) + 'M',
-      startingRevenue: (financialData.revenue[0] / 1000000).toFixed(0) + 'M'
+      startingRevenue: (dataToUse.revenue[0] / 1000000).toFixed(0) + 'M'
     });
 
     // Create growth profile with deceleration (typical DCF approach)
@@ -1308,14 +1330,14 @@ export default function DCFToolPage() {
     // Update inputs with comprehensive assumptions
     const updatedInputs = {
       ...inputs,
-      companyName: financialData.companyName || inputs.companyName,
-      ticker: financialData.ticker || inputs.ticker,
+      companyName: dataToUse.companyName || inputs.companyName,
+      ticker: dataToUse.ticker || inputs.ticker,
       currentPrice: quote?.price || inputs.currentPrice,
       sharesOutstanding: selectedCompany?.sharesOutstanding || inputs.sharesOutstanding || 100000000,
       sharesDiluted: selectedCompany?.sharesOutstanding ? selectedCompany.sharesOutstanding * 1.05 : inputs.sharesDiluted || 105000000,
       totalDebt: totalDebt,
-      cashEquivalents: financialData.cashAndEquivalents.length > 0 ? financialData.cashAndEquivalents[0] : 0,
-      startingRevenue: financialData.revenue[0],
+      cashEquivalents: dataToUse.cashAndEquivalents.length > 0 ? dataToUse.cashAndEquivalents[0] : 0,
+      startingRevenue: dataToUse.revenue[0],
       revenueGrowth: growthProfile,
       ebitMargin: Array(5).fill(avgEbitMargin),
       capexPercentOfRevenue: avgCapexRate,
