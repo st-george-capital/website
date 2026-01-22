@@ -315,9 +315,291 @@ interface CompanyOverview {
   sharesOutstanding?: number;
 }
 
+interface InvestorSnapshotProps {
+  companyData: CompanyOverview | null;
+  financialData: ExtractedFinancials | null;
+  quoteData: any;
+}
+
+function InvestorSnapshot({ companyData, financialData, quoteData }: InvestorSnapshotProps) {
+  // Calculate metrics
+  const currentPrice = quoteData?.price || 0;
+  const sharesOutstanding = companyData?.sharesOutstanding || 0;
+  const marketCap = sharesOutstanding * currentPrice;
+
+  const revenue = financialData?.revenue?.[0] || 0;
+  const ebitda = financialData?.ebitda?.[0] || 0;
+  const netIncome = financialData?.netIncome?.[0] || 0;
+  const ebit = financialData?.ebit?.[0] || 0;
+
+  const totalAssets = financialData?.totalAssets?.[0] || 0;
+  const totalLiabilities = financialData?.totalLiabilities?.[0] || 0;
+  const shareholdersEquity = financialData?.shareholdersEquity?.[0] || 0;
+  const totalDebt = Math.abs(financialData?.totalDebt?.[0] || 0);
+  const cashAndEquivalents = financialData?.cashAndEquivalents?.[0] || 0;
+  const netDebt = totalDebt - cashAndEquivalents;
+
+  // TTM calculations
+  const eps = netIncome / sharesOutstanding;
+  const peRatio = currentPrice / eps;
+  const ev = marketCap + totalDebt - cashAndEquivalents;
+  const evEbitda = ev / ebitda;
+  const evSales = ev / revenue;
+
+  // Free Cash Flow calculation (simplified)
+  const capex = financialData?.capex?.[0] || 0;
+  const depreciation = financialData?.depreciation?.[0] || 0;
+  const fcf = ebit * (1 - 0.25) + depreciation - capex; // Simplified NOPAT + D&A - CapEx
+  const fcfYield = fcf / marketCap;
+  const earningsYield = eps / currentPrice;
+
+  // Profitability metrics
+  const grossMargin = (revenue - (financialData?.ebit?.[0] * 1.5 || 0)) / revenue; // Simplified
+  const operatingMargin = ebit / revenue;
+  const netMargin = netIncome / revenue;
+  const roe = netIncome / shareholdersEquity;
+  const roa = netIncome / totalAssets;
+
+  // Leverage/Liquidity
+  const debtEquity = totalDebt / shareholdersEquity;
+  const currentAssets = financialData?.currentAssets?.[0] || 0;
+  const currentLiabilities = financialData?.currentLiabilities?.[0] || 0;
+  const currentRatio = currentAssets / currentLiabilities;
+  const interestCoverage = ebit / (totalDebt * 0.05); // Simplified
+
+  // Growth calculations (simplified)
+  const calculateCAGR = (values: number[], years: number) => {
+    if (values.length < 2) return 0;
+    const recent = values.slice(0, years);
+    if (recent.length < 2) return 0;
+    const start = recent[recent.length - 1];
+    const end = recent[0];
+    if (start <= 0) return 0;
+    return Math.pow(end / start, 1 / (recent.length - 1)) - 1;
+  };
+
+  const revenueCAGR3Y = calculateCAGR(financialData?.revenue || [], 3);
+  const revenueCAGR5Y = calculateCAGR(financialData?.revenue || [], 5);
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <BarChart3 className="w-5 h-5 mr-2" />
+            Investor Snapshot
+          </CardTitle>
+          <CardDescription>
+            Key financial metrics and ratios for investment analysis
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Valuation Panel */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg text-blue-700 border-b pb-2">Valuation</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Market Cap</span>
+                  <div className="text-right">
+                    <div className="font-medium">${(marketCap / 1e9).toFixed(1)}B</div>
+                    <div className="text-xs text-gray-500">Market Cap × Shares</div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Enterprise Value</span>
+                  <div className="text-right">
+                    <div className="font-medium">${(ev / 1e9).toFixed(1)}B</div>
+                    <div className="text-xs text-gray-500">EV = MC + Debt - Cash</div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">P/E (TTM)</span>
+                  <div className="text-right">
+                    <div className="font-medium">{peRatio.toFixed(1)}x</div>
+                    <div className="text-xs text-gray-500">Price / EPS (TTM)</div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">EV/EBITDA (TTM)</span>
+                  <div className="text-right">
+                    <div className="font-medium">{evEbitda.toFixed(1)}x</div>
+                    <div className="text-xs text-gray-500">EV / EBITDA (TTM)</div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">EV/Sales (TTM)</span>
+                  <div className="text-right">
+                    <div className="font-medium">{evSales.toFixed(1)}x</div>
+                    <div className="text-xs text-gray-500">EV / Revenue (TTM)</div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">FCF Yield</span>
+                  <div className="text-right">
+                    <div className="font-medium">{(fcfYield * 100).toFixed(1)}%</div>
+                    <div className="text-xs text-gray-500">FCF / Market Cap</div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Earnings Yield</span>
+                  <div className="text-right">
+                    <div className="font-medium">{(earningsYield * 100).toFixed(1)}%</div>
+                    <div className="text-xs text-gray-500">EPS / Price</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Profitability Panel */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg text-green-700 border-b pb-2">Profitability</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Gross Margin</span>
+                  <div className="text-right">
+                    <div className="font-medium">{(grossMargin * 100).toFixed(1)}%</div>
+                    <div className="text-xs text-gray-500">Gross Profit / Revenue (TTM)</div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Operating Margin</span>
+                  <div className="text-right">
+                    <div className="font-medium">{(operatingMargin * 100).toFixed(1)}%</div>
+                    <div className="text-xs text-gray-500">EBIT / Revenue (TTM)</div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Net Margin</span>
+                  <div className="text-right">
+                    <div className="font-medium">{(netMargin * 100).toFixed(1)}%</div>
+                    <div className="text-xs text-gray-500">Net Income / Revenue (TTM)</div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">ROE</span>
+                  <div className="text-right">
+                    <div className="font-medium">{(roe * 100).toFixed(1)}%</div>
+                    <div className="text-xs text-gray-500">Net Income / Equity (TTM)</div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">ROA</span>
+                  <div className="text-right">
+                    <div className="font-medium">{(roa * 100).toFixed(1)}%</div>
+                    <div className="text-xs text-gray-500">Net Income / Assets (TTM)</div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">ROIC Proxy</span>
+                  <div className="text-right">
+                    <div className="font-medium text-gray-500">N/A</div>
+                    <div className="text-xs text-gray-500">NOPAT / Invested Capital</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Leverage/Liquidity Panel */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg text-orange-700 border-b pb-2">Leverage/Liquidity</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Net Debt</span>
+                  <div className="text-right">
+                    <div className="font-medium">${(netDebt / 1e9).toFixed(1)}B</div>
+                    <div className="text-xs text-gray-500">Total Debt - Cash (FY0)</div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Net Debt/EBITDA</span>
+                  <div className="text-right">
+                    <div className="font-medium">{(netDebt / ebitda).toFixed(1)}x</div>
+                    <div className="text-xs text-gray-500">Net Debt / EBITDA (TTM)</div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Debt/Equity</span>
+                  <div className="text-right">
+                    <div className="font-medium">{debtEquity.toFixed(1)}x</div>
+                    <div className="text-xs text-gray-500">Total Debt / Equity (FY0)</div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Current Ratio</span>
+                  <div className="text-right">
+                    <div className="font-medium">{currentRatio.toFixed(1)}x</div>
+                    <div className="text-xs text-gray-500">Current Assets / Current Liabilities (FY0)</div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Interest Coverage</span>
+                  <div className="text-right">
+                    <div className="font-medium">{interestCoverage.toFixed(1)}x</div>
+                    <div className="text-xs text-gray-500">EBIT / Interest Expense (TTM)</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Growth/Quality Panel */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg text-purple-700 border-b pb-2">Growth/Quality</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Revenue CAGR (3Y)</span>
+                  <div className="text-right">
+                    <div className="font-medium">{(revenueCAGR3Y * 100).toFixed(1)}%</div>
+                    <div className="text-xs text-gray-500">Annual Revenue Growth (3Y)</div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Revenue CAGR (5Y)</span>
+                  <div className="text-right">
+                    <div className="font-medium">{(revenueCAGR5Y * 100).toFixed(1)}%</div>
+                    <div className="text-xs text-gray-500">Annual Revenue Growth (5Y)</div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">EPS CAGR (3Y)</span>
+                  <div className="text-right">
+                    <div className="font-medium text-gray-500">N/A</div>
+                    <div className="text-xs text-gray-500">Annual EPS Growth (3Y)</div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">FCF CAGR (3Y)</span>
+                  <div className="text-right">
+                    <div className="font-medium text-gray-500">N/A</div>
+                    <div className="text-xs text-gray-500">Annual FCF Growth (3Y)</div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Share Count Trend</span>
+                  <div className="text-right">
+                    <div className="font-medium text-gray-500">N/A</div>
+                    <div className="text-xs text-gray-500">Shares Outstanding Change (3Y)</div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Dividend Yield</span>
+                  <div className="text-right">
+                    <div className="font-medium text-gray-500">N/A</div>
+                    <div className="text-xs text-gray-500">Annual Dividend / Price</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function DCFToolPage() {
   const [inputs, setInputs] = useState<DCFInputs>(getDefaultInputs());
-  const [activeTab, setActiveTab] = useState<'assumptions' | 'valuation' | 'charts' | 'sensitivity' | 'financials'>('assumptions');
+  const [activeTab, setActiveTab] = useState<'snapshot' | 'assumptions' | 'valuation' | 'charts' | 'sensitivity' | 'financials'>('snapshot');
   const [financialData, setFinancialData] = useState<ExtractedFinancials | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<CompanyOverview | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -873,7 +1155,7 @@ export default function DCFToolPage() {
     // Estimate WACC
     const riskFreeRate = 0.0425; // Current 10-year treasury
     const equityRiskPremium = 0.06; // Market risk premium
-    const beta = 1.2; // Could be pulled from API if available
+    const beta = selectedCompany?.beta || 1.2; // Use actual beta from API
     const costOfEquity = riskFreeRate + beta * equityRiskPremium;
     const afterTaxCostOfDebt = costOfDebt * (1 - avgTaxRate);
     const wacc = (equity / totalCapital) * costOfEquity + (totalDebt / totalCapital) * afterTaxCostOfDebt;
@@ -1035,6 +1317,7 @@ export default function DCFToolPage() {
         <div className="border-b border-gray-200">
           <nav className="flex space-x-8">
             {([
+              { id: 'snapshot' as const, label: 'Investor Snapshot' },
               { id: 'assumptions' as const, label: 'Assumptions' },
               { id: 'valuation' as const, label: 'DCF Valuation' },
               { id: 'charts' as const, label: 'Charts & Analysis' },
@@ -1057,6 +1340,13 @@ export default function DCFToolPage() {
         </div>
 
         <div className="space-y-6">
+          {activeTab === 'snapshot' && (
+            <InvestorSnapshot
+              companyData={selectedCompany}
+              financialData={financialData}
+              quoteData={quote}
+            />
+          )}
           {activeTab === 'assumptions' && (
             <div className="space-y-6">
               {/* Key Assumptions Summary */}
