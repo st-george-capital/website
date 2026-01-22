@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const keywords = searchParams.get('q') || '';
 
-  let upstreamUrl: string;
+  let upstreamUrl: string = '';
 
   try {
     if (!keywords) {
