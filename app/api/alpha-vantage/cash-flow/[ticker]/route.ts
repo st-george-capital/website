@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { toNum } from '@/lib/utils';
 
 const ALPHA_VANTAGE_API_KEY = process.env.ALPHA_VANTAGE_API_KEY || 'GJV339TR2PPUSN9B';
 
@@ -35,31 +36,31 @@ export async function GET(
       reportedCurrency: report.reportedCurrency,
 
       // Operating Activities
-      operatingCashflow: parseFloat(report.operatingCashflow) || 0,
-      cashflowFromInvestment: parseFloat(report.cashflowFromInvestment) || 0,
-      cashflowFromFinancing: parseFloat(report.cashflowFromFinancing) || 0,
-      proceedsFromRepaymentsOfShortTermDebt: parseFloat(report.proceedsFromRepaymentsOfShortTermDebt) || 0,
-      paymentsForRepurchaseOfCommonStock: parseFloat(report.paymentsForRepurchaseOfCommonStock) || 0,
-      paymentsForRepurchaseOfEquity: parseFloat(report.paymentsForRepurchaseOfEquity) || 0,
-      paymentsForRepurchaseOfPreferredStock: parseFloat(report.paymentsForRepurchaseOfPreferredStock) || 0,
-      dividendPayout: parseFloat(report.dividendPayout) || 0,
-      dividendPayoutCommonStock: parseFloat(report.dividendPayoutCommonStock) || 0,
-      dividendPayoutPreferredStock: parseFloat(report.dividendPayoutPreferredStock) || 0,
-      proceedsFromIssuanceOfCommonStock: parseFloat(report.proceedsFromIssuanceOfCommonStock) || 0,
-      proceedsFromIssuanceOfLongTermDebtAndCapitalSecuritiesNet: parseFloat(report.proceedsFromIssuanceOfLongTermDebtAndCapitalSecuritiesNet) || 0,
-      proceedsFromIssuanceOfPreferredStock: parseFloat(report.proceedsFromIssuanceOfPreferredStock) || 0,
-      proceedsFromRepurchaseOfEquity: parseFloat(report.proceedsFromRepurchaseOfEquity) || 0,
-      proceedsFromSaleOfTreasuryStock: parseFloat(report.proceedsFromSaleOfTreasuryStock) || 0,
-      changeInCashAndCashEquivalents: parseFloat(report.changeInCashAndCashEquivalents) || 0,
-      changeInExchangeRate: parseFloat(report.changeInExchangeRate) || 0,
-      netIncome: parseFloat(report.netIncome) || 0,
+      operatingCashflow: toNum(report.operatingCashflow),
+      cashflowFromInvestment: toNum(report.cashflowFromInvestment),
+      cashflowFromFinancing: toNum(report.cashflowFromFinancing),
+      proceedsFromRepaymentsOfShortTermDebt: toNum(report.proceedsFromRepaymentsOfShortTermDebt),
+      paymentsForRepurchaseOfCommonStock: toNum(report.paymentsForRepurchaseOfCommonStock),
+      paymentsForRepurchaseOfEquity: toNum(report.paymentsForRepurchaseOfEquity),
+      paymentsForRepurchaseOfPreferredStock: toNum(report.paymentsForRepurchaseOfPreferredStock),
+      dividendPayout: toNum(report.dividendPayout),
+      dividendPayoutCommonStock: toNum(report.dividendPayoutCommonStock),
+      dividendPayoutPreferredStock: toNum(report.dividendPayoutPreferredStock),
+      proceedsFromIssuanceOfCommonStock: toNum(report.proceedsFromIssuanceOfCommonStock),
+      proceedsFromIssuanceOfLongTermDebtAndCapitalSecuritiesNet: toNum(report.proceedsFromIssuanceOfLongTermDebtAndCapitalSecuritiesNet),
+      proceedsFromIssuanceOfPreferredStock: toNum(report.proceedsFromIssuanceOfPreferredStock),
+      proceedsFromRepurchaseOfEquity: toNum(report.proceedsFromRepurchaseOfEquity),
+      proceedsFromSaleOfTreasuryStock: toNum(report.proceedsFromSaleOfTreasuryStock),
+      changeInCashAndCashEquivalents: toNum(report.changeInCashAndCashEquivalents),
+      changeInExchangeRate: toNum(report.changeInExchangeRate),
+      netIncome: toNum(report.netIncome),
 
       // Investment Activities
-      capitalExpenditures: parseFloat(report.capitalExpenditures) || 0,
-      capitalExpenditureReported: parseFloat(report.capitalExpenditureReported) || 0,
+      capitalExpenditures: toNum(report.capitalExpenditures),
+      capitalExpenditureReported: toNum(report.capitalExpenditureReported),
 
       // Calculated Fields
-      freeCashFlow: (parseFloat(report.operatingCashflow) || 0) - (parseFloat(report.capitalExpenditures) || 0)
+      freeCashFlow: toNum(report.operatingCashflow) - toNum(report.capitalExpenditures)
     }));
 
     // Also include quarterly data (last 8 quarters)
@@ -68,31 +69,31 @@ export async function GET(
       reportedCurrency: report.reportedCurrency,
 
       // Operating Activities
-      operatingCashflow: parseFloat(report.operatingCashflow) || 0,
-      cashflowFromInvestment: parseFloat(report.cashflowFromInvestment) || 0,
-      cashflowFromFinancing: parseFloat(report.cashflowFromFinancing) || 0,
-      proceedsFromRepaymentsOfShortTermDebt: parseFloat(report.proceedsFromRepaymentsOfShortTermDebt) || 0,
-      paymentsForRepurchaseOfCommonStock: parseFloat(report.paymentsForRepurchaseOfCommonStock) || 0,
-      paymentsForRepurchaseOfEquity: parseFloat(report.paymentsForRepurchaseOfEquity) || 0,
-      paymentsForRepurchaseOfPreferredStock: parseFloat(report.paymentsForRepurchaseOfPreferredStock) || 0,
-      dividendPayout: parseFloat(report.dividendPayout) || 0,
-      dividendPayoutCommonStock: parseFloat(report.dividendPayoutCommonStock) || 0,
-      dividendPayoutPreferredStock: parseFloat(report.dividendPayoutPreferredStock) || 0,
-      proceedsFromIssuanceOfCommonStock: parseFloat(report.proceedsFromIssuanceOfCommonStock) || 0,
-      proceedsFromIssuanceOfLongTermDebtAndCapitalSecuritiesNet: parseFloat(report.proceedsFromIssuanceOfLongTermDebtAndCapitalSecuritiesNet) || 0,
-      proceedsFromIssuanceOfPreferredStock: parseFloat(report.proceedsFromIssuanceOfPreferredStock) || 0,
-      proceedsFromRepurchaseOfEquity: parseFloat(report.proceedsFromRepurchaseOfEquity) || 0,
-      proceedsFromSaleOfTreasuryStock: parseFloat(report.proceedsFromSaleOfTreasuryStock) || 0,
-      changeInCashAndCashEquivalents: parseFloat(report.changeInCashAndCashEquivalents) || 0,
-      changeInExchangeRate: parseFloat(report.changeInExchangeRate) || 0,
-      netIncome: parseFloat(report.netIncome) || 0,
+      operatingCashflow: toNum(report.operatingCashflow),
+      cashflowFromInvestment: toNum(report.cashflowFromInvestment),
+      cashflowFromFinancing: toNum(report.cashflowFromFinancing),
+      proceedsFromRepaymentsOfShortTermDebt: toNum(report.proceedsFromRepaymentsOfShortTermDebt),
+      paymentsForRepurchaseOfCommonStock: toNum(report.paymentsForRepurchaseOfCommonStock),
+      paymentsForRepurchaseOfEquity: toNum(report.paymentsForRepurchaseOfEquity),
+      paymentsForRepurchaseOfPreferredStock: toNum(report.paymentsForRepurchaseOfPreferredStock),
+      dividendPayout: toNum(report.dividendPayout),
+      dividendPayoutCommonStock: toNum(report.dividendPayoutCommonStock),
+      dividendPayoutPreferredStock: toNum(report.dividendPayoutPreferredStock),
+      proceedsFromIssuanceOfCommonStock: toNum(report.proceedsFromIssuanceOfCommonStock),
+      proceedsFromIssuanceOfLongTermDebtAndCapitalSecuritiesNet: toNum(report.proceedsFromIssuanceOfLongTermDebtAndCapitalSecuritiesNet),
+      proceedsFromIssuanceOfPreferredStock: toNum(report.proceedsFromIssuanceOfPreferredStock),
+      proceedsFromRepurchaseOfEquity: toNum(report.proceedsFromRepurchaseOfEquity),
+      proceedsFromSaleOfTreasuryStock: toNum(report.proceedsFromSaleOfTreasuryStock),
+      changeInCashAndCashEquivalents: toNum(report.changeInCashAndCashEquivalents),
+      changeInExchangeRate: toNum(report.changeInExchangeRate),
+      netIncome: toNum(report.netIncome),
 
       // Investment Activities
-      capitalExpenditures: parseFloat(report.capitalExpenditures) || 0,
-      capitalExpenditureReported: parseFloat(report.capitalExpenditureReported) || 0,
+      capitalExpenditures: toNum(report.capitalExpenditures),
+      capitalExpenditureReported: toNum(report.capitalExpenditureReported),
 
       // Calculated Fields
-      freeCashFlow: (parseFloat(report.operatingCashflow) || 0) - (parseFloat(report.capitalExpenditures) || 0)
+      freeCashFlow: toNum(report.operatingCashflow) - toNum(report.capitalExpenditures)
     })) || [];
 
     return NextResponse.json({

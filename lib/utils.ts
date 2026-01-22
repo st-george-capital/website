@@ -45,3 +45,17 @@ export function slugify(text: string): string {
     .trim();
 }
 
+/**
+ * Robust numeric conversion that handles strings, "None", null, and other edge cases
+ */
+export function toNum(v: any): number {
+  if (v === null || v === undefined) return 0;
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (s === "" || s.toLowerCase() === "none") return 0;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  }
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}

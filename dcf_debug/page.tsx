@@ -5,7 +5,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/button';
 // Using native HTML form elements instead of custom UI components
 import { Badge } from '@/components/ui/badge';
-import { toNum } from '@/lib/utils';
 import { ArrowLeft, Calculator, TrendingUp, BarChart3, AlertTriangle, Info, Download, Upload, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
@@ -423,7 +422,7 @@ export default function DCFToolPage() {
       console.log('Processed financial data:', processedData);
 
       // Auto-populate DCF inputs with the financial data
-      autoPopulateFromFinancials(quote);
+      autoPopulateFromFinancials();
 
       console.log('DCF inputs auto-populated from financial data');
 
@@ -705,44 +704,40 @@ export default function DCFToolPage() {
     balance: any,
     cashflow: any
   ): ExtractedFinancials => {
-    // Alpha Vantage returns data newest → oldest. Keep consistent ordering.
-    // Extract periods from annual reports (newest → oldest)
+    // Extract periods from annual reports
     const periods = income.annualReports?.map((report: any) => report.fiscalDateEnding) || [];
 
-    // Extract financial metrics with proper numeric conversion
-    const revenue = income.annualReports?.map((report: any) => toNum(report.totalRevenue)) || [];
-    const ebit = income.annualReports?.map((report: any) => toNum(report.ebit)) || [];
-    const ebitda = income.annualReports?.map((report: any) => toNum(report.ebitda)) || [];
-    const netIncome = income.annualReports?.map((report: any) => toNum(report.netIncome)) || [];
+    // Extract financial metrics
+    const revenue = income.annualReports?.map((report: any) => report.totalRevenue) || [];
+    const ebit = income.annualReports?.map((report: any) => report.ebit) || [];
+    const ebitda = income.annualReports?.map((report: any) => report.ebitda) || [];
+    const netIncome = income.annualReports?.map((report: any) => report.netIncome) || [];
 
     // Balance sheet data
-    const totalAssets = balance.annualReports?.map((report: any) => toNum(report.totalAssets)) || [];
-    const totalLiabilities = balance.annualReports?.map((report: any) => toNum(report.totalLiabilities)) || [];
-    const shareholdersEquity = balance.annualReports?.map((report: any) => toNum(report.totalShareholderEquity)) || [];
-    const cashAndEquivalents = balance.annualReports?.map((report: any) =>
-      toNum(report.cashAndCashEquivalentsAtCarryingValue ?? report.cashAndShortTermInvestments)
-    ) || [];
+    const totalAssets = balance.annualReports?.map((report: any) => report.totalAssets) || [];
+    const totalLiabilities = balance.annualReports?.map((report: any) => report.totalLiabilities) || [];
+    const shareholdersEquity = balance.annualReports?.map((report: any) => report.totalShareholderEquity) || [];
+    const cashAndEquivalents = balance.annualReports?.map((report: any) => report.cashAndCashEquivalentsAtCarryingValue || report.cashAndShortTermInvestments) || [];
     const totalDebt = balance.annualReports?.map((report: any) => {
       // Sum all debt components: long-term debt, short-term debt, current debt
-      // Convert to numbers first to avoid string concatenation
-      const longTerm = toNum(report.longTermDebt ?? report.longTermDebtNoncurrent);
-      const shortTerm = toNum(report.shortTermDebt ?? report.shortLongTermDebtTotal);
-      const currentDebt = toNum(report.currentDebt ?? report.currentLongTermDebt);
+      const longTerm = report.longTermDebt || report.longTermDebtNoncurrent || 0;
+      const shortTerm = report.shortTermDebt || report.shortLongTermDebtTotal || 0;
+      const currentDebt = report.currentDebt || report.currentLongTermDebt || 0;
       return longTerm + shortTerm + currentDebt;
     }) || [];
 
     // Cash flow data
-    const capex = cashflow.annualReports?.map((report: any) => Math.abs(toNum(report.capitalExpenditures))) || [];
-    const depreciation = income.annualReports?.map((report: any) => toNum(report.depreciationAndAmortization)) || [];
+    const capex = cashflow.annualReports?.map((report: any) => Math.abs(report.capitalExpenditures || 0)) || [];
+    const depreciation = income.annualReports?.map((report: any) => report.depreciationAndAmortization) || [];
 
     // Calculate working capital (Current Assets - Current Liabilities)
-    const currentAssets = balance.annualReports?.map((report: any) => toNum(report.totalCurrentAssets)) || [];
-    const currentLiabilities = balance.annualReports?.map((report: any) => toNum(report.totalCurrentLiabilities)) || [];
+    const currentAssets = balance.annualReports?.map((report: any) => report.totalCurrentAssets) || [];
+    const currentLiabilities = balance.annualReports?.map((report: any) => report.totalCurrentLiabilities) || [];
     const workingCapital = currentAssets.map((ca: number, i: number) => ca - (currentLiabilities[i] || 0));
 
     return {
-      companyName: overview.name ?? overview.Name,
-      ticker: overview.symbol ?? overview.Symbol,
+      companyName: overview.name,
+      ticker: overview.symbol,
       periods,
       revenue,
       ebit,
@@ -759,7 +754,7 @@ export default function DCFToolPage() {
     };
   };
 
-  const autoPopulateFromFinancials = (quote?: any) => {
+  const autoPopulateFromFinancials = () => {
     console.log('🔄 autoPopulateFromFinancials called');
     if (!financialData) {
       console.log('No financial data available for auto-population');
@@ -777,8 +772,8 @@ export default function DCFToolPage() {
     // Calculate historical growth rates (most recent 2-3 years for stability)
     let revenueGrowth = 0.05; // Default
     if (financialData.revenue.length >= 2) {
-      // Data is newest → oldest. Take first 3 (most recent) and reverse for CAGR calculation (oldest → newest)
-      const recentRevenue = financialData.revenue.slice(0, 3).reverse(); // First 3 years, reversed to oldest→newest
+      // Data comes newest first, so take last 3 and reverse to get oldest to newest
+      const recentRevenue = financialData.revenue.slice(-3).reverse(); // Last 3 years, reversed
       const growthRates = [];
       for (let i = 1; i < recentRevenue.length; i++) {
         if (recentRevenue[i-1] > 0) {
@@ -812,21 +807,23 @@ export default function DCFToolPage() {
       }
     }
 
-    // Calculate effective tax rate
+    // Calculate effective tax rate from actual financials
     let avgTaxRate = 0.25; // Default
     if (financialData.ebit.length > 0 && financialData.netIncome.length > 0) {
       const taxRates = [];
       const minLength = Math.min(financialData.ebit.length, financialData.netIncome.length, 3);
       for (let i = 0; i < minLength; i++) {
-        if (financialData.ebit[i] > 0) {
+        if (financialData.ebit[i] > 0 && financialData.netIncome[i] > 0) {
+          // Effective tax rate = (EBIT - Net Income) / EBIT
           const taxRate = 1 - (financialData.netIncome[i] / financialData.ebit[i]);
-          if (taxRate >= 0 && taxRate <= 0.5) { // Reasonable tax rate bounds
+          if (taxRate >= 0.1 && taxRate <= 0.5) { // Reasonable tax rate bounds (10%-50%)
             taxRates.push(taxRate);
           }
         }
       }
       if (taxRates.length > 0) {
         avgTaxRate = taxRates.reduce((sum, rate) => sum + rate, 0) / taxRates.length;
+        console.log('Calculated tax rates:', taxRates.map(r => (r * 100).toFixed(1) + '%'));
       }
     }
 
@@ -870,13 +867,19 @@ export default function DCFToolPage() {
     // Estimate cost of debt (simplified - could be improved with actual interest expense)
     const costOfDebt = 0.05 + (totalDebt / totalCapital) * 0.02; // Base rate + leverage premium
 
-    // Estimate WACC
+    // Estimate WACC using actual beta from API
     const riskFreeRate = 0.0425; // Current 10-year treasury
     const equityRiskPremium = 0.06; // Market risk premium
-    const beta = 1.2; // Could be pulled from API if available
+    const beta = selectedCompany?.beta || 1.2; // Use actual beta from API, fallback to 1.2
     const costOfEquity = riskFreeRate + beta * equityRiskPremium;
     const afterTaxCostOfDebt = costOfDebt * (1 - avgTaxRate);
     const wacc = (equity / totalCapital) * costOfEquity + (totalDebt / totalCapital) * afterTaxCostOfDebt;
+
+    console.log('Key DCF Inputs:', {
+      beta: beta.toFixed(3),
+      costOfEquity: (costOfEquity * 100).toFixed(1) + '%',
+      wacc: (wacc * 100).toFixed(1) + '%'
+    });
 
     console.log('Calculated DCF assumptions:', {
       revenueGrowth: (revenueGrowth * 100).toFixed(1) + '%',
@@ -899,14 +902,18 @@ export default function DCFToolPage() {
       revenueGrowth * 0.6  // Year 5 - approaching terminal growth
     ];
 
+    // Use input values for this debug version
+    const currentPrice = inputs.currentPrice;
+    const sharesOutstanding = inputs.sharesOutstanding || 100000000;
+
     // Update inputs with comprehensive assumptions
     const updatedInputs = {
       ...inputs,
       companyName: financialData.companyName || inputs.companyName,
       ticker: financialData.ticker || inputs.ticker,
-      currentPrice: quote?.price || inputs.currentPrice,
-      sharesOutstanding: selectedCompany?.sharesOutstanding || inputs.sharesOutstanding || 100000000,
-      sharesDiluted: selectedCompany?.sharesOutstanding ? selectedCompany.sharesOutstanding * 1.05 : inputs.sharesDiluted || 105000000,
+      currentPrice: currentPrice,
+      sharesOutstanding: sharesOutstanding,
+      sharesDiluted: sharesOutstanding * 1.05, // Standard 5% dilution
       totalDebt: totalDebt,
       cashEquivalents: financialData.cashAndEquivalents.length > 0 ? financialData.cashAndEquivalents[0] : 0,
       startingRevenue: financialData.revenue[0],

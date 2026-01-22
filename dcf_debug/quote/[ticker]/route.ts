@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { toNum } from '@/lib/utils';
 
 const ALPHA_VANTAGE_API_KEY = process.env.ALPHA_VANTAGE_API_KEY || 'GJV339TR2PPUSN9B';
 
@@ -34,14 +33,14 @@ export async function GET(
     // Transform to our format
     const quoteData = {
       symbol: quote['01. symbol'],
-      open: toNum(quote['02. open']) || null,
-      high: toNum(quote['03. high']) || null,
-      low: toNum(quote['04. low']) || null,
-      price: toNum(quote['05. price']) || null,
-      volume: toNum(quote['06. volume']) || null,
+      open: parseFloat(quote['02. open']) || null,
+      high: parseFloat(quote['03. high']) || null,
+      low: parseFloat(quote['04. low']) || null,
+      price: parseFloat(quote['05. price']) || null,
+      volume: parseFloat(quote['06. volume']) || null,
       latestTradingDay: quote['07. latest trading day'],
-      previousClose: toNum(quote['08. previous close']) || null,
-      change: toNum(quote['09. change']) || null,
+      previousClose: parseFloat(quote['08. previous close']) || null,
+      change: parseFloat(quote['09. change']) || null,
       changePercent: quote['10. change percent']
     };
 
