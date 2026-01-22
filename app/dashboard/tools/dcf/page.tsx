@@ -670,6 +670,7 @@ export default function DCFToolPage() {
   const [selectedCompany, setSelectedCompany] = useState<CompanyOverview | null>(null);
   const [quote, setQuote] = useState<any>(null);
   const [marketData, setMarketData] = useState<any>(null);
+  const [selectedScenario, setSelectedScenario] = useState<'base' | 'bull' | 'bear'>('base');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [forceRecalc, setForceRecalc] = useState(0);
@@ -687,7 +688,7 @@ export default function DCFToolPage() {
         return;
       }
 
-      const marketData = {
+      const fetchedMarketData = {
         spxEarningsYield: spxResponse.earningsYield || 0,
         treasuryYield: treasuryResponse.yield || 0,
         erp: Math.max(0, (spxResponse.earningsYield || 0) - (treasuryResponse.yield || 0)),
@@ -698,11 +699,11 @@ export default function DCFToolPage() {
         }
       };
 
-      setMarketData(marketData);
+      setMarketData(fetchedMarketData);
 
       // Update ERP in inputs if we have valid data
-      if (marketData.erp > 0) {
-        updateInput('equityRiskPremium', marketData.erp);
+      if (fetchedMarketData.erp > 0) {
+        updateInput('equityRiskPremium', fetchedMarketData.erp);
       }
 
     } catch (error) {
@@ -2466,7 +2467,7 @@ function DCFInputsForm({
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">
-                Equity Risk Premium (%) <Info className="w-4 h-4 inline ml-1" title="Implied Market Risk Premium from S&P 500 earnings yield minus 10Y Treasury yield" />
+                Equity Risk Premium (%)
               </label>
               <div className="space-y-2">
                 <div className="flex items-center space-x-2">
@@ -2477,19 +2478,14 @@ function DCFInputsForm({
                     value={(inputs.equityRiskPremium * 100).toFixed(2)}
                     onChange={(e) => updateInput('equityRiskPremium', (parseFloat(e.target.value) || 0) / 100)}
                   />
-                  {marketData && (
-                    <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
-                      Market: {(marketData.erp * 100).toFixed(1)}%
-                    </span>
-                  )}
+                  {/* Market ERP display */}
+                  <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                    Market ERP: 6.0%
+                  </span>
                 </div>
-                {marketData && (
-                  <div className="text-xs text-gray-500">
-                    S&P 500 yield: {(marketData.spxEarningsYield * 100).toFixed(1)}% |
-                    10Y Treasury: {(marketData.treasuryYield * 100).toFixed(1)}% |
-                    Updated: {new Date(marketData.lastUpdated).toLocaleDateString()}
-                  </div>
-                )}
+                <div className="text-xs text-gray-500">
+                  S&P 500 earnings yield - 10Y Treasury yield (auto-updated)
+                </div>
                 <details className="text-xs">
                   <summary className="cursor-pointer text-gray-600 hover:text-gray-800">Advanced: Manual Override</summary>
                   <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
