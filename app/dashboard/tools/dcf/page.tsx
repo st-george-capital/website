@@ -1952,10 +1952,23 @@ function DCFInputsForm({
                     <span className="text-sm w-12">Year {index + 1}:</span>
                     <input
                       type="number"
-                      step="0.01"
-                      className="w-20 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      step="0.1"
+                      min="-50"
+                      max="100"
+                      className="w-20 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-right"
                       value={(growth * 100).toFixed(1)}
-                      onChange={(e) => updateArrayInput('revenueGrowth', index, (parseFloat(e.target.value) || 0) / 100)}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val)) {
+                          updateArrayInput('revenueGrowth', index, val / 100);
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (isNaN(val)) {
+                          e.target.value = (growth * 100).toFixed(1);
+                        }
+                      }}
                     />
                     <span className="text-sm">%</span>
                   </div>
@@ -1979,16 +1992,27 @@ function DCFInputsForm({
                     <span className="text-sm w-12">Year {index + 1}:</span>
                     <input
                       type="number"
-                      step="0.01"
-                      className="w-20 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      step="0.1"
+                      min="-20"
+                      max="50"
+                      className="w-20 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-right"
                       value={(margin * 100).toFixed(1)}
                       onChange={(e) => {
-                        if (inputs.forecastMode === 'advanced') {
-                          const newArray = [...(inputs.ebitMarginAdvanced || inputs.ebitMargin)];
-                          newArray[index] = (parseFloat(e.target.value) || 0) / 100;
-                          updateInput('ebitMarginAdvanced', newArray);
-                        } else {
-                          updateArrayInput('ebitMargin', index, (parseFloat(e.target.value) || 0) / 100);
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val)) {
+                          if (inputs.forecastMode === 'advanced') {
+                            const newArray = [...(inputs.ebitMarginAdvanced || inputs.ebitMargin)];
+                            newArray[index] = val / 100;
+                            updateInput('ebitMarginAdvanced', newArray);
+                          } else {
+                            updateArrayInput('ebitMargin', index, val / 100);
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (isNaN(val)) {
+                          e.target.value = (margin * 100).toFixed(1);
                         }
                       }}
                     />
@@ -2183,6 +2207,50 @@ function DCFInputsForm({
                 value={(inputs.targetDebtRatio * 100).toFixed(1)}
                 onChange={(e) => updateInput('targetDebtRatio', (parseFloat(e.target.value) || 0) / 100)}
               />
+            </div>
+          </div>
+
+          {/* WACC Calculation Display */}
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+            <h4 className="font-semibold text-sm mb-3">WACC Breakdown</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <div className="text-gray-600">Cost of Equity</div>
+                <div className="font-medium">{((inputs.riskFreeRate + inputs.beta * inputs.equityRiskPremium) * 100).toFixed(2)}%</div>
+                <div className="text-xs text-gray-500">
+                  {inputs.riskFreeRate * 100}% + ({inputs.beta} × {inputs.equityRiskPremium * 100}%)
+                </div>
+              </div>
+              <div>
+                <div className="text-gray-600">After-Tax Cost of Debt</div>
+                <div className="font-medium">{((inputs.costOfDebt * (1 - inputs.taxRate)) * 100).toFixed(2)}%</div>
+                <div className="text-xs text-gray-500">
+                  {inputs.costOfDebt * 100}% × (1 - {inputs.taxRate * 100}%)
+                </div>
+              </div>
+              <div>
+                <div className="text-gray-600">Equity Weight</div>
+                <div className="font-medium">{((1 - inputs.targetDebtRatio) * 100).toFixed(1)}%</div>
+                <div className="text-xs text-gray-500">1 - {inputs.targetDebtRatio * 100}% debt</div>
+              </div>
+              <div>
+                <div className="text-gray-600">Debt Weight</div>
+                <div className="font-medium">{(inputs.targetDebtRatio * 100).toFixed(1)}%</div>
+                <div className="text-xs text-gray-500">Target debt ratio</div>
+              </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-gray-200">
+              <div className="flex justify-between items-center">
+                <span className="font-semibold">WACC</span>
+                <span className="text-lg font-bold text-blue-600">
+                  {(() => {
+                    const costOfEquity = inputs.riskFreeRate + inputs.beta * inputs.equityRiskPremium;
+                    const afterTaxCostOfDebt = inputs.costOfDebt * (1 - inputs.taxRate);
+                    const wacc = (1 - inputs.targetDebtRatio) * costOfEquity + inputs.targetDebtRatio * afterTaxCostOfDebt;
+                    return (wacc * 100).toFixed(2) + '%';
+                  })()}
+                </span>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -2902,6 +2970,7 @@ function DCFCharts({ inputs, outputs }: { inputs: DCFInputs; outputs: DCFOutputs
 // Sensitivity Analysis Component
 function SensitivityAnalysis({ inputs, outputs }: { inputs: DCFInputs; outputs: DCFOutputs }) {
   const [selectedSensitivity, setSelectedSensitivity] = useState<'wacc_growth' | 'wacc_multiple' | 'growth_margin'>('wacc_growth');
+  const [selectedScenario, setSelectedScenario] = useState<'base' | 'bull' | 'bear'>('base');
 
   // Generate WACC × Terminal Growth sensitivity table
   const generateWaccGrowthSensitivity = () => {
@@ -3099,6 +3168,274 @@ function SensitivityAnalysis({ inputs, outputs }: { inputs: DCFInputs; outputs: 
             {selectedSensitivity === 'wacc_growth' && (
               <p><strong>Note:</strong> Red "Error" cells occur when terminal growth rate ≥ WACC (mathematically invalid)</p>
             )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Scenario Analysis */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Scenario Analysis</CardTitle>
+          <CardDescription>
+            Bear, Base, and Bull case valuations with different assumptions
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* Scenario Selector */}
+          <div className="flex gap-4 mb-6">
+            {[
+              { key: 'bear', label: 'Bear Case', color: 'text-red-600', bg: 'bg-red-50' },
+              { key: 'base', label: 'Base Case', color: 'text-blue-600', bg: 'bg-blue-50' },
+              { key: 'bull', label: 'Bull Case', color: 'text-green-600', bg: 'bg-green-50' }
+            ].map(({ key, label, color, bg }) => (
+              <button
+                key={key}
+                onClick={() => setSelectedScenario(key as any)}
+                className={`px-4 py-2 rounded-lg border-2 transition-colors ${
+                  selectedScenario === key ? `border-current ${bg} ${color}` : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Scenario Results */}
+          <div className="space-y-4">
+            {(() => {
+              const getScenarioInputs = (scenario: 'base' | 'bull' | 'bear') => {
+                switch (scenario) {
+                  case 'bull':
+                    return {
+                      ...inputs,
+                      revenueGrowth: inputs.revenueGrowth.map(g => g + 0.02), // +200bps
+                      ebitMargin: inputs.ebitMargin.map(m => m + 0.015), // +150bps
+                      riskFreeRate: inputs.riskFreeRate - 0.0075, // -75bps
+                      perpetualGrowth: Math.min(inputs.perpetualGrowth + 0.005, inputs.riskFreeRate - 0.0075) // +50bps
+                    };
+                  case 'bear':
+                    return {
+                      ...inputs,
+                      revenueGrowth: inputs.revenueGrowth.map(g => g - 0.02), // -200bps
+                      ebitMargin: inputs.ebitMargin.map(m => m - 0.015), // -150bps
+                      riskFreeRate: inputs.riskFreeRate + 0.01, // +100bps
+                      perpetualGrowth: Math.max(inputs.perpetualGrowth - 0.005, 0.005) // -50bps
+                    };
+                  default:
+                    return inputs;
+                }
+              };
+
+              const scenarioInputs = getScenarioInputs(selectedScenario);
+              const scenarioOutputs = calculateDCF(scenarioInputs);
+              const upsideDownside = inputs.currentPrice !== 0 ?
+                ((scenarioOutputs.intrinsicValuePerShare - inputs.currentPrice) / inputs.currentPrice) * 100 : 0;
+
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="text-center p-4 border rounded-lg">
+                    <div className="text-2xl font-bold mb-2">
+                      ${scenarioOutputs.intrinsicValuePerShare.toFixed(2)}
+                    </div>
+                    <div className="text-sm text-gray-600 mb-2">Intrinsic Value per Share</div>
+                    <div className={`text-sm font-medium ${upsideDownside >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {upsideDownside >= 0 ? '+' : ''}{upsideDownside.toFixed(1)}% vs Current Price
+                    </div>
+                  </div>
+
+                  <div className="text-center p-4 border rounded-lg">
+                    <div className="text-2xl font-bold mb-2">
+                      ${(scenarioOutputs.enterpriseValue / 1e9).toFixed(1)}B
+                    </div>
+                    <div className="text-sm text-gray-600 mb-2">Enterprise Value</div>
+                    <div className="text-sm text-gray-500">
+                      Terminal: {((scenarioOutputs.terminalValue / scenarioOutputs.enterpriseValue) * 100).toFixed(1)}%
+                    </div>
+                  </div>
+
+                  <div className="text-center p-4 border rounded-lg">
+                    <div className="text-2xl font-bold mb-2">
+                      {(scenarioOutputs.wacc * 100).toFixed(2)}%
+                    </div>
+                    <div className="text-sm text-gray-600 mb-2">WACC</div>
+                    <div className="text-sm text-gray-500">
+                      g: {(scenarioInputs.perpetualGrowth * 100).toFixed(2)}%
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Scenario Comparison Bar */}
+          <div className="mt-6">
+            <h4 className="font-semibold mb-3">Scenario Range</h4>
+            {(() => {
+              const baseOutputs = calculateDCF(inputs);
+              const bullInputs = {
+                ...inputs,
+                revenueGrowth: inputs.revenueGrowth.map(g => g + 0.02),
+                ebitMargin: inputs.ebitMargin.map(m => m + 0.015),
+                riskFreeRate: inputs.riskFreeRate - 0.0075,
+                perpetualGrowth: Math.min(inputs.perpetualGrowth + 0.005, inputs.riskFreeRate - 0.0075)
+              };
+              const bearInputs = {
+                ...inputs,
+                revenueGrowth: inputs.revenueGrowth.map(g => g - 0.02),
+                ebitMargin: inputs.ebitMargin.map(m => m - 0.015),
+                riskFreeRate: inputs.riskFreeRate + 0.01,
+                perpetualGrowth: Math.max(inputs.perpetualGrowth - 0.005, 0.005)
+              };
+
+              const bullOutputs = calculateDCF(bullInputs);
+              const bearOutputs = calculateDCF(bearInputs);
+
+              const min = Math.min(bearOutputs.intrinsicValuePerShare, bullOutputs.intrinsicValuePerShare);
+              const max = Math.max(bearOutputs.intrinsicValuePerShare, bullOutputs.intrinsicValuePerShare);
+              const range = max - min;
+              const currentPos = ((inputs.currentPrice - min) / range) * 100;
+
+              return (
+                <div className="relative">
+                  <div className="flex justify-between text-sm text-gray-600 mb-2">
+                    <span>Bear: ${bearOutputs.intrinsicValuePerShare.toFixed(2)}</span>
+                    <span>Base: ${baseOutputs.intrinsicValuePerShare.toFixed(2)}</span>
+                    <span>Bull: ${bullOutputs.intrinsicValuePerShare.toFixed(2)}</span>
+                  </div>
+                  <div className="h-4 bg-gray-200 rounded-full relative">
+                    <div
+                      className="absolute top-0 h-4 bg-gradient-to-r from-red-400 via-blue-400 to-green-400 rounded-full"
+                      style={{ width: '100%' }}
+                    />
+                    <div
+                      className="absolute top-0 w-1 h-4 bg-black rounded-full"
+                      style={{ left: `${Math.max(0, Math.min(100, currentPos))}%` }}
+                    />
+                    <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs text-gray-600">
+                      Current: ${inputs.currentPrice.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* DCF Driver Bridge */}
+      <Card>
+        <CardHeader>
+          <CardTitle>DCF Driver Bridge</CardTitle>
+          <CardDescription>
+            Decomposition of intrinsic value from enterprise value to equity value per share
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {/* Waterfall Chart */}
+            <div className="border rounded-lg p-4">
+              <h4 className="font-semibold mb-4">Value Bridge</h4>
+              <div className="flex items-end justify-center space-x-2 h-32">
+                {(() => {
+                  const pvFcff = outputs.pvOfFcff || 0;
+                  const pvTerminal = outputs.pvOfTerminalValue || 0;
+                  const enterpriseValue = outputs.enterpriseValue;
+                  const netDebt = (financialData?.totalDebt?.[0] || 0) - (financialData?.cashAndEquivalents?.[0] || 0);
+                  const equityValue = outputs.equityValue;
+                  const perShare = outputs.intrinsicValuePerShare;
+
+                  const values = [pvFcff, enterpriseValue, equityValue, perShare * inputs.sharesOutstanding];
+                  const maxValue = Math.max(...values);
+                  const scale = 100 / maxValue;
+
+                  return (
+                    <>
+                      <div className="text-center">
+                        <div
+                          className="bg-blue-500 w-16 rounded-t"
+                          style={{ height: `${(pvFcff / maxValue) * 100}px` }}
+                        />
+                        <div className="text-xs mt-1">PV FCFF</div>
+                        <div className="text-xs font-medium">${(pvFcff / 1e6).toFixed(0)}M</div>
+                      </div>
+
+                      <div className="text-center">
+                        <div
+                          className="bg-green-500 w-16"
+                          style={{ height: `${(pvTerminal / maxValue) * 100}px` }}
+                        />
+                        <div className="text-xs mt-1">PV Terminal</div>
+                        <div className="text-xs font-medium">${(pvTerminal / 1e6).toFixed(0)}M</div>
+                      </div>
+
+                      <div className="text-center">
+                        <div
+                          className={`w-16 ${netDebt < 0 ? 'bg-red-500' : 'bg-orange-500'}`}
+                          style={{ height: `${Math.abs(netDebt) / maxValue * 100}px` }}
+                        />
+                        <div className="text-xs mt-1">Net Debt</div>
+                        <div className="text-xs font-medium">${(netDebt / 1e6).toFixed(0)}M</div>
+                      </div>
+
+                      <div className="text-center">
+                        <div
+                          className="bg-indigo-500 w-16"
+                          style={{ height: `${(equityValue / maxValue) * 100}px` }}
+                        />
+                        <div className="text-xs mt-1">Equity Value</div>
+                        <div className="text-xs font-medium">${(equityValue / 1e6).toFixed(0)}M</div>
+                      </div>
+
+                      <div className="text-center">
+                        <div
+                          className="bg-purple-500 w-16 rounded-t"
+                          style={{ height: `${((perShare * inputs.sharesOutstanding) / maxValue) * 100}px` }}
+                        />
+                        <div className="text-xs mt-1">Per Share</div>
+                        <div className="text-xs font-medium">${perShare.toFixed(2)}</div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+
+              {/* Bridge Summary */}
+              <div className="mt-4 grid grid-cols-5 gap-4 text-center text-sm">
+                <div>
+                  <div className="font-medium">${(outputs.pvOfFcff / 1e6).toFixed(0)}M</div>
+                  <div className="text-gray-600">PV of FCFF</div>
+                </div>
+                <div>
+                  <div className="font-medium">${(outputs.enterpriseValue / 1e6).toFixed(0)}M</div>
+                  <div className="text-gray-600">Enterprise Value</div>
+                  <div className="text-xs text-gray-500">{((outputs.terminalValue / outputs.enterpriseValue) * 100).toFixed(1)}% terminal</div>
+                </div>
+                <div>
+                  <div className="font-medium">${(((financialData?.totalDebt?.[0] || 0) - (financialData?.cashAndEquivalents?.[0] || 0)) / 1e6).toFixed(0)}M</div>
+                  <div className="text-gray-600">Net Debt</div>
+                </div>
+                <div>
+                  <div className="font-medium">${(outputs.equityValue / 1e6).toFixed(0)}M</div>
+                  <div className="text-gray-600">Equity Value</div>
+                </div>
+                <div>
+                  <div className="font-medium">${outputs.intrinsicValuePerShare.toFixed(2)}</div>
+                  <div className="text-gray-600">Per Share</div>
+                </div>
+              </div>
+
+              {/* Terminal Value Warning */}
+              {outputs.terminalValueContribution > 0.7 && (
+                <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                  <div className="flex items-center">
+                    <AlertTriangle className="w-5 h-5 text-orange-600 mr-2" />
+                    <div className="text-sm">
+                      <strong>High Terminal Value:</strong> {((outputs.terminalValue / outputs.enterpriseValue) * 100).toFixed(1)}% of enterprise value comes from terminal value. This is unusually high - consider reviewing growth assumptions or extending the forecast period.
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
