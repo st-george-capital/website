@@ -2051,7 +2051,7 @@ export default function DCFToolPage() {
       {/* DCF Quality Checks & Implied Multiples */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <DCFQualityChecks inputs={inputs} outputs={outputs} />
-        <DCFImpliedMultiples inputs={inputs} outputs={outputs} />
+        <WACCBreakdown inputs={inputs} outputs={outputs} />
       </div>
 
       {/* DCF Summary & Investment Thesis */}
@@ -3134,52 +3134,112 @@ function DCFQualityChecks({ inputs, outputs }: { inputs: DCFInputs; outputs: DCF
 }
 
 // Implied Multiples Component
-function DCFImpliedMultiples({ inputs, outputs }: { inputs: DCFInputs; outputs: DCFOutputs }) {
-  const lastYearRevenue = outputs.revenues[outputs.revenues.length - 1];
-  const lastYearEBIT = outputs.ebit[outputs.ebit.length - 1];
-  const lastYearNOPAT = outputs.nopat[outputs.nopat.length - 1];
-
-  // Approximate EBITDA (rough estimate)
-  const approxEBITDA = lastYearEBIT + (lastYearRevenue * inputs.depreciationPercentOfRevenue);
-
-  const multiples = [
-    {
-      name: 'EV/EBITDA',
-      value: approxEBITDA > 0 ? formatNumber(outputs.enterpriseValue / approxEBITDA, 1) + 'x' : 'N/A',
-      description: 'Enterprise Value to EBITDA multiple'
-    },
-    {
-      name: 'EV/EBIT',
-      value: lastYearEBIT > 0 ? formatNumber(outputs.enterpriseValue / lastYearEBIT, 1) + 'x' : 'N/A',
-      description: 'Enterprise Value to EBIT multiple'
-    },
-    {
-      name: 'P/E',
-      value: lastYearNOPAT > 0 ? formatNumber(outputs.intrinsicValuePerShare / (lastYearNOPAT / inputs.sharesDiluted), 1) + 'x' : 'N/A',
-      description: 'Price to Earnings multiple (based on last year NOPAT per share)'
-    }
-  ];
+function WACCBreakdown({ inputs, outputs }: { inputs: DCFInputs; outputs: DCFOutputs }) {
+  const costOfEquity = inputs.riskFreeRate + (inputs.beta * inputs.equityRiskPremium);
+  const afterTaxCostOfDebt = inputs.costOfDebt * (1 - inputs.taxRate);
+  const equityWeight = 1 - inputs.targetDebtRatio;
+  const debtWeight = inputs.targetDebtRatio;
+  const wacc = outputs.wacc;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Implied Multiples</CardTitle>
+        <CardTitle>WACC Breakdown</CardTitle>
         <CardDescription>
-          Valuation multiples implied by your DCF intrinsic value
+          Weighted Average Cost of Capital calculation and components
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {multiples.map((multiple, index) => (
-            <div key={index} className="text-center p-3 bg-gray-50 rounded">
-              <div className="text-lg font-semibold text-primary">{multiple.value}</div>
-              <div className="text-sm font-medium">{multiple.name}</div>
-              <div className="text-xs text-muted-foreground mt-1">{multiple.description}</div>
+        <div className="space-y-6">
+          {/* Cost of Equity */}
+          <div className="border-l-4 border-blue-500 pl-4">
+            <div className="text-sm font-semibold text-gray-700 mb-2">Cost of Equity (CAPM)</div>
+            <div className="space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Risk-Free Rate</span>
+                <span className="font-medium">{(inputs.riskFreeRate * 100).toFixed(2)}%</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Beta</span>
+                <span className="font-medium">{inputs.beta.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Equity Risk Premium</span>
+                <span className="font-medium">{(inputs.equityRiskPremium * 100).toFixed(2)}%</span>
+              </div>
+              <div className="flex justify-between pt-2 border-t">
+                <span className="font-semibold text-gray-800">= Cost of Equity</span>
+                <span className="font-bold text-blue-600">{(costOfEquity * 100).toFixed(2)}%</span>
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                Formula: Rf + β × ERP = {(inputs.riskFreeRate * 100).toFixed(2)}% + {inputs.beta.toFixed(2)} × {(inputs.equityRiskPremium * 100).toFixed(2)}%
+              </div>
             </div>
-          ))}
-        </div>
-        <div className="mt-4 text-sm text-muted-foreground">
-          <p><strong>Note:</strong> These multiples are based on terminal year financials and your DCF assumptions. EBITDA is approximated as EBIT + Depreciation.</p>
+          </div>
+
+          {/* Cost of Debt */}
+          <div className="border-l-4 border-red-500 pl-4">
+            <div className="text-sm font-semibold text-gray-700 mb-2">After-Tax Cost of Debt</div>
+            <div className="space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Cost of Debt (Pre-tax)</span>
+                <span className="font-medium">{(inputs.costOfDebt * 100).toFixed(2)}%</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Tax Rate</span>
+                <span className="font-medium">{(inputs.taxRate * 100).toFixed(2)}%</span>
+              </div>
+              <div className="flex justify-between pt-2 border-t">
+                <span className="font-semibold text-gray-800">= After-Tax Cost of Debt</span>
+                <span className="font-bold text-red-600">{(afterTaxCostOfDebt * 100).toFixed(2)}%</span>
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                Formula: Rd × (1 - Tax) = {(inputs.costOfDebt * 100).toFixed(2)}% × (1 - {(inputs.taxRate * 100).toFixed(2)}%)
+              </div>
+            </div>
+          </div>
+
+          {/* Capital Structure */}
+          <div className="border-l-4 border-purple-500 pl-4">
+            <div className="text-sm font-semibold text-gray-700 mb-2">Capital Structure (Target)</div>
+            <div className="space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Equity Weight</span>
+                <span className="font-medium">{(equityWeight * 100).toFixed(1)}%</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Debt Weight</span>
+                <span className="font-medium">{(debtWeight * 100).toFixed(1)}%</span>
+              </div>
+            </div>
+          </div>
+
+          {/* WACC Calculation */}
+          <div className="bg-green-50 border-2 border-green-500 rounded-lg p-4">
+            <div className="text-sm font-semibold text-gray-700 mb-3">WACC Calculation</div>
+            <div className="space-y-2 text-sm mb-3">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Equity: {(equityWeight * 100).toFixed(1)}% × {(costOfEquity * 100).toFixed(2)}%</span>
+                <span className="font-medium">{(equityWeight * costOfEquity * 100).toFixed(2)}%</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Debt: {(debtWeight * 100).toFixed(1)}% × {(afterTaxCostOfDebt * 100).toFixed(2)}%</span>
+                <span className="font-medium">{(debtWeight * afterTaxCostOfDebt * 100).toFixed(2)}%</span>
+              </div>
+            </div>
+            <div className="flex justify-between pt-3 border-t-2 border-green-600">
+              <span className="font-bold text-gray-900 text-lg">WACC (Discount Rate)</span>
+              <span className="font-bold text-green-700 text-xl">{(wacc * 100).toFixed(2)}%</span>
+            </div>
+            <div className="text-xs text-gray-600 mt-2">
+              WACC = (E/V × Re) + (D/V × Rd × (1-Tax))
+            </div>
+          </div>
+
+          <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded">
+            <p className="font-semibold mb-1">Why WACC Matters:</p>
+            <p>WACC is the discount rate used to calculate present value of future cash flows. A lower WACC increases valuation, while a higher WACC decreases it. WACC reflects the company's cost of capital from both equity and debt sources.</p>
+          </div>
         </div>
       </CardContent>
     </Card>
