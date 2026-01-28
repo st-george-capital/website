@@ -105,6 +105,263 @@ interface DCFOutputs {
 }
 
 // Export Functions
+function exportToExcel(inputs: DCFInputs, outputs: DCFOutputs, financialData: ExtractedFinancials | null, selectedCompany: CompanyOverview | null) {
+  // Create workbook
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: Summary
+  const summaryData = [
+    ['DCF Analysis Summary'],
+    [''],
+    ['Company Information'],
+    ['Company Name', inputs.companyName],
+    ['Ticker', inputs.ticker],
+    ['Currency', inputs.currency],
+    ['Current Price', inputs.currentPrice],
+    ['Shares Outstanding', inputs.sharesOutstanding],
+    ['Shares Diluted', inputs.sharesDiluted],
+    [''],
+    ['Valuation Results'],
+    ['Enterprise Value', outputs.enterpriseValue.toFixed(0)],
+    ['Equity Value', outputs.equityValue.toFixed(0)],
+    ['Intrinsic Value per Share', outputs.intrinsicValuePerShare.toFixed(2)],
+    ['Upside/Downside %', (outputs.upsideDownside * 100).toFixed(1) + '%'],
+    [''],
+    ['WACC Breakdown'],
+    ['Risk-Free Rate', (inputs.riskFreeRate * 100).toFixed(2) + '%'],
+    ['Equity Risk Premium', (inputs.equityRiskPremium * 100).toFixed(2) + '%'],
+    ['Beta', inputs.beta.toFixed(2)],
+    ['Cost of Equity', ((inputs.riskFreeRate + inputs.beta * inputs.equityRiskPremium) * 100).toFixed(2) + '%'],
+    ['Cost of Debt', (inputs.costOfDebt * 100).toFixed(2) + '%'],
+    ['Tax Rate', (inputs.taxRate * 100).toFixed(2) + '%'],
+    ['After-Tax Cost of Debt', (inputs.costOfDebt * (1 - inputs.taxRate) * 100).toFixed(2) + '%'],
+    ['Target Debt Ratio', (inputs.targetDebtRatio * 100).toFixed(2) + '%'],
+    ['WACC', (outputs.wacc * 100).toFixed(2) + '%'],
+    [''],
+    ['Terminal Value'],
+    ['Terminal Growth Rate', (inputs.perpetualGrowth * 100).toFixed(2) + '%'],
+    ['Terminal Value', outputs.terminalValue.toFixed(0)],
+    ['PV of Terminal Value', (outputs.terminalValue / Math.pow(1 + outputs.wacc, inputs.forecastYears)).toFixed(0)],
+    ['Terminal Value % of EV', (outputs.terminalValueContribution * 100).toFixed(1) + '%']
+  ];
+  const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
+  XLSX.utils.book_append_sheet(wb, ws1, 'Summary');
+
+  // Sheet 2: Cash Flow Projections
+  const cfData = [
+    ['Cash Flow Projections'],
+    [''],
+    ['Year', 'Revenue', 'Revenue Growth %', 'EBIT', 'EBIT Margin %', 'NOPAT', 'FCFF', 'Discount Factor', 'PV of FCFF']
+  ];
+  outputs.freeCashFlow.forEach((fcf, index) => {
+    const revenue = outputs.revenues[index];
+    const ebit = outputs.ebit[index];
+    const nopat = outputs.nopat[index];
+    const revenueGrowth = index > 0 ? ((revenue / outputs.revenues[index - 1]) - 1) * 100 : 0;
+    const ebitMargin = revenue > 0 ? (ebit / revenue) * 100 : 0;
+    const discountFactor = 1 / Math.pow(1 + outputs.wacc, index + 1);
+    const pvFcff = fcf * discountFactor;
+    cfData.push([
+      `Year ${index + 1}`,
+      revenue.toFixed(0),
+      revenueGrowth.toFixed(1) + '%',
+      ebit.toFixed(0),
+      ebitMargin.toFixed(1) + '%',
+      nopat.toFixed(0),
+      fcf.toFixed(0),
+      discountFactor.toFixed(4),
+      pvFcff.toFixed(0)
+    ]);
+  });
+  cfData.push(['']);
+  cfData.push(['Total PV of FCFF', outputs.pvOfFcff.toFixed(0)]);
+  const ws2 = XLSX.utils.aoa_to_sheet(cfData);
+  XLSX.utils.book_append_sheet(wb, ws2, 'Cash Flows');
+
+  // Sheet 3: Sensitivity Analysis - WACC x Terminal Growth
+  const sensitivityWACCData = [
+    ['Sensitivity Analysis: WACC vs Terminal Growth Rate'],
+    ['Intrinsic Value per Share'],
+    ['']
+  ];
+  const waccRange = [-0.02, -0.015, -0.01, -0.005, 0, 0.005, 0.01, 0.015, 0.02];
+  const termGrowthRange = [-0.01, -0.0075, -0.005, -0.0025, 0, 0.0025, 0.005, 0.0075, 0.01];
+  
+  // Header row
+  const headerRow = ['WACC \\ Term Growth'];
+  termGrowthRange.forEach(tg => {
+    headerRow.push(((inputs.perpetualGrowth + tg) * 100).toFixed(2) + '%');
+  });
+  sensitivityWACCData.push(headerRow);
+
+  // Data rows
+  waccRange.forEach(wd => {
+    const row: any[] = [((outputs.wacc + wd) * 100).toFixed(2) + '%'];
+    termGrowthRange.forEach(tg => {
+      const testInputs = { ...inputs, perpetualGrowth: inputs.perpetualGrowth + tg };
+      const testOutputs = calculateDCF(testInputs);
+      const adjustedWacc = outputs.wacc + wd;
+      const adjustedPvFcff = outputs.freeCashFlow.reduce((sum, fcf, i) => 
+        sum + fcf / Math.pow(1 + adjustedWacc, i + 1), 0);
+      const adjustedTermValue = testOutputs.terminalValue / Math.pow(1 + adjustedWacc, inputs.forecastYears);
+      const adjustedEV = adjustedPvFcff + adjustedTermValue;
+      const adjustedEquity = adjustedEV - inputs.totalDebt + inputs.cashEquivalents - inputs.preferredEquity - inputs.minorityInterest;
+      const adjustedPerShare = adjustedEquity / inputs.sharesDiluted;
+      row.push(adjustedPerShare.toFixed(2));
+    });
+    sensitivityWACCData.push(row);
+  });
+  const ws3 = XLSX.utils.aoa_to_sheet(sensitivityWACCData);
+  XLSX.utils.book_append_sheet(wb, ws3, 'Sensitivity WACC-Growth');
+
+  // Sheet 4: Sensitivity Analysis - Revenue CAGR x Operating Margin
+  const sensitivityRevenueData = [
+    ['Sensitivity Analysis: Revenue CAGR vs Operating Margin'],
+    ['Intrinsic Value per Share'],
+    ['']
+  ];
+  const revenueCAGRRange = [-0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03];
+  const marginRange = [-0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03];
+  
+  // Calculate base CAGR
+  const baseCAGR = inputs.revenueGrowth.length > 0 
+    ? inputs.revenueGrowth.reduce((sum, g) => sum + g, 0) / inputs.revenueGrowth.length 
+    : 0.05;
+  const baseMargin = inputs.ebitMargin.length > 0 
+    ? inputs.ebitMargin.reduce((sum, m) => sum + m, 0) / inputs.ebitMargin.length 
+    : 0.15;
+
+  // Header row
+  const headerRow2 = ['Rev CAGR \\ Margin'];
+  marginRange.forEach(m => {
+    headerRow2.push(((baseMargin + m) * 100).toFixed(1) + '%');
+  });
+  sensitivityRevenueData.push(headerRow2);
+
+  // Data rows
+  revenueCAGRRange.forEach(rc => {
+    const row: any[] = [((baseCAGR + rc) * 100).toFixed(1) + '%'];
+    marginRange.forEach(m => {
+      const testInputs = { 
+        ...inputs, 
+        revenueGrowth: inputs.revenueGrowth.map(g => baseCAGR + rc),
+        ebitMargin: inputs.ebitMargin.map(margin => baseMargin + m)
+      };
+      const testOutputs = calculateDCF(testInputs);
+      row.push(testOutputs.intrinsicValuePerShare.toFixed(2));
+    });
+    sensitivityRevenueData.push(row);
+  });
+  const ws4 = XLSX.utils.aoa_to_sheet(sensitivityRevenueData);
+  XLSX.utils.book_append_sheet(wb, ws4, 'Sensitivity Rev-Margin');
+
+  // Sheet 5: Scenario Analysis
+  const scenarioData = [
+    ['Scenario Analysis'],
+    [''],
+    ['Scenario', 'Revenue Growth', 'Operating Margin', 'WACC', 'Terminal Growth', 'Intrinsic Value', 'Upside/Downside'],
+    ['']
+  ];
+
+  // Base case
+  scenarioData.push([
+    'Base',
+    (baseCAGR * 100).toFixed(1) + '%',
+    (baseMargin * 100).toFixed(1) + '%',
+    (outputs.wacc * 100).toFixed(2) + '%',
+    (inputs.perpetualGrowth * 100).toFixed(2) + '%',
+    outputs.intrinsicValuePerShare.toFixed(2),
+    (outputs.upsideDownside * 100).toFixed(1) + '%'
+  ]);
+
+  // Bull case
+  const bullInputs = {
+    ...inputs,
+    revenueGrowth: inputs.revenueGrowth.map(g => g + 0.02),
+    ebitMargin: inputs.ebitMargin.map(m => m + 0.015),
+    perpetualGrowth: inputs.perpetualGrowth + 0.005
+  };
+  const bullOutputs = calculateDCF(bullInputs);
+  const bullWacc = bullOutputs.wacc - 0.0075;
+  const bullUpside = inputs.currentPrice > 0 ? ((bullOutputs.intrinsicValuePerShare / inputs.currentPrice) - 1) : 0;
+  scenarioData.push([
+    'Bull',
+    ((baseCAGR + 0.02) * 100).toFixed(1) + '%',
+    ((baseMargin + 0.015) * 100).toFixed(1) + '%',
+    ((outputs.wacc - 0.0075) * 100).toFixed(2) + '%',
+    ((inputs.perpetualGrowth + 0.005) * 100).toFixed(2) + '%',
+    bullOutputs.intrinsicValuePerShare.toFixed(2),
+    (bullUpside * 100).toFixed(1) + '%'
+  ]);
+
+  // Bear case
+  const bearInputs = {
+    ...inputs,
+    revenueGrowth: inputs.revenueGrowth.map(g => Math.max(0, g - 0.02)),
+    ebitMargin: inputs.ebitMargin.map(m => Math.max(0.01, m - 0.015)),
+    perpetualGrowth: Math.max(0, inputs.perpetualGrowth - 0.005)
+  };
+  const bearOutputs = calculateDCF(bearInputs);
+  const bearWacc = bearOutputs.wacc + 0.01;
+  const bearUpside = inputs.currentPrice > 0 ? ((bearOutputs.intrinsicValuePerShare / inputs.currentPrice) - 1) : 0;
+  scenarioData.push([
+    'Bear',
+    ((baseCAGR - 0.02) * 100).toFixed(1) + '%',
+    ((baseMargin - 0.015) * 100).toFixed(1) + '%',
+    ((outputs.wacc + 0.01) * 100).toFixed(2) + '%',
+    ((Math.max(0, inputs.perpetualGrowth - 0.005)) * 100).toFixed(2) + '%',
+    bearOutputs.intrinsicValuePerShare.toFixed(2),
+    (bearUpside * 100).toFixed(1) + '%'
+  ]);
+
+  const ws5 = XLSX.utils.aoa_to_sheet(scenarioData);
+  XLSX.utils.book_append_sheet(wb, ws5, 'Scenarios');
+
+  // Sheet 6: Inputs (all parameters)
+  const inputsData = [
+    ['DCF Model Inputs'],
+    [''],
+    ['Operating Forecast'],
+    ['Forecast Years', inputs.forecastYears],
+    ['Forecast Mode', inputs.forecastMode],
+    ['Starting Revenue', inputs.startingRevenue],
+    ['Mid-Year Convention', inputs.midYearConvention ? 'Yes' : 'No'],
+    [''],
+    ['Revenue Growth by Year']
+  ];
+  inputs.revenueGrowth.forEach((g, i) => {
+    inputsData.push([`Year ${i + 1}`, (g * 100).toFixed(2) + '%']);
+  });
+  inputsData.push(['']);
+  inputsData.push(['EBIT Margin by Year']);
+  inputs.ebitMargin.forEach((m, i) => {
+    inputsData.push([`Year ${i + 1}`, (m * 100).toFixed(2) + '%']);
+  });
+  inputsData.push(['']);
+  inputsData.push(['Other Operating Assumptions']);
+  inputsData.push(['Capex % of Revenue', (inputs.capexPercentOfRevenue * 100).toFixed(2) + '%']);
+  inputsData.push(['D&A % of Revenue', (inputs.depreciationPercentOfRevenue * 100).toFixed(2) + '%']);
+  inputsData.push(['NWC Change % of Rev Change', (inputs.nwcChangePercentOfRevenueChange * 100).toFixed(2) + '%']);
+  inputsData.push(['Cash Tax Rate', (inputs.cashTaxRate * 100).toFixed(2) + '%']);
+  inputsData.push(['']);
+  inputsData.push(['Balance Sheet Items']);
+  inputsData.push(['Total Debt', inputs.totalDebt]);
+  inputsData.push(['Cash & Equivalents', inputs.cashEquivalents]);
+  inputsData.push(['Preferred Equity', inputs.preferredEquity]);
+  inputsData.push(['Minority Interest', inputs.minorityInterest]);
+  inputsData.push(['Non-Operating Assets', inputs.nonOperatingAssets]);
+  const ws6 = XLSX.utils.aoa_to_sheet(inputsData);
+  XLSX.utils.book_append_sheet(wb, ws6, 'Inputs');
+
+  // Generate and download
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([wbout], { type: 'application/octet-stream' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `${inputs.ticker}_DCF_Analysis_${new Date().toISOString().split('T')[0]}.xlsx`;
+  link.click();
+}
+
 function exportToCSV(inputs: DCFInputs, outputs: DCFOutputs) {
   const headers = ['Metric', 'Value', 'Unit'];
   const data = [
@@ -675,6 +932,11 @@ export default function DCFToolPage() {
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<any>(null);
   const [forceRecalc, setForceRecalc] = useState(0);
+  const [advancedScenarioMode, setAdvancedScenarioMode] = useState(false);
+  const [customScenarioParams, setCustomScenarioParams] = useState({
+    bull: { revenueGrowthAdj: 0.02, marginAdj: 0.015, waccAdj: -0.0075, termGrowthAdj: 0.005 },
+    bear: { revenueGrowthAdj: -0.02, marginAdj: -0.015, waccAdj: 0.01, termGrowthAdj: -0.005 }
+  });
 
   // Fetch market data for ERP calculation
   const fetchMarketData = async () => {
@@ -1417,6 +1679,10 @@ export default function DCFToolPage() {
         <Button onClick={() => exportToCSV(inputs, outputs)} variant="outline" className="flex items-center">
           <Download className="w-4 h-4 mr-2" />
           Export CSV
+        </Button>
+        <Button onClick={() => exportToExcel(inputs, outputs, financialData, selectedCompany)} variant="outline" className="flex items-center">
+          <Download className="w-4 h-4 mr-2" />
+          Export Excel (Full)
         </Button>
         <Button onClick={() => printSnapshot(inputs, outputs)} variant="outline">
           Print Snapshot
@@ -3925,7 +4191,7 @@ function TickerSearch({
   };
 
   return (
-    <div className="relative">
+    <div className="relative" style={{ marginBottom: showSuggestions && suggestions.length > 0 ? '24rem' : '1rem' }}>
       <div className="flex gap-2">
         <div className="flex-1 relative">
           <input
@@ -3950,9 +4216,9 @@ function TickerSearch({
         </div>
       </div>
 
-      {/* Suggestions Dropdown */}
+      {/* Suggestions Dropdown - Properly positioned above content */}
       {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute z-[100] w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-xl max-h-80 overflow-y-auto top-full left-0 right-0">
+        <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-2xl max-h-80 overflow-y-auto left-0 right-0">
           {suggestions.map((suggestion, index) => (
             <div
               key={index}
@@ -3984,7 +4250,7 @@ function TickerSearch({
 
       {/* No results */}
       {showSuggestions && query.length >= 2 && suggestions.length === 0 && !isSearching && (
-        <div className="absolute z-50 w-full mt-2 bg-white border border-gray-300 rounded-lg shadow-xl p-6 text-center">
+        <div className="absolute z-[9999] w-full mt-2 bg-white border border-gray-300 rounded-lg shadow-2xl p-6 text-center left-0 right-0">
           <div className="text-gray-400 mb-2">
             <svg className="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-.966-5.5-2.5" />
