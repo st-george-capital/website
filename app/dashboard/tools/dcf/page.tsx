@@ -2140,10 +2140,23 @@ export default function DCFToolPage() {
       {/* Scenario Analysis */}
       <Card>
         <CardHeader>
-          <CardTitle>Scenario Analysis</CardTitle>
-          <CardDescription>
-            Bear, Base, and Bull case valuations with different assumptions
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Scenario Analysis</CardTitle>
+              <CardDescription>
+                Bear, Base, and Bull case valuations with different assumptions
+              </CardDescription>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={advancedScenarioMode}
+                onChange={(e) => setAdvancedScenarioMode(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <span className="text-sm font-medium">Advanced Mode</span>
+            </label>
+          </div>
         </CardHeader>
         <CardContent>
           {/* Scenario Selector */}
@@ -2165,30 +2178,93 @@ export default function DCFToolPage() {
             ))}
           </div>
 
+          {/* Advanced Mode: Custom Parameter Adjustments */}
+          {advancedScenarioMode && selectedScenario !== 'base' && (
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
+              <h4 className="font-semibold mb-3">Customize {selectedScenario === 'bull' ? 'Bull' : 'Bear'} Case Parameters</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Revenue Growth Adjustment (bps)</label>
+                  <input
+                    type="number"
+                    value={(customScenarioParams[selectedScenario].revenueGrowthAdj * 10000).toFixed(0)}
+                    onChange={(e) => setCustomScenarioParams(prev => ({
+                      ...prev,
+                      [selectedScenario]: { ...prev[selectedScenario], revenueGrowthAdj: parseFloat(e.target.value) / 10000 }
+                    }))}
+                    className="w-full px-3 py-2 border rounded"
+                  />
+                  <div className="text-xs text-gray-500 mt-1">
+                    {(customScenarioParams[selectedScenario].revenueGrowthAdj * 100).toFixed(2)}% adjustment
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Operating Margin Adjustment (bps)</label>
+                  <input
+                    type="number"
+                    value={(customScenarioParams[selectedScenario].marginAdj * 10000).toFixed(0)}
+                    onChange={(e) => setCustomScenarioParams(prev => ({
+                      ...prev,
+                      [selectedScenario]: { ...prev[selectedScenario], marginAdj: parseFloat(e.target.value) / 10000 }
+                    }))}
+                    className="w-full px-3 py-2 border rounded"
+                  />
+                  <div className="text-xs text-gray-500 mt-1">
+                    {(customScenarioParams[selectedScenario].marginAdj * 100).toFixed(2)}% adjustment
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">WACC Adjustment (bps)</label>
+                  <input
+                    type="number"
+                    value={(customScenarioParams[selectedScenario].waccAdj * 10000).toFixed(0)}
+                    onChange={(e) => setCustomScenarioParams(prev => ({
+                      ...prev,
+                      [selectedScenario]: { ...prev[selectedScenario], waccAdj: parseFloat(e.target.value) / 10000 }
+                    }))}
+                    className="w-full px-3 py-2 border rounded"
+                  />
+                  <div className="text-xs text-gray-500 mt-1">
+                    {(customScenarioParams[selectedScenario].waccAdj * 100).toFixed(2)}% adjustment
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Terminal Growth Adjustment (bps)</label>
+                  <input
+                    type="number"
+                    value={(customScenarioParams[selectedScenario].termGrowthAdj * 10000).toFixed(0)}
+                    onChange={(e) => setCustomScenarioParams(prev => ({
+                      ...prev,
+                      [selectedScenario]: { ...prev[selectedScenario], termGrowthAdj: parseFloat(e.target.value) / 10000 }
+                    }))}
+                    className="w-full px-3 py-2 border rounded"
+                  />
+                  <div className="text-xs text-gray-500 mt-1">
+                    {(customScenarioParams[selectedScenario].termGrowthAdj * 100).toFixed(2)}% adjustment
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+
           {/* Scenario Results */}
           <div className="space-y-4">
             {(() => {
               const getScenarioInputs = (scenario: 'base' | 'bull' | 'bear') => {
-                switch (scenario) {
-                  case 'bull':
-                    return {
-                      ...inputs,
-                      revenueGrowth: inputs.revenueGrowth.map(g => g + 0.02), // +200bps
-                      ebitMargin: inputs.ebitMargin.map(m => m + 0.015), // +150bps
-                      riskFreeRate: inputs.riskFreeRate - 0.0075, // -75bps
-                      perpetualGrowth: Math.min(inputs.perpetualGrowth + 0.005, inputs.riskFreeRate - 0.0075) // +50bps
-                    };
-                  case 'bear':
-                    return {
-                      ...inputs,
-                      revenueGrowth: inputs.revenueGrowth.map(g => g - 0.02), // -200bps
-                      ebitMargin: inputs.ebitMargin.map(m => m - 0.015), // -150bps
-                      riskFreeRate: inputs.riskFreeRate + 0.01, // +100bps
-                      perpetualGrowth: Math.max(inputs.perpetualGrowth - 0.005, 0.005) // -50bps
-                    };
-                  default:
-                    return inputs;
-                }
+                if (scenario === 'base') return inputs;
+                
+                const params = advancedScenarioMode ? customScenarioParams[scenario] : (scenario === 'bull' 
+                  ? { revenueGrowthAdj: 0.02, marginAdj: 0.015, waccAdj: -0.0075, termGrowthAdj: 0.005 }
+                  : { revenueGrowthAdj: -0.02, marginAdj: -0.015, waccAdj: 0.01, termGrowthAdj: -0.005 });
+                
+                return {
+                  ...inputs,
+                  revenueGrowth: inputs.revenueGrowth.map(g => g + params.revenueGrowthAdj),
+                  ebitMargin: inputs.ebitMargin.map(m => m + params.marginAdj),
+                  riskFreeRate: inputs.riskFreeRate + params.waccAdj,
+                  perpetualGrowth: Math.max(0.005, Math.min(inputs.perpetualGrowth + params.termGrowthAdj, inputs.riskFreeRate + params.waccAdj - 0.01))
+                };
               };
 
               const scenarioInputs = getScenarioInputs(selectedScenario);
@@ -2237,19 +2313,23 @@ export default function DCFToolPage() {
             <h4 className="font-semibold mb-3">Scenario Range</h4>
             {(() => {
               const baseOutputs = calculateDCF(inputs);
+              
+              const bullParams = advancedScenarioMode ? customScenarioParams.bull : { revenueGrowthAdj: 0.02, marginAdj: 0.015, waccAdj: -0.0075, termGrowthAdj: 0.005 };
+              const bearParams = advancedScenarioMode ? customScenarioParams.bear : { revenueGrowthAdj: -0.02, marginAdj: -0.015, waccAdj: 0.01, termGrowthAdj: -0.005 };
+              
               const bullInputs = {
                 ...inputs,
-                revenueGrowth: inputs.revenueGrowth.map(g => g + 0.02),
-                ebitMargin: inputs.ebitMargin.map(m => m + 0.015),
-                riskFreeRate: inputs.riskFreeRate - 0.0075,
-                perpetualGrowth: Math.min(inputs.perpetualGrowth + 0.005, inputs.riskFreeRate - 0.0075)
+                revenueGrowth: inputs.revenueGrowth.map(g => g + bullParams.revenueGrowthAdj),
+                ebitMargin: inputs.ebitMargin.map(m => m + bullParams.marginAdj),
+                riskFreeRate: inputs.riskFreeRate + bullParams.waccAdj,
+                perpetualGrowth: Math.max(0.005, Math.min(inputs.perpetualGrowth + bullParams.termGrowthAdj, inputs.riskFreeRate + bullParams.waccAdj - 0.01))
               };
               const bearInputs = {
                 ...inputs,
-                revenueGrowth: inputs.revenueGrowth.map(g => g - 0.02),
-                ebitMargin: inputs.ebitMargin.map(m => m - 0.015),
-                riskFreeRate: inputs.riskFreeRate + 0.01,
-                perpetualGrowth: Math.max(inputs.perpetualGrowth - 0.005, 0.005)
+                revenueGrowth: inputs.revenueGrowth.map(g => g + bearParams.revenueGrowthAdj),
+                ebitMargin: inputs.ebitMargin.map(m => m + bearParams.marginAdj),
+                riskFreeRate: inputs.riskFreeRate + bearParams.waccAdj,
+                perpetualGrowth: Math.max(0.005, Math.min(inputs.perpetualGrowth + bearParams.termGrowthAdj, inputs.riskFreeRate + bearParams.waccAdj - 0.01))
               };
 
               const bullOutputs = calculateDCF(bullInputs);
@@ -3447,6 +3527,11 @@ function DCFCharts({ inputs, outputs }: { inputs: DCFInputs; outputs: DCFOutputs
 function SensitivityAnalysis({ inputs, outputs, financialData }: { inputs: DCFInputs; outputs: DCFOutputs; financialData: ExtractedFinancials | null }) {
   const [selectedSensitivity, setSelectedSensitivity] = useState<'wacc_growth' | 'wacc_multiple' | 'growth_margin'>('wacc_growth');
   const [selectedScenario, setSelectedScenario] = useState<'base' | 'bull' | 'bear'>('base');
+  const [advancedScenarioMode, setAdvancedScenarioMode] = useState(false);
+  const [customScenarioParams, setCustomScenarioParams] = useState({
+    bull: { revenueGrowthAdj: 0.02, marginAdj: 0.015, waccAdj: -0.0075, termGrowthAdj: 0.005 },
+    bear: { revenueGrowthAdj: -0.02, marginAdj: -0.015, waccAdj: 0.01, termGrowthAdj: -0.005 }
+  });
 
   // Generate WACC × Terminal Growth sensitivity table
   const generateWaccGrowthSensitivity = () => {
@@ -3680,26 +3765,19 @@ function SensitivityAnalysis({ inputs, outputs, financialData }: { inputs: DCFIn
           <div className="space-y-4">
             {(() => {
               const getScenarioInputs = (scenario: 'base' | 'bull' | 'bear') => {
-                switch (scenario) {
-                  case 'bull':
-                    return {
-                      ...inputs,
-                      revenueGrowth: inputs.revenueGrowth.map(g => g + 0.02), // +200bps
-                      ebitMargin: inputs.ebitMargin.map(m => m + 0.015), // +150bps
-                      riskFreeRate: inputs.riskFreeRate - 0.0075, // -75bps
-                      perpetualGrowth: Math.min(inputs.perpetualGrowth + 0.005, inputs.riskFreeRate - 0.0075) // +50bps
-                    };
-                  case 'bear':
-                    return {
-                      ...inputs,
-                      revenueGrowth: inputs.revenueGrowth.map(g => g - 0.02), // -200bps
-                      ebitMargin: inputs.ebitMargin.map(m => m - 0.015), // -150bps
-                      riskFreeRate: inputs.riskFreeRate + 0.01, // +100bps
-                      perpetualGrowth: Math.max(inputs.perpetualGrowth - 0.005, 0.005) // -50bps
-                    };
-                  default:
-                    return inputs;
-                }
+                if (scenario === 'base') return inputs;
+                
+                const params = advancedScenarioMode ? customScenarioParams[scenario] : (scenario === 'bull' 
+                  ? { revenueGrowthAdj: 0.02, marginAdj: 0.015, waccAdj: -0.0075, termGrowthAdj: 0.005 }
+                  : { revenueGrowthAdj: -0.02, marginAdj: -0.015, waccAdj: 0.01, termGrowthAdj: -0.005 });
+                
+                return {
+                  ...inputs,
+                  revenueGrowth: inputs.revenueGrowth.map(g => g + params.revenueGrowthAdj),
+                  ebitMargin: inputs.ebitMargin.map(m => m + params.marginAdj),
+                  riskFreeRate: inputs.riskFreeRate + params.waccAdj,
+                  perpetualGrowth: Math.max(0.005, Math.min(inputs.perpetualGrowth + params.termGrowthAdj, inputs.riskFreeRate + params.waccAdj - 0.01))
+                };
               };
 
               const scenarioInputs = getScenarioInputs(selectedScenario);
@@ -3748,19 +3826,23 @@ function SensitivityAnalysis({ inputs, outputs, financialData }: { inputs: DCFIn
             <h4 className="font-semibold mb-3">Scenario Range</h4>
             {(() => {
               const baseOutputs = calculateDCF(inputs);
+              
+              const bullParams = advancedScenarioMode ? customScenarioParams.bull : { revenueGrowthAdj: 0.02, marginAdj: 0.015, waccAdj: -0.0075, termGrowthAdj: 0.005 };
+              const bearParams = advancedScenarioMode ? customScenarioParams.bear : { revenueGrowthAdj: -0.02, marginAdj: -0.015, waccAdj: 0.01, termGrowthAdj: -0.005 };
+              
               const bullInputs = {
                 ...inputs,
-                revenueGrowth: inputs.revenueGrowth.map(g => g + 0.02),
-                ebitMargin: inputs.ebitMargin.map(m => m + 0.015),
-                riskFreeRate: inputs.riskFreeRate - 0.0075,
-                perpetualGrowth: Math.min(inputs.perpetualGrowth + 0.005, inputs.riskFreeRate - 0.0075)
+                revenueGrowth: inputs.revenueGrowth.map(g => g + bullParams.revenueGrowthAdj),
+                ebitMargin: inputs.ebitMargin.map(m => m + bullParams.marginAdj),
+                riskFreeRate: inputs.riskFreeRate + bullParams.waccAdj,
+                perpetualGrowth: Math.max(0.005, Math.min(inputs.perpetualGrowth + bullParams.termGrowthAdj, inputs.riskFreeRate + bullParams.waccAdj - 0.01))
               };
               const bearInputs = {
                 ...inputs,
-                revenueGrowth: inputs.revenueGrowth.map(g => g - 0.02),
-                ebitMargin: inputs.ebitMargin.map(m => m - 0.015),
-                riskFreeRate: inputs.riskFreeRate + 0.01,
-                perpetualGrowth: Math.max(inputs.perpetualGrowth - 0.005, 0.005)
+                revenueGrowth: inputs.revenueGrowth.map(g => g + bearParams.revenueGrowthAdj),
+                ebitMargin: inputs.ebitMargin.map(m => m + bearParams.marginAdj),
+                riskFreeRate: inputs.riskFreeRate + bearParams.waccAdj,
+                perpetualGrowth: Math.max(0.005, Math.min(inputs.perpetualGrowth + bearParams.termGrowthAdj, inputs.riskFreeRate + bearParams.waccAdj - 0.01))
               };
 
               const bullOutputs = calculateDCF(bullInputs);
