@@ -571,20 +571,23 @@ export default function TeamDashboardPage() {
                   </div>
 
                   {/* Edit Actions */}
-                  <div className="flex items-center gap-2 mt-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => startEditingMember(member)}
-                    >
-                      <Edit className="w-3 h-3 mr-1" />
-                      Edit
-                    </Button>
-                  </div>
+                  {isAdmin && (
+                    <div className="flex items-center gap-2 mt-4">
+                      <Link href={`/dashboard/team/${member.id}/edit`}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                        >
+                          <Edit className="w-3 h-3 mr-1" />
+                          Edit
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
                 </CardHeader>
 
-                {/* Edit Form */}
-                {editingMember === member.id && (
+                {/* Old Inline Edit Form - Keeping for backward compatibility */}
+                {editingMember === member.id && false && (
                   <CardContent className="border-t">
                     <div className="space-y-4 pt-4">
                       <div className="grid grid-cols-2 gap-4">
