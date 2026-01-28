@@ -690,7 +690,7 @@ export default function TeamDashboardPage() {
                         {editForm.headshot && (
                           <div className="mb-3 flex items-center space-x-3">
                             <img
-                              src={editForm.headshot}
+                              src={editForm.headshot || ''}
                               alt="Preview"
                               className="w-16 h-16 rounded-lg object-cover border-2 border-gray-200"
                             />
