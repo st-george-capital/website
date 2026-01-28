@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
 import { Badge } from '@/components/ui/badge';
-import { Briefcase, Plus, Users, Eye, Download, Calendar, Trash2 } from 'lucide-react';
+import { Briefcase, Plus, Users, Eye, Download, Calendar, Trash2, Edit } from 'lucide-react';
 
 interface JobPosting {
   id: string;
@@ -229,14 +229,14 @@ export default function PostingsDashboardPage() {
                         className="p-2 text-muted-foreground hover:text-primary transition-colors"
                         title="Edit posting"
                       >
-                        <Eye className="w-4 h-4" />
+                        <Edit className="w-4 h-4" />
                       </Link>
                       <button
                         onClick={() => deletePosting(posting.id)}
                         className="p-2 text-muted-foreground hover:text-red-500 transition-colors"
                         title="Delete posting"
                       >
-                        ×
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -288,15 +288,22 @@ export default function PostingsDashboardPage() {
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
+                      <Link
+                        href={`/dashboard/postings/applications/${application.id}`}
+                        className="p-2 text-muted-foreground hover:text-primary transition-colors"
+                        title="View application"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Link>
                       {application.resumeFile && (
                         <a
                           href={application.resumeFile}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-2 text-muted-foreground hover:text-primary transition-colors"
-                          title="View resume"
+                          className="p-2 text-muted-foreground hover:text-blue-500 transition-colors"
+                          title="Download resume"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Download className="w-4 h-4" />
                         </a>
                       )}
                       <button
