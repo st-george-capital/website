@@ -575,8 +575,8 @@ export default function TeamDashboardPage() {
                     <div className="flex items-center gap-2 mt-4">
                       <Link href={`/dashboard/team/${member.id}/edit`}>
                         <Button
-                          variant="outline"
                           size="sm"
+                          className="bg-gray-900 text-white hover:bg-gray-800"
                         >
                           <Edit className="w-3 h-3 mr-1" />
                           Edit
