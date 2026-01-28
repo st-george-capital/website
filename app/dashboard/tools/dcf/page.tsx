@@ -27,6 +27,14 @@ import {
 } from 'recharts';
 import Link from 'next/link';
 
+// Number formatting helper
+function formatNumber(num: number, decimals: number = 0): string {
+  return num.toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  });
+}
+
 // DCF Calculation Types
 interface DCFInputs {
   // Company Setup
@@ -106,8 +114,10 @@ interface DCFOutputs {
 
 // Export Functions
 function exportToExcel(inputs: DCFInputs, outputs: DCFOutputs, financialData: ExtractedFinancials | null, selectedCompany: CompanyOverview | null) {
-  // Create workbook
-  const wb = XLSX.utils.book_new();
+  try {
+    console.log('Starting Excel export...');
+    // Create workbook
+    const wb = XLSX.utils.book_new();
 
   // Sheet 1: Summary
   const summaryData = [
@@ -353,13 +363,21 @@ function exportToExcel(inputs: DCFInputs, outputs: DCFOutputs, financialData: Ex
   const ws6 = XLSX.utils.aoa_to_sheet(inputsData);
   XLSX.utils.book_append_sheet(wb, ws6, 'Inputs');
 
-  // Generate and download
-  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-  const blob = new Blob([wbout], { type: 'application/octet-stream' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = `${inputs.ticker}_DCF_Analysis_${new Date().toISOString().split('T')[0]}.xlsx`;
-  link.click();
+    // Generate and download
+    console.log('Writing workbook...');
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], { type: 'application/octet-stream' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${inputs.ticker}_DCF_Analysis_${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    console.log('Excel export completed successfully!');
+  } catch (error) {
+    console.error('Excel export failed:', error);
+    alert(`Failed to export Excel: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 function exportToCSV(inputs: DCFInputs, outputs: DCFOutputs) {
@@ -437,7 +455,7 @@ function printSnapshot(inputs: DCFInputs, outputs: DCFOutputs) {
           <div class="metric-label">Equity Value</div>
         </div>
         <div class="metric">
-          <div class="metric-value">${inputs.currency}${outputs.intrinsicValuePerShare.toFixed(2)}</div>
+          <div class="metric-value">${inputs.currency}${formatNumber(outputs.intrinsicValuePerShare, 2)}</div>
           <div class="metric-label">Intrinsic Value/Share</div>
         </div>
         <div class="metric">
@@ -1897,7 +1915,7 @@ export default function DCFToolPage() {
                     <div className="bg-white p-4 rounded-lg border border-green-200">
                       <div className="text-center">
                         <div className="text-3xl font-bold text-green-600 mb-1">
-                          ${outputs.intrinsicValuePerShare.toFixed(2)}
+                          ${formatNumber(outputs.intrinsicValuePerShare, 2)}
                         </div>
                         <div className="text-sm text-gray-600 mb-2">Intrinsic Value per Share</div>
                         <div className={`text-lg font-semibold ${outputs.upsideDownside >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -1969,7 +1987,7 @@ export default function DCFToolPage() {
                     </div>
                     <div className="flex justify-between items-center py-2">
                       <span className="font-medium">Per Share (Diluted)</span>
-                      <span className="font-bold">${outputs.intrinsicValuePerShare.toFixed(2)}</span>
+                      <span className="font-bold">${formatNumber(outputs.intrinsicValuePerShare, 2)}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -2058,7 +2076,7 @@ export default function DCFToolPage() {
               <div className="bg-white p-4 rounded-lg border">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600">
-                    ${outputs.intrinsicValuePerShare.toFixed(2)}
+                    ${formatNumber(outputs.intrinsicValuePerShare, 2)}
                   </div>
                   <div className="text-sm text-gray-600">Intrinsic Value</div>
                 </div>
@@ -2098,7 +2116,7 @@ export default function DCFToolPage() {
                   <span className={`ml-2 ${outputs.upsideDownside >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {inputs.companyName || 'The company'} is currently trading at
                     {outputs.upsideDownside >= 0 ? ` ${(outputs.upsideDownside * 100).toFixed(1)}% below ` : ` ${Math.abs(outputs.upsideDownside * 100).toFixed(1)}% above `}
-                    our DCF-derived intrinsic value of ${outputs.intrinsicValuePerShare.toFixed(2)} per share.
+                    our DCF-derived intrinsic value of ${formatNumber(outputs.intrinsicValuePerShare, 2)} per share.
                   </span>
                 </div>
 
@@ -2276,7 +2294,7 @@ export default function DCFToolPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="text-center p-4 border rounded-lg">
                     <div className="text-2xl font-bold mb-2">
-                      ${scenarioOutputs.intrinsicValuePerShare.toFixed(2)}
+                      ${formatNumber(scenarioOutputs.intrinsicValuePerShare, 2)}
                     </div>
                     <div className="text-sm text-gray-600 mb-2">Intrinsic Value per Share</div>
                     <div className={`text-sm font-medium ${upsideDownside >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -2341,11 +2359,20 @@ export default function DCFToolPage() {
               const currentPos = ((inputs.currentPrice - min) / range) * 100;
 
               return (
-                <div className="relative">
+                <div className="relative pt-8">
+                  <div 
+                    className="absolute -top-1 text-xs text-gray-900 font-bold whitespace-nowrap bg-white px-2 py-1 rounded border-2 border-black z-10"
+                    style={{ 
+                      left: `${Math.max(0, Math.min(100, currentPos))}%`,
+                      transform: 'translateX(-50%)'
+                    }}
+                  >
+                    Current: ${formatNumber(inputs.currentPrice, 2)}
+                  </div>
                   <div className="flex justify-between text-sm text-gray-600 mb-2">
-                    <span>Bear: ${bearOutputs.intrinsicValuePerShare.toFixed(2)}</span>
-                    <span>Base: ${baseOutputs.intrinsicValuePerShare.toFixed(2)}</span>
-                    <span>Bull: ${bullOutputs.intrinsicValuePerShare.toFixed(2)}</span>
+                    <span>Bear: ${formatNumber(bearOutputs.intrinsicValuePerShare, 2)}</span>
+                    <span>Base: ${formatNumber(baseOutputs.intrinsicValuePerShare, 2)}</span>
+                    <span>Bull: ${formatNumber(bullOutputs.intrinsicValuePerShare, 2)}</span>
                   </div>
                   <div className="h-4 bg-gray-200 rounded-full relative">
                     <div
@@ -2353,18 +2380,9 @@ export default function DCFToolPage() {
                       style={{ width: '100%' }}
                     />
                     <div
-                      className="absolute top-0 w-1 h-4 bg-black rounded-full"
-                      style={{ left: `${Math.max(0, Math.min(100, currentPos))}%` }}
+                      className="absolute top-0 w-2 h-4 bg-black"
+                      style={{ left: `${Math.max(0, Math.min(100, currentPos))}%`, transform: 'translateX(-50%)' }}
                     />
-                    <div 
-                      className="absolute -top-6 text-xs text-gray-600 font-semibold whitespace-nowrap"
-                      style={{ 
-                        left: `${Math.max(0, Math.min(100, currentPos))}%`,
-                        transform: currentPos > 50 ? 'translateX(-100%)' : 'translateX(0)'
-                      }}
-                    >
-                      Current: ${inputs.currentPrice.toFixed(2)}
-                    </div>
                   </div>
                 </div>
               );
@@ -2442,7 +2460,7 @@ export default function DCFToolPage() {
                           style={{ height: `${((perShare * inputs.sharesOutstanding) / maxValue) * 100}px` }}
                         />
                         <div className="text-xs mt-1">Per Share</div>
-                        <div className="text-xs font-medium">${perShare.toFixed(2)}</div>
+                        <div className="text-xs font-medium">${formatNumber(perShare, 2)}</div>
                       </div>
                     </>
                   );
@@ -2469,7 +2487,7 @@ export default function DCFToolPage() {
                   <div className="text-gray-600">Equity Value</div>
                 </div>
                 <div>
-                  <div className="font-medium">${outputs.intrinsicValuePerShare.toFixed(2)}</div>
+                  <div className="font-medium">${formatNumber(outputs.intrinsicValuePerShare, 2)}</div>
                   <div className="text-gray-600">Per Share</div>
                 </div>
               </div>
@@ -3274,7 +3292,7 @@ function FinancialDeepDive({ financialData }: { financialData: ExtractedFinancia
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="period" />
               <YAxis yAxisId="amount" orientation="left" tickFormatter={(value) => `$${(value / 1000).toFixed(0)}B`} />
-              <YAxis yAxisId="percent" orientation="right" tickFormatter={(value) => `${value.toFixed(0)}%`} />
+              <YAxis yAxisId="percent" orientation="right" tickFormatter={(value) => `${formatNumber(value, 0)}%`} />
               <Tooltip
                 formatter={(value: any, name: string) => {
                   if (name === 'revenue' || name === 'ebit') return [`$${(value / 1000).toFixed(1)}B`, name];
@@ -3322,13 +3340,13 @@ function FinancialDeepDive({ financialData }: { financialData: ExtractedFinancia
                 <tr className="border-b">
                   <td className="py-2 font-medium">Asset Turnover</td>
                   {ratios.efficiency.assetTurnover.map((turnover, i) => (
-                    <td key={i} className="text-right py-2 px-2">{turnover.toFixed(2)}x</td>
+                    <td key={i} className="text-right py-2 px-2">{formatNumber(turnover, 2)}x</td>
                   ))}
                 </tr>
                 <tr className="border-b">
                   <td className="py-2 font-medium">Debt-to-Equity</td>
                   {ratios.leverage.debtToEquity.map((ratio, i) => (
-                    <td key={i} className="text-right py-2 px-2">{ratio.toFixed(2)}x</td>
+                    <td key={i} className="text-right py-2 px-2">{formatNumber(ratio, 2)}x</td>
                   ))}
                 </tr>
                 <tr>
@@ -3407,8 +3425,8 @@ function DCFCharts({ inputs, outputs }: { inputs: DCFInputs; outputs: DCFOutputs
             <BarChart data={priceData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
-              <YAxis tickFormatter={(value) => `$${Number(value).toFixed(2)}`} />
-              <Tooltip formatter={(value) => [`$${Number(value).toFixed(2)}`, 'Price']} />
+              <YAxis tickFormatter={(value) => `$${formatNumber(Number(value), 2)}`} />
+              <Tooltip formatter={(value) => [`$${formatNumber(Number(value), 2)}`, 'Price']} />
               <Bar dataKey="value" fill="#8884d8" />
             </BarChart>
           </ResponsiveContainer>
@@ -3726,7 +3744,7 @@ function SensitivityAnalysis({ inputs, outputs, financialData }: { inputs: DCFIn
           </div>
 
           <div className="mt-4 text-sm text-muted-foreground">
-            <p><strong>Color coding:</strong> Darker colors indicate larger deviations from base case (${outputs.intrinsicValuePerShare.toFixed(2)})</p>
+            <p><strong>Color coding:</strong> Darker colors indicate larger deviations from base case (${formatNumber(outputs.intrinsicValuePerShare, 2)})</p>
             {selectedSensitivity === 'wacc_growth' && (
               <p><strong>Note:</strong> Red "Error" cells occur when terminal growth rate ≥ WACC (mathematically invalid)</p>
             )}
@@ -3790,7 +3808,7 @@ function SensitivityAnalysis({ inputs, outputs, financialData }: { inputs: DCFIn
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="text-center p-4 border rounded-lg">
                     <div className="text-2xl font-bold mb-2">
-                      ${scenarioOutputs.intrinsicValuePerShare.toFixed(2)}
+                      ${formatNumber(scenarioOutputs.intrinsicValuePerShare, 2)}
                     </div>
                     <div className="text-sm text-gray-600 mb-2">Intrinsic Value per Share</div>
                     <div className={`text-sm font-medium ${upsideDownside >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -3855,11 +3873,20 @@ function SensitivityAnalysis({ inputs, outputs, financialData }: { inputs: DCFIn
               const currentPos = ((inputs.currentPrice - min) / range) * 100;
 
               return (
-                <div className="relative">
+                <div className="relative pt-8">
+                  <div 
+                    className="absolute -top-1 text-xs text-gray-900 font-bold whitespace-nowrap bg-white px-2 py-1 rounded border-2 border-black z-10"
+                    style={{ 
+                      left: `${Math.max(0, Math.min(100, currentPos))}%`,
+                      transform: 'translateX(-50%)'
+                    }}
+                  >
+                    Current: ${formatNumber(inputs.currentPrice, 2)}
+                  </div>
                   <div className="flex justify-between text-sm text-gray-600 mb-2">
-                    <span>Bear: ${bearOutputs.intrinsicValuePerShare.toFixed(2)}</span>
-                    <span>Base: ${baseOutputs.intrinsicValuePerShare.toFixed(2)}</span>
-                    <span>Bull: ${bullOutputs.intrinsicValuePerShare.toFixed(2)}</span>
+                    <span>Bear: ${formatNumber(bearOutputs.intrinsicValuePerShare, 2)}</span>
+                    <span>Base: ${formatNumber(baseOutputs.intrinsicValuePerShare, 2)}</span>
+                    <span>Bull: ${formatNumber(bullOutputs.intrinsicValuePerShare, 2)}</span>
                   </div>
                   <div className="h-4 bg-gray-200 rounded-full relative">
                     <div
@@ -3867,18 +3894,9 @@ function SensitivityAnalysis({ inputs, outputs, financialData }: { inputs: DCFIn
                       style={{ width: '100%' }}
                     />
                     <div
-                      className="absolute top-0 w-1 h-4 bg-black rounded-full"
-                      style={{ left: `${Math.max(0, Math.min(100, currentPos))}%` }}
+                      className="absolute top-0 w-2 h-4 bg-black"
+                      style={{ left: `${Math.max(0, Math.min(100, currentPos))}%`, transform: 'translateX(-50%)' }}
                     />
-                    <div 
-                      className="absolute -top-6 text-xs text-gray-600 font-semibold whitespace-nowrap"
-                      style={{ 
-                        left: `${Math.max(0, Math.min(100, currentPos))}%`,
-                        transform: currentPos > 50 ? 'translateX(-100%)' : 'translateX(0)'
-                      }}
-                    >
-                      Current: ${inputs.currentPrice.toFixed(2)}
-                    </div>
                   </div>
                 </div>
               );
@@ -3956,7 +3974,7 @@ function SensitivityAnalysis({ inputs, outputs, financialData }: { inputs: DCFIn
                           style={{ height: `${((perShare * inputs.sharesOutstanding) / maxValue) * 100}px` }}
                         />
                         <div className="text-xs mt-1">Per Share</div>
-                        <div className="text-xs font-medium">${perShare.toFixed(2)}</div>
+                        <div className="text-xs font-medium">${formatNumber(perShare, 2)}</div>
                       </div>
                     </>
                   );
@@ -3983,7 +4001,7 @@ function SensitivityAnalysis({ inputs, outputs, financialData }: { inputs: DCFIn
                   <div className="text-gray-600">Equity Value</div>
                 </div>
                 <div>
-                  <div className="font-medium">${outputs.intrinsicValuePerShare.toFixed(2)}</div>
+                  <div className="font-medium">${formatNumber(outputs.intrinsicValuePerShare, 2)}</div>
                   <div className="text-gray-600">Per Share</div>
                 </div>
               </div>
