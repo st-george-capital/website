@@ -2097,7 +2097,7 @@ export default function DCFToolPage() {
                   <span className="font-medium">Valuation:</span>
                   <span className={`ml-2 ${outputs.upsideDownside >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {inputs.companyName || 'The company'} is currently trading at
-                    {outputs.upsideDownside >= 0 ? ` ${(outputs.upsideDownside * 100).toFixed(1)}% below` : ` ${Math.abs(outputs.upsideDownside * 100).toFixed(1)}% above`}
+                    {outputs.upsideDownside >= 0 ? ` ${(outputs.upsideDownside * 100).toFixed(1)}% below ` : ` ${Math.abs(outputs.upsideDownside * 100).toFixed(1)}% above `}
                     our DCF-derived intrinsic value of ${outputs.intrinsicValuePerShare.toFixed(2)} per share.
                   </span>
                 </div>
@@ -2356,7 +2356,13 @@ export default function DCFToolPage() {
                       className="absolute top-0 w-1 h-4 bg-black rounded-full"
                       style={{ left: `${Math.max(0, Math.min(100, currentPos))}%` }}
                     />
-                    <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs text-gray-600">
+                    <div 
+                      className="absolute -top-6 text-xs text-gray-600 font-semibold whitespace-nowrap"
+                      style={{ 
+                        left: `${Math.max(0, Math.min(100, currentPos))}%`,
+                        transform: currentPos > 50 ? 'translateX(-100%)' : 'translateX(0)'
+                      }}
+                    >
                       Current: ${inputs.currentPrice.toFixed(2)}
                     </div>
                   </div>
@@ -3137,11 +3143,6 @@ function DCFImpliedMultiples({ inputs, outputs }: { inputs: DCFInputs; outputs: 
       name: 'P/E',
       value: lastYearNOPAT > 0 ? (outputs.intrinsicValuePerShare / (lastYearNOPAT / inputs.sharesDiluted)).toFixed(1) + 'x' : 'N/A',
       description: 'Price to Earnings multiple (based on last year NOPAT per share)'
-    },
-    {
-      name: 'P/B',
-      value: 'N/A', // Would need book value data
-      description: 'Price to Book multiple (requires balance sheet data)'
     }
   ];
 
@@ -3869,7 +3870,13 @@ function SensitivityAnalysis({ inputs, outputs, financialData }: { inputs: DCFIn
                       className="absolute top-0 w-1 h-4 bg-black rounded-full"
                       style={{ left: `${Math.max(0, Math.min(100, currentPos))}%` }}
                     />
-                    <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs text-gray-600">
+                    <div 
+                      className="absolute -top-6 text-xs text-gray-600 font-semibold whitespace-nowrap"
+                      style={{ 
+                        left: `${Math.max(0, Math.min(100, currentPos))}%`,
+                        transform: currentPos > 50 ? 'translateX(-100%)' : 'translateX(0)'
+                      }}
+                    >
                       Current: ${inputs.currentPrice.toFixed(2)}
                     </div>
                   </div>
