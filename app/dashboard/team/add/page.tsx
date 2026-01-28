@@ -12,6 +12,7 @@ export default function AddTeamMemberPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     title: '',
@@ -33,6 +34,49 @@ export default function AddTeamMemberPage() {
       </div>
     );
   }
+
+  const handleFileUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append('file', file);
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formDataUpload,
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setFormData(prev => ({ ...prev, headshot: data.url }));
+      } else {
+        alert('Failed to upload image');
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Failed to upload image');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check if it's an image
+      if (!file.type.startsWith('image/')) {
+        alert('Please upload an image file');
+        return;
+      }
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size must be less than 5MB');
+        return;
+      }
+      handleFileUpload(file);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,19 +206,63 @@ export default function AddTeamMemberPage() {
               </div>
             </div>
 
-            {/* Headshot Path */}
+            {/* Headshot Upload */}
             <div>
-              <label className="block text-sm font-medium mb-2">Headshot Path</label>
-              <input
-                type="text"
-                value={formData.headshot}
-                onChange={(e) => setFormData({ ...formData, headshot: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="/images/exec-team/Name.jpg"
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                Upload image to <code>/public/images/exec-team/</code> folder first
-              </p>
+              <label className="block text-sm font-medium mb-2">Headshot Photo</label>
+              
+              {/* Preview */}
+              {formData.headshot && (
+                <div className="mb-4 flex items-center space-x-4">
+                  <img
+                    src={formData.headshot}
+                    alt="Preview"
+                    className="w-24 h-24 rounded-lg object-cover border-2 border-gray-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, headshot: '' })}
+                    className="text-sm text-red-600 hover:text-red-700"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+
+              {/* Upload Area */}
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                <div className="text-center">
+                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <div className="space-y-2">
+                    <label className="cursor-pointer">
+                      <span className="text-sm text-primary font-medium hover:underline">
+                        {uploading ? 'Uploading...' : 'Click to upload image'}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="hidden"
+                        disabled={uploading}
+                      />
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      PNG, JPG, GIF up to 5MB
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Or use URL */}
+              <div className="mt-4">
+                <label className="block text-xs font-medium text-gray-500 mb-2">Or enter image URL</label>
+                <input
+                  type="url"
+                  value={formData.headshot}
+                  onChange={(e) => setFormData({ ...formData, headshot: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="https://example.com/image.jpg"
+                />
+              </div>
             </div>
 
             {/* Show on Website */}

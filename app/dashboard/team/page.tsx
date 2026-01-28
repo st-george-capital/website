@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { Users, Linkedin, Plus, UserCheck, Trash2, Edit, Save, X } from 'lucide-react';
+import { Users, Linkedin, Plus, UserCheck, Trash2, Edit, Save, X, Upload } from 'lucide-react';
 import Link from 'next/link';
 
 interface User {
@@ -48,6 +48,7 @@ export default function TeamDashboardPage() {
   const [deletingUser, setDeletingUser] = useState<string | null>(null);
   const [editingMember, setEditingMember] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<TeamMember>>({});
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const isAdmin = session?.user?.role === 'admin';
 
@@ -150,6 +151,49 @@ export default function TeamDashboardPage() {
   const cancelEditingMember = () => {
     setEditingMember(null);
     setEditForm({});
+  };
+
+  const handleImageUpload = async (file: File) => {
+    setUploadingImage(true);
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append('file', file);
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formDataUpload,
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setEditForm(prev => ({ ...prev, headshot: data.url }));
+      } else {
+        alert('Failed to upload image');
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Failed to upload image');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check if it's an image
+      if (!file.type.startsWith('image/')) {
+        alert('Please upload an image file');
+        return;
+      }
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size must be less than 5MB');
+        return;
+      }
+      handleImageUpload(file);
+    }
   };
 
   const saveMemberEdits = async () => {
@@ -637,13 +681,49 @@ export default function TeamDashboardPage() {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium mb-1">Headshot URL</label>
+                        <label className="block text-sm font-medium mb-1">Headshot Photo</label>
+                        
+                        {/* Preview */}
+                        {editForm.headshot && (
+                          <div className="mb-3 flex items-center space-x-3">
+                            <img
+                              src={editForm.headshot}
+                              alt="Preview"
+                              className="w-16 h-16 rounded-lg object-cover border-2 border-gray-200"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setEditForm(prev => ({ ...prev, headshot: '' }))}
+                              className="text-xs text-red-600 hover:text-red-700"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Upload Button */}
+                        <div className="flex items-center space-x-2 mb-2">
+                          <label className="cursor-pointer inline-flex items-center px-3 py-2 bg-primary/10 text-primary rounded-md hover:bg-primary/20 transition-colors text-sm">
+                            <Upload className="w-3 h-3 mr-2" />
+                            {uploadingImage ? 'Uploading...' : 'Upload Image'}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleImageChange}
+                              className="hidden"
+                              disabled={uploadingImage}
+                            />
+                          </label>
+                          <span className="text-xs text-gray-500">Max 5MB</span>
+                        </div>
+
+                        {/* Or use URL */}
                         <input
                           type="url"
                           value={editForm.headshot || ''}
                           onChange={(e) => setEditForm(prev => ({ ...prev, headshot: e.target.value }))}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                          placeholder="https://example.com/image.jpg"
+                          placeholder="Or enter image URL"
                         />
                       </div>
 
