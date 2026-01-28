@@ -2355,8 +2355,17 @@ export default function DCFToolPage() {
               const currentPos = ((inputs.currentPrice - min) / range) * 100;
 
               return (
-                <div className="relative pt-6">
-                  <div className="flex justify-between text-sm text-gray-600 mb-2">
+                <div className="relative">
+                  <div 
+                    className="absolute -top-8 text-xs text-white font-bold whitespace-nowrap bg-black px-2 py-1 rounded z-20"
+                    style={{ 
+                      left: `${Math.max(5, Math.min(95, currentPos))}%`,
+                      transform: 'translateX(-50%)'
+                    }}
+                  >
+                    Current: ${formatNumber(inputs.currentPrice, 2)}
+                  </div>
+                  <div className="flex justify-between text-sm text-gray-600 mb-2 mt-6">
                     <span>Bear: ${formatNumber(bearOutputs.intrinsicValuePerShare, 2)}</span>
                     <span>Base: ${formatNumber(baseOutputs.intrinsicValuePerShare, 2)}</span>
                     <span>Bull: ${formatNumber(bullOutputs.intrinsicValuePerShare, 2)}</span>
@@ -2367,18 +2376,9 @@ export default function DCFToolPage() {
                       style={{ width: '100%' }}
                     />
                     <div
-                      className="absolute top-0 w-2 h-10 bg-black -top-2"
+                      className="absolute -top-2 w-2 h-10 bg-black"
                       style={{ left: `${Math.max(0, Math.min(100, currentPos))}%`, transform: 'translateX(-50%)' }}
                     />
-                  </div>
-                  <div 
-                    className="absolute top-0 text-xs text-white font-bold whitespace-nowrap bg-black px-2 py-1 rounded z-10"
-                    style={{ 
-                      left: `${Math.max(0, Math.min(100, currentPos))}%`,
-                      transform: 'translateX(-50%)'
-                    }}
-                  >
-                    Current: ${formatNumber(inputs.currentPrice, 2)}
                   </div>
                 </div>
               );
@@ -2690,27 +2690,33 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
             </label>
             {inputs.forecastMode === 'simple' ? (
               <input
-                type="number"
-                step="0.1"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                type="text"
+                inputMode="decimal"
+                className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={(inputs.revenueGrowth[0] * 100).toFixed(1)}
                 onChange={(e) => {
-                  const rate = (parseFloat(e.target.value) || 0) / 100;
+                  const value = e.target.value.replace(/[^0-9.-]/g, '');
+                  const rate = (parseFloat(value) || 0) / 100;
                   updateInput('revenueGrowth', Array(inputs.forecastYears).fill(rate));
                 }}
+                onFocus={(e) => e.target.select()}
               />
             ) : (
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-5 gap-3">
                 {(inputs.revenueGrowth || Array(inputs.forecastYears).fill(0.05)).map((growth, index) => (
                   <div key={index} className="text-center">
                     <input
-                      type="number"
-                      step="0.01"
-                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      type="text"
+                      inputMode="decimal"
+                      className="w-full px-3 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center"
                       value={(growth * 100).toFixed(1)}
-                      onChange={(e) => updateArrayInput('revenueGrowth', index, (parseFloat(e.target.value) || 0) / 100)}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/[^0-9.-]/g, '');
+                        updateArrayInput('revenueGrowth', index, (parseFloat(value) || 0) / 100);
+                      }}
+                      onFocus={(e) => e.target.select()}
                     />
-                    <div className="text-xs text-gray-500 mt-1">Y{index + 1}</div>
+                    <div className="text-xs text-gray-500 mt-1 font-medium">Y{index + 1}</div>
                   </div>
                 ))}
               </div>
@@ -2724,27 +2730,33 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
             </label>
             {inputs.forecastMode === 'simple' ? (
               <input
-                type="number"
-                step="0.1"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                type="text"
+                inputMode="decimal"
+                className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={(inputs.ebitMargin[0] * 100).toFixed(1)}
                 onChange={(e) => {
-                  const margin = (parseFloat(e.target.value) || 0) / 100;
+                  const value = e.target.value.replace(/[^0-9.-]/g, '');
+                  const margin = (parseFloat(value) || 0) / 100;
                   updateInput('ebitMargin', Array(inputs.forecastYears).fill(margin));
                 }}
+                onFocus={(e) => e.target.select()}
               />
             ) : (
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-5 gap-3">
                 {(inputs.ebitMargin || Array(inputs.forecastYears).fill(0.15)).map((margin, index) => (
                   <div key={index} className="text-center">
                     <input
-                      type="number"
-                      step="0.01"
-                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      type="text"
+                      inputMode="decimal"
+                      className="w-full px-3 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center"
                       value={(margin * 100).toFixed(1)}
-                      onChange={(e) => updateArrayInput('ebitMargin', index, (parseFloat(e.target.value) || 0) / 100)}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/[^0-9.-]/g, '');
+                        updateArrayInput('ebitMargin', index, (parseFloat(value) || 0) / 100);
+                      }}
+                      onFocus={(e) => e.target.select()}
                     />
-                    <div className="text-xs text-gray-500 mt-1">Y{index + 1}</div>
+                    <div className="text-xs text-gray-500 mt-1 font-medium">Y{index + 1}</div>
                   </div>
                 ))}
               </div>
@@ -2834,22 +2846,30 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
             <div>
               <label className="block text-sm font-medium mb-1">Risk-Free Rate (%)</label>
               <input
-                type="number"
-                step="0.01"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                type="text"
+                inputMode="decimal"
+                className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={(inputs.riskFreeRate * 100).toFixed(2)}
-                onChange={(e) => updateInput('riskFreeRate', (parseFloat(e.target.value) || 0) / 100)}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^0-9.-]/g, '');
+                  updateInput('riskFreeRate', (parseFloat(value) || 0) / 100);
+                }}
+                onFocus={(e) => e.target.select()}
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Equity Risk Premium (%)</label>
               <div className="flex items-center space-x-2">
                 <input
-                  type="number"
-                  step="0.01"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  type="text"
+                  inputMode="decimal"
+                  className="flex-1 px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={(inputs.equityRiskPremium * 100).toFixed(2)}
-                  onChange={(e) => updateInput('equityRiskPremium', (parseFloat(e.target.value) || 0) / 100)}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^0-9.-]/g, '');
+                    updateInput('equityRiskPremium', (parseFloat(value) || 0) / 100);
+                  }}
+                  onFocus={(e) => e.target.select()}
                 />
                 <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
                   Market: 6.0%
@@ -2862,11 +2882,15 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
             <div>
               <label className="block text-sm font-medium mb-1">Beta</label>
               <input
-                type="number"
-                step="0.01"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={inputs.beta}
-                onChange={(e) => updateInput('beta', parseFloat(e.target.value) || 0)}
+                type="text"
+                inputMode="decimal"
+                className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={inputs.beta.toFixed(2)}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^0-9.-]/g, '');
+                  updateInput('beta', parseFloat(value) || 0);
+                }}
+                onFocus={(e) => e.target.select()}
               />
             </div>
           </div>
@@ -2875,31 +2899,43 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
             <div>
               <label className="block text-sm font-medium mb-1">Cost of Debt (%)</label>
               <input
-                type="number"
-                step="0.01"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                type="text"
+                inputMode="decimal"
+                className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={(inputs.costOfDebt * 100).toFixed(2)}
-                onChange={(e) => updateInput('costOfDebt', (parseFloat(e.target.value) || 0) / 100)}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^0-9.-]/g, '');
+                  updateInput('costOfDebt', (parseFloat(value) || 0) / 100);
+                }}
+                onFocus={(e) => e.target.select()}
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Tax Rate (%)</label>
               <input
-                type="number"
-                step="0.01"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                type="text"
+                inputMode="decimal"
+                className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={(inputs.taxRate * 100).toFixed(2)}
-                onChange={(e) => updateInput('taxRate', (parseFloat(e.target.value) || 0) / 100)}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^0-9.-]/g, '');
+                  updateInput('taxRate', (parseFloat(value) || 0) / 100);
+                }}
+                onFocus={(e) => e.target.select()}
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Target Debt Ratio (%)</label>
               <input
-                type="number"
-                step="0.01"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                type="text"
+                inputMode="decimal"
+                className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={(inputs.targetDebtRatio * 100).toFixed(2)}
-                onChange={(e) => updateInput('targetDebtRatio', (parseFloat(e.target.value) || 0) / 100)}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^0-9.-]/g, '');
+                  updateInput('targetDebtRatio', (parseFloat(value) || 0) / 100);
+                }}
+                onFocus={(e) => e.target.select()}
               />
             </div>
           </div>
@@ -3929,8 +3965,17 @@ function SensitivityAnalysis({ inputs, outputs, financialData }: { inputs: DCFIn
               const currentPos = ((inputs.currentPrice - min) / range) * 100;
 
               return (
-                <div className="relative pt-6">
-                  <div className="flex justify-between text-sm text-gray-600 mb-2">
+                <div className="relative">
+                  <div 
+                    className="absolute -top-8 text-xs text-white font-bold whitespace-nowrap bg-black px-2 py-1 rounded z-20"
+                    style={{ 
+                      left: `${Math.max(5, Math.min(95, currentPos))}%`,
+                      transform: 'translateX(-50%)'
+                    }}
+                  >
+                    Current: ${formatNumber(inputs.currentPrice, 2)}
+                  </div>
+                  <div className="flex justify-between text-sm text-gray-600 mb-2 mt-6">
                     <span>Bear: ${formatNumber(bearOutputs.intrinsicValuePerShare, 2)}</span>
                     <span>Base: ${formatNumber(baseOutputs.intrinsicValuePerShare, 2)}</span>
                     <span>Bull: ${formatNumber(bullOutputs.intrinsicValuePerShare, 2)}</span>
@@ -3941,18 +3986,9 @@ function SensitivityAnalysis({ inputs, outputs, financialData }: { inputs: DCFIn
                       style={{ width: '100%' }}
                     />
                     <div
-                      className="absolute top-0 w-2 h-10 bg-black -top-2"
+                      className="absolute -top-2 w-2 h-10 bg-black"
                       style={{ left: `${Math.max(0, Math.min(100, currentPos))}%`, transform: 'translateX(-50%)' }}
                     />
-                  </div>
-                  <div 
-                    className="absolute top-0 text-xs text-white font-bold whitespace-nowrap bg-black px-2 py-1 rounded z-10"
-                    style={{ 
-                      left: `${Math.max(0, Math.min(100, currentPos))}%`,
-                      transform: 'translateX(-50%)'
-                    }}
-                  >
-                    Current: ${formatNumber(inputs.currentPrice, 2)}
                   </div>
                 </div>
               );
