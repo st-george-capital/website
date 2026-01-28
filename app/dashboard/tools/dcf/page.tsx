@@ -1688,19 +1688,15 @@ export default function DCFToolPage() {
         <Button onClick={resetInputs} variant="outline">
           Reset Assumptions
         </Button>
-        <Button onClick={() => console.log('Current inputs:', inputs)} variant="outline">
-          Debug Inputs
-        </Button>
-        <Button onClick={() => console.log('Current outputs:', outputs)} variant="outline">
-          Debug Outputs
-        </Button>
-        <Button onClick={() => exportToCSV(inputs, outputs)} variant="outline" className="flex items-center">
+        
+        
+        <Button onClick={() => exportToCSV(inputs, outputs)} className="flex items-center bg-blue-600 text-white hover:bg-blue-700">
           <Download className="w-4 h-4 mr-2" />
-          Export CSV
+          📊 Export CSV
         </Button>
-        <Button onClick={() => exportToExcel(inputs, outputs, financialData, selectedCompany)} variant="outline" className="flex items-center">
+        <Button onClick={() => exportToExcel(inputs, outputs, financialData, selectedCompany)} className="flex items-center bg-green-600 text-white hover:bg-green-700">
           <Download className="w-4 h-4 mr-2" />
-          Export Excel (Full)
+          📈 Export Excel
         </Button>
         <Button onClick={() => printSnapshot(inputs, outputs)} variant="outline">
           Print Snapshot
@@ -2359,30 +2355,30 @@ export default function DCFToolPage() {
               const currentPos = ((inputs.currentPrice - min) / range) * 100;
 
               return (
-                <div className="relative pt-8">
+                <div className="relative pt-6">
+                  <div className="flex justify-between text-sm text-gray-600 mb-2">
+                    <span>Bear: ${formatNumber(bearOutputs.intrinsicValuePerShare, 2)}</span>
+                    <span>Base: ${formatNumber(baseOutputs.intrinsicValuePerShare, 2)}</span>
+                    <span>Bull: ${formatNumber(bullOutputs.intrinsicValuePerShare, 2)}</span>
+                  </div>
+                  <div className="h-6 bg-gray-200 rounded-full relative">
+                    <div
+                      className="absolute top-0 h-6 bg-gradient-to-r from-red-400 via-blue-400 to-green-400 rounded-full"
+                      style={{ width: '100%' }}
+                    />
+                    <div
+                      className="absolute top-0 w-2 h-10 bg-black -top-2"
+                      style={{ left: `${Math.max(0, Math.min(100, currentPos))}%`, transform: 'translateX(-50%)' }}
+                    />
+                  </div>
                   <div 
-                    className="absolute -top-1 text-xs text-gray-900 font-bold whitespace-nowrap bg-white px-2 py-1 rounded border-2 border-black z-10"
+                    className="absolute top-0 text-xs text-white font-bold whitespace-nowrap bg-black px-2 py-1 rounded z-10"
                     style={{ 
                       left: `${Math.max(0, Math.min(100, currentPos))}%`,
                       transform: 'translateX(-50%)'
                     }}
                   >
                     Current: ${formatNumber(inputs.currentPrice, 2)}
-                  </div>
-                  <div className="flex justify-between text-sm text-gray-600 mb-2">
-                    <span>Bear: ${formatNumber(bearOutputs.intrinsicValuePerShare, 2)}</span>
-                    <span>Base: ${formatNumber(baseOutputs.intrinsicValuePerShare, 2)}</span>
-                    <span>Bull: ${formatNumber(bullOutputs.intrinsicValuePerShare, 2)}</span>
-                  </div>
-                  <div className="h-4 bg-gray-200 rounded-full relative">
-                    <div
-                      className="absolute top-0 h-4 bg-gradient-to-r from-red-400 via-blue-400 to-green-400 rounded-full"
-                      style={{ width: '100%' }}
-                    />
-                    <div
-                      className="absolute top-0 w-2 h-4 bg-black"
-                      style={{ left: `${Math.max(0, Math.min(100, currentPos))}%`, transform: 'translateX(-50%)' }}
-                    />
                   </div>
                 </div>
               );
@@ -3149,17 +3145,17 @@ function DCFImpliedMultiples({ inputs, outputs }: { inputs: DCFInputs; outputs: 
   const multiples = [
     {
       name: 'EV/EBITDA',
-      value: (outputs.enterpriseValue / approxEBITDA).toFixed(1) + 'x',
+      value: approxEBITDA > 0 ? formatNumber(outputs.enterpriseValue / approxEBITDA, 1) + 'x' : 'N/A',
       description: 'Enterprise Value to EBITDA multiple'
     },
     {
       name: 'EV/EBIT',
-      value: (outputs.enterpriseValue / lastYearEBIT).toFixed(1) + 'x',
+      value: lastYearEBIT > 0 ? formatNumber(outputs.enterpriseValue / lastYearEBIT, 1) + 'x' : 'N/A',
       description: 'Enterprise Value to EBIT multiple'
     },
     {
       name: 'P/E',
-      value: lastYearNOPAT > 0 ? (outputs.intrinsicValuePerShare / (lastYearNOPAT / inputs.sharesDiluted)).toFixed(1) + 'x' : 'N/A',
+      value: lastYearNOPAT > 0 ? formatNumber(outputs.intrinsicValuePerShare / (lastYearNOPAT / inputs.sharesDiluted), 1) + 'x' : 'N/A',
       description: 'Price to Earnings multiple (based on last year NOPAT per share)'
     }
   ];
@@ -3873,30 +3869,30 @@ function SensitivityAnalysis({ inputs, outputs, financialData }: { inputs: DCFIn
               const currentPos = ((inputs.currentPrice - min) / range) * 100;
 
               return (
-                <div className="relative pt-8">
+                <div className="relative pt-6">
+                  <div className="flex justify-between text-sm text-gray-600 mb-2">
+                    <span>Bear: ${formatNumber(bearOutputs.intrinsicValuePerShare, 2)}</span>
+                    <span>Base: ${formatNumber(baseOutputs.intrinsicValuePerShare, 2)}</span>
+                    <span>Bull: ${formatNumber(bullOutputs.intrinsicValuePerShare, 2)}</span>
+                  </div>
+                  <div className="h-6 bg-gray-200 rounded-full relative">
+                    <div
+                      className="absolute top-0 h-6 bg-gradient-to-r from-red-400 via-blue-400 to-green-400 rounded-full"
+                      style={{ width: '100%' }}
+                    />
+                    <div
+                      className="absolute top-0 w-2 h-10 bg-black -top-2"
+                      style={{ left: `${Math.max(0, Math.min(100, currentPos))}%`, transform: 'translateX(-50%)' }}
+                    />
+                  </div>
                   <div 
-                    className="absolute -top-1 text-xs text-gray-900 font-bold whitespace-nowrap bg-white px-2 py-1 rounded border-2 border-black z-10"
+                    className="absolute top-0 text-xs text-white font-bold whitespace-nowrap bg-black px-2 py-1 rounded z-10"
                     style={{ 
                       left: `${Math.max(0, Math.min(100, currentPos))}%`,
                       transform: 'translateX(-50%)'
                     }}
                   >
                     Current: ${formatNumber(inputs.currentPrice, 2)}
-                  </div>
-                  <div className="flex justify-between text-sm text-gray-600 mb-2">
-                    <span>Bear: ${formatNumber(bearOutputs.intrinsicValuePerShare, 2)}</span>
-                    <span>Base: ${formatNumber(baseOutputs.intrinsicValuePerShare, 2)}</span>
-                    <span>Bull: ${formatNumber(bullOutputs.intrinsicValuePerShare, 2)}</span>
-                  </div>
-                  <div className="h-4 bg-gray-200 rounded-full relative">
-                    <div
-                      className="absolute top-0 h-4 bg-gradient-to-r from-red-400 via-blue-400 to-green-400 rounded-full"
-                      style={{ width: '100%' }}
-                    />
-                    <div
-                      className="absolute top-0 w-2 h-4 bg-black"
-                      style={{ left: `${Math.max(0, Math.min(100, currentPos))}%`, transform: 'translateX(-50%)' }}
-                    />
                   </div>
                 </div>
               );
