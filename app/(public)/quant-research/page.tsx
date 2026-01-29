@@ -97,7 +97,7 @@ export default function QuantResearchPage() {
         </div>
       </Section>
 
-      <Section dark>
+      <Section dark className="!py-12 !md:py-16">
         <SectionHeader
           title="What We Do"
           subtitle="Educational programs and research activities"
@@ -128,7 +128,7 @@ export default function QuantResearchPage() {
         </div>
       </Section>
 
-      <Section>
+      <Section className="!py-12 !md:py-16">
         <SectionHeader
           title="Research Excellence"
           subtitle="Our approach to quantitative financial research"
@@ -207,7 +207,7 @@ export default function QuantResearchPage() {
         </div>
       </Section>
 
-      <Section>
+      <Section className="!py-12 !md:py-16">
         <div className="max-w-4xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}

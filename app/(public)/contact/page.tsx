@@ -71,7 +71,7 @@ export default function ContactPage() {
       />
 
       {/* Join Our Team Section - MOVED TO TOP */}
-      <Section dark>
+      <Section dark className="!py-12 !md:py-16">
         <div className="max-w-6xl mx-auto">
           <div className="grid md:grid-cols-2 gap-16 items-center mb-16">
             <motion.div
@@ -183,7 +183,7 @@ export default function ContactPage() {
         </div>
       </Section>
 
-      <Section>
+      <Section className="!py-12 !md:py-16">
         <div className="grid lg:grid-cols-2 gap-16">
           {/* Contact Form */}
           <motion.div
@@ -381,7 +381,7 @@ export default function ContactPage() {
       </Section>
 
       {/* Map Section */}
-      <Section dark>
+      <Section dark className="!py-12 !md:py-16">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="font-serif text-4xl font-bold mb-6">Visit Us</h2>
           <p className="text-xl mb-8">

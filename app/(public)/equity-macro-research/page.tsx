@@ -108,7 +108,7 @@ export default function EquityMacroResearchPage() {
         </div>
       </Section>
 
-      <Section dark>
+      <Section dark className="!py-12 !md:py-16">
         <SectionHeader
           title="Research Objectives"
           subtitle="Three pillars of our analytical framework"
@@ -146,7 +146,7 @@ export default function EquityMacroResearchPage() {
         </div>
       </Section>
 
-      <Section>
+      <Section className="!py-12 !md:py-16">
         <SectionHeader
           title="Investment Principles"
           subtitle="Our disciplined approach to equity investing"

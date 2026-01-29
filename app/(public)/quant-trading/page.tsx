@@ -114,7 +114,7 @@ export default function QuantTradingPage() {
         </div>
       </Section>
 
-      <Section dark>
+      <Section dark className="!py-12 !md:py-16">
         <SectionHeader
           title="Focus Areas"
           subtitle="Core competencies and research domains"
@@ -148,7 +148,7 @@ export default function QuantTradingPage() {
         </div>
       </Section>
 
-      <Section>
+      <Section className="!py-12 !md:py-16">
         <SectionHeader
           title="Featured Projects"
           subtitle="Recent and ongoing research initiatives"

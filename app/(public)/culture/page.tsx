@@ -57,9 +57,9 @@ export default function CulturePage() {
         </div>
       </Section>
 
-      <Section dark>
+      <Section dark className="!py-12 !md:py-16">
         <div className="max-w-6xl mx-auto">
-          <h3 className="font-serif text-3xl md:text-4xl font-bold mb-12 text-center">
+          <h3 className="font-serif text-3xl md:text-4xl font-bold mb-8 text-center">
             Life at SGC
           </h3>
           
