@@ -47,24 +47,30 @@ export default function CareerPanelsPage() {
     <>
       <Hero
         title="Career Panels"
-        subtitle="Connecting students with industry leaders through exclusive panel discussions and networking opportunities"
+        breadcrumb="What We Do / Career Panels"
         height="small"
+        align="left"
       />
 
-      <Section>
-        <div className="max-w-5xl mx-auto text-center mb-16">
-          <h3 className="font-serif text-3xl md:text-4xl font-bold mb-8">
-            Industry Connections
-          </h3>
-          <p className="text-lg leading-relaxed max-w-3xl mx-auto">
-            St. George Capital hosts exclusive career panel events featuring professionals from 
-            top-tier financial institutions. These intimate sessions provide members with direct 
-            access to industry leaders, offering insights into career paths, recruitment processes, 
-            and the day-to-day realities of working in quantitative finance.
-          </p>
+      <Section className="!py-12 !md:py-16">
+        <div className="grid md:grid-cols-2 gap-20 items-start">
+          <div>
+            <h2 className="font-serif text-5xl md:text-6xl font-bold">
+              Industry Connections
+            </h2>
+          </div>
+          <div className="space-y-6">
+            <p className="text-lg text-gray-600 leading-relaxed">
+              St. George Capital hosts exclusive career panel events featuring professionals from top-tier financial institutions. These intimate sessions provide members with direct access to industry leaders, offering insights into career paths, recruitment processes, and the day-to-day realities of working in quantitative finance.
+            </p>
+          </div>
         </div>
+      </Section>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
+      <Section dark>
+        <div className="max-w-6xl mx-auto">
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {firms.map((firm, index) => (
             <Card key={index} className="border-none shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
@@ -88,9 +94,10 @@ export default function CareerPanelsPage() {
             </Card>
           ))}
         </div>
+        </div>
       </Section>
 
-      <Section dark>
+      <Section>
         <div className="max-w-7xl mx-auto">
           <h3 className="font-serif text-3xl md:text-4xl font-bold mb-12 text-center">
             What to Expect

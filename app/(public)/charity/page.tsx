@@ -1,3 +1,4 @@
+import { Hero } from '@/components/hero';
 import { Section, SectionHeader } from '@/components/section';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Heart, Users, TrendingUp, Calendar, DollarSign } from 'lucide-react';
@@ -23,33 +24,23 @@ export default async function CharityPage() {
 
   return (
     <>
-      <Section className="pt-32 pb-16" dark>
-        <div className="max-w-4xl">
-          <SectionHeader
-            title="Charity & Impact"
-            subtitle="Giving back to our community through strategic partnerships and fundraising initiatives"
-          />
-        </div>
-      </Section>
+      <Hero
+        title="Charity & Impact"
+        breadcrumb="What We Do / Charity & Impact"
+        height="small"
+        align="left"
+      />
 
-      <Section>
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
-            <div className="inline-block bg-[#030116]/10 rounded-2xl px-8 py-6 mb-8">
-              <div className="flex items-baseline justify-center space-x-2">
-                <span className="text-5xl md:text-6xl font-bold text-[#030116]">
-                  ${Number(charityAmount).toLocaleString()}
-                </span>
-              </div>
-              <p className="text-lg mt-2">Total Raised for SickKids</p>
-            </div>
-            <h3 className="font-serif text-3xl md:text-4xl font-bold mb-4">
+      <Section className="!py-12 !md:py-16">
+        <div className="grid md:grid-cols-2 gap-20 items-start">
+          <div>
+            <h2 className="font-serif text-5xl md:text-6xl font-bold">
               Registered Not-for-Profit Organization
-            </h3>
-            <p className="text-lg leading-relaxed max-w-3xl mx-auto">
-              St. George Capital is proud to operate as a registered not-for-profit organization. 
-              Beyond developing expertise in quantitative finance, we're committed to creating 
-              positive impact in our community through strategic charitable initiatives.
+            </h2>
+          </div>
+          <div className="space-y-6">
+            <p className="text-lg text-gray-600 leading-relaxed">
+              St. George Capital is proud to operate as a registered not-for-profit organization. Beyond developing expertise in quantitative finance, we're committed to creating positive impact in our community through strategic charitable initiatives.
             </p>
           </div>
         </div>
@@ -57,11 +48,22 @@ export default async function CharityPage() {
 
       <Section dark>
         <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <div className="inline-block bg-white/10 rounded-2xl px-8 py-6 mb-8">
+              <div className="flex items-baseline justify-center space-x-2">
+                <span className="text-5xl md:text-6xl font-bold text-white">
+                  ${Number(charityAmount).toLocaleString()}
+                </span>
+              </div>
+              <p className="text-lg mt-2 text-white/80">Total Raised for SickKids</p>
+            </div>
+          </div>
+
           <h3 className="font-serif text-3xl md:text-4xl font-bold mb-12 text-center">
             Our Partnership with SickKids Foundation
           </h3>
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-16">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-12">
             <div>
               <p className="text-lg leading-relaxed mb-6">
                 We've established a meaningful partnership with The Hospital for Sick Children (SickKids Foundation), 

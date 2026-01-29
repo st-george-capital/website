@@ -48,13 +48,32 @@ export default async function StrategyPage() {
   return (
     <>
       <Hero
-        title="Our Strategy & Research"
-        subtitle="Investment strategies and industry deep-dives"
+        title="Strategy & Research"
+        breadcrumb="What We Do / Strategy & Research"
         height="small"
+        align="left"
       />
 
+      <Section className="!py-12 !md:py-16">
+        <div className="grid md:grid-cols-2 gap-20 items-start">
+          <div>
+            <h2 className="font-serif text-5xl md:text-6xl font-bold">
+              Predicting and Positioning in the Markets
+            </h2>
+          </div>
+          <div className="space-y-6">
+            <p className="text-lg text-gray-600 leading-relaxed">
+              Taking our extensive research and understanding of the market, we dive into the driving forces behind market movements and position our portfolio to capitalize on emerging opportunities.
+            </p>
+            <p className="text-lg text-gray-600 leading-relaxed">
+              Through rigorous analysis and systematic positioning, we transform market insights into actionable investment strategies.
+            </p>
+          </div>
+        </div>
+      </Section>
+
       {/* Market Strategy & Outlooks */}
-      <Section className="pt-16" dark>
+      <Section dark>
         <div className="max-w-6xl mx-auto">
           <SectionHeader
             title="Market Strategy & Outlooks"
