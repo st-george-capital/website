@@ -65,28 +65,50 @@ export default function ContactPage() {
   return (
     <>
       <Hero
-        title="Get In Touch"
-        subtitle="Have questions? Want to join our team? We'd love to hear from you."
+        title="Join Us"
+        breadcrumb="Opportunities / Join Us"
         height="small"
+        align="left"
       />
 
-      {/* Join Our Team Section - MOVED TO TOP */}
+      <Section className="!py-12 !md:py-16">
+        <div className="grid md:grid-cols-2 gap-20 items-start">
+          <div>
+            <h2 className="font-serif text-5xl md:text-6xl font-bold">
+              Work with the Best
+            </h2>
+          </div>
+          <div className="space-y-6">
+            <p className="text-lg text-gray-600 leading-relaxed">
+              Learn from our experienced leadership team with top internship placements at leading financial institutions. Join a community driven by a passion for markets and teaching, working alongside like-minded peers who share your ambition.
+            </p>
+            <p className="text-lg text-gray-600 leading-relaxed">
+              We're always looking for talented individuals to join our quantitative trading and fundamental research teams.
+            </p>
+          </div>
+        </div>
+      </Section>
+
+      {/* Join Our Team Section - Image + Job Postings */}
       <Section dark className="!py-12 !md:py-16">
         <div className="max-w-6xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-16 items-center mb-16">
+          <div className="grid md:grid-cols-2 gap-16 items-center mb-12">
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.8 }}
+              className="relative h-[400px] rounded-2xl overflow-hidden"
             >
-              <h2 className="font-serif text-4xl font-bold mb-6">Join Our Team</h2>
-              <p className="text-xl text-white/80 leading-relaxed mb-6">
-                We're always looking for talented individuals to join our quantitative trading and fundamental research teams.
-              </p>
-              <p className="text-lg text-white/70 leading-relaxed">
-                Explore our current opportunities below and become part of Canada's premier student-led investment organization.
-              </p>
+              <img
+                src="/images/webphotos/joinus.jpg"
+                alt="Join St. George Capital"
+                className="w-full h-full object-cover"
+                style={{ imageRendering: 'auto' }}
+                loading="eager"
+                decoding="async"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
             </motion.div>
             <motion.div
               initial={{ opacity: 0, x: 30 }}
@@ -94,17 +116,10 @@ export default function ContactPage() {
               viewport={{ once: true }}
               transition={{ duration: 0.8 }}
             >
-              <div className="relative w-full h-[400px] rounded-2xl overflow-hidden shadow-2xl">
-                <img
-                  src="/images/webphotos/joinus.jpg"
-                  alt="Join St. George Capital"
-                  className="w-full h-full object-cover"
-                  style={{ imageRendering: 'auto' }}
-                  loading="eager"
-                  decoding="async"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-              </div>
+              <h2 className="font-serif text-3xl md:text-4xl font-bold mb-6">Current Opportunities</h2>
+              <p className="text-lg text-white/80 leading-relaxed">
+                Explore our open positions below and become part of Canada's premier student-led investment organization.
+              </p>
             </motion.div>
           </div>
 

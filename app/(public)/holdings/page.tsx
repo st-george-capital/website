@@ -74,16 +74,31 @@ export default async function HoldingsPage() {
     <>
       <Hero
         title="Our Holdings"
-        subtitle="Current investment positions and detailed analysis"
+        breadcrumb="What We Do / Our Holdings"
         height="small"
+        align="left"
       />
 
-      <Section>
+      <Section className="!py-12 !md:py-16">
+        <div className="grid md:grid-cols-2 gap-20 items-start">
+          <div>
+            <h2 className="font-serif text-5xl md:text-6xl font-bold">
+              Fundamental Investing
+            </h2>
+          </div>
+          <div className="space-y-6">
+            <p className="text-lg text-gray-600 leading-relaxed">
+              Following tried and true investment methodology, our portfolio focuses on 10-15 diversified equities that emphasize diversification across market regimes based on knowledge from our various educational backgrounds.
+            </p>
+            <p className="text-lg text-gray-600 leading-relaxed">
+              Each holding is backed by rigorous quantitative and fundamental analysis, combining deep sector expertise with disciplined risk management.
+            </p>
+          </div>
+        </div>
+      </Section>
+
+      <Section dark>
         <div className="max-w-6xl mx-auto">
-          <p className="text-lg text-center mb-12 max-w-3xl mx-auto">
-            Our active investment positions represent carefully researched opportunities.
-            Each holding is backed by rigorous quantitative and fundamental analysis.
-          </p>
 
           {theses.length === 0 ? (
             <Card>
