@@ -38,7 +38,7 @@ export function VideoHero() {
       {/* Pause/Play Button - Top Right */}
       <button
         onClick={togglePlayPause}
-        className="absolute top-8 right-8 z-20 w-12 h-12 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm transition-all duration-200 border border-white/30"
+        className="absolute top-24 right-8 z-20 w-12 h-12 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm transition-all duration-200 border border-white/30"
         aria-label={isPaused ? 'Play video' : 'Pause video'}
       >
         {isPaused ? (
