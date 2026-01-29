@@ -49,20 +49,18 @@ export function VideoHero() {
       </button>
 
       {/* Content */}
-      <div className="relative z-10 h-full flex flex-col justify-center items-center px-6 lg:px-8">
-        {/* Main Heading */}
-        <h1 className="text-white text-5xl md:text-7xl lg:text-8xl font-serif font-bold text-center mb-8 tracking-tight">
+      <div className="relative z-10 h-full flex flex-col justify-center px-6 lg:px-16">
+        {/* Main Heading - Left Aligned */}
+        <h1 className="text-white text-5xl md:text-6xl lg:text-7xl font-serif font-bold text-left mb-8 tracking-tight max-w-4xl">
           Where Passion<br />Becomes Practice
         </h1>
 
-        {/* Bottom Blue Text Block */}
-        <div className="absolute bottom-12 left-0 right-0 px-6 lg:px-16">
-          <div className="max-w-2xl">
-            <div className="bg-[#1e3a8a]/90 backdrop-blur-sm px-8 py-6 rounded-lg border-l-4 border-blue-400">
-              <p className="text-white/95 text-base md:text-lg leading-relaxed">
-                A student-led investment community grounded in mentorship, collaboration, and hands-on learning in the markets.
-              </p>
-            </div>
+        {/* Bottom Blue Text Block - Full Width */}
+        <div className="absolute bottom-0 left-0 right-0">
+          <div className="bg-[#1e3a8a]/90 backdrop-blur-sm border-t-4 border-blue-400 py-8 px-6 lg:px-16">
+            <p className="text-white/95 text-base md:text-lg leading-relaxed max-w-3xl">
+              A student-led investment community grounded in mentorship, collaboration, and hands-on learning in the markets.
+            </p>
           </div>
         </div>
       </div>
