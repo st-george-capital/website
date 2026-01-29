@@ -28,9 +28,28 @@ export default async function ResearchPage() {
     <>
       <Hero
         title="Research & Insights"
-        subtitle="Institutional-grade analysis from our research divisions"
-        height="medium"
+        breadcrumb="What We Do / Research & Insights"
+        height="small"
+        align="left"
       />
+
+      <Section className="!py-12 !md:py-16">
+        <div className="grid md:grid-cols-2 gap-20 items-start">
+          <div>
+            <h2 className="font-serif text-5xl md:text-6xl font-bold">
+              Analyzing Current Events
+            </h2>
+          </div>
+          <div className="space-y-6">
+            <p className="text-lg text-gray-600 leading-relaxed">
+              We examine current events and forecast their impact by analyzing historical patterns and market mechanics. Our research uncovers opportunities through deep understanding of how markets respond to economic, political, and social developments.
+            </p>
+            <p className="text-lg text-gray-600 leading-relaxed">
+              By combining rigorous historical analysis with real-time data, we identify mispriced assets and emerging trends before they become consensus.
+            </p>
+          </div>
+        </div>
+      </Section>
 
       <Section>
         <div className="max-w-7xl mx-auto">

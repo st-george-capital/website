@@ -65,21 +65,36 @@ export default function QuantResearchPage() {
         </div>
       </Section>
 
-      {/* Professional Image */}
+      {/* Image + Content Section */}
       <Section dark>
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
-          className="relative h-[500px] rounded-2xl overflow-hidden"
-        >
-          <img 
-            src="/images/webphotos/quantresearch.jpg" 
-            alt="Quantitative Research Team" 
-            className="w-full h-full object-cover"
-          />
-        </motion.div>
+        <div className="grid md:grid-cols-2 gap-16 items-center">
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+          >
+            <h3 className="font-serif text-3xl md:text-4xl font-bold mb-6">
+              Advancing Financial Knowledge
+            </h3>
+            <p className="text-lg text-white/80 leading-relaxed">
+              Through workshops, seminars, and collaborative research projects, we cultivate the next generation of quantitative finance professionals.
+            </p>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+            className="relative h-[400px] rounded-2xl overflow-hidden"
+          >
+            <img 
+              src="/images/webphotos/quantresearch.jpg" 
+              alt="Quantitative Research Team" 
+              className="w-full h-full object-cover"
+            />
+          </motion.div>
+        </div>
       </Section>
 
       <Section dark>

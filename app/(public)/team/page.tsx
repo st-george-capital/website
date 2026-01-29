@@ -67,7 +67,7 @@ export default async function TeamPage() {
           </div>
           <div className="space-y-6">
             <p className="text-lg text-gray-600 leading-relaxed">
-              Our leadership team articulates and communicates our vision and guides our extraordinary people, setting the strategic direction for our firm.
+              Our leadership team articulates and communicates our vision and guides our extraordinary people, setting the strategic direction for our team.
             </p>
           </div>
         </div>

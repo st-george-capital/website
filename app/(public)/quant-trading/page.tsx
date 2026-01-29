@@ -82,21 +82,36 @@ export default function QuantTradingPage() {
         </div>
       </Section>
 
-      {/* Professional Image */}
+      {/* Image + Content Section */}
       <Section dark>
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
-          className="relative h-[500px] rounded-2xl overflow-hidden"
-        >
-          <img 
-            src="/images/webphotos/quanttrading.jpg" 
-            alt="Quantitative Trading Team" 
-            className="w-full h-full object-cover"
-          />
-        </motion.div>
+        <div className="grid md:grid-cols-2 gap-16 items-center">
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+            className="relative h-[400px] rounded-2xl overflow-hidden"
+          >
+            <img 
+              src="/images/webphotos/quanttrading.jpg" 
+              alt="Quantitative Trading Team" 
+              className="w-full h-full object-cover"
+            />
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+          >
+            <h3 className="font-serif text-3xl md:text-4xl font-bold mb-6">
+              Building Systematic Strategies
+            </h3>
+            <p className="text-lg text-white/80 leading-relaxed">
+              Our members develop and backtest quantitative strategies, learning the full lifecycle of algorithmic trading from research to production deployment.
+            </p>
+          </motion.div>
+        </div>
       </Section>
 
       <Section dark>
