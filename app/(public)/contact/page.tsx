@@ -73,12 +73,36 @@ export default function ContactPage() {
       {/* Join Our Team Section - MOVED TO TOP */}
       <Section dark>
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="font-serif text-4xl font-bold mb-6">Join Our Team</h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              We're always looking for talented individuals to join our quantitative trading and fundamental research teams.
-              Explore our current opportunities below.
-            </p>
+          <div className="grid md:grid-cols-2 gap-16 items-center mb-16">
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+            >
+              <h2 className="font-serif text-4xl font-bold mb-6">Join Our Team</h2>
+              <p className="text-xl text-white/80 leading-relaxed mb-6">
+                We're always looking for talented individuals to join our quantitative trading and fundamental research teams.
+              </p>
+              <p className="text-lg text-white/70 leading-relaxed">
+                Explore our current opportunities below and become part of Canada's premier student-led investment organization.
+              </p>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+            >
+              <div className="relative w-full h-[400px] rounded-2xl overflow-hidden shadow-2xl">
+                <img
+                  src="/images/exec team/webphotos/joinus.jpg"
+                  alt="Join St. George Capital"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+              </div>
+            </motion.div>
           </div>
 
           {/* 🔥 JOB POSTINGS - RIGHT HERE AT THE TOP */}

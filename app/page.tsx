@@ -167,11 +167,41 @@ export default function HomePage() {
 
       {/* Mission Section */}
       <Section>
-        <SectionHeader
-          title="Engineered @ UofT For UofT"
-          subtitle="St. George Capital is Canada's premier student-led quantitative and fundamental research organization at the University of Toronto. We develop tomorrow's market leaders through rigorous training, cutting-edge research, and real-world market experience."
-          centered
-        />
+        <div className="grid md:grid-cols-2 gap-16 items-center mb-20">
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+          >
+            <h2 className="font-serif text-4xl md:text-5xl font-bold mb-6">
+              Engineered @ UofT<br />For UofT
+            </h2>
+            <p className="text-xl leading-relaxed mb-6">
+              St. George Capital is Canada's premier student-led quantitative and fundamental research organization at the University of Toronto.
+            </p>
+            <p className="text-xl leading-relaxed text-gray-600">
+              We develop tomorrow's market leaders through rigorous training, cutting-edge research, and real-world market experience.
+            </p>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+            className="relative"
+          >
+            <div className="relative w-full h-[500px] rounded-2xl overflow-hidden shadow-2xl">
+              <img
+                src="/images/exec team/webphotos/engineeredatuoft.jpg"
+                alt="SGC Team at University of Toronto"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+            </div>
+          </motion.div>
+        </div>
+        
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16">
           <motion.div
@@ -238,10 +268,10 @@ export default function HomePage() {
 
       {/* Vision Section */}
       <Section dark>
-        <div className="max-w-4xl mx-auto text-center">
+        <div className="grid md:grid-cols-2 gap-16 items-center">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
           >
@@ -252,6 +282,21 @@ export default function HomePage() {
             <p className="text-xl text-white/70 leading-relaxed">
               Our vision is to establish the preeminent student-led investment organization in Canada—recognized for producing exceptional talent, pioneering quantitative and fundamental research, and maintaining institutional-grade standards. We cultivate a culture of excellence where ambitious students develop into the next generation of portfolio managers, quantitative researchers, and investment professionals.
             </p>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+          >
+            <div className="relative w-full h-[500px] rounded-2xl overflow-hidden shadow-2xl">
+              <img
+                src="/images/exec team/webphotos/market leaders.jpg"
+                alt="St. George Capital Leadership"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+            </div>
           </motion.div>
         </div>
       </Section>

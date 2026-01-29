@@ -63,19 +63,33 @@ export default function CulturePage() {
       </Section>
 
       <Section dark>
-        <div className="max-w-4xl mx-auto text-center">
-          <h3 className="font-serif text-3xl md:text-4xl font-bold mb-8">
+        <div className="max-w-6xl mx-auto">
+          <h3 className="font-serif text-3xl md:text-4xl font-bold mb-12 text-center">
             Life at SGC
           </h3>
-          <p className="text-lg leading-relaxed mb-6">
-            St. George Capital offers a unique experience where students passionate about finance can learn, grow, and make an impact. Our members gain hands-on experience managing a real portfolio, conducting institutional-grade research, and developing sophisticated trading strategies.
-          </p>
-          <p className="text-lg leading-relaxed mb-6">
-            We meet weekly for educational workshops, guest speaker sessions, and collaborative project work. Members are mentored by senior analysts and have opportunities to present their research to the broader team.
-          </p>
-          <p className="text-lg leading-relaxed">
-            Whether you're interested in quantitative trading, equity research, or macro analysis, SGC provides the resources, mentorship, and community to help you succeed.
-          </p>
+          
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="space-y-6">
+              <p className="text-lg leading-relaxed">
+                St. George Capital offers a unique experience where students passionate about finance can learn, grow, and make an impact. Our members gain hands-on experience managing a real portfolio, conducting institutional-grade research, and developing sophisticated trading strategies.
+              </p>
+              <p className="text-lg leading-relaxed">
+                We meet weekly for educational workshops, guest speaker sessions, and collaborative project work. Members are mentored by senior analysts and have opportunities to present their research to the broader team.
+              </p>
+              <p className="text-lg leading-relaxed">
+                Whether you're interested in quantitative trading, equity research, or macro analysis, SGC provides the resources, mentorship, and community to help you succeed.
+              </p>
+            </div>
+            
+            <div className="relative w-full h-[500px] rounded-2xl overflow-hidden shadow-2xl">
+              <img
+                src="/images/exec team/webphotos/culture.jpeg"
+                alt="St. George Capital Team Culture"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+            </div>
+          </div>
         </div>
       </Section>
     </>

@@ -64,16 +64,38 @@ export default function QuantTradingPage() {
       />
 
       <Section>
-        <div className="max-w-4xl">
-          <h2 className="font-serif text-4xl md:text-5xl font-bold mb-6">
-            Building Tomorrow's Trading Systems
-          </h2>
-          <p className="text-xl leading-relaxed mb-6">
-            Our Quantitative Trading division focuses on developing systematic trading strategies that leverage cutting-edge technology, mathematical models, and data science to identify and capture market opportunities.
-          </p>
-          <p className="text-xl leading-relaxed">
-            We combine rigorous academic research with practical implementation, giving members hands-on experience in building production-grade trading systems.
-          </p>
+        <div className="grid md:grid-cols-2 gap-16 items-center">
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+          >
+            <h2 className="font-serif text-4xl md:text-5xl font-bold mb-6">
+              Building Tomorrow's Trading Systems
+            </h2>
+            <p className="text-xl leading-relaxed mb-6">
+              Our Quantitative Trading division focuses on developing systematic trading strategies that leverage cutting-edge technology, mathematical models, and data science to identify and capture market opportunities.
+            </p>
+            <p className="text-xl leading-relaxed">
+              We combine rigorous academic research with practical implementation, giving members hands-on experience in building production-grade trading systems.
+            </p>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+          >
+            <div className="relative w-full h-[500px] rounded-2xl overflow-hidden shadow-2xl">
+              <img
+                src="/images/exec team/webphotos/quanttrading.jpg"
+                alt="Quantitative Trading at SGC"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+            </div>
+          </motion.div>
         </div>
       </Section>
 

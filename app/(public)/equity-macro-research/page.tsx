@@ -58,16 +58,38 @@ export default function EquityMacroResearchPage() {
       />
 
       <Section>
-        <div className="max-w-4xl">
-          <h2 className="font-serif text-4xl md:text-5xl font-bold mb-6">
-            Deep Fundamental Analysis
-          </h2>
-          <p className="text-xl leading-relaxed mb-6">
-            Our Equity & Macro Research division combines traditional fundamental analysis with modern data analytics to generate actionable investment insights across global markets.
-          </p>
-          <p className="text-xl leading-relaxed">
-            We train members in financial modeling, valuation techniques, and macroeconomic analysis—skills essential for careers in equity research, portfolio management, and investment banking.
-          </p>
+        <div className="grid md:grid-cols-2 gap-16 items-center">
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+          >
+            <h2 className="font-serif text-4xl md:text-5xl font-bold mb-6">
+              Deep Fundamental Analysis
+            </h2>
+            <p className="text-xl leading-relaxed mb-6">
+              Our Equity & Macro Research division combines traditional fundamental analysis with modern data analytics to generate actionable investment insights across global markets.
+            </p>
+            <p className="text-xl leading-relaxed">
+              We train members in financial modeling, valuation techniques, and macroeconomic analysis—skills essential for careers in equity research, portfolio management, and investment banking.
+            </p>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+          >
+            <div className="relative w-full h-[500px] rounded-2xl overflow-hidden shadow-2xl">
+              <img
+                src="/images/exec team/webphotos/mne.jpg"
+                alt="Equity & Macro Research at SGC"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+            </div>
+          </motion.div>
         </div>
       </Section>
 
@@ -148,6 +170,22 @@ export default function EquityMacroResearchPage() {
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
           >
+            <div className="relative w-full h-[500px] rounded-2xl overflow-hidden shadow-2xl">
+              <img
+                src="/images/exec team/webphotos/dash.jpg"
+                alt="Research Tools and Resources"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+          >
             <h2 className="font-serif text-4xl md:text-5xl font-bold mb-6">
               Research Process
             </h2>
@@ -178,34 +216,29 @@ export default function EquityMacroResearchPage() {
               </div>
             </div>
           </motion.div>
+        </div>
 
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-          >
-            <Card className="bg-gradient-to-br from-primary/20 to-primary/5 border-primary/20">
-              <CardHeader>
-                <CardTitle className="font-serif text-2xl mb-6">Typical Coverage Areas</CardTitle>
-                <div className="space-y-4">
-                  {[
-                    'Technology & Software',
-                    'Financial Services',
-                    'Consumer & Retail',
-                    'Healthcare & Biotech',
-                    'Energy & Materials',
-                    'Industrials',
-                  ].map((sector) => (
-                    <div key={sector} className="flex items-center space-x-3">
-                      <div className="w-2 h-2 bg-primary rounded-full" />
-                      <span className="text-lg">{sector}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardHeader>
-            </Card>
-          </motion.div>
+        <div className="mt-16 max-w-3xl mx-auto">
+          <Card className="bg-gradient-to-br from-primary/20 to-primary/5 border-primary/20">
+            <CardHeader>
+              <CardTitle className="font-serif text-2xl mb-6 text-center">Typical Coverage Areas</CardTitle>
+              <div className="grid md:grid-cols-2 gap-4">
+                {[
+                  'Technology & Software',
+                  'Financial Services',
+                  'Consumer & Retail',
+                  'Healthcare & Biotech',
+                  'Energy & Materials',
+                  'Industrials',
+                ].map((sector) => (
+                  <div key={sector} className="flex items-center space-x-3">
+                    <div className="w-2 h-2 bg-primary rounded-full" />
+                    <span className="text-lg">{sector}</span>
+                  </div>
+                ))}
+              </div>
+            </CardHeader>
+          </Card>
         </div>
       </Section>
 
