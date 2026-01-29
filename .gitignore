@@ -45,6 +45,5 @@ prisma/*.db-journal
 # Uncomment the line below if you want to keep users.json out of git
 # users.json
 
-# Large video files
-/public/videos/*.mp4
+# Original large video file (keeping compressed version)
 /images/exec\ team/video/*.mp4
