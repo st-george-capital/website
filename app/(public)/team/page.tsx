@@ -88,7 +88,7 @@ export default async function TeamPage() {
       </Section>
 
       {/* Divisions Overview */}
-      <Section>
+      <Section className="!py-12 !md:py-16">
         <SectionHeader
           title="Our Divisions"
           subtitle="Specialized teams working together toward common goals"
@@ -105,27 +105,30 @@ export default async function TeamPage() {
             </Card>
           ))}
         </div>
+      </Section>
 
-        <div className="text-center mt-16">
+      {/* Stats Section - Blue Background */}
+      <Section dark className="!py-12 !md:py-16">
+        <div className="text-center">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-3xl mx-auto">
             <div>
-              <div className="text-4xl font-bold mb-2">2023</div>
-              <p className="text-lg">Founded</p>
+              <div className="text-4xl md:text-5xl font-bold mb-2 text-white">2023</div>
+              <p className="text-lg text-white/80">Founded</p>
             </div>
             <div>
-              <div className="text-4xl font-bold mb-2">80+</div>
-              <p className="text-lg">Members</p>
+              <div className="text-4xl md:text-5xl font-bold mb-2 text-white">80+</div>
+              <p className="text-lg text-white/80">Members</p>
             </div>
             <div>
-              <div className="text-4xl font-bold mb-2">50+</div>
-              <p className="text-lg">Research Projects</p>
+              <div className="text-4xl md:text-5xl font-bold mb-2 text-white">50+</div>
+              <p className="text-lg text-white/80">Research Projects</p>
             </div>
           </div>
         </div>
       </Section>
 
       {/* Why Join Section */}
-      <Section>
+      <Section className="!py-12 !md:py-16">
         <div className="max-w-4xl mx-auto">
           <SectionHeader
             title="Why Join SGC?"
@@ -170,7 +173,7 @@ export default async function TeamPage() {
       </Section>
 
       {/* CTA Section */}
-      <Section dark>
+      <Section dark className="!py-12 !md:py-16">
         <div className="text-center max-w-4xl mx-auto">
           <h2 className="font-serif text-4xl md:text-5xl font-bold mb-6">
             Join Canada's Premier Quantitative Finance Organization
