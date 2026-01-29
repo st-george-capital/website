@@ -51,13 +51,30 @@ export default async function TeamPage() {
   return (
     <>
       <Hero
-        title="Built By Exceptional Minds"
-        subtitle="Meet the team driving innovation at St. George Capital"
+        title="Leadership"
+        breadcrumb="Who We Are / Leadership"
         height="small"
+        align="left"
       />
 
+      {/* Shaping Strategy and Vision */}
+      <Section className="!py-12 !md:py-16">
+        <div className="grid md:grid-cols-2 gap-20 items-start">
+          <div>
+            <h2 className="font-serif text-5xl md:text-6xl font-bold">
+              Shaping Strategy<br />and Vision
+            </h2>
+          </div>
+          <div className="space-y-6">
+            <p className="text-lg text-gray-600 leading-relaxed">
+              Our leadership team articulates and communicates our vision and guides our extraordinary people, setting the strategic direction for our firm.
+            </p>
+          </div>
+        </div>
+      </Section>
+
       {/* Executive Team */}
-      <Section>
+      <Section dark>
         <SectionHeader
           title="Executive Team"
           subtitle="Leadership guiding our organization's vision and operations"
@@ -71,7 +88,7 @@ export default async function TeamPage() {
       </Section>
 
       {/* Divisions Overview */}
-      <Section dark>
+      <Section>
         <SectionHeader
           title="Our Divisions"
           subtitle="Specialized teams working together toward common goals"

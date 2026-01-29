@@ -82,6 +82,23 @@ export default function QuantTradingPage() {
         </div>
       </Section>
 
+      {/* Professional Image */}
+      <Section dark>
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="relative h-[500px] rounded-2xl overflow-hidden"
+        >
+          <img 
+            src="/images/webphotos/quanttrading.jpg" 
+            alt="Quantitative Trading Team" 
+            className="w-full h-full object-cover"
+          />
+        </motion.div>
+      </Section>
+
       <Section dark>
         <SectionHeader
           title="Focus Areas"
