@@ -44,3 +44,7 @@ prisma/*.db-journal
 # User credentials - IMPORTANT: Keep this secure!
 # Uncomment the line below if you want to keep users.json out of git
 # users.json
+
+# Large video files
+/public/videos/*.mp4
+/images/exec\ team/video/*.mp4

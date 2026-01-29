@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Navigation } from '@/components/navigation';
 import { Footer } from '@/components/footer';
-import { Hero } from '@/components/hero';
+import { VideoHero } from '@/components/video-hero';
 import { Button } from '@/components/button';
 import { Section, SectionHeader } from '@/components/section';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/card';
@@ -82,45 +82,8 @@ export default function HomePage() {
     <>
       <Navigation />
       
-      {/* Hero Section */}
-      <Hero
-        title={
-          <>
-            <div>Where Ambition</div>
-            <div>Meets Quantitative</div>
-            <div>Excellence</div>
-          </>
-        }
-        subtitle="Canada's premier student-led quantitative and fundamental research organization. Empowering the next generation of market leaders at the University of Toronto."
-      >
-        <div className="mt-8 mb-2">
-          <div className="text-white/40 text-xs uppercase tracking-[0.3em] mb-4">
-            Our Motto
-          </div>
-          <div className="font-serif text-white text-2xl md:text-3xl font-semibold tracking-wide">
-            <span className="inline-block mx-2">Improvidus</span>
-            <span className="text-white/30">·</span>
-            <span className="inline-block mx-2">Apto</span>
-            <span className="text-white/30">·</span>
-            <span className="inline-block mx-2">Quod Victum</span>
-          </div>
-        </div>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
-          <Link
-            href="/research"
-            className="inline-flex items-center justify-center px-8 py-4 text-lg rounded-lg bg-[#030116] text-white hover:bg-[#06041f] shadow-lg shadow-primary/20 hover:shadow-primary/30 font-medium transition-all duration-200"
-          >
-            <span>Explore Research</span>
-            <ArrowRight className="ml-2 h-5 w-5" />
-          </Link>
-          <Link
-            href="/contact"
-            className="inline-flex items-center justify-center px-8 py-4 text-lg rounded-lg border-2 border-white/30 text-white hover:bg-white/10 font-medium transition-all duration-200"
-          >
-            Join Our Team
-          </Link>
-        </div>
-      </Hero>
+      {/* Video Hero Section */}
+      <VideoHero />
 
       {/* Stats Bar */}
       <Section dark className="py-16 border-t border-white/10">
