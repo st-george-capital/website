@@ -81,6 +81,7 @@ export default function CulturePage() {
                 src="/images/webphotos/culture.jpeg"
                 alt="St. George Capital Team Culture"
                 className="w-full h-full object-cover"
+                loading="lazy"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
             </div>

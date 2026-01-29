@@ -96,6 +96,7 @@ export default function QuantTradingPage() {
               src="/images/webphotos/quanttrading.jpg" 
               alt="Quantitative Trading Team" 
               className="w-full h-full object-cover"
+              loading="lazy"
             />
           </motion.div>
           <motion.div

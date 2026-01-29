@@ -92,6 +92,7 @@ export default function QuantResearchPage() {
               src="/images/webphotos/quantresearch.jpg" 
               alt="Quantitative Research Team" 
               className="w-full h-full object-cover"
+              loading="lazy"
             />
           </motion.div>
         </div>

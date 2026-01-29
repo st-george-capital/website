@@ -90,6 +90,7 @@ export default function EquityMacroResearchPage() {
               src="/images/webphotos/mne.jpg" 
               alt="Equity & Macro Research Team" 
               className="w-full h-full object-cover"
+              loading="lazy"
             />
           </motion.div>
           <motion.div
