@@ -53,7 +53,7 @@ export default async function TeamPage() {
       <Hero
         title="Built By Exceptional Minds"
         subtitle="Meet the team driving innovation at St. George Capital"
-        height="medium"
+        height="small"
       />
 
       {/* Executive Team */}

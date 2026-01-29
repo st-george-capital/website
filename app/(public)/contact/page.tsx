@@ -67,7 +67,7 @@ export default function ContactPage() {
       <Hero
         title="Get In Touch"
         subtitle="Have questions? Want to join our team? We'd love to hear from you."
-        height="medium"
+        height="small"
       />
 
       {/* Join Our Team Section - MOVED TO TOP */}

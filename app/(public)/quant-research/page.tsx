@@ -47,7 +47,7 @@ export default function QuantResearchPage() {
         align="left"
       />
 
-      <Section>
+      <Section className="py-16">
         <div className="grid md:grid-cols-2 gap-20 items-start max-w-6xl mx-auto">
           <div>
             <h2 className="font-serif text-5xl md:text-6xl font-bold">
@@ -199,7 +199,7 @@ export default function QuantResearchPage() {
             </Link>
               <Link 
                 href="/research" 
-                className="inline-flex items-center justify-center px-8 py-4 text-lg rounded-lg border-2 border-white/30 text-white hover:bg-white/10 font-medium transition-all duration-200"
+                className="inline-flex items-center justify-center px-8 py-4 text-lg rounded-lg border-2 border-gray-300 hover:bg-gray-50 font-medium transition-all duration-200"
               >
                 <span>View Research</span>
               </Link>

@@ -1,3 +1,4 @@
+import { Hero } from '@/components/hero';
 import { Section, SectionHeader } from '@/components/section';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Briefcase, Users, Calendar, Award } from 'lucide-react';
@@ -44,14 +45,11 @@ export default function CareerPanelsPage() {
 
   return (
     <>
-      <Section className="pt-32 pb-16" dark>
-        <div className="max-w-4xl">
-          <SectionHeader
-            title="Career Panels"
-            subtitle="Connecting students with industry leaders through exclusive panel discussions and networking opportunities"
-          />
-        </div>
-      </Section>
+      <Hero
+        title="Career Panels"
+        subtitle="Connecting students with industry leaders through exclusive panel discussions and networking opportunities"
+        height="small"
+      />
 
       <Section>
         <div className="max-w-5xl mx-auto text-center mb-16">
