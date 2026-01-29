@@ -47,7 +47,7 @@ export default function QuantResearchPage() {
         align="left"
       />
 
-      <Section className="py-16">
+      <Section className="!py-12 !md:py-16">
         <div className="grid md:grid-cols-2 gap-20 items-start max-w-6xl mx-auto">
           <div>
             <h2 className="font-serif text-5xl md:text-6xl font-bold">

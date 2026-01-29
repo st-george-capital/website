@@ -22,7 +22,7 @@ export function Hero({ title, subtitle, children, height = 'full', pattern = tru
   };
 
   return (
-    <section className={`relative ${heightClasses[height]} flex items-center justify-center overflow-hidden bg-[#030116] pt-20`}>
+    <section className={`relative ${heightClasses[height]} flex items-center ${align === 'center' ? 'justify-center' : 'justify-start'} overflow-hidden bg-[#030116] pt-20`}>
       {/* Background Pattern */}
       {pattern && (
         <div className="absolute inset-0 opacity-10">
@@ -81,7 +81,7 @@ export function Hero({ title, subtitle, children, height = 'full', pattern = tru
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
-              className="text-xl md:text-2xl text-white/70 mb-12 max-w-3xl mx-auto leading-relaxed"
+              className={`text-xl md:text-2xl text-white/70 mb-12 max-w-3xl leading-relaxed ${align === 'center' ? 'mx-auto' : ''}`}
             >
               {subtitle}
             </motion.p>
