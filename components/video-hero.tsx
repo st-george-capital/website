@@ -55,9 +55,9 @@ export function VideoHero() {
           Where Passion<br />Becomes Practice
         </h1>
 
-        {/* Bottom Blue Text Block - Full Width */}
-        <div className="absolute bottom-0 left-0 right-0">
-          <div className="bg-[#1e3a8a]/90 backdrop-blur-sm border-t-4 border-blue-400 py-8 px-6 lg:px-16">
+        {/* Bottom Blue Text Block - Almost Full Width */}
+        <div className="absolute bottom-0 left-0 right-8 lg:right-16">
+          <div className="bg-[#1e3a8a]/90 backdrop-blur-sm py-8 px-6 lg:px-16">
             <p className="text-white/95 text-base md:text-lg leading-relaxed max-w-3xl">
               A student-led investment community grounded in mentorship, collaboration, and hands-on learning in the markets.
             </p>
