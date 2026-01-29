@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Heart, Users, TrendingUp, Calendar, DollarSign } from 'lucide-react';
 import { Button } from '@/components/button';
 import { prisma } from '@/lib/prisma';
+import Link from 'next/link';
 
 // Force dynamic rendering to prevent static generation issues with database calls
 export const dynamic = 'force-dynamic';
@@ -164,9 +165,11 @@ export default async function CharityPage() {
             UofT student, or community partner, there are many ways to contribute to our mission 
             of giving back while building expertise in finance.
           </p>
-          <Button variant="primary" size="lg" className="inline-flex items-center">
-            <span>Contact Us</span>
-          </Button>
+          <Link href="/contact">
+            <Button variant="primary" size="lg" className="inline-flex items-center">
+              <span>Contact Us</span>
+            </Button>
+          </Link>
         </div>
       </Section>
     </>

@@ -3,6 +3,7 @@ import { Section, SectionHeader } from '@/components/section';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Briefcase, Users, Calendar, Award } from 'lucide-react';
 import { Button } from '@/components/button';
+import Link from 'next/link';
 
 export default function CareerPanelsPage() {
   const firms = [
@@ -209,9 +210,11 @@ export default function CareerPanelsPage() {
             <p className="text-lg mb-6">
               Interested in attending our next career panel or bringing your firm to SGC?
             </p>
-            <Button variant="primary" size="lg">
-              Get in Touch
-            </Button>
+            <Link href="/contact">
+              <Button variant="primary" size="lg">
+                Get in Touch
+              </Button>
+            </Link>
           </div>
         </div>
       </Section>
