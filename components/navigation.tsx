@@ -13,7 +13,6 @@ const navItems = [
     submenu: [
       { name: 'Our Mission', href: '/' },
       { name: 'Culture', href: '/culture' },
-      { name: 'Leadership Team', href: '/team' },
       { name: 'Charity & Impact', href: '/charity' },
     ],
   },
@@ -26,6 +25,7 @@ const navItems = [
       { name: 'Equity & Macro Research', href: '/equity-macro-research' },
       { name: 'Our Holdings', href: '/holdings' },
       { name: 'Strategy & Research', href: '/strategy' },
+      { name: 'Career Panels', href: '/career-panels' },
     ],
   },
   {
@@ -33,8 +33,8 @@ const navItems = [
     href: '/research',
   },
   {
-    name: 'Career Panels',
-    href: '/career-panels',
+    name: 'Leadership',
+    href: '/team',
   },
   {
     name: 'Join Us',
