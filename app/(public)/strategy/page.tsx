@@ -73,7 +73,7 @@ export default async function StrategyPage() {
       </Section>
 
       {/* Market Strategy & Outlooks */}
-      <Section dark>
+      <Section dark className="!py-12 !md:py-16">
         <div className="max-w-6xl mx-auto">
           <SectionHeader
             title="Market Strategy & Outlooks"
@@ -81,7 +81,7 @@ export default async function StrategyPage() {
             centered
           />
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12 mb-16">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-8">
             <Card className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors">
               <CardHeader>
                 <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center mb-4">
@@ -134,7 +134,7 @@ export default async function StrategyPage() {
             </Card>
           </div>
 
-          <div className="border-t border-white/10 pt-16">
+          <div className="border-t border-white/10 pt-12">
             <SectionHeader
               title="Investment Strategies"
               subtitle="Annual investment strategies and market positioning"
@@ -143,7 +143,7 @@ export default async function StrategyPage() {
           </div>
 
           {investmentStrategies.length > 0 ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-8">
               {investmentStrategies.map((strategy) => (
                 <Card key={strategy.id} className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors">
                   <CardHeader>
@@ -206,7 +206,7 @@ export default async function StrategyPage() {
       </Section>
 
       {/* Industry Reports */}
-      <Section>
+      <Section className="!py-12 !md:py-16">
         <div className="max-w-6xl mx-auto">
           <SectionHeader
             title="Industry Reports"
@@ -214,7 +214,7 @@ export default async function StrategyPage() {
             centered
           />
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12 mb-16">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-8">
             <Card className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center mb-4">

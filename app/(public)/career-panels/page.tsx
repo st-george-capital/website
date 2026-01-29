@@ -97,9 +97,9 @@ export default function CareerPanelsPage() {
         </div>
       </Section>
 
-      <Section>
+      <Section className="!py-12 !md:py-16">
         <div className="max-w-7xl mx-auto">
-          <h3 className="font-serif text-3xl md:text-4xl font-bold mb-12 text-center">
+          <h3 className="font-serif text-3xl md:text-4xl font-bold mb-8 text-center">
             What to Expect
           </h3>
           
@@ -159,9 +159,9 @@ export default function CareerPanelsPage() {
         </div>
       </Section>
 
-      <Section>
+      <Section className="!py-12 !md:py-16">
         <div className="max-w-4xl mx-auto">
-          <h3 className="font-serif text-3xl md:text-4xl font-bold mb-8 text-center">
+          <h3 className="font-serif text-3xl md:text-4xl font-bold mb-6 text-center">
             Past Panel Topics
           </h3>
           

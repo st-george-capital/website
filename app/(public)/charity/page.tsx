@@ -46,7 +46,7 @@ export default async function CharityPage() {
         </div>
       </Section>
 
-      <Section dark>
+      <Section dark className="!py-12 !md:py-16">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <div className="inline-block bg-white/10 rounded-2xl px-8 py-6 mb-8">
@@ -154,9 +154,9 @@ export default async function CharityPage() {
         </div>
       </Section>
 
-      <Section>
+      <Section className="!py-12 !md:py-16">
         <div className="max-w-4xl mx-auto text-center">
-          <h3 className="font-serif text-3xl md:text-4xl font-bold mb-8">
+          <h3 className="font-serif text-3xl md:text-4xl font-bold mb-6">
             Get Involved
           </h3>
           <p className="text-lg leading-relaxed mb-8">
