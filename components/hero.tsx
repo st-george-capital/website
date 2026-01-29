@@ -52,7 +52,7 @@ export function Hero({ title, subtitle, children, height = 'full', pattern = tru
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
-              className="text-sm text-white/60 mb-6 uppercase tracking-wider"
+              className="text-sm text-white/80 mb-4 uppercase tracking-widest font-light"
             >
               {breadcrumb}
             </motion.p>
