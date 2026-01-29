@@ -1,3 +1,4 @@
+import { Hero } from '@/components/hero';
 import { Section, SectionHeader } from '@/components/section';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Badge } from '@/components/ui/badge';
@@ -71,14 +72,11 @@ export default async function HoldingsPage() {
 
   return (
     <>
-      <Section className="pt-32 pb-16" dark>
-        <div className="max-w-4xl">
-          <SectionHeader
-            title="Our Holdings"
-            subtitle="Current investment positions and detailed analysis"
-          />
-        </div>
-      </Section>
+      <Hero
+        title="Our Holdings"
+        subtitle="Current investment positions and detailed analysis"
+        height="small"
+      />
 
       <Section>
         <div className="max-w-6xl mx-auto">

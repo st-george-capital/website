@@ -41,7 +41,7 @@ export function Hero({ title, subtitle, children, height = 'full', pattern = tru
       <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-transparent to-blue-800/10" />
 
       {/* Content */}
-      <div className={`relative z-10 w-full ${align === 'center' ? 'max-w-7xl mx-auto px-6 lg:px-8 text-center' : 'max-w-6xl mx-auto px-6 lg:px-8 text-left'}`}>
+      <div className={`relative z-10 w-full max-w-7xl mx-auto px-6 lg:px-8 ${align === 'center' ? 'text-center' : 'text-left'}`}>
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}

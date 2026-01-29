@@ -50,7 +50,7 @@ export default async function StrategyPage() {
       <Hero
         title="Our Strategy & Research"
         subtitle="Investment strategies and industry deep-dives"
-        height="medium"
+        height="small"
       />
 
       {/* Market Strategy & Outlooks */}
