@@ -72,7 +72,7 @@ export default function QuantResearchPage() {
           >
             <div className="relative w-full h-[500px] rounded-2xl overflow-hidden shadow-2xl">
               <img
-                src="/images/exec team/webphotos/quantresearch.jpg"
+                src="/images/webphotos/quantresearch.jpg"
                 alt="Quantitative Research at SGC"
                 className="w-full h-full object-cover"
               />

@@ -193,7 +193,7 @@ export default function HomePage() {
           >
             <div className="relative w-full h-[500px] rounded-2xl overflow-hidden shadow-2xl">
               <img
-                src="/images/exec team/webphotos/engineeredatuoft.jpg"
+                src="/images/webphotos/engineeredatuoft.jpg"
                 alt="SGC Team at University of Toronto"
                 className="w-full h-full object-cover"
               />
@@ -291,7 +291,7 @@ export default function HomePage() {
           >
             <div className="relative w-full h-[500px] rounded-2xl overflow-hidden shadow-2xl">
               <img
-                src="/images/exec team/webphotos/market leaders.jpg"
+                src="/images/webphotos/market leaders.jpg"
                 alt="St. George Capital Leadership"
                 className="w-full h-full object-cover"
               />

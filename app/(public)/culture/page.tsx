@@ -83,7 +83,7 @@ export default function CulturePage() {
             
             <div className="relative w-full h-[500px] rounded-2xl overflow-hidden shadow-2xl">
               <img
-                src="/images/exec team/webphotos/culture.jpeg"
+                src="/images/webphotos/culture.jpeg"
                 alt="St. George Capital Team Culture"
                 className="w-full h-full object-cover"
               />

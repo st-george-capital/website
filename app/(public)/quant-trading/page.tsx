@@ -89,7 +89,7 @@ export default function QuantTradingPage() {
           >
             <div className="relative w-full h-[500px] rounded-2xl overflow-hidden shadow-2xl">
               <img
-                src="/images/exec team/webphotos/quanttrading.jpg"
+                src="/images/webphotos/quanttrading.jpg"
                 alt="Quantitative Trading at SGC"
                 className="w-full h-full object-cover"
               />

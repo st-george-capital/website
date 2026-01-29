@@ -83,7 +83,7 @@ export default function EquityMacroResearchPage() {
           >
             <div className="relative w-full h-[500px] rounded-2xl overflow-hidden shadow-2xl">
               <img
-                src="/images/exec team/webphotos/mne.jpg"
+                src="/images/webphotos/mne.jpg"
                 alt="Equity & Macro Research at SGC"
                 className="w-full h-full object-cover"
               />
@@ -172,7 +172,7 @@ export default function EquityMacroResearchPage() {
           >
             <div className="relative w-full h-[500px] rounded-2xl overflow-hidden shadow-2xl">
               <img
-                src="/images/exec team/webphotos/dash.jpg"
+                src="/images/webphotos/dash.jpg"
                 alt="Research Tools and Resources"
                 className="w-full h-full object-cover"
               />

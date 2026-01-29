@@ -96,7 +96,7 @@ export default function ContactPage() {
             >
               <div className="relative w-full h-[400px] rounded-2xl overflow-hidden shadow-2xl">
                 <img
-                  src="/images/exec team/webphotos/joinus.jpg"
+                  src="/images/webphotos/joinus.jpg"
                   alt="Join St. George Capital"
                   className="w-full h-full object-cover"
                 />
