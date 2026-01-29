@@ -51,10 +51,10 @@ export default async function ResearchPage() {
         </div>
       </Section>
 
-      <Section>
+      <Section dark className="!py-12 !md:py-16">
         <div className="max-w-7xl mx-auto">
           {articles.length === 0 ? (
-            <Card>
+            <Card className="bg-white">
               <CardHeader className="text-center py-12">
                 <CardTitle className="font-serif text-2xl mb-3">No Research Published Yet</CardTitle>
                 <CardDescription>
@@ -66,7 +66,7 @@ export default async function ResearchPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {articles.map((article) => (
                 <Link key={article.id} href={`/research/${article.slug}`}>
-                  <Card className="h-full hover:shadow-xl transition-shadow cursor-pointer">
+                  <Card className="h-full hover:shadow-xl transition-shadow cursor-pointer bg-white">
                     {article.coverImage && (
                       <div className="w-full h-48 overflow-hidden rounded-t-lg">
                         <img
@@ -121,12 +121,12 @@ export default async function ResearchPage() {
       </Section>
 
       {articles.length > 0 && (
-        <Section dark>
+        <Section className="!py-12 !md:py-16">
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="font-serif text-3xl md:text-4xl font-bold mb-6">
               Want to Contribute?
             </h2>
-            <p className="text-xl mb-8">
+            <p className="text-xl mb-8 text-gray-600">
               Join our research team and publish your insights
             </p>
             <Link href="/contact">
