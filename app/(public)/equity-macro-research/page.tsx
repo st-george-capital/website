@@ -58,38 +58,20 @@ export default function EquityMacroResearchPage() {
       />
 
       <Section>
-        <div className="grid md:grid-cols-2 gap-16 items-center">
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-          >
-            <h2 className="font-serif text-4xl md:text-5xl font-bold mb-6">
-              Deep Fundamental Analysis
+        <div className="grid md:grid-cols-2 gap-20 items-start max-w-6xl mx-auto">
+          <div>
+            <h2 className="font-serif text-5xl md:text-6xl font-bold">
+              Overview
             </h2>
-            <p className="text-xl leading-relaxed mb-6">
+          </div>
+          <div className="space-y-6">
+            <p className="text-lg text-gray-600 leading-relaxed">
               Our Equity & Macro Research division combines traditional fundamental analysis with modern data analytics to generate actionable investment insights across global markets.
             </p>
-            <p className="text-xl leading-relaxed">
+            <p className="text-lg text-gray-600 leading-relaxed">
               We train members in financial modeling, valuation techniques, and macroeconomic analysis—skills essential for careers in equity research, portfolio management, and investment banking.
             </p>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-          >
-            <div className="relative w-full h-[500px] rounded-2xl overflow-hidden shadow-2xl">
-              <img
-                src="/images/webphotos/mne.jpg"
-                alt="Equity & Macro Research at SGC"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-            </div>
-          </motion.div>
+          </div>
         </div>
       </Section>
 

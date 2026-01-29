@@ -47,38 +47,20 @@ export default function QuantResearchPage() {
       />
 
       <Section>
-        <div className="grid md:grid-cols-2 gap-16 items-center">
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-          >
-            <h2 className="font-serif text-4xl md:text-5xl font-bold mb-6">
-              Pioneering Financial Research
+        <div className="grid md:grid-cols-2 gap-20 items-start max-w-6xl mx-auto">
+          <div>
+            <h2 className="font-serif text-5xl md:text-6xl font-bold">
+              Overview
             </h2>
-            <p className="text-xl leading-relaxed mb-6">
+          </div>
+          <div className="space-y-6">
+            <p className="text-lg text-gray-600 leading-relaxed">
               Our Quantitative Research division is dedicated to advancing the frontiers of financial knowledge through rigorous academic research, practical experimentation, and collaborative learning.
             </p>
-            <p className="text-xl leading-relaxed">
+            <p className="text-lg text-gray-600 leading-relaxed">
               We provide a structured curriculum and research framework that prepares members for careers in quantitative finance, whether in buy-side research, algorithmic trading, or academic pursuits.
             </p>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-          >
-            <div className="relative w-full h-[500px] rounded-2xl overflow-hidden shadow-2xl">
-              <img
-                src="/images/webphotos/quantresearch.jpg"
-                alt="Quantitative Research at SGC"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-            </div>
-          </motion.div>
+          </div>
         </div>
       </Section>
 

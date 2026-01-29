@@ -36,26 +36,22 @@ export default function CulturePage() {
       />
 
       <Section>
-        <div className="max-w-7xl mx-auto">
-          <h3 className="font-serif text-3xl md:text-4xl font-bold mb-12 text-center">
-            What Defines Us
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {values.map((value, index) => (
-              <Card key={index} className="border-none shadow-lg">
-                <CardHeader>
-                  <div className="w-12 h-12 bg-[#030116]/10 rounded-lg flex items-center justify-center mb-4">
-                    <value.icon className="w-6 h-6 text-[#030116]" />
-                  </div>
-                  <CardTitle className="font-serif text-2xl">{value.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-base leading-relaxed">
-                    {value.description}
-                  </CardDescription>
-                </CardContent>
-              </Card>
-            ))}
+        <div className="grid md:grid-cols-2 gap-20 items-start max-w-6xl mx-auto">
+          <div>
+            <h2 className="font-serif text-5xl md:text-6xl font-bold">
+              Overview
+            </h2>
+          </div>
+          <div className="space-y-6">
+            <p className="text-lg text-gray-600 leading-relaxed">
+              St. George Capital is built on a foundation of excellence, collaboration, and innovation. Our culture rewards intellectual curiosity, quantitative rigor, and entrepreneurial initiative.
+            </p>
+            <p className="text-lg text-gray-600 leading-relaxed">
+              We believe the best insights come from diverse perspectives. Our cross-divisional teams work together to solve complex problems and share knowledge across trading, research, and analysis.
+            </p>
+            <p className="text-lg text-gray-600 leading-relaxed">
+              From weekly workshops to social events, SGC is a tight-knit community that supports each member's growth. Members gain hands-on experience managing a real portfolio, conducting institutional-grade research, and developing sophisticated trading strategies.
+            </p>
           </div>
         </div>
       </Section>
