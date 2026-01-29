@@ -99,6 +99,8 @@ export default function ContactPage() {
                   src="/images/webphotos/joinus.jpg"
                   alt="Join St. George Capital"
                   className="w-full h-full object-cover"
+                  style={{ imageRendering: 'high-quality' }}
+                  loading="eager"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
               </div>
