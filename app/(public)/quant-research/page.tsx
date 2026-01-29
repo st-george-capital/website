@@ -42,8 +42,9 @@ export default function QuantResearchPage() {
     <>
       <Hero
         title="Quantitative Research"
-        subtitle="Advancing financial knowledge through rigorous analysis and innovation"
-        height="medium"
+        breadcrumb="What We Do / Quantitative Research"
+        height="small"
+        align="left"
       />
 
       <Section>

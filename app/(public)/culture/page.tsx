@@ -31,8 +31,9 @@ export default function CulturePage() {
     <>
       <Hero
         title="Our Culture"
-        subtitle="A community built on excellence, collaboration, and continuous learning"
-        height="medium"
+        breadcrumb="What We Do / Culture"
+        height="small"
+        align="left"
       />
 
       <Section>

@@ -59,8 +59,9 @@ export default function QuantTradingPage() {
     <>
       <Hero
         title="Quantitative Trading"
-        subtitle="Systematic alpha generation through advanced modeling and execution"
-        height="medium"
+        breadcrumb="What We Do / Quantitative Trading"
+        height="small"
+        align="left"
       />
 
       <Section>

@@ -53,8 +53,9 @@ export default function EquityMacroResearchPage() {
     <>
       <Hero
         title="Equity & Macro Research"
-        subtitle="Fundamental analysis meets market intelligence"
-        height="medium"
+        breadcrumb="What We Do / Equity & Macro Research"
+        height="small"
+        align="left"
       />
 
       <Section>

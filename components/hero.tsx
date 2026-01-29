@@ -7,15 +7,18 @@ interface HeroProps {
   title: string | ReactNode;
   subtitle?: string;
   children?: ReactNode;
-  height?: 'full' | 'large' | 'medium';
+  height?: 'full' | 'large' | 'medium' | 'small';
   pattern?: boolean;
+  breadcrumb?: string;
+  align?: 'center' | 'left';
 }
 
-export function Hero({ title, subtitle, children, height = 'full', pattern = true }: HeroProps) {
+export function Hero({ title, subtitle, children, height = 'full', pattern = true, breadcrumb, align = 'center' }: HeroProps) {
   const heightClasses = {
     full: 'min-h-screen',
     large: 'min-h-[80vh]',
     medium: 'min-h-[60vh]',
+    small: 'min-h-[40vh]',
   };
 
   return (
@@ -38,14 +41,24 @@ export function Hero({ title, subtitle, children, height = 'full', pattern = tru
       <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-transparent to-blue-800/10" />
 
       {/* Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-8 text-center">
+      <div className={`relative z-10 max-w-7xl mx-auto px-6 lg:px-8 ${align === 'center' ? 'text-center' : 'text-left'}`}>
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: 'easeOut' }}
         >
+          {breadcrumb && (
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="text-sm text-white/60 mb-6 uppercase tracking-wider"
+            >
+              {breadcrumb}
+            </motion.p>
+          )}
           {typeof title === 'string' ? (
-            <h1 className="font-serif text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-6 leading-tight">
+            <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
               {title.split('\n').map((line, index) => (
                 <motion.div
                   key={index}
@@ -58,7 +71,7 @@ export function Hero({ title, subtitle, children, height = 'full', pattern = tru
               ))}
             </h1>
           ) : (
-            <h1 className="font-serif text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-6 leading-tight">
+            <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
               {title}
             </h1>
           )}
