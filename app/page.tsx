@@ -309,6 +309,20 @@ export default function HomePage() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
+            className="relative h-[400px] rounded-2xl overflow-hidden"
+          >
+            <img 
+              src="/images/charity/sgcsoccer.jpeg" 
+              alt="SGC Charity Soccer Event" 
+              className="w-full h-full object-cover"
+            />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
           >
             <div className="w-16 h-16 bg-[#030116]/10 rounded-lg flex items-center justify-center mb-6">
               <Heart className="w-8 h-8 text-[#030116]" />
@@ -322,20 +336,6 @@ export default function HomePage() {
             <p className="text-lg text-muted-foreground leading-relaxed">
               SGC represents an opportunity to contribute meaningfully while developing the skills that define successful careers in institutional finance.
             </p>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="relative h-[400px] rounded-2xl overflow-hidden"
-          >
-            <img 
-              src="/images/charity/sgcsoccer.jpeg" 
-              alt="SGC Charity Soccer Event" 
-              className="w-full h-full object-cover"
-            />
           </motion.div>
         </div>
       </Section>
