@@ -40,3 +40,10 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  return NextResponse.json(
+    { error: 'Cannot delete users from this endpoint. Use /api/users/[id] instead.' },
+    { status: 405 }
+  );
+}

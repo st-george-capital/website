@@ -90,21 +90,42 @@ export default function UsersDashboardPage() {
   };
 
   const deleteUser = async (userId: string, userName: string) => {
+    if (!userId) {
+      alert('Error: User ID is missing');
+      console.error('Attempted to delete user without ID');
+      return;
+    }
+
     if (!confirm(`Are you sure you want to delete ${userName || 'this user'}? This action cannot be undone.`)) {
       return;
     }
 
+    const endpoint = `/api/users/${userId}`;
+    console.log('Deleting user:', { userId, endpoint });
+
     try {
-      const response = await fetch(`/api/users/${userId}`, {
+      const response = await fetch(endpoint, {
         method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
+
+      console.log('Delete response status:', response.status);
 
       if (response.ok) {
         setUsers(users.filter(user => user.id !== userId));
         alert('User deleted successfully');
       } else {
-        const error = await response.json();
-        alert(error.error || 'Failed to delete user');
+        let errorMessage = 'Failed to delete user';
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+        } catch (e) {
+          errorMessage = `Failed to delete user (Status: ${response.status})`;
+        }
+        console.error('Delete failed:', errorMessage);
+        alert(errorMessage);
       }
     } catch (error) {
       console.error('Error deleting user:', error);
