@@ -31,28 +31,45 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // For public users, restrict to PDF files only (resumes)
-    if (isPublicUser && file.type !== 'application/pdf') {
+    // For public users, restrict to resume file types only
+    const resumeTypes = [
+      'application/pdf',
+      'application/msword', // .doc
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+    ];
+    
+    if (isPublicUser && !resumeTypes.includes(file.type)) {
       return NextResponse.json(
-        { error: 'Public users can only upload PDF resume files' },
+        { error: 'Public users can only upload resume files (PDF, DOC, DOCX)' },
         { status: 400 }
       );
     }
 
     // Validate file type
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
+    const validTypes = [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/webp',
+      'application/pdf',
+      'application/msword', // .doc
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+    ];
     if (!validTypes.includes(file.type)) {
       return NextResponse.json(
-        { error: 'Invalid file type. Only JPG, PNG, WebP, and PDF files are allowed.' },
+        { error: 'Invalid file type. Only JPG, PNG, WebP, PDF, DOC, and DOCX files are allowed.' },
         { status: 400 }
       );
     }
 
-    // Validate file size (max 10MB for PDFs, 5MB for images)
-    const maxSize = file.type === 'application/pdf' ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+    // Validate file size (max 10MB for documents, 5MB for images)
+    const isDocument = file.type === 'application/pdf' || 
+                       file.type === 'application/msword' ||
+                       file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    const maxSize = isDocument ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: `File too large. Maximum size is ${file.type === 'application/pdf' ? '10MB' : '5MB'}.` },
+        { error: `File too large. Maximum size is ${isDocument ? '10MB' : '5MB'}.` },
         { status: 400 }
       );
     }
@@ -63,8 +80,8 @@ export async function POST(req: NextRequest) {
 
     if (isPublicUser) {
       folder = 'resumes'; // Public users upload resumes
-    } else if (isAdmin && file.type === 'application/pdf') {
-      folder = 'documents'; // Admin PDF uploads
+    } else if (isAdmin && isDocument) {
+      folder = 'documents'; // Admin document uploads
     }
 
     const filename = `${folder}/${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '')}`;
