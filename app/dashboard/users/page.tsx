@@ -102,8 +102,6 @@ export default function UsersDashboardPage() {
       return;
     }
 
-    console.log('Deleting user:', { userId });
-
     try {
       const response = await fetch('/api/users', {
         method: 'DELETE',
@@ -113,25 +111,17 @@ export default function UsersDashboardPage() {
         body: JSON.stringify({ userId }),
       });
 
-      console.log('Delete response status:', response.status);
-
       if (response.ok) {
+        const result = await response.json();
         setUsers(users.filter(user => user.id !== userId));
-        alert('User deleted successfully');
+        alert(result.message || 'User deleted successfully');
       } else {
-        let errorMessage = 'Failed to delete user';
-        try {
-          const error = await response.json();
-          errorMessage = error.error || errorMessage;
-        } catch (e) {
-          errorMessage = `Failed to delete user (Status: ${response.status})`;
-        }
-        console.error('Delete failed:', errorMessage);
-        alert(errorMessage);
+        const error = await response.json();
+        alert(error.error || 'Failed to delete user');
       }
     } catch (error) {
       console.error('Error deleting user:', error);
-      alert('Failed to delete user: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      alert('Failed to delete user');
     }
   };
 
