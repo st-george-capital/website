@@ -11,10 +11,10 @@ import { Users, UserPlus, Edit, Tag, Trash2 } from 'lucide-react';
 interface User {
   id: string;
   email: string;
-  name?: string;
+  name: string | null;
   role: string;
   tags: string[];
-  emailVerified: boolean;
+  emailVerified: boolean | null;
   createdAt: string;
 }
 
@@ -34,6 +34,8 @@ export default function UsersDashboardPage() {
       const response = await fetch('/api/users');
       if (response.ok) {
         const data = await response.json();
+        console.log('Fetched users:', data.length, 'users');
+        console.log('First user sample:', data[0]);
         setUsers(data);
       }
     } catch (error) {
@@ -312,8 +314,17 @@ function UserCard({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => onDelete(user.id, user.name || user.email)}
+          onClick={() => {
+            console.log('Delete button clicked for user:', user.id);
+            if (!user.id) {
+              alert('Error: User ID is missing from user object');
+              console.error('User object:', user);
+              return;
+            }
+            onDelete(user.id, user.name || user.email);
+          }}
           className="text-red-600 hover:text-red-700 hover:bg-red-50"
+          title="Delete user"
         >
           <Trash2 className="w-4 h-4" />
         </Button>
