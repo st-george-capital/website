@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
 import { Badge } from '@/components/ui/badge';
-import { Users, UserPlus, Edit, Tag } from 'lucide-react';
+import { Users, UserPlus, Edit, Tag, Trash2 } from 'lucide-react';
 
 interface User {
   id: string;
@@ -89,6 +89,29 @@ export default function UsersDashboardPage() {
     }
   };
 
+  const deleteUser = async (userId: string, userName: string) => {
+    if (!confirm(`Are you sure you want to delete ${userName || 'this user'}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setUsers(users.filter(user => user.id !== userId));
+        alert('User deleted successfully');
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to delete user');
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      alert('Failed to delete user: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    }
+  };
+
   if (!isAdmin) {
     return (
       <div className="p-8">
@@ -142,6 +165,7 @@ export default function UsersDashboardPage() {
                   user={user}
                   onUpdateTags={updateUserTags}
                   onUpdateRole={updateUserRole}
+                  onDelete={deleteUser}
                 />
               ))}
             </div>
@@ -155,11 +179,13 @@ export default function UsersDashboardPage() {
 function UserCard({
   user,
   onUpdateTags,
-  onUpdateRole
+  onUpdateRole,
+  onDelete
 }: {
   user: User;
   onUpdateTags: (userId: string, tags: string[]) => void;
   onUpdateRole: (userId: string, role: string) => void;
+  onDelete: (userId: string, userName: string) => void;
 }) {
   const [isEditingTags, setIsEditingTags] = useState(false);
   const [tagInput, setTagInput] = useState(user.tags.join(', '));
@@ -262,6 +288,14 @@ function UserCard({
           <option value="user">User</option>
           <option value="admin">Admin</option>
         </select>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onDelete(user.id, user.name || user.email)}
+          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
       </div>
     </div>
   );
