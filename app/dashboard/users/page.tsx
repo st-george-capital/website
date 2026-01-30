@@ -102,15 +102,15 @@ export default function UsersDashboardPage() {
       return;
     }
 
-    const endpoint = `/api/users/${userId}`;
-    console.log('Deleting user:', { userId, endpoint });
+    console.log('Deleting user:', { userId });
 
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetch('/api/users', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ userId }),
       });
 
       console.log('Delete response status:', response.status);
