@@ -90,36 +90,7 @@ npx prisma db push
 npx prisma studio
 ```
 
-5. **Create your first admin user**
 
-Run this in Prisma Studio or using a database client:
-
-```sql
-INSERT INTO "User" (id, email, "passwordHash", role, name)
-VALUES (
-  'cuid_example',
-  'admin@stgeorgecapital.ca',
-  -- Password: "admin123" (change this!)
-  '$2a$10$rOzJc5vVYx.KHY5gEqKYJeYXxF8ixCZqQmzDZFqVY0EJUXGPQqY8u',
-  'ADMIN',
-  'Admin User'
-);
-```
-
-Or use bcrypt to hash your own password:
-```javascript
-const bcrypt = require('bcryptjs');
-const hash = bcrypt.hashSync('your-password', 10);
-console.log(hash);
-```
-
-6. **Start the development server**
-
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) to view the site.
 
 ## Project Structure
 
@@ -210,15 +181,6 @@ To use Polygon.io:
 ### Email Notifications (Optional)
 
 To enable email notifications for contact forms:
-
-1. Add SMTP credentials to `.env`:
-```env
-SMTP_HOST="smtp.gmail.com"
-SMTP_PORT="587"
-SMTP_USER="your-email@gmail.com"
-SMTP_PASSWORD="your-app-password"
-ADMIN_EMAIL="outreach@stgeorgecapital.ca"
-```
 
 2. Implement email sending in `/app/api/contact/route.ts`
 
