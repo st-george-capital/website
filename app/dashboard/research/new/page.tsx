@@ -27,11 +27,10 @@ interface Risk {
   mitigation: string;
 }
 
-export default function NewResearchReportPage({ params }: { params?: { id?: string } }) {
+export default function NewResearchReportPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dcfModelId = searchParams.get('dcfModelId');
-  const editId = params?.id; // If we're editing an existing report
 
   const [activeSection, setActiveSection] = useState<string>('metadata');
   const [saving, setSaving] = useState(false);
