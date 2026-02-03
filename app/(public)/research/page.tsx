@@ -16,20 +16,8 @@ async function getPublishedArticles() {
   return articles;
 }
 
-async function getWebsiteEquityReports() {
-  const reports = await prisma.equityResearchReport.findMany({
-    where: {
-      published: true,
-      showOnWebsite: true,
-    },
-    orderBy: { publishedAt: 'desc' },
-  });
-  return reports;
-}
-
 export default async function ResearchPage() {
   const articles = await getPublishedArticles();
-  const equityReports = await getWebsiteEquityReports();
 
   return (
     <>
