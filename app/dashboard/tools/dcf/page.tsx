@@ -585,6 +585,7 @@ interface ExtractedFinancials {
   // PE ratios
   peRatio?: number;
   forwardPE?: number;
+  dividendYield?: number;
   // EPS data (quarterly)
   quarterlyEPS?: Array<{ fiscalDateEnding: string; reportedEPS: string }>;
   // Price performance (calculated from time series)
@@ -1363,11 +1364,12 @@ export default function DCFToolPage() {
       // Calculate price performance from time series
       const pricePerformance = calculatePricePerformance(timeSeries?.priceData || []);
       
-      // Enrich financial data with EPS, PE ratios, and price performance
+      // Enrich financial data with EPS, PE ratios, dividend yield, and price performance
       const enrichedData: ExtractedFinancials = {
         ...processedData,
         peRatio: overview.peRatio,
         forwardPE: overview.forwardPE,
+        dividendYield: overview.dividendYield ? overview.dividendYield * 100 : undefined, // Convert to percentage
         quarterlyEPS: earnings?.quarterlyEarnings?.slice(0, 12) || [], // Last 12 quarters
         pricePerformance: pricePerformance,
         priceHistory: timeSeries?.priceData?.slice(0, 365).map((d: any) => ({ date: d.date, close: d.close })) || []

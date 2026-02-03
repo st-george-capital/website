@@ -64,6 +64,7 @@ export default function NewResearchReportPage() {
     epsTableMarkdown: '',
     peRatio: null as number | null,
     forwardPE: null as number | null,
+    dividendYield: null as number | null,
     // Price performance (percentages, e.g. -32.8 for -32.8%)
     performanceMetrics: null as {
       absYTD?: number; abs1m?: number; abs3m?: number; abs12m?: number;
@@ -187,6 +188,19 @@ export default function NewResearchReportPage() {
         // Get price performance from DCF financial data
         const pricePerformance = model.financialData?.pricePerformance || null;
         
+        // Calculate our own Forward P/E from DCF projections
+        // Forward P/E = Current Price / Next Year's Projected EPS
+        let calculatedForwardPE = null;
+        if (currentPrice > 0 && model.outputs?.freeCashFlow?.[0] && model.inputs?.sharesDiluted) {
+          // Approximate next year's net income from FCFF
+          const nextYearFCFF = model.outputs.freeCashFlow[0];
+          const nextYearEBIT = model.outputs.ebit?.[0];
+          const taxRate = model.inputs.taxRate || 0.25;
+          const nextYearNetIncome = nextYearEBIT ? nextYearEBIT * (1 - taxRate) : nextYearFCFF * 1.2; // Rough proxy
+          const nextYearEPS = nextYearNetIncome / model.inputs.sharesDiluted;
+          calculatedForwardPE = nextYearEPS > 0 ? currentPrice / nextYearEPS : null;
+        }
+        
         return {
           ...prev,
           companyName: model.companyName || prev.companyName,
@@ -205,7 +219,8 @@ export default function NewResearchReportPage() {
           epsTableMarkdown: epsTable || prev.epsTableMarkdown,
           performanceMetrics: pricePerformance || prev.performanceMetrics,
           peRatio: model.financialData?.peRatio ?? prev.peRatio,
-          forwardPE: model.financialData?.forwardPE ?? prev.forwardPE,
+          forwardPE: calculatedForwardPE ?? model.financialData?.forwardPE ?? prev.forwardPE,
+          dividendYield: model.financialData?.dividendYield ?? prev.dividendYield,
         };
       });
 
@@ -866,7 +881,7 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
                       placeholder="e.g. Company data, Bloomberg, J.P. Morgan estimates"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div className="grid grid-cols-3 gap-4 mt-4">
                     <div>
                       <label className="block text-sm font-medium mb-2">P/E Ratio (auto-filled from DCF)</label>
                       <div className="px-3 py-2 border rounded-md bg-gray-50 font-medium">
@@ -874,9 +889,15 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-2">Forward P/E (auto-filled from DCF)</label>
+                      <label className="block text-sm font-medium mb-2">Forward P/E (calculated from DCF)</label>
                       <div className="px-3 py-2 border rounded-md bg-gray-50 font-medium">
                         {metadata.forwardPE != null ? metadata.forwardPE.toFixed(2) : '—'}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Dividend Yield (auto-filled)</label>
+                      <div className="px-3 py-2 border rounded-md bg-gray-50 font-medium">
+                        {metadata.dividendYield != null ? `${metadata.dividendYield.toFixed(2)}%` : '—'}
                       </div>
                     </div>
                   </div>
@@ -890,9 +911,9 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
                       placeholder="Paste or type EPS table in markdown (e.g. | Q1 | 0.38 | 0.33 | ...)"
                     />
                   </div>
-                  {dcfData?.inputs?.priceHistory && dcfData.inputs.priceHistory.length > 0 && (
-                    <div className="mt-4">
-                      <label className="block text-sm font-medium mb-2">Price Chart Preview (from DCF)</label>
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium mb-2">Price Chart Preview (from DCF)</label>
+                    {dcfData?.inputs?.priceHistory && dcfData.inputs.priceHistory.length > 0 ? (
                       <div className="border rounded-md p-4 bg-gray-50">
                         <svg viewBox="0 0 800 200" className="w-full h-48">
                           {(() => {
@@ -922,8 +943,12 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
                         </svg>
                         <p className="text-xs text-gray-500 mt-2">1-year price history (will be shown on the published report)</p>
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="border rounded-md p-4 bg-yellow-50 border-yellow-200">
+                        <p className="text-sm text-yellow-800">⚠️ Could not load price history. Run DCF analysis with a valid ticker to fetch price data from Alpha Vantage API.</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Price Performance */}

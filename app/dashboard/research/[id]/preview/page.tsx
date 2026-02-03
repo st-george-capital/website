@@ -40,6 +40,7 @@ interface ResearchReport {
   dataSource?: string | null;
   peRatio?: number | null;
   forwardPE?: number | null;
+  dividendYield?: number | null;
   priceHistory?: Array<{ date: string; close: number }> | null;
   dcfInputs?: any;
   dcfOutputs?: any;
@@ -313,6 +314,12 @@ export default function ResearchReportPreviewPage() {
                 <div>
                   <div className="text-gray-500">Forward P/E</div>
                   <div className="font-semibold">{(report.forwardPE ?? report.dcfInputs?.forwardPE).toFixed(2)}</div>
+                </div>
+              )}
+              {report.dividendYield != null && (
+                <div>
+                  <div className="text-gray-500">Dividend Yield</div>
+                  <div className="font-semibold">{report.dividendYield.toFixed(2)}%</div>
                 </div>
               )}
             </div>

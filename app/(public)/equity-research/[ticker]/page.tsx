@@ -192,6 +192,12 @@ export default async function PublicResearchReportPage({
                   <div className="font-semibold text-gray-900">{((report as any).forwardPE ?? (report.dcfInputs as any)?.forwardPE).toFixed(2)}</div>
                 </div>
               )}
+              {(report as any).dividendYield != null && (
+                <div>
+                  <div className="text-gray-500">Dividend Yield</div>
+                  <div className="font-semibold text-gray-900">{(report as any).dividendYield.toFixed(2)}%</div>
+                </div>
+              )}
             </div>
             {report.dataSource && (
               <p className="text-sm text-gray-500">Source: {report.dataSource}</p>
