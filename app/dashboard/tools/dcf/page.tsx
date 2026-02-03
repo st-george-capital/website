@@ -584,7 +584,8 @@ interface ExtractedFinancials {
   sharesOutstanding?: number;
   // PE ratios
   peRatio?: number;
-  forwardPE?: number;
+  forwardPE?: number; // Calculated from DCF
+  forwardPEConsensus?: number; // From API (analyst consensus)
   dividendYield?: number;
   // EPS data (quarterly)
   quarterlyEPS?: Array<{ fiscalDateEnding: string; reportedEPS: string }>;
@@ -1368,7 +1369,7 @@ export default function DCFToolPage() {
       const enrichedData: ExtractedFinancials = {
         ...processedData,
         peRatio: overview.peRatio,
-        forwardPE: overview.forwardPE,
+        forwardPEConsensus: overview.forwardPE, // Analyst consensus from API
         dividendYield: overview.dividendYield ? overview.dividendYield * 100 : undefined, // Convert to percentage
         quarterlyEPS: earnings?.quarterlyEarnings?.slice(0, 12) || [], // Last 12 quarters
         pricePerformance: pricePerformance,
@@ -2316,6 +2317,78 @@ export default function DCFToolPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* EPS Comparison - Our Projection vs Consensus */}
+              {(() => {
+                const currentPrice = inputs.currentPrice || 0;
+                const nextYearFCFF = outputs.freeCashFlow?.[0] || 0;
+                const nextYearEBIT = outputs.ebit?.[0] || 0;
+                const taxRate = inputs.taxRate || 0.25;
+                const sharesDiluted = inputs.sharesDiluted || 1;
+                
+                // Calculate our projected EPS
+                const nextYearNetIncome = nextYearEBIT ? nextYearEBIT * (1 - taxRate) : nextYearFCFF * 1.2;
+                const ourProjectedEPS = nextYearNetIncome / sharesDiluted;
+                const ourForwardPE = currentPrice > 0 && ourProjectedEPS > 0 ? currentPrice / ourProjectedEPS : null;
+                
+                // Get consensus from API
+                const consensusForwardPE = financialData?.forwardPEConsensus || null;
+                const consensusEPS = currentPrice > 0 && consensusForwardPE ? currentPrice / consensusForwardPE : null;
+                
+                const epsDifference = ourProjectedEPS && consensusEPS ? ((ourProjectedEPS - consensusEPS) / consensusEPS) * 100 : null;
+                
+                return (ourProjectedEPS > 0 || consensusEPS) ? (
+                  <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+                    <CardHeader>
+                      <CardTitle className="flex items-center text-blue-800">
+                        <TrendingUp className="w-5 h-5 mr-2" />
+                        Forward P/E & EPS Comparison
+                      </CardTitle>
+                      <CardDescription>
+                        Our DCF-based projections vs analyst consensus estimates
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-white p-4 rounded-lg border border-blue-200">
+                          <div className="text-center">
+                            <div className="text-sm text-gray-500 mb-2">Our Projected EPS (Next Year)</div>
+                            <div className="text-3xl font-bold text-blue-600 mb-1">
+                              ${ourProjectedEPS.toFixed(2)}
+                            </div>
+                            <div className="text-sm text-gray-600 mb-2">Forward P/E: {ourForwardPE ? `${ourForwardPE.toFixed(1)}x` : 'N/A'}</div>
+                            <div className="text-xs text-gray-500">Based on DCF projections</div>
+                          </div>
+                        </div>
+                        <div className="bg-white p-4 rounded-lg border border-blue-200">
+                          <div className="text-center">
+                            <div className="text-sm text-gray-500 mb-2">Consensus EPS Estimate</div>
+                            <div className="text-3xl font-bold text-purple-600 mb-1">
+                              {consensusEPS ? `$${consensusEPS.toFixed(2)}` : 'N/A'}
+                            </div>
+                            <div className="text-sm text-gray-600 mb-2">Forward P/E: {consensusForwardPE ? `${consensusForwardPE.toFixed(1)}x` : 'N/A'}</div>
+                            <div className="text-xs text-gray-500">From Alpha Vantage API</div>
+                          </div>
+                        </div>
+                        <div className="bg-white p-4 rounded-lg border border-blue-200">
+                          <div className="text-center">
+                            <div className="text-sm text-gray-500 mb-2">Difference</div>
+                            <div className={`text-3xl font-bold mb-1 ${epsDifference && epsDifference > 0 ? 'text-green-600' : epsDifference && epsDifference < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                              {epsDifference !== null ? `${epsDifference > 0 ? '+' : ''}${epsDifference.toFixed(1)}%` : 'N/A'}
+                            </div>
+                            <div className="text-sm text-gray-600 mb-2">
+                              {epsDifference !== null && epsDifference > 10 ? 'More bullish than consensus' : 
+                               epsDifference !== null && epsDifference < -10 ? 'More bearish than consensus' : 
+                               epsDifference !== null ? 'Aligned with consensus' : '—'}
+                            </div>
+                            <div className="text-xs text-gray-500">Our EPS vs Consensus</div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : null;
+              })()}
 
               {/* Detailed Cash Flow Analysis */}
               <ValuationSummary inputs={inputs} outputs={outputs} />

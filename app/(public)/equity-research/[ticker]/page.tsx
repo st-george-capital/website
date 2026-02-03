@@ -188,8 +188,16 @@ export default async function PublicResearchReportPage({
               )}
               {((report as any).forwardPE != null || (report.dcfInputs as any)?.forwardPE != null) && (
                 <div>
-                  <div className="text-gray-500">Forward P/E</div>
-                  <div className="font-semibold text-gray-900">{((report as any).forwardPE ?? (report.dcfInputs as any)?.forwardPE).toFixed(2)}</div>
+                  <div className="text-gray-500">Forward P/E (DCF)</div>
+                  <div className="font-semibold text-blue-600">{((report as any).forwardPE ?? (report.dcfInputs as any)?.forwardPE).toFixed(2)}</div>
+                  <div className="text-xs text-gray-400">Our projection</div>
+                </div>
+              )}
+              {(report as any).forwardPEConsensus != null && (
+                <div>
+                  <div className="text-gray-500">Forward P/E (Consensus)</div>
+                  <div className="font-semibold text-purple-600">{(report as any).forwardPEConsensus.toFixed(2)}</div>
+                  <div className="text-xs text-gray-400">Analyst estimates</div>
                 </div>
               )}
               {(report as any).dividendYield != null && (

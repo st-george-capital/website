@@ -262,7 +262,8 @@ model EquityResearchReport {
   epsTableMarkdown      String?  @db.Text // EPS table (markdown or pasted)
   dataSource            String?  @db.Text // e.g. "Company data, Bloomberg, J.P. Morgan estimates"
   peRatio               Float?   // From API / DCF
-  forwardPE             Float?   // From API / DCF
+  forwardPE             Float?   // Calculated from DCF projections
+  forwardPEConsensus    Float?   // From API (analyst consensus)
   dividendYield         Float?   // From API (as percentage, e.g. 2.5 for 2.5%)
   priceHistory          Json?   // [{ date, close }] for chart (from DCF/API)
   

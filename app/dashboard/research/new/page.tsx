@@ -63,7 +63,8 @@ export default function NewResearchReportPage() {
     dataSource: '',
     epsTableMarkdown: '',
     peRatio: null as number | null,
-    forwardPE: null as number | null,
+    forwardPE: null as number | null, // Calculated from DCF
+    forwardPEConsensus: null as number | null, // From API
     dividendYield: null as number | null,
     // Price performance (percentages, e.g. -32.8 for -32.8%)
     performanceMetrics: null as {
@@ -219,7 +220,8 @@ export default function NewResearchReportPage() {
           epsTableMarkdown: epsTable || prev.epsTableMarkdown,
           performanceMetrics: pricePerformance || prev.performanceMetrics,
           peRatio: model.financialData?.peRatio ?? prev.peRatio,
-          forwardPE: calculatedForwardPE ?? model.financialData?.forwardPE ?? prev.forwardPE,
+          forwardPE: calculatedForwardPE ?? prev.forwardPE, // Our calculated Forward P/E
+          forwardPEConsensus: model.financialData?.forwardPEConsensus ?? prev.forwardPEConsensus, // API consensus
           dividendYield: model.financialData?.dividendYield ?? prev.dividendYield,
         };
       });
@@ -881,24 +883,34 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
                       placeholder="e.g. Company data, Bloomberg, J.P. Morgan estimates"
                     />
                   </div>
-                  <div className="grid grid-cols-3 gap-4 mt-4">
+                  <div className="grid grid-cols-2 gap-4 mt-4">
                     <div>
-                      <label className="block text-sm font-medium mb-2">P/E Ratio (auto-filled from DCF)</label>
+                      <label className="block text-sm font-medium mb-2">P/E Ratio (TTM, from API)</label>
                       <div className="px-3 py-2 border rounded-md bg-gray-50 font-medium">
                         {metadata.peRatio != null ? metadata.peRatio.toFixed(2) : '—'}
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-2">Forward P/E (calculated from DCF)</label>
-                      <div className="px-3 py-2 border rounded-md bg-gray-50 font-medium">
-                        {metadata.forwardPE != null ? metadata.forwardPE.toFixed(2) : '—'}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Dividend Yield (auto-filled)</label>
+                      <label className="block text-sm font-medium mb-2">Dividend Yield (from API)</label>
                       <div className="px-3 py-2 border rounded-md bg-gray-50 font-medium">
                         {metadata.dividendYield != null ? `${metadata.dividendYield.toFixed(2)}%` : '—'}
                       </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 mt-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Forward P/E (Our DCF Projection)</label>
+                      <div className="px-3 py-2 border rounded-md bg-blue-50 border-blue-200 font-medium text-blue-700">
+                        {metadata.forwardPE != null ? metadata.forwardPE.toFixed(2) : '—'}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Based on our DCF EPS projections</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Forward P/E (Consensus)</label>
+                      <div className="px-3 py-2 border rounded-md bg-purple-50 border-purple-200 font-medium text-purple-700">
+                        {metadata.forwardPEConsensus != null ? metadata.forwardPEConsensus.toFixed(2) : '—'}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Analyst consensus from API</p>
                     </div>
                   </div>
                   <div className="mt-4">
