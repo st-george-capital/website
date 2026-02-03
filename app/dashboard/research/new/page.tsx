@@ -152,51 +152,53 @@ export default function NewResearchReportPage() {
       });
       
       // Auto-populate metadata from DCF (including company snapshot data)
-      const currentPrice = model.inputs.currentPrice || prev.currentPrice;
-      const sharesOutstanding = model.inputs.sharesOutstanding || model.financialData?.sharesOutstanding || null;
-      const marketCap = currentPrice && sharesOutstanding ? (currentPrice * sharesOutstanding) / 1e6 : null; // in millions
-      
-      // Calculate 52-week range from DCF financial data
-      const week52High = model.financialData?.week52High;
-      const week52Low = model.financialData?.week52Low;
-      const fiftyTwoWeekRange = week52High && week52Low ? `${week52Low.toFixed(2)}-${week52High.toFixed(2)}` : prev.fiftyTwoWeekRange;
-      
-      // Get fiscal year end from financial data (usually stored as month name like "December")
-      const fiscalYearEnd = model.financialData?.fiscalYearEnd || prev.fiscalYearEnd;
-      
-      // Build EPS table from quarterly earnings data
-      let epsTable = '';
-      if (model.financialData?.quarterlyEPS && model.financialData.quarterlyEPS.length > 0) {
-        const quarters = model.financialData.quarterlyEPS.slice(0, 12); // Last 12 quarters (3 years)
-        epsTable = '| Quarter | Reported EPS |\n|---------|-------------|\n';
-        quarters.forEach((q: any) => {
-          const date = new Date(q.fiscalDateEnding);
-          const qtr = `Q${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear().toString().slice(-2)}`;
-          epsTable += `| ${qtr} | $${q.reportedEPS} |\n`;
-        });
-      }
-      
-      // Get price performance from DCF financial data
-      const pricePerformance = model.financialData?.pricePerformance || null;
-      
-      setMetadata(prev => ({
-        ...prev,
-        companyName: model.companyName || prev.companyName,
-        ticker: model.ticker || prev.ticker,
-        currentPrice: currentPrice,
-        targetPrice: model.outputs.intrinsicValuePerShare || prev.targetPrice,
-        sector: model.financialData?.sector || prev.sector,
-        industry: model.financialData?.industry || prev.industry,
-        // Company snapshot fields from DCF
-        priceDate: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: '2-digit' }).replace(',', ''),
-        fiftyTwoWeekRange: fiftyTwoWeekRange,
-        marketCap: marketCap,
-        sharesOutstanding: sharesOutstanding ? sharesOutstanding / 1e6 : null, // convert to millions for display
-        fiscalYearEnd: fiscalYearEnd,
-        dataSource: 'Company data, Bloomberg, Alpha Vantage API',
-        epsTableMarkdown: epsTable || prev.epsTableMarkdown,
-        performanceMetrics: pricePerformance || prev.performanceMetrics,
-      }));
+      setMetadata(prev => {
+        const currentPrice = model.inputs.currentPrice || prev.currentPrice;
+        const sharesOutstanding = model.inputs.sharesOutstanding || model.financialData?.sharesOutstanding || null;
+        const marketCap = currentPrice && sharesOutstanding ? (currentPrice * sharesOutstanding) / 1e6 : null; // in millions
+        
+        // Calculate 52-week range from DCF financial data
+        const week52High = model.financialData?.week52High;
+        const week52Low = model.financialData?.week52Low;
+        const fiftyTwoWeekRange = week52High && week52Low ? `${week52Low.toFixed(2)}-${week52High.toFixed(2)}` : prev.fiftyTwoWeekRange;
+        
+        // Get fiscal year end from financial data (usually stored as month name like "December")
+        const fiscalYearEnd = model.financialData?.fiscalYearEnd || prev.fiscalYearEnd;
+        
+        // Build EPS table from quarterly earnings data
+        let epsTable = '';
+        if (model.financialData?.quarterlyEPS && model.financialData.quarterlyEPS.length > 0) {
+          const quarters = model.financialData.quarterlyEPS.slice(0, 12); // Last 12 quarters (3 years)
+          epsTable = '| Quarter | Reported EPS |\n|---------|-------------|\n';
+          quarters.forEach((q: any) => {
+            const date = new Date(q.fiscalDateEnding);
+            const qtr = `Q${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear().toString().slice(-2)}`;
+            epsTable += `| ${qtr} | $${q.reportedEPS} |\n`;
+          });
+        }
+        
+        // Get price performance from DCF financial data
+        const pricePerformance = model.financialData?.pricePerformance || null;
+        
+        return {
+          ...prev,
+          companyName: model.companyName || prev.companyName,
+          ticker: model.ticker || prev.ticker,
+          currentPrice: currentPrice,
+          targetPrice: model.outputs.intrinsicValuePerShare || prev.targetPrice,
+          sector: model.financialData?.sector || prev.sector,
+          industry: model.financialData?.industry || prev.industry,
+          // Company snapshot fields from DCF
+          priceDate: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: '2-digit' }).replace(',', ''),
+          fiftyTwoWeekRange: fiftyTwoWeekRange,
+          marketCap: marketCap,
+          sharesOutstanding: sharesOutstanding ? sharesOutstanding / 1e6 : null, // convert to millions for display
+          fiscalYearEnd: fiscalYearEnd,
+          dataSource: 'Company data, Bloomberg, Alpha Vantage API',
+          epsTableMarkdown: epsTable || prev.epsTableMarkdown,
+          performanceMetrics: pricePerformance || prev.performanceMetrics,
+        };
+      });
 
       // Auto-populate valuation analysis with comprehensive DCF results including tables
       const avgRevGrowth = model.inputs.revenueGrowth.reduce((sum: number, g: number) => sum + g, 0) / model.inputs.revenueGrowth.length;
