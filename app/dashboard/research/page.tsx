@@ -100,19 +100,22 @@ export default function ResearchDashboardPage() {
           <div className="flex gap-2">
             <Button
               onClick={() => setFilter('all')}
-              variant={filter === 'all' ? 'default' : 'outline'}
+              className={filter === 'all' ? 'bg-blue-600 text-white hover:bg-blue-700' : ''}
+              variant={filter === 'all' ? undefined : 'outline'}
             >
               All Reports
             </Button>
             <Button
               onClick={() => setFilter('draft')}
-              variant={filter === 'draft' ? 'default' : 'outline'}
+              className={filter === 'draft' ? 'bg-blue-600 text-white hover:bg-blue-700' : ''}
+              variant={filter === 'draft' ? undefined : 'outline'}
             >
               Drafts
             </Button>
             <Button
               onClick={() => setFilter('published')}
-              variant={filter === 'published' ? 'default' : 'outline'}
+              className={filter === 'published' ? 'bg-blue-600 text-white hover:bg-blue-700' : ''}
+              variant={filter === 'published' ? undefined : 'outline'}
             >
               Published
             </Button>
