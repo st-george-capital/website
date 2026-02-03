@@ -112,6 +112,27 @@ export default function ResearchReportPreviewPage() {
     return colors[impact as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
+  const handleExportPDF = () => {
+    // Add print styles
+    const style = document.createElement('style');
+    style.textContent = `
+      @media print {
+        @page { margin: 0.5in; size: letter; }
+        body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+        .no-print { display: none !important; }
+        .page-break { page-break-before: always; }
+        nav, button { display: none !important; }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    // Trigger print dialog (user can save as PDF)
+    window.print();
+    
+    // Clean up
+    setTimeout(() => document.head.removeChild(style), 1000);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
