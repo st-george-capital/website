@@ -15,8 +15,16 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const { searchParams } = new URL(req.url);
+    const all = searchParams.get('all') === 'true';
+
+    // Admin can request all models; otherwise only current user's
+    const where = (all && session.user.role === 'admin')
+      ? {}
+      : { userId: session.user.id };
+
     const models = await prisma.savedDCFModel.findMany({
-      where: { userId: session.user.id },
+      where,
       orderBy: { updatedAt: 'desc' },
     });
 

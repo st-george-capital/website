@@ -140,7 +140,7 @@ export default async function PublicResearchReportPage({
         </div>
 
         {/* Company Snapshot & Price Performance */}
-        {(report.priceDate || report.fiftyTwoWeekRange || report.marketCap != null || report.sharesOutstanding != null || report.fiscalYearEnd || report.priceTargetEndDate || report.dataSource || (report.performanceMetrics as any)?.absYTD != null || report.dcfInputs) && (
+        {(report.priceDate || report.fiftyTwoWeekRange || report.marketCap != null || report.sharesOutstanding != null || report.fiscalYearEnd || report.priceTargetEndDate || report.dataSource || (report.performanceMetrics as any)?.absYTD != null || report.dcfInputs || ((report as any).priceHistory && (report as any).priceHistory.length > 0)) && (
           <div className="bg-white rounded-2xl p-8 space-y-6">
             <h2 className="text-2xl font-bold text-gray-900">Company Snapshot & Price Performance</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
@@ -248,6 +248,7 @@ export default async function PublicResearchReportPage({
                   <svg viewBox="0 0 800 200" className="w-full h-full">
                     {(() => {
                       const chartData = ((report as any).priceHistory || (report.dcfInputs as any)?.priceHistory || []).slice(0, 252); // ~1 year of trading days
+                      if (!chartData.length) return null;
                       const prices = chartData.map((d: any) => d.close);
                       const minPrice = Math.min(...prices);
                       const maxPrice = Math.max(...prices);

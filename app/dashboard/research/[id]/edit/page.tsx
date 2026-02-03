@@ -933,6 +933,20 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
                       placeholder="e.g. Company data, Bloomberg, J.P. Morgan estimates"
                     />
                   </div>
+                  <div className="grid grid-cols-2 gap-4 mt-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">P/E Ratio (auto-filled from DCF)</label>
+                      <div className="px-3 py-2 border rounded-md bg-gray-50 font-medium">
+                        {metadata.peRatio != null ? metadata.peRatio.toFixed(2) : '—'}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Forward P/E (auto-filled from DCF)</label>
+                      <div className="px-3 py-2 border rounded-md bg-gray-50 font-medium">
+                        {metadata.forwardPE != null ? metadata.forwardPE.toFixed(2) : '—'}
+                      </div>
+                    </div>
+                  </div>
                   <div className="mt-4">
                     <label className="block text-sm font-medium mb-2">EPS Table (Markdown)</label>
                     <textarea
@@ -943,6 +957,40 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
                       placeholder="Paste or type EPS table in markdown"
                     />
                   </div>
+                  {dcfData?.inputs?.priceHistory && dcfData.inputs.priceHistory.length > 0 && (
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium mb-2">Price Chart Preview (from DCF)</label>
+                      <div className="border rounded-md p-4 bg-gray-50">
+                        <svg viewBox="0 0 800 200" className="w-full h-48">
+                          {(() => {
+                            const chartData = dcfData.inputs.priceHistory.slice(0, 252);
+                            if (!chartData.length) return null;
+                            const prices = chartData.map((d: any) => d.close);
+                            const minPrice = Math.min(...prices);
+                            const maxPrice = Math.max(...prices);
+                            const priceRange = maxPrice - minPrice;
+                            const padding = priceRange * 0.1;
+                            const points = chartData.map((d: any, i: number) => {
+                              const x = (chartData.length > 1 ? i / (chartData.length - 1) : 0) * 780 + 10;
+                              const y = 190 - ((d.close - minPrice + padding) / (priceRange + 2 * padding)) * 180;
+                              return `${x},${y}`;
+                            }).join(' ');
+                            return (
+                              <>
+                                <polyline points={points} fill="none" stroke="#3b82f6" strokeWidth="2" />
+                                <line x1="10" y1="190" x2="790" y2="190" stroke="#e5e7eb" strokeWidth="1" />
+                                <text x="10" y="205" fontSize="12" fill="#6b7280">{chartData[chartData.length - 1]?.date}</text>
+                                <text x="790" y="205" fontSize="12" fill="#6b7280" textAnchor="end">{chartData[0]?.date}</text>
+                                <text x="10" y="15" fontSize="12" fill="#6b7280">${maxPrice.toFixed(2)}</text>
+                                <text x="10" y="195" fontSize="12" fill="#6b7280">${minPrice.toFixed(2)}</text>
+                              </>
+                            );
+                          })()}
+                        </svg>
+                        <p className="text-xs text-gray-500 mt-2">1-year price history (will be shown on the published report)</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Price Performance */}

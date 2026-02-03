@@ -6,8 +6,9 @@ import { Button } from '@/components/button';
 // Using native HTML form elements instead of custom UI components
 import { Badge } from '@/components/ui/badge';
 import { toNum } from '@/lib/utils';
-import { ArrowLeft, Calculator, TrendingUp, BarChart3, AlertTriangle, Info, Download, Upload, FileText, Save } from 'lucide-react';
+import { ArrowLeft, Calculator, TrendingUp, BarChart3, AlertTriangle, Info, Download, Upload, FileText, Save, Trash2, List } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import * as XLSX from 'xlsx';
 import {
   BarChart,
@@ -607,6 +608,7 @@ interface CompanyOverview {
   marketCapitalization?: number;
   ebitda?: number;
   peRatio?: number;
+  forwardPE?: number;
   evToEBITDA?: number;
   evToRevenue?: number;
   beta?: number;
@@ -641,7 +643,8 @@ function InvestorSnapshot({ companyData, financialData, quoteData }: InvestorSna
   const revenueTTM = companyData?.revenueTTM || 0;
   const ebitdaTTM = companyData?.ebitda || 0;
   const epsTTM = companyData?.dilutedEPSTTM || 0;
-  const peRatio = companyData?.peRatio || 0;
+  const peRatio = companyData?.peRatio || financialData?.peRatio || 0;
+  const forwardPE = companyData?.forwardPE ?? financialData?.forwardPE ?? null;
   const evEbitda = companyData?.evToEBITDA || 0;
   const evSales = companyData?.evToRevenue || 0;
   const dividendYield = companyData?.dividendYield || 0;
@@ -773,6 +776,13 @@ function InvestorSnapshot({ companyData, financialData, quoteData }: InvestorSna
                   <div className="text-right">
                     <div className="font-medium">{peRatio > 0 ? `${peRatio.toFixed(1)}x` : 'N/A'}</div>
                     <div className="text-xs text-gray-500">OVERVIEW.PERatio</div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Forward P/E</span>
+                  <div className="text-right">
+                    <div className="font-medium">{forwardPE != null && forwardPE > 0 ? `${Number(forwardPE).toFixed(1)}x` : 'N/A'}</div>
+                    <div className="text-xs text-gray-500">OVERVIEW.ForwardPE</div>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
@@ -1035,6 +1045,10 @@ export default function DCFToolPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [modelName, setModelName] = useState('');
+  const [manageModelsList, setManageModelsList] = useState<any[]>([]);
+  const [showAllModels, setShowAllModels] = useState(false);
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role === 'admin';
 
   // Fetch market data for ERP calculation
   const fetchMarketData = async () => {
@@ -1077,6 +1091,36 @@ export default function DCFToolPage() {
   useEffect(() => {
     fetchMarketData();
   }, []);
+
+  const fetchManageModels = async () => {
+    try {
+      const url = isAdmin && showAllModels ? '/api/dcf-models?all=true' : '/api/dcf-models';
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to fetch models');
+      const data = await res.json();
+      setManageModelsList(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error(e);
+      setManageModelsList([]);
+    }
+  };
+
+  const deleteDCFModel = async (id: string) => {
+    if (!confirm('Delete this DCF model? This cannot be undone.')) return;
+    try {
+      const res = await fetch(`/api/dcf-models/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete');
+      setManageModelsList(prev => prev.filter(m => m.id !== id));
+      if (savedModelId === id) setSavedModelId(null);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to delete model');
+    }
+  };
+
+  useEffect(() => {
+    fetchManageModels();
+  }, [isAdmin, showAllModels]);
 
   const updateInput = (field: keyof DCFInputs, value: any) => {
     setInputs(prev => ({ ...prev, [field]: value }));
@@ -1309,6 +1353,9 @@ export default function DCFToolPage() {
           'Failed to fetch complete financial data'
         );
       }
+
+      // Set company overview so Investor Snapshot and rest of app have PE ratios and company info
+      setSelectedCompany(overview);
 
       // Process and combine the data
       const processedData = processAlphaVantageData(overview, quote, income, balance, cashflow);
@@ -1890,10 +1937,10 @@ export default function DCFToolPage() {
 
       {/* Action Buttons */}
       <div className="flex gap-4 flex-wrap">
-        <Button onClick={loadExample} variant="outline">
+        <Button onClick={loadExample} variant="outline" className="text-gray-700">
           Load Example Company
         </Button>
-        <Button onClick={resetInputs} variant="outline">
+        <Button onClick={resetInputs} variant="outline" className="text-gray-700">
           Reset Assumptions
         </Button>
         
@@ -1925,7 +1972,7 @@ export default function DCFToolPage() {
           <Download className="w-4 h-4 mr-2" />
           📈 Export Excel
         </Button>
-        <Button onClick={() => printSnapshot(inputs, outputs)} variant="outline">
+        <Button onClick={() => printSnapshot(inputs, outputs)} variant="outline" className="text-gray-700">
           Print Snapshot
         </Button>
       </div>
@@ -1950,6 +1997,7 @@ export default function DCFToolPage() {
                 <Button 
                   onClick={() => setShowSaveModal(false)} 
                   variant="outline"
+                  className="text-gray-700"
                 >
                   Cancel
                 </Button>
@@ -1965,6 +2013,62 @@ export default function DCFToolPage() {
           </div>
         </div>
       )}
+
+      {/* Manage saved models (all users: own list; admin: can show all and delete any) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <List className="w-5 h-5 mr-2" />
+            Manage saved models
+          </CardTitle>
+          <CardDescription>
+            View and delete saved DCF models to keep the list clean.
+            {isAdmin && ' As admin you can toggle to see all users\' models.'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isAdmin && (
+            <label className="flex items-center gap-2 mb-4">
+              <input
+                type="checkbox"
+                checked={showAllModels}
+                onChange={(e) => setShowAllModels(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              <span className="text-sm">Show all models (all users)</span>
+            </label>
+          )}
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {manageModelsList.length === 0 ? (
+              <p className="text-sm text-gray-500">No saved models.</p>
+            ) : (
+              manageModelsList.map((m: any) => (
+                <div
+                  key={m.id}
+                  className="flex items-center justify-between py-2 px-3 rounded-md bg-gray-50 border border-gray-100"
+                >
+                  <div>
+                    <span className="font-medium">{m.name}</span>
+                    <span className="text-gray-500 text-sm ml-2">{m.ticker} • {new Date(m.updatedAt).toLocaleDateString()}</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-red-600 border-red-200 hover:bg-red-50"
+                    onClick={() => deleteDCFModel(m.id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+          <Button type="button" variant="outline" size="sm" className="mt-3 text-gray-700" onClick={fetchManageModels}>
+            Refresh list
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Company Search Section */}
       <Card>

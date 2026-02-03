@@ -260,7 +260,7 @@ export default function ResearchReportPreviewPage() {
       </Card>
 
       {/* Company Snapshot & Price Performance */}
-      {(report.priceDate || report.fiftyTwoWeekRange != null || report.marketCap != null || report.sharesOutstanding != null || report.fiscalYearEnd || report.priceTargetEndDate || report.dataSource || (report.performanceMetrics && (report.performanceMetrics as any).absYTD != null) || report.dcfInputs) && (
+      {(report.priceDate || report.fiftyTwoWeekRange != null || report.marketCap != null || report.sharesOutstanding != null || report.fiscalYearEnd || report.priceTargetEndDate || report.dataSource || (report.performanceMetrics && (report.performanceMetrics as any).absYTD != null) || report.dcfInputs || (report.priceHistory && report.priceHistory.length > 0)) && (
         <Card>
           <CardHeader>
             <CardTitle className="text-xl">Company Snapshot & Price Performance</CardTitle>
@@ -372,6 +372,7 @@ export default function ResearchReportPreviewPage() {
                   <svg viewBox="0 0 800 200" className="w-full h-full">
                     {(() => {
                       const chartData = (report.priceHistory || report.dcfInputs?.priceHistory || []).slice(0, 252); // ~1 year of trading days
+                      if (!chartData.length) return null;
                       const prices = chartData.map((d: any) => d.close);
                       const minPrice = Math.min(...prices);
                       const maxPrice = Math.max(...prices);
