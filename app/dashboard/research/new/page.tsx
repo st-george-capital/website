@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { ArrowLeft, Save, Eye, FileText, DollarSign, TrendingUp, AlertTriangle, Target, Building2 } from 'lucide-react';
+import { ArrowLeft, Save, Eye, FileText, DollarSign, TrendingUp, AlertTriangle, Target, Building2, Upload, Image as ImageIcon } from 'lucide-react';
 
 interface ThesisBullet {
   claim: string;
@@ -38,6 +38,7 @@ export default function NewResearchReportPage() {
   const [savedDCFModels, setSavedDCFModels] = useState<any[]>([]);
   const [selectedDCFModelId, setSelectedDCFModelId] = useState<string>(dcfModelId || '');
   const [loadingDCFModels, setLoadingDCFModels] = useState(false);
+  const [dcfData, setDcfData] = useState<{ inputs: any; outputs: any } | null>(null);
 
   // Form state
   const [metadata, setMetadata] = useState({
@@ -83,6 +84,7 @@ export default function NewResearchReportPage() {
   ]);
 
   const [esgFactors, setEsgFactors] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Fetch available DCF models on mount
   useEffect(() => {
@@ -125,6 +127,12 @@ export default function NewResearchReportPage() {
       if (!response.ok) throw new Error('Failed to load DCF model');
       
       const model = await response.json();
+      
+      // Store DCF data for saving with report
+      setDcfData({
+        inputs: model.inputs,
+        outputs: model.outputs
+      });
       
       // Auto-populate metadata from DCF
       setMetadata(prev => ({
@@ -300,6 +308,8 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
       const reportData = {
         ...metadata,
         dcfModelId,
+        dcfInputs: dcfData?.inputs || null,
+        dcfOutputs: dcfData?.outputs || null,
         investmentThesis: thesis,
         businessModel: businessModel.description,
         unitEconomics: businessModel.unitEconomics,
@@ -375,6 +385,37 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
     setRisks([...risks, { title: '', description: '', impact: 'medium', mitigation: '' }]);
   };
 
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload-image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error('Upload failed');
+
+      const data = await response.json();
+      const imageUrl = data.url;
+      const imageMarkdown = `![Image](${imageUrl})`;
+
+      // Copy to clipboard
+      await navigator.clipboard.writeText(imageMarkdown);
+      alert(`Image uploaded! Markdown copied to clipboard:\n${imageMarkdown}\n\nPaste this into any text field.`);
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Failed to upload image');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -396,6 +437,32 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
           </div>
         </div>
         <div className="flex gap-2">
+          <input
+            type="file"
+            id="image-upload"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="hidden"
+          />
+          <Button
+            type="button"
+            onClick={() => document.getElementById('image-upload')?.click()}
+            disabled={uploadingImage}
+            variant="outline"
+            className="bg-purple-50 text-purple-700 hover:bg-purple-100"
+          >
+            {uploadingImage ? (
+              <>
+                <Upload className="w-4 h-4 mr-2 animate-spin" />
+                Uploading...
+              </>
+            ) : (
+              <>
+                <ImageIcon className="w-4 h-4 mr-2" />
+                Upload Image
+              </>
+            )}
+          </Button>
           <Button onClick={() => handleSave(false)} disabled={saving}>
             <Save className="w-4 h-4 mr-2" />
             {saving ? 'Saving...' : 'Save Draft'}
