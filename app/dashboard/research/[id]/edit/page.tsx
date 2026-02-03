@@ -1090,7 +1090,7 @@ Key regulations affecting the industry..."
               <CardHeader>
                 <CardTitle>Valuation Analysis</CardTitle>
                 <CardDescription>
-                  {dcfModelId ? 'Valuation analysis pre-populated from linked DCF model' : 'DCF methodology, key assumptions, and sensitivity analysis'}
+                  {dcfData ? 'Valuation analysis from linked DCF model' : 'DCF methodology, key assumptions, and sensitivity analysis'}
                 </CardDescription>
               </CardHeader>
               <CardContent>
