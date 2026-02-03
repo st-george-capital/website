@@ -355,7 +355,6 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
     try {
       const reportData = {
         ...metadata,
-        dcfModelId,
         dcfInputs: dcfData?.inputs || null,
         dcfOutputs: dcfData?.outputs || null,
         investmentThesis: thesis,
