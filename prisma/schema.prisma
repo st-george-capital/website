@@ -232,3 +232,131 @@ model JobApplication {
 
   jobPosting    JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
 }
+
+model EquityResearchReport {
+  id                    String   @id @default(cuid())
+  
+  // Metadata
+  companyName           String
+  ticker                String
+  exchange              String
+  sector                String
+  industry              String
+  reportDate            DateTime @default(now())
+  analysts              String[] @default([]) // Array of analyst names
+  coverageStatus        String   // "initiation" | "update"
+  recommendation        String   // "buy" | "hold" | "sell"
+  currentPrice          Float
+  targetPrice           Float
+  impliedUpside         Float    // Calculated: (targetPrice - currentPrice) / currentPrice
+  timeHorizon           String   @default("12 months")
+  currency              String   @default("USD")
+  
+  // Report Status & Collaboration
+  status                String   @default("draft") // "draft" | "under_review" | "published"
+  version               Int      @default(1)
+  createdBy             String   // User ID
+  lastEditedBy          String?  // User ID
+  collaborators         String[] @default([]) // Array of user IDs with edit access
+  
+  // DCF Integration
+  dcfModelId            String?  @unique
+  dcfInputs             Json?    // Store DCF inputs for reproducibility
+  dcfOutputs            Json?    // Store DCF outputs
+  
+  // Executive Summary
+  investmentThesis      Json     // Array of { claim, driver, mispricing }
+  
+  // Financial Snapshot
+  financialSnapshot     Json     // Structured data: revenue, EBITDA, margins, etc.
+  
+  // Business Model
+  businessModel         String   @db.Text
+  unitEconomics         String?  @db.Text
+  economicMoat          String?  @db.Text
+  
+  // Industry Analysis
+  industryAnalysis      String   @db.Text
+  competitivePosition   Json?    // Structured competitor data
+  
+  // Catalysts
+  catalystsNearTerm     Json     // Array of { event, mechanism, probability }
+  catalystsMediumTerm   Json
+  
+  // Financial Forecasts
+  forecastAssumptions   Json     // Structured assumptions
+  incomeStatementForecast Json
+  cashFlowForecast      Json
+  
+  // Valuation
+  valuationMethod       String   // "dcf" | "multiples" | "both"
+  valuationAnalysis     String   @db.Text
+  sensitivityAnalysis   Json
+  
+  // Risks
+  bearCase              String   @db.Text
+  keyRisks              Json     // Array of risk objects
+  
+  // ESG
+  esgFactors            String?  @db.Text
+  governanceIssues      String?  @db.Text
+  
+  // Files & Exports
+  coverImage            String?
+  pdfExport             String?
+  excelModel            String?
+  
+  // Publishing
+  published             Boolean  @default(false)
+  publishedAt           DateTime?
+  
+  // Timestamps
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  // Relations
+  dcfModel              SavedDCFModel? @relation(fields: [dcfModelId], references: [id])
+  versions              ReportVersion[]
+  comments              ReportComment[]
+}
+
+model ReportVersion {
+  id                    String   @id @default(cuid())
+  reportId              String
+  version               Int
+  snapshot              Json     // Full report snapshot
+  createdBy             String   // User ID
+  changeLog             String?
+  createdAt             DateTime @default(now())
+  
+  report                EquityResearchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+}
+
+model ReportComment {
+  id                    String   @id @default(cuid())
+  reportId              String
+  section               String   // Which section
+  userId                String
+  userName              String
+  content               String   @db.Text
+  resolved              Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  
+  report                EquityResearchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+}
+
+model SavedDCFModel {
+  id                    String   @id @default(cuid())
+  ticker                String
+  companyName           String
+  inputs                Json     // Full DCF inputs
+  outputs               Json     // Calculated outputs
+  financialData         Json?    // Historical financial data
+  userId                String
+  name                  String
+  notes                 String?  @db.Text
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  report                EquityResearchReport?
+}

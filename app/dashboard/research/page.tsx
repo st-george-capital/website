@@ -1,212 +1,222 @@
 'use client';
 
-import { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/card';
-import { Button } from '@/components/button';
-import { Plus, Edit, Trash2, Eye } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
+import { Button } from '@/components/button';
+import { FileText, Plus, Eye, Edit, Trash2, Download, TrendingUp, TrendingDown } from 'lucide-react';
 
-// Mock data - would come from API
-const articles = [
-  {
-    id: '1',
-    title: 'Machine Learning Applications in Portfolio Optimization',
-    slug: 'ml-portfolio-optimization',
-    category: 'Quant Trading',
-    author: 'John Smith',
-    publishedAt: '2026-01-05',
-    featured: true,
-    status: 'published',
-  },
-  {
-    id: '2',
-    title: 'Central Bank Policy and Fixed Income Markets',
-    slug: 'central-bank-policy',
-    category: 'Equity & Macro',
-    author: 'Sarah Johnson',
-    publishedAt: '2025-12-20',
-    featured: true,
-    status: 'published',
-  },
-  {
-    id: '3',
-    title: 'Statistical Arbitrage in Cryptocurrency Markets',
-    slug: 'stat-arb-crypto',
-    category: 'Quant Research',
-    author: 'Michael Chen',
-    publishedAt: null,
-    featured: false,
-    status: 'draft',
-  },
-];
+interface ResearchReport {
+  id: string;
+  companyName: string;
+  ticker: string;
+  sector: string;
+  recommendation: string;
+  currentPrice: number;
+  targetPrice: number;
+  impliedUpside: number;
+  status: string;
+  published: boolean;
+  updatedAt: string;
+  analysts: string[];
+}
 
 export default function ResearchDashboardPage() {
-  const [filter, setFilter] = useState<'all' | 'published' | 'draft'>('all');
+  const router = useRouter();
+  const [reports, setReports] = useState<ResearchReport[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'draft' | 'published'>('all');
 
-  const filteredArticles = articles.filter((article) => {
-    if (filter === 'all') return true;
-    return article.status === filter;
-  });
+  useEffect(() => {
+    fetchReports();
+  }, [filter]);
+
+  const fetchReports = async () => {
+    try {
+      const url = filter !== 'all' 
+        ? `/api/research-reports?status=${filter}` 
+        : '/api/research-reports';
+      
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch reports');
+      
+      const data = await response.json();
+      setReports(data);
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteReport = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this report?')) return;
+
+    try {
+      const response = await fetch(`/api/research-reports/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) throw new Error('Failed to delete report');
+
+      setReports(reports.filter(r => r.id !== id));
+      alert('Report deleted successfully');
+    } catch (error) {
+      console.error('Error deleting report:', error);
+      alert('Failed to delete report');
+    }
+  };
+
+  const getRecommendationColor = (rec: string) => {
+    switch (rec.toLowerCase()) {
+      case 'buy': return 'bg-green-100 text-green-800';
+      case 'sell': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Research Articles</h1>
-          <p className="text-muted-foreground">Create and manage your research content</p>
+          <h1 className="text-3xl font-bold">Equity Research Reports</h1>
+          <p className="text-muted-foreground">
+            Manage institutional-grade equity research reports
+          </p>
         </div>
-        <Button>
-          <Plus className="w-4 h-4 mr-2" />
-          Create Article
-        </Button>
+        <Link href="/dashboard/research/new">
+          <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+            <Plus className="w-4 h-4 mr-2" />
+            New Report
+          </Button>
+        </Link>
       </div>
 
       {/* Filters */}
-      <div className="flex items-center space-x-4">
-        <button
-          onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded-lg ${
-            filter === 'all'
-              ? 'bg-primary text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          All ({articles.length})
-        </button>
-        <button
-          onClick={() => setFilter('published')}
-          className={`px-4 py-2 rounded-lg ${
-            filter === 'published'
-              ? 'bg-primary text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          Published ({articles.filter((a) => a.status === 'published').length})
-        </button>
-        <button
-          onClick={() => setFilter('draft')}
-          className={`px-4 py-2 rounded-lg ${
-            filter === 'draft'
-              ? 'bg-primary text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          Drafts ({articles.filter((a) => a.status === 'draft').length})
-        </button>
-      </div>
-
-      {/* Articles Table */}
       <Card>
-        <CardHeader>
-          <CardTitle>Articles</CardTitle>
-          <CardDescription>Manage your research publications</CardDescription>
-
-          <div className="mt-6 overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border text-left">
-                  <th className="pb-3 font-semibold">Title</th>
-                  <th className="pb-3 font-semibold">Category</th>
-                  <th className="pb-3 font-semibold">Author</th>
-                  <th className="pb-3 font-semibold">Status</th>
-                  <th className="pb-3 font-semibold">Published</th>
-                  <th className="pb-3 font-semibold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredArticles.map((article) => (
-                  <tr key={article.id} className="border-b border-border">
-                    <td className="py-4">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-semibold">{article.title}</span>
-                        {article.featured && (
-                          <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded">
-                            Featured
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-4">
-                      <span className="px-2 py-1 bg-gray-100 rounded text-sm">
-                        {article.category}
-                      </span>
-                    </td>
-                    <td className="py-4">{article.author}</td>
-                    <td className="py-4">
-                      <span
-                        className={`px-2 py-1 rounded text-sm ${
-                          article.status === 'published'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}
-                      >
-                        {article.status.charAt(0).toUpperCase() + article.status.slice(1)}
-                      </span>
-                    </td>
-                    <td className="py-4">
-                      {article.publishedAt
-                        ? new Date(article.publishedAt).toLocaleDateString()
-                        : '-'}
-                    </td>
-                    <td className="py-4 text-right">
-                      <div className="flex items-center justify-end space-x-2">
-                        <Link
-                          href={`/research/${article.slug}`}
-                          target="_blank"
-                          className="p-2 hover:bg-gray-100 rounded-lg"
-                        >
-                          <Eye size={16} />
-                        </Link>
-                        <button className="p-2 hover:bg-gray-100 rounded-lg">
-                          <Edit size={16} />
-                        </button>
-                        <button className="p-2 hover:bg-red-50 text-red-600 rounded-lg">
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {filteredArticles.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">
-                  No articles found. Create your first article to get started.
-                </p>
-              </div>
-            )}
+        <CardContent className="pt-6">
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setFilter('all')}
+              variant={filter === 'all' ? 'default' : 'outline'}
+            >
+              All Reports
+            </Button>
+            <Button
+              onClick={() => setFilter('draft')}
+              variant={filter === 'draft' ? 'default' : 'outline'}
+            >
+              Drafts
+            </Button>
+            <Button
+              onClick={() => setFilter('published')}
+              variant={filter === 'published' ? 'default' : 'outline'}
+            >
+              Published
+            </Button>
           </div>
-        </CardHeader>
+        </CardContent>
       </Card>
 
-      {/* Stats */}
-      <div className="grid md:grid-cols-3 gap-6">
+      {/* Reports List */}
+      {loading ? (
+        <div className="text-center py-12">Loading reports...</div>
+      ) : reports.length === 0 ? (
         <Card>
-          <CardHeader>
-            <CardDescription>Total Views</CardDescription>
-            <CardTitle className="text-3xl">12,543</CardTitle>
-            <p className="text-sm text-green-600">+23% this month</p>
-          </CardHeader>
+          <CardContent className="text-center py-12">
+            <FileText className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+            <p className="text-gray-600 mb-4">No reports found</p>
+            <Link href="/dashboard/research/new">
+              <Button>Create Your First Report</Button>
+            </Link>
+          </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>Avg. Reading Time</CardDescription>
-            <CardTitle className="text-3xl">8.5 min</CardTitle>
-            <p className="text-sm text-muted-foreground">Across all articles</p>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>Engagement Rate</CardDescription>
-            <CardTitle className="text-3xl">67%</CardTitle>
-            <p className="text-sm text-green-600">+5% this month</p>
-          </CardHeader>
-        </Card>
-      </div>
+      ) : (
+        <div className="grid gap-4">
+          {reports.map((report) => (
+            <Card key={report.id} className="hover:shadow-lg transition-shadow">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-xl font-bold">
+                        {report.companyName} ({report.ticker})
+                      </h3>
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getRecommendationColor(report.recommendation)}`}>
+                        {report.recommendation.toUpperCase()}
+                      </span>
+                      {report.published && (
+                        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                          Published
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-4 gap-4 mt-4 text-sm">
+                      <div>
+                        <div className="text-gray-600">Sector</div>
+                        <div className="font-medium">{report.sector}</div>
+                      </div>
+                      <div>
+                        <div className="text-gray-600">Current Price</div>
+                        <div className="font-medium">${report.currentPrice.toFixed(2)}</div>
+                      </div>
+                      <div>
+                        <div className="text-gray-600">Target Price</div>
+                        <div className="font-medium">${report.targetPrice.toFixed(2)}</div>
+                      </div>
+                      <div>
+                        <div className="text-gray-600">Implied Upside</div>
+                        <div className={`font-medium flex items-center ${report.impliedUpside >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {report.impliedUpside >= 0 ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
+                          {(report.impliedUpside * 100).toFixed(1)}%
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 text-sm text-gray-600">
+                      Analysts: {report.analysts.join(', ')}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Last updated: {new Date(report.updatedAt).toLocaleDateString()}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2 ml-4">
+                    <Button
+                      onClick={() => router.push(`/dashboard/research/${report.id}`)}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit
+                    </Button>
+                    <Button
+                      onClick={() => router.push(`/dashboard/research/${report.id}/preview`)}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      Preview
+                    </Button>
+                    <Button
+                      onClick={() => deleteReport(report.id)}
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
-

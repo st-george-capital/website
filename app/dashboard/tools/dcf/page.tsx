@@ -6,7 +6,8 @@ import { Button } from '@/components/button';
 // Using native HTML form elements instead of custom UI components
 import { Badge } from '@/components/ui/badge';
 import { toNum } from '@/lib/utils';
-import { ArrowLeft, Calculator, TrendingUp, BarChart3, AlertTriangle, Info, Download, Upload, FileText } from 'lucide-react';
+import { ArrowLeft, Calculator, TrendingUp, BarChart3, AlertTriangle, Info, Download, Upload, FileText, Save } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import {
   BarChart,
@@ -939,6 +940,7 @@ function InvestorSnapshot({ companyData, financialData, quoteData }: InvestorSna
 }
 
 export default function DCFToolPage() {
+  const router = useRouter();
   const [inputs, setInputs] = useState<DCFInputs>(getDefaultInputs());
   const [activeTab, setActiveTab] = useState<'snapshot' | 'assumptions' | 'valuation' | 'charts' | 'sensitivity' | 'financials'>('snapshot');
   const [financialData, setFinancialData] = useState<ExtractedFinancials | null>(null);
@@ -955,6 +957,10 @@ export default function DCFToolPage() {
     bull: { revenueGrowthAdj: 0.02, marginAdj: 0.015, waccAdj: -0.0075, termGrowthAdj: 0.005 },
     bear: { revenueGrowthAdj: -0.02, marginAdj: -0.015, waccAdj: 0.01, termGrowthAdj: -0.005 }
   });
+  const [savedModelId, setSavedModelId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [modelName, setModelName] = useState('');
 
   // Fetch market data for ERP calculation
   const fetchMarketData = async () => {
@@ -1025,6 +1031,69 @@ export default function DCFToolPage() {
       totalDebt: 0,
       cashEquivalents: 0,
     });
+  };
+
+  // Save DCF Model
+  const saveDCFModel = async () => {
+    if (!modelName.trim()) {
+      alert('Please enter a name for this model');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await fetch('/api/dcf-models', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ticker: inputs.ticker,
+          companyName: inputs.companyName,
+          inputs,
+          outputs,
+          financialData,
+          name: modelName,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to save model');
+
+      const savedModel = await response.json();
+      setSavedModelId(savedModel.id);
+      setShowSaveModal(false);
+      alert('DCF model saved successfully!');
+    } catch (error) {
+      console.error('Error saving DCF model:', error);
+      alert('Failed to save DCF model');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Update existing DCF Model
+  const updateDCFModel = async () => {
+    if (!savedModelId) return;
+
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/dcf-models/${savedModelId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          inputs,
+          outputs,
+          financialData,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to update model');
+
+      alert('DCF model updated successfully!');
+    } catch (error) {
+      console.error('Error updating DCF model:', error);
+      alert('Failed to update DCF model');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Company selection and analysis
@@ -1690,6 +1759,25 @@ export default function DCFToolPage() {
         </Button>
         
         
+        <Button 
+          onClick={() => setShowSaveModal(true)} 
+          className="flex items-center bg-purple-600 text-white hover:bg-purple-700"
+          disabled={!inputs.ticker || !inputs.companyName}
+        >
+          <Save className="w-4 h-4 mr-2" />
+          {savedModelId ? 'Update Model' : 'Save Model'}
+        </Button>
+        
+        {savedModelId && (
+          <Button 
+            onClick={() => router.push(`/dashboard/research/new?dcfModelId=${savedModelId}`)} 
+            className="flex items-center bg-indigo-600 text-white hover:bg-indigo-700"
+          >
+            <FileText className="w-4 h-4 mr-2" />
+            Create Research Report
+          </Button>
+        )}
+
         <Button onClick={() => exportToCSV(inputs, outputs)} className="flex items-center bg-blue-600 text-white hover:bg-blue-700">
           <Download className="w-4 h-4 mr-2" />
           📊 Export CSV
@@ -1702,6 +1790,42 @@ export default function DCFToolPage() {
           Print Snapshot
         </Button>
       </div>
+
+      {/* Save Modal */}
+      {showSaveModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-bold mb-4">Save DCF Model</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Model Name</label>
+                <input
+                  type="text"
+                  value={modelName}
+                  onChange={(e) => setModelName(e.target.value)}
+                  placeholder={`${inputs.ticker} - ${new Date().toLocaleDateString()}`}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button 
+                  onClick={() => setShowSaveModal(false)} 
+                  variant="outline"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={savedModelId ? updateDCFModel : saveDCFModel} 
+                  disabled={isSaving}
+                  className="bg-purple-600 text-white hover:bg-purple-700"
+                >
+                  {isSaving ? 'Saving...' : 'Save Model'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Company Search Section */}
       <Card>
