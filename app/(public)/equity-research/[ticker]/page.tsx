@@ -277,8 +277,8 @@ export default async function PublicResearchReportPage({
           <h2 className="text-3xl font-bold text-gray-900">Valuation Analysis</h2>
           <InstitutionalValuationSection
             dcfData={report.dcfInputs && report.dcfOutputs ? {
-              inputs: report.dcfInputs,
-              outputs: report.dcfOutputs,
+              inputs: report.dcfInputs as any,
+              outputs: report.dcfOutputs as any,
               companyName: report.companyName
             } : null}
             valuationText={report.valuationAnalysis}

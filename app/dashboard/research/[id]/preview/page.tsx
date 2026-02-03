@@ -410,8 +410,8 @@ export default function ResearchReportPreviewPage() {
         <CardContent>
           <InstitutionalValuationSection
             dcfData={report.dcfInputs && report.dcfOutputs ? {
-              inputs: report.dcfInputs,
-              outputs: report.dcfOutputs,
+              inputs: report.dcfInputs as any,
+              outputs: report.dcfOutputs as any,
               companyName: report.companyName
             } : null}
             valuationText={report.valuationAnalysis || 'Not provided'}
