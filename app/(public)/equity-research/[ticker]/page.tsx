@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ArrowLeft, TrendingUp, TrendingDown, Calendar, User } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { InstitutionalValuationSection } from '@/components/InstitutionalValuationSection';
 
 const prisma = new PrismaClient();
 
@@ -274,20 +275,14 @@ export default async function PublicResearchReportPage({
         {/* Valuation */}
         <div className="bg-white rounded-2xl p-8 space-y-6">
           <h2 className="text-3xl font-bold text-gray-900">Valuation Analysis</h2>
-          <div className="prose prose-lg max-w-none text-gray-700 bg-gray-50 p-6 rounded-lg
-            [&_table]:w-full [&_table]:border-collapse [&_table]:my-6 [&_table]:bg-white
-            [&_th]:bg-blue-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-4 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
-            [&_td]:border [&_td]:border-gray-300 [&_td]:px-4 [&_td]:py-2 [&_td]:bg-white
-            [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mt-8 [&_h1]:mb-4 [&_h1]:text-gray-900
-            [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mt-6 [&_h2]:mb-3 [&_h2]:text-gray-900
-            [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:text-gray-800
-            [&_strong]:font-bold [&_strong]:text-gray-900
-            [&_ul]:list-disc [&_ul]:ml-6 [&_ul]:my-3
-            [&_li]:my-1">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {report.valuationAnalysis}
-            </ReactMarkdown>
-          </div>
+          <InstitutionalValuationSection
+            dcfData={report.dcfInputs && report.dcfOutputs ? {
+              inputs: report.dcfInputs,
+              outputs: report.dcfOutputs,
+              companyName: report.companyName
+            } : null}
+            valuationText={report.valuationAnalysis}
+          />
         </div>
 
         {/* Risks */}
