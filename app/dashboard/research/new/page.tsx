@@ -35,6 +35,9 @@ export default function NewResearchReportPage() {
   const [activeSection, setActiveSection] = useState<string>('metadata');
   const [saving, setSaving] = useState(false);
   const [reportId, setReportId] = useState<string | null>(null);
+  const [savedDCFModels, setSavedDCFModels] = useState<any[]>([]);
+  const [selectedDCFModelId, setSelectedDCFModelId] = useState<string>(dcfModelId || '');
+  const [loadingDCFModels, setLoadingDCFModels] = useState(false);
 
   // Form state
   const [metadata, setMetadata] = useState({
@@ -81,12 +84,40 @@ export default function NewResearchReportPage() {
 
   const [esgFactors, setEsgFactors] = useState('');
 
+  // Fetch available DCF models on mount
+  useEffect(() => {
+    fetchSavedDCFModels();
+  }, []);
+
   // Load DCF model if ID provided
   useEffect(() => {
     if (dcfModelId) {
+      setSelectedDCFModelId(dcfModelId);
       loadDCFModel(dcfModelId);
     }
   }, [dcfModelId]);
+
+  const fetchSavedDCFModels = async () => {
+    setLoadingDCFModels(true);
+    try {
+      const response = await fetch('/api/dcf-models');
+      if (!response.ok) throw new Error('Failed to fetch DCF models');
+      
+      const models = await response.json();
+      setSavedDCFModels(models);
+    } catch (error) {
+      console.error('Error fetching DCF models:', error);
+    } finally {
+      setLoadingDCFModels(false);
+    }
+  };
+
+  const handleDCFModelSelect = async (modelId: string) => {
+    setSelectedDCFModelId(modelId);
+    if (modelId) {
+      await loadDCFModel(modelId);
+    }
+  };
 
   const loadDCFModel = async (modelId: string) => {
     try {
@@ -98,29 +129,80 @@ export default function NewResearchReportPage() {
       // Auto-populate metadata from DCF
       setMetadata(prev => ({
         ...prev,
-        companyName: model.companyName,
-        ticker: model.ticker,
-        currentPrice: model.inputs.currentPrice || 0,
-        targetPrice: model.outputs.intrinsicValuePerShare || 0,
+        companyName: model.companyName || prev.companyName,
+        ticker: model.ticker || prev.ticker,
+        currentPrice: model.inputs.currentPrice || prev.currentPrice,
+        targetPrice: model.outputs.intrinsicValuePerShare || prev.targetPrice,
+        // Try to get sector/industry from financial data if available
+        sector: model.financialData?.sector || prev.sector,
+        industry: model.financialData?.industry || prev.industry,
       }));
 
-      // Auto-populate valuation analysis
-      setValuationAnalysis(`DCF Valuation Analysis:
+      // Auto-populate valuation analysis with comprehensive DCF results
+      const avgRevGrowth = model.inputs.revenueGrowth.reduce((sum: number, g: number) => sum + g, 0) / model.inputs.revenueGrowth.length;
+      const avgEBITMargin = model.inputs.ebitMargin.reduce((sum: number, m: number) => sum + m, 0) / model.inputs.ebitMargin.length;
+      
+      setValuationAnalysis(`# DCF Valuation Analysis
+
+## Valuation Summary
 
 **Enterprise Value**: $${(model.outputs.enterpriseValue / 1e9).toFixed(2)}B
 **Equity Value**: $${(model.outputs.equityValue / 1e9).toFixed(2)}B
 **Intrinsic Value per Share**: $${model.outputs.intrinsicValuePerShare.toFixed(2)}
+**Current Price**: $${model.inputs.currentPrice.toFixed(2)}
 **Upside/Downside**: ${(model.outputs.upsideDownside * 100).toFixed(1)}%
 
+## Cost of Capital (WACC)
+
 **WACC**: ${(model.outputs.wacc * 100).toFixed(2)}%
-**Terminal Growth Rate**: ${(model.inputs.perpetualGrowth * 100).toFixed(2)}%
+- Cost of Equity: ${(model.outputs.costOfEquity * 100).toFixed(2)}%
+- After-Tax Cost of Debt: ${(model.outputs.afterTaxCostOfDebt * 100).toFixed(2)}%
+- Target Debt Ratio: ${(model.inputs.targetDebtRatio * 100).toFixed(1)}%
 
-**Key Assumptions**:
-- Forecast Period: ${model.inputs.forecastYears} years
-- Starting Revenue: $${(model.inputs.startingRevenue / 1e9).toFixed(2)}B
-- Average Revenue Growth: ${(model.inputs.revenueGrowth.reduce((sum: number, g: number) => sum + g, 0) / model.inputs.revenueGrowth.length * 100).toFixed(1)}%
-- Average EBIT Margin: ${(model.inputs.ebitMargin.reduce((sum: number, m: number) => sum + m, 0) / model.inputs.ebitMargin.length * 100).toFixed(1)}%`);
+**WACC Components**:
+- Risk-Free Rate: ${(model.inputs.riskFreeRate * 100).toFixed(2)}%
+- Equity Risk Premium: ${(model.inputs.equityRiskPremium * 100).toFixed(2)}%
+- Beta: ${model.inputs.beta.toFixed(2)}
 
+## Operating Forecast Assumptions
+
+**Forecast Period**: ${model.inputs.forecastYears} years
+**Starting Revenue**: $${(model.inputs.startingRevenue / 1e9).toFixed(2)}B
+
+**Revenue Growth by Year**:
+${model.inputs.revenueGrowth.map((g: number, i: number) => `- Year ${i + 1}: ${(g * 100).toFixed(1)}%`).join('\n')}
+- Average: ${(avgRevGrowth * 100).toFixed(1)}%
+
+**EBIT Margin by Year**:
+${model.inputs.ebitMargin.map((m: number, i: number) => `- Year ${i + 1}: ${(m * 100).toFixed(1)}%`).join('\n')}
+- Average: ${(avgEBITMargin * 100).toFixed(1)}%
+
+**Other Assumptions**:
+- Capex as % of Revenue: ${(model.inputs.capexPercentOfRevenue * 100).toFixed(1)}%
+- D&A as % of Revenue: ${(model.inputs.depreciationPercentOfRevenue * 100).toFixed(1)}%
+- NWC Change as % of Revenue Change: ${(model.inputs.nwcChangePercentOfRevenueChange * 100).toFixed(1)}%
+- Cash Tax Rate: ${(model.inputs.cashTaxRate * 100).toFixed(1)}%
+
+## Terminal Value
+
+**Method**: ${model.inputs.terminalMethod === 'perpetual' ? 'Perpetuity Growth' : model.inputs.terminalMethod === 'multiple' ? 'Exit Multiple' : 'Blended'}
+**Perpetual Growth Rate**: ${(model.inputs.perpetualGrowth * 100).toFixed(2)}%
+**Terminal Value**: $${(model.outputs.terminalValue / 1e9).toFixed(2)}B
+**PV of Terminal Value**: $${(model.outputs.pvOfTerminalValue / 1e9).toFixed(2)}B
+**Terminal Value % of EV**: ${(model.outputs.terminalValueContribution * 100).toFixed(1)}%
+
+## Capital Structure
+
+**Total Debt**: $${(model.inputs.totalDebt / 1e9).toFixed(2)}B
+**Cash & Equivalents**: $${(model.inputs.cashEquivalents / 1e9).toFixed(2)}B
+**Net Debt**: $${((model.inputs.totalDebt - model.inputs.cashEquivalents) / 1e9).toFixed(2)}B
+**Shares Outstanding (Diluted)**: ${(model.inputs.sharesDiluted / 1e6).toFixed(1)}M
+
+## Valuation Methodology
+
+This DCF model uses a ${model.inputs.forecastYears}-year explicit forecast period followed by a terminal value calculation. Free cash flow to the firm (FCFF) is projected based on revenue growth and operating margin assumptions, adjusting for capex, depreciation, and working capital changes. The terminal value assumes ${model.inputs.terminalMethod === 'perpetual' ? `a perpetual growth rate of ${(model.inputs.perpetualGrowth * 100).toFixed(2)}%` : `an exit multiple approach`}. All cash flows are discounted at the WACC of ${(model.outputs.wacc * 100).toFixed(2)}%.`);
+
+      alert('DCF model loaded successfully! Metadata and valuation analysis have been auto-populated.');
     } catch (error) {
       console.error('Error loading DCF model:', error);
       alert('Failed to load DCF model');
@@ -277,6 +359,40 @@ export default function NewResearchReportPage() {
                 <CardDescription>Basic company details and investment recommendation</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* DCF Model Selector */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <label className="block text-sm font-semibold mb-2 text-blue-900">
+                    📊 Load from Saved DCF Model (Optional)
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedDCFModelId}
+                      onChange={(e) => handleDCFModelSelect(e.target.value)}
+                      className="flex-1 px-3 py-2 border border-blue-300 rounded-md bg-white"
+                      disabled={loadingDCFModels}
+                    >
+                      <option value="">-- Select a DCF model to auto-populate --</option>
+                      {savedDCFModels.map((model) => (
+                        <option key={model.id} value={model.id}>
+                          {model.name} ({model.ticker}) - {new Date(model.updatedAt).toLocaleDateString()}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedDCFModelId && (
+                      <Button
+                        type="button"
+                        onClick={() => handleDCFModelSelect(selectedDCFModelId)}
+                        variant="outline"
+                        className="whitespace-nowrap"
+                      >
+                        Reload
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-blue-700 mt-2">
+                    Selecting a DCF model will auto-populate: company name, ticker, current price, target price, sector, industry, and full valuation analysis.
+                  </p>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">Company Name</label>
