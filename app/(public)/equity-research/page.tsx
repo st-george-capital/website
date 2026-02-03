@@ -11,6 +11,7 @@ async function getPublishedEquityReports() {
   const reports = await prisma.equityResearchReport.findMany({
     where: {
       published: true,
+      showOnWebsite: true,
     },
     orderBy: { publishedAt: 'desc' },
   });

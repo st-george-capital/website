@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { Calculator, TrendingUp, BarChart3 } from 'lucide-react';
+import { Calculator, TrendingUp, BarChart3, FileText } from 'lucide-react';
 
 const tools = [
   {
@@ -13,19 +13,24 @@ const tools = [
     icon: Calculator,
     features: [
       'Free Cash Flow projections',
-      'WACC calculation',
       'Terminal value estimation',
       'Sensitivity analysis',
+      'Bull & bear scenarios',
       'Professional charts',
     ],
   },
-  // Future tools can be added here
-  // {
-  //   id: 'relative-valuation',
-  //   name: 'Relative Valuation Tool',
-  //   description: 'Multiples-based valuation using comparable companies',
-  //   icon: BarChart3,
-  // },
+  {
+    id: 'equity-research',
+    name: 'Equity Research Reports',
+    description: 'Create and manage institutional-grade equity research reports linked to DCF models',
+    icon: FileText,
+    features: [
+      'Link to saved DCF models',
+      'Bull & bear cases from DCF',
+      'Valuation tables and charts',
+      'Publish or hide on website',
+    ],
+  },
 ];
 
 export default function ToolsDashboardPage() {
@@ -71,7 +76,7 @@ export default function ToolsDashboardPage() {
                     ))}
                   </ul>
                 </div>
-                <Link href={`/dashboard/tools/${tool.id}`}>
+                <Link href={tool.id === 'equity-research' ? '/dashboard/research' : `/dashboard/tools/${tool.id}`}>
                   <Button className="w-full">
                     Open {tool.name}
                   </Button>

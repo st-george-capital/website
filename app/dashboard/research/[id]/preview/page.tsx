@@ -51,6 +51,9 @@ interface ResearchReport {
   dcfInputs?: any;
   dcfOutputs?: any;
   bearCase: string;
+  bullCase?: string | null;
+  bullBearJustification?: string | null;
+  aiStrategies?: string | null;
   keyRisks: Array<{
     title: string;
     description: string;
@@ -419,32 +422,24 @@ export default function ResearchReportPreviewPage() {
         </CardContent>
       </Card>
 
-      {/* Risks & Bear Case */}
+      {/* Bull & Bear Cases */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Risks & Bear Case</CardTitle>
+          <CardTitle className="text-2xl">Bull & Bear Cases</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {report.keyRisks.length > 0 && (
+          {(report.bullCase != null && report.bullCase !== '') && (
             <div>
-              <h3 className="font-semibold text-lg mb-3">Key Risks</h3>
-              <div className="space-y-3">
-                {report.keyRisks.map((risk, index) => (
-                  <div key={index} className="border border-red-200 rounded-lg p-4 bg-red-50">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="font-semibold text-gray-900">{risk.title}</div>
-                      <span className={`px-2 py-1 rounded text-xs font-semibold uppercase ${getImpactBadge(risk.impact)}`}>
-                        {risk.impact} impact
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-700 mb-2">{risk.description}</div>
-                    {risk.mitigation && (
-                      <div className="text-sm text-gray-600 italic">
-                        <span className="font-medium">Mitigation:</span> {risk.mitigation}
-                      </div>
-                    )}
-                  </div>
-                ))}
+              <h3 className="font-semibold text-lg mb-3">Bull Case</h3>
+              <div className="prose max-w-none text-gray-700 border-l-4 border-green-500 pl-4 py-2 bg-green-50
+                [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
+                [&_th]:bg-green-100 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
+                [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
+                [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
+                [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {report.bullCase}
+                </ReactMarkdown>
               </div>
             </div>
           )}
@@ -462,8 +457,72 @@ export default function ResearchReportPreviewPage() {
               </ReactMarkdown>
             </div>
           </div>
+
+          {(report.bullBearJustification != null && report.bullBearJustification !== '') && (
+            <div>
+              <h3 className="font-semibold text-lg mb-3">Justification</h3>
+              <div className="prose max-w-none text-gray-700 bg-gray-50 border rounded-lg p-4
+                [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
+                [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
+                [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {report.bullBearJustification}
+                </ReactMarkdown>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Key Risks */}
+      {report.keyRisks.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl">Key Risks</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {report.keyRisks.map((risk, index) => (
+                <div key={index} className="border border-red-200 rounded-lg p-4 bg-red-50">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="font-semibold text-gray-900">{risk.title}</div>
+                    <span className={`px-2 py-1 rounded text-xs font-semibold uppercase ${getImpactBadge(risk.impact)}`}>
+                      {risk.impact} impact
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-700 mb-2">{risk.description}</div>
+                  {risk.mitigation && (
+                    <div className="text-sm text-gray-600 italic">
+                      <span className="font-medium">Mitigation:</span> {risk.mitigation}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* AI Strategies (if provided) */}
+      {report.aiStrategies != null && report.aiStrategies !== '' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl">AI & Data Strategy</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="prose max-w-none text-gray-700
+              [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
+              [&_th]:bg-gray-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
+              [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
+              [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
+              [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {report.aiStrategies}
+              </ReactMarkdown>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ESG (if provided) */}
       {report.esgFactors && (

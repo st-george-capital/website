@@ -18,6 +18,7 @@ interface ResearchReport {
   impliedUpside: number;
   status: string;
   published: boolean;
+  showOnWebsite: boolean;
   updatedAt: string;
   analysts: string[];
 }
@@ -47,6 +48,22 @@ export default function ResearchDashboardPage() {
       console.error('Error fetching reports:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleShowOnWebsite = async (id: string, current: boolean) => {
+    try {
+      const response = await fetch(`/api/research-reports/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ showOnWebsite: !current }),
+      });
+      if (!response.ok) throw new Error('Failed to update');
+      setReports(reports.map(r => r.id === id ? { ...r, showOnWebsite: !current } : r));
+      alert(current ? 'Report removed from website' : 'Report added to website');
+    } catch (error) {
+      console.error('Error updating report:', error);
+      alert('Failed to update report');
     }
   };
 
@@ -206,14 +223,24 @@ export default function ResearchDashboardPage() {
                       Preview
                     </Button>
                     {report.published && (
-                      <Button
-                        onClick={() => window.open(`/equity-research/${report.ticker}`, '_blank')}
-                        className="bg-purple-600 text-white hover:bg-purple-700"
-                        size="sm"
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        View Live
-                      </Button>
+                      <>
+                        <Button
+                          onClick={() => window.open(`/equity-research/${report.ticker}`, '_blank')}
+                          className="bg-purple-600 text-white hover:bg-purple-700"
+                          size="sm"
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          View Live
+                        </Button>
+                        <Button
+                          onClick={() => toggleShowOnWebsite(report.id, report.showOnWebsite)}
+                          variant="outline"
+                          size="sm"
+                          className={report.showOnWebsite ? 'border-orange-500 text-orange-600 hover:bg-orange-50' : 'border-green-500 text-green-600 hover:bg-green-50'}
+                        >
+                          {report.showOnWebsite ? 'Remove from website' : 'Show on website'}
+                        </Button>
+                      </>
                     )}
                     <Button
                       onClick={() => deleteReport(report.id)}

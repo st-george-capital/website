@@ -293,9 +293,14 @@ model EquityResearchReport {
   valuationAnalysis     String   @db.Text
   sensitivityAnalysis   Json
   
-  // Risks
+  // Risks & Scenarios
   bearCase              String   @db.Text
+  bullCase              String?  @db.Text
+  bullBearJustification String?  @db.Text  // Optional justification for bull/bear cases
   keyRisks              Json     // Array of risk objects
+  
+  // AI & Strategy
+  aiStrategies          String?  @db.Text   // Company AI strategy / use of AI
   
   // ESG
   esgFactors            String?  @db.Text
@@ -309,6 +314,7 @@ model EquityResearchReport {
   // Publishing
   published             Boolean  @default(false)
   publishedAt           DateTime?
+  showOnWebsite         Boolean  @default(true)  // Can hide from public without deleting
   
   // Timestamps
   createdAt             DateTime @default(now())

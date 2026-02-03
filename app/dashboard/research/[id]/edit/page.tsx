@@ -77,6 +77,9 @@ export default function EditResearchReportPage({ params }: { params: { id: strin
   const [valuationAnalysis, setValuationAnalysis] = useState('');
   
   const [bearCase, setBearCase] = useState('');
+  const [bullCase, setBullCase] = useState('');
+  const [bullBearJustification, setBullBearJustification] = useState('');
+  const [aiStrategies, setAiStrategies] = useState('');
   
   const [risks, setRisks] = useState<Risk[]>([
     { title: '', description: '', impact: 'medium', mitigation: '' }
@@ -125,6 +128,9 @@ export default function EditResearchReportPage({ params }: { params: { id: strin
         setCatalystsMedium(report.catalystsMediumTerm || [{ event: '', mechanism: '', probability: 'medium', timeframe: '' }]);
         setValuationAnalysis(report.valuationAnalysis || '');
         setBearCase(report.bearCase || '');
+        setBullCase(report.bullCase || '');
+        setBullBearJustification(report.bullBearJustification || '');
+        setAiStrategies(report.aiStrategies || '');
         setRisks(report.keyRisks || [{ title: '', description: '', impact: 'medium', mitigation: '' }]);
         setEsgFactors(report.esgFactors || '');
 
@@ -366,6 +372,9 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
         catalystsMediumTerm: catalystsMedium,
         valuationAnalysis,
         bearCase,
+        bullCase,
+        bullBearJustification,
+        aiStrategies,
         keyRisks: risks,
         esgFactors,
         financialSnapshot: {}, // Will be populated from DCF
@@ -408,7 +417,10 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
     { id: 'industry', name: 'Industry Analysis', icon: TrendingUp },
     { id: 'catalysts', name: 'Catalysts', icon: TrendingUp },
     { id: 'valuation', name: 'Valuation', icon: DollarSign },
-    { id: 'risks', name: 'Risks & Bear Case', icon: AlertTriangle },
+    { id: 'bullbear', name: 'Bull & Bear Cases', icon: TrendingUp },
+    { id: 'justification', name: 'Justification (Optional)', icon: FileText },
+    { id: 'risks', name: 'Risks', icon: AlertTriangle },
+    { id: 'aistrategies', name: 'AI Strategies', icon: Target },
     { id: 'esg', name: 'ESG (Optional)', icon: FileText },
   ];
 
@@ -1125,11 +1137,62 @@ If applicable for multi-business companies..."
             </Card>
           )}
 
+          {activeSection === 'bullbear' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Bull & Bear Cases</CardTitle>
+                <CardDescription>Upside and downside scenarios. Can be pre-filled from a linked DCF model if saved with bull/bear scenarios.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <h4 className="font-medium mb-2">Bull Case</h4>
+                  <p className="text-xs text-gray-500 mb-2">✓ Markdown & Images Supported</p>
+                  <textarea
+                    value={bullCase}
+                    onChange={(e) => setBullCase(e.target.value)}
+                    rows={12}
+                    className="w-full px-3 py-2 border rounded-md font-mono text-sm"
+                    placeholder="## Bull Case Thesis&#10;Key drivers that could push the stock higher...&#10;&#10;## Upside Scenario&#10;- Revenue growth above base case&#10;- Margin expansion&#10;- Multiple re-rating&#10;&#10;## Bull Case Valuation&#10;**Upside Target:** $XX per share (+XX%)"
+                  />
+                </div>
+                <div>
+                  <h4 className="font-medium mb-2">Bear Case</h4>
+                  <p className="text-xs text-gray-500 mb-2">✓ Markdown & Images Supported</p>
+                  <textarea
+                    value={bearCase}
+                    onChange={(e) => setBearCase(e.target.value)}
+                    rows={12}
+                    className="w-full px-3 py-2 border rounded-md font-mono text-sm"
+                    placeholder="## Bear Case Thesis&#10;What would invalidate the investment thesis?&#10;&#10;## Downside Scenario&#10;- Revenue miss, margin compression&#10;- Multiple compression&#10;&#10;## Bear Case Valuation&#10;**Downside Target:** $XX per share (-XX%)"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {activeSection === 'justification' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Justification for Bull & Bear Cases (Optional)</CardTitle>
+                <CardDescription>Explain the rationale and assumptions behind your bull and bear scenarios.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <textarea
+                  value={bullBearJustification}
+                  onChange={(e) => setBullBearJustification(e.target.value)}
+                  rows={14}
+                  className="w-full px-3 py-2 border rounded-md font-mono text-sm"
+                  placeholder="Optional: Why these bull/bear cases? Key assumptions, probability weights, or how they tie to the DCF scenarios..."
+                />
+              </CardContent>
+            </Card>
+          )}
+
           {activeSection === 'risks' && (
             <Card>
               <CardHeader>
-                <CardTitle>Risks & Bear Case</CardTitle>
-                <CardDescription>Thesis-specific risks and downside scenario</CardDescription>
+                <CardTitle>Key Risks</CardTitle>
+                <CardDescription>Thesis-specific risks and mitigations</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div>
@@ -1204,36 +1267,25 @@ If applicable for multi-business companies..."
                 </Button>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          )}
 
-                <div>
-                  <h4 className="font-medium mb-2">
-                    Bear Case Scenario
-                    <span className="ml-2 text-xs font-normal text-blue-600">✓ Markdown & Images Supported</span>
-                  </h4>
-                  <textarea
-                    value={bearCase}
-                    onChange={(e) => setBearCase(e.target.value)}
-                    rows={15}
-                    className="w-full px-3 py-2 border rounded-md font-mono text-sm"
-                    placeholder="## Bear Case Thesis
-What would invalidate the investment thesis?
-
-## Downside Scenario
-- **Revenue Miss:** If growth falls to X%...
-- **Margin Compression:** If EBITDA margins contract to Y%...
-- **Multiple Compression:** If valuation re-rates to Z multiple...
-
-## Bear Case Valuation
-**Downside Target:** $XX per share (-XX%)
-
-Based on:
-- Conservative growth assumptions
-- Lower terminal multiple
-- Increased discount rate
-
-![Figure: Bear Case Scenario](image-url)"
-                  />
-                </div>
+          {activeSection === 'aistrategies' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>AI Strategies</CardTitle>
+                <CardDescription>Information on the company's use of AI, data strategy, and digital initiatives.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-gray-500 mb-2">✓ Markdown & Images Supported</p>
+                <textarea
+                  value={aiStrategies}
+                  onChange={(e) => setAiStrategies(e.target.value)}
+                  rows={14}
+                  className="w-full px-3 py-2 border rounded-md font-mono text-sm"
+                  placeholder="## AI & Data Strategy&#10;How the company uses AI, automation, data...&#10;&#10;## Key Initiatives&#10;- Product, operations, or customer use cases&#10;- Partnerships, build vs buy&#10;&#10;## Competitive Moat&#10;How AI/digital capabilities support the thesis..."
+                />
               </CardContent>
             </Card>
           )}

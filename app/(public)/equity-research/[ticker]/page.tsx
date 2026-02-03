@@ -13,6 +13,7 @@ async function getPublishedReport(ticker: string) {
     where: {
       ticker: ticker.toUpperCase(),
       published: true,
+      showOnWebsite: true,
     },
     orderBy: {
       publishedAt: 'desc',
@@ -285,30 +286,22 @@ export default async function PublicResearchReportPage({
           />
         </div>
 
-        {/* Risks */}
+        {/* Bull & Bear Cases */}
         <div className="bg-white rounded-2xl p-8 space-y-6">
-          <h2 className="text-3xl font-bold text-gray-900">Risks & Bear Case</h2>
+          <h2 className="text-3xl font-bold text-gray-900">Bull & Bear Cases</h2>
           
-          {risks.length > 0 && (
+          {report.bullCase && (
             <div>
-              <h3 className="font-semibold text-xl mb-4 text-gray-900">Key Risks</h3>
-              <div className="space-y-3">
-                {risks.map((risk: any, index: number) => (
-                  <div key={index} className="border border-red-200 rounded-lg p-4 bg-red-50">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="font-semibold text-gray-900">{risk.title}</div>
-                      <span className={`px-2 py-1 rounded text-xs font-semibold uppercase ${getImpactBadge(risk.impact)}`}>
-                        {risk.impact} impact
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-700 mb-2">{risk.description}</div>
-                    {risk.mitigation && (
-                      <div className="text-sm text-gray-600 italic">
-                        <span className="font-medium">Mitigation:</span> {risk.mitigation}
-                      </div>
-                    )}
-                  </div>
-                ))}
+              <h3 className="font-semibold text-xl mb-4 text-gray-900">Bull Case</h3>
+              <div className="prose max-w-none text-gray-700 border-l-4 border-green-500 pl-4 py-3 bg-green-50 rounded-r
+                [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
+                [&_th]:bg-green-100 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
+                [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
+                [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
+                [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {report.bullCase}
+                </ReactMarkdown>
               </div>
             </div>
           )}
@@ -326,7 +319,62 @@ export default async function PublicResearchReportPage({
               </ReactMarkdown>
             </div>
           </div>
+
+          {report.bullBearJustification && (
+            <div>
+              <h3 className="font-semibold text-xl mb-4 text-gray-900">Justification</h3>
+              <div className="prose max-w-none text-gray-700 bg-gray-50 border rounded-lg p-4
+                [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
+                [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {report.bullBearJustification}
+                </ReactMarkdown>
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Key Risks */}
+        {risks.length > 0 && (
+          <div className="bg-white rounded-2xl p-8 space-y-6">
+            <h2 className="text-3xl font-bold text-gray-900">Key Risks</h2>
+            <div className="space-y-3">
+              {risks.map((risk: any, index: number) => (
+                <div key={index} className="border border-red-200 rounded-lg p-4 bg-red-50">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="font-semibold text-gray-900">{risk.title}</div>
+                    <span className={`px-2 py-1 rounded text-xs font-semibold uppercase ${getImpactBadge(risk.impact)}`}>
+                      {risk.impact} impact
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-700 mb-2">{risk.description}</div>
+                  {risk.mitigation && (
+                    <div className="text-sm text-gray-600 italic">
+                      <span className="font-medium">Mitigation:</span> {risk.mitigation}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* AI Strategies */}
+        {report.aiStrategies && (
+          <div className="bg-white rounded-2xl p-8 space-y-6">
+            <h2 className="text-3xl font-bold text-gray-900">AI & Data Strategy</h2>
+            <div className="prose max-w-none text-gray-700
+              [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
+              [&_th]:bg-gray-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
+              [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
+              [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
+              [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {report.aiStrategies}
+              </ReactMarkdown>
+            </div>
+          </div>
+        )}
 
         {/* ESG */}
         {report.esgFactors && (

@@ -32,7 +32,6 @@ const navigation: Array<{
   userMinRole?: 'user' | 'admin'; // Minimum role required to access
 }> = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Research Reports', href: '/dashboard/research', icon: Target, userMinRole: 'user' },
   { name: 'Articles', href: '/dashboard/articles', icon: FileText, userMinRole: 'user' },
   { name: 'Investments', href: '/dashboard/investments', icon: BarChart3, userMinRole: 'user' },
   { name: 'Strategy', href: '/dashboard/strategy', icon: BarChart3, userMinRole: 'user' },
