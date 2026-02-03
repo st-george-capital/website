@@ -31,6 +31,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# uploaded images (except placeholder)
+public/uploads/research/*
+!public/uploads/research/.gitkeep
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
