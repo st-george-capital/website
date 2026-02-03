@@ -1,54 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import { put } from '@vercel/blob';
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    
+
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    // Validate file type (images only)
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     if (!validTypes.includes(file.type)) {
       return NextResponse.json({ error: 'Invalid file type. Only images allowed.' }, { status: 400 });
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       return NextResponse.json({ error: 'File too large. Max 5MB.' }, { status: 400 });
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const pathname = `research/${Date.now()}-${safeName}`;
 
-    // Create unique filename
-    const timestamp = Date.now();
-    const filename = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-    
-    // Ensure upload directory exists
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'research');
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
-    }
+    const blob = await put(pathname, file, {
+      access: 'public',
+      addRandomSuffix: true,
+      contentType: file.type,
+    });
 
-    // Save file
-    const filepath = join(uploadDir, filename);
-    await writeFile(filepath, buffer);
-
-    // Return public URL
-    const publicUrl = `/uploads/research/${filename}`;
-    
-    return NextResponse.json({ 
-      url: publicUrl,
-      filename: filename 
+    return NextResponse.json({
+      url: blob.url,
+      filename: blob.pathname,
     });
   } catch (error) {
     console.error('Upload error:', error);
-    return NextResponse.json({ error: 'Failed to upload file' }, { status: 500 });
+    return NextResponse.json(
+      { error: process.env.BLOB_READ_WRITE_TOKEN ? 'Failed to upload file' : 'Image upload requires BLOB_READ_WRITE_TOKEN (Vercel Blob). Add a Blob store in the Vercel project.' },
+      { status: 500 }
+    );
   }
 }

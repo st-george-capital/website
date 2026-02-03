@@ -73,8 +73,8 @@ export default async function EquityResearchPage() {
                           <p className="text-sm text-gray-600">{report.ticker} • {report.exchange}</p>
                         </div>
                         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          report.recommendation === 'buy' ? 'bg-green-100 text-green-800' :
-                          report.recommendation === 'sell' ? 'bg-red-100 text-red-800' :
+                          report.recommendation === 'buy' || report.recommendation === 'overweight' ? 'bg-green-100 text-green-800' :
+                          report.recommendation === 'sell' || report.recommendation === 'underweight' ? 'bg-red-100 text-red-800' :
                           'bg-gray-100 text-gray-800'
                         }`}>
                           {report.recommendation.toUpperCase()}

@@ -48,11 +48,25 @@ export default function NewResearchReportPage() {
     sector: '',
     industry: '',
     coverageStatus: 'initiation',
-    recommendation: 'hold',
+    recommendation: 'hold' as string,
     currentPrice: 0,
     targetPrice: 0,
     currency: 'USD',
-    analysts: [''],
+    analysts: [''] as string[],
+    // Company snapshot
+    priceDate: '',
+    fiftyTwoWeekRange: '',
+    marketCap: null as number | null,
+    sharesOutstanding: null as number | null,
+    fiscalYearEnd: '',
+    priceTargetEndDate: '',
+    dataSource: '',
+    epsTableMarkdown: '',
+    // Price performance (percentages, e.g. -32.8 for -32.8%)
+    performanceMetrics: null as {
+      absYTD?: number; abs1m?: number; abs3m?: number; abs12m?: number;
+      relYTD?: number; rel1m?: number; rel3m?: number; rel12m?: number;
+    } | null,
   });
 
   const [thesis, setThesis] = useState<ThesisBullet[]>([
@@ -298,7 +312,39 @@ Our DCF analysis employs a Free Cash Flow to the Firm (FCFF) approach, which val
 
 At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuation suggests the stock is currently **${model.outputs.upsideDownside >= 0 ? 'undervalued' : 'overvalued'}** by ${Math.abs(model.outputs.upsideDownside * 100).toFixed(1)}%. The valuation is most sensitive to assumptions around terminal growth rate and discount rate, as illustrated in the sensitivity table above.`);
 
-      alert('DCF model loaded successfully! Full valuation analysis with tables and sensitivity analysis has been generated.');
+      // Pre-fill bull and bear cases from DCF scenarios if saved with the model
+      if (model.outputs.bull && model.outputs.bear) {
+        const bullUpside = model.inputs.currentPrice > 0
+          ? ((model.outputs.bull.intrinsicValuePerShare - model.inputs.currentPrice) / model.inputs.currentPrice) * 100
+          : 0;
+        const bearUpside = model.inputs.currentPrice > 0
+          ? ((model.outputs.bear.intrinsicValuePerShare - model.inputs.currentPrice) / model.inputs.currentPrice) * 100
+          : 0;
+        setBullCase(`## Bull Case (from DCF model)
+
+**Target:** $${model.outputs.bull.intrinsicValuePerShare.toFixed(2)} per share (**${bullUpside >= 0 ? '+' : ''}${bullUpside.toFixed(1)}%** vs current $${model.inputs.currentPrice.toFixed(2)})
+
+| Metric | Bull Case |
+|--------|-----------|
+| Intrinsic Value/Share | $${model.outputs.bull.intrinsicValuePerShare.toFixed(2)} |
+| Enterprise Value | $${(model.outputs.bull.enterpriseValue / 1e9).toFixed(2)}B |
+| WACC | ${(model.outputs.bull.wacc * 100).toFixed(2)}% |
+
+*Assumptions: Higher revenue growth, margin expansion, lower discount rate. Adjust narrative and add justification below.*`);
+        setBearCase(`## Bear Case (from DCF model)
+
+**Target:** $${model.outputs.bear.intrinsicValuePerShare.toFixed(2)} per share (**${bearUpside.toFixed(1)}%** vs current $${model.inputs.currentPrice.toFixed(2)})
+
+| Metric | Bear Case |
+|--------|-----------|
+| Intrinsic Value/Share | $${model.outputs.bear.intrinsicValuePerShare.toFixed(2)} |
+| Enterprise Value | $${(model.outputs.bear.enterpriseValue / 1e9).toFixed(2)}B |
+| WACC | ${(model.outputs.bear.wacc * 100).toFixed(2)}% |
+
+*Assumptions: Lower growth, margin pressure, higher discount rate. Adjust narrative and add justification below.*`);
+      }
+
+      alert('DCF model loaded successfully! Full valuation analysis with tables and sensitivity analysis has been generated.' + (model.outputs.bull && model.outputs.bear ? ' Bull and bear cases pre-filled from DCF scenarios.' : ''));
     } catch (error) {
       console.error('Error loading DCF model:', error);
       alert('Failed to load DCF model');
@@ -635,6 +681,9 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
                       <option value="buy">Buy</option>
                       <option value="hold">Hold</option>
                       <option value="sell">Sell</option>
+                      <option value="overweight">Overweight</option>
+                      <option value="neutral">Neutral</option>
+                      <option value="underweight">Underweight</option>
                     </select>
                   </div>
                 </div>
@@ -690,6 +739,165 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
                   <p className="text-xs text-gray-500 mt-1">
                     Separate multiple analysts with commas
                   </p>
+                </div>
+
+                {/* Company Snapshot */}
+                <div className="border-t pt-6 mt-6">
+                  <h3 className="text-lg font-semibold mb-3">Company Snapshot</h3>
+                  <p className="text-sm text-gray-500 mb-4">Optional: price date, 52-week range, market cap, fiscal year end, data source (e.g. Company data, Bloomberg, estimates).</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Price Date</label>
+                      <input
+                        type="text"
+                        value={metadata.priceDate}
+                        onChange={(e) => setMetadata({ ...metadata, priceDate: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-md"
+                        placeholder="e.g. 29 Sep 15"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">52-Week Range ($)</label>
+                      <input
+                        type="text"
+                        value={metadata.fiftyTwoWeekRange}
+                        onChange={(e) => setMetadata({ ...metadata, fiftyTwoWeekRange: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-md"
+                        placeholder="e.g. 22.81-39.27"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Market Cap ($ mn)</label>
+                      <input
+                        type="number"
+                        step="any"
+                        value={metadata.marketCap ?? ''}
+                        onChange={(e) => setMetadata({ ...metadata, marketCap: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                        className="w-full px-3 py-2 border rounded-md"
+                        placeholder="e.g. 53148"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Shares O/S (mn)</label>
+                      <input
+                        type="number"
+                        step="any"
+                        value={metadata.sharesOutstanding ?? ''}
+                        onChange={(e) => setMetadata({ ...metadata, sharesOutstanding: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                        className="w-full px-3 py-2 border rounded-md"
+                        placeholder="e.g. 2060"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Fiscal Year End</label>
+                      <input
+                        type="text"
+                        value={metadata.fiscalYearEnd}
+                        onChange={(e) => setMetadata({ ...metadata, fiscalYearEnd: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-md"
+                        placeholder="e.g. Jun"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Price Target End Date</label>
+                      <input
+                        type="text"
+                        value={metadata.priceTargetEndDate}
+                        onChange={(e) => setMetadata({ ...metadata, priceTargetEndDate: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-md"
+                        placeholder="e.g. 31-Dec-16"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium mb-2">Data Source</label>
+                    <input
+                      type="text"
+                      value={metadata.dataSource}
+                      onChange={(e) => setMetadata({ ...metadata, dataSource: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-md"
+                      placeholder="e.g. Company data, Bloomberg, J.P. Morgan estimates"
+                    />
+                  </div>
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium mb-2">EPS Table (Markdown)</label>
+                    <textarea
+                      value={metadata.epsTableMarkdown}
+                      onChange={(e) => setMetadata({ ...metadata, epsTableMarkdown: e.target.value })}
+                      rows={6}
+                      className="w-full px-3 py-2 border rounded-md font-mono text-sm"
+                      placeholder="Paste or type EPS table in markdown (e.g. | Q1 | 0.38 | 0.33 | ...)"
+                    />
+                  </div>
+                </div>
+
+                {/* Price Performance */}
+                <div className="border-t pt-6 mt-6">
+                  <h3 className="text-lg font-semibold mb-3">Price Performance (%)</h3>
+                  <p className="text-sm text-gray-500 mb-4">Absolute and relative performance. Enter as numbers (e.g. -32.8 for -32.8%).</p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border text-sm">
+                      <thead>
+                        <tr className="bg-gray-50">
+                          <th className="border px-3 py-2 text-left"></th>
+                          <th className="border px-3 py-2 text-left">YTD</th>
+                          <th className="border px-3 py-2 text-left">1m</th>
+                          <th className="border px-3 py-2 text-left">3m</th>
+                          <th className="border px-3 py-2 text-left">12m</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td className="border px-3 py-2 font-medium">Abs</td>
+                          {(['absYTD', 'abs1m', 'abs3m', 'abs12m'] as const).map((key) => (
+                            <td key={key} className="border px-2 py-1">
+                              <input
+                                type="number"
+                                step="0.1"
+                                value={metadata.performanceMetrics?.[key] ?? ''}
+                                onChange={(e) => {
+                                  const v = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                  setMetadata({
+                                    ...metadata,
+                                    performanceMetrics: {
+                                      ...(metadata.performanceMetrics || {}),
+                                      [key]: v,
+                                    },
+                                  });
+                                }}
+                                className="w-full px-2 py-1 border rounded text-sm"
+                                placeholder="—"
+                              />
+                            </td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <td className="border px-3 py-2 font-medium">Rel</td>
+                          {(['relYTD', 'rel1m', 'rel3m', 'rel12m'] as const).map((key) => (
+                            <td key={key} className="border px-2 py-1">
+                              <input
+                                type="number"
+                                step="0.1"
+                                value={metadata.performanceMetrics?.[key] ?? ''}
+                                onChange={(e) => {
+                                  const v = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                  setMetadata({
+                                    ...metadata,
+                                    performanceMetrics: {
+                                      ...(metadata.performanceMetrics || {}),
+                                      [key]: v,
+                                    },
+                                  });
+                                }}
+                                className="w-full px-2 py-1 border rounded text-sm"
+                                placeholder="—"
+                              />
+                            </td>
+                          ))}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </CardContent>
             </Card>

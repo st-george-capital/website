@@ -26,6 +26,18 @@ interface ResearchReport {
   impliedUpside: number;
   timeHorizon: string;
   currency: string;
+  priceDate?: string | null;
+  fiftyTwoWeekRange?: string | null;
+  marketCap?: number | null;
+  sharesOutstanding?: number | null;
+  fiscalYearEnd?: string | null;
+  priceTargetEndDate?: string | null;
+  performanceMetrics?: {
+    absYTD?: number; abs1m?: number; abs3m?: number; abs12m?: number;
+    relYTD?: number; rel1m?: number; rel3m?: number; rel12m?: number;
+  } | null;
+  epsTableMarkdown?: string | null;
+  dataSource?: string | null;
   investmentThesis: Array<{
     claim: string;
     driver: string;
@@ -96,6 +108,10 @@ export default function ResearchReportPreviewPage() {
     switch (rec.toLowerCase()) {
       case 'buy': return 'bg-green-600 text-white';
       case 'sell': return 'bg-red-600 text-white';
+      case 'overweight': return 'bg-green-600 text-white';
+      case 'underweight': return 'bg-red-600 text-white';
+      case 'neutral': return 'bg-gray-600 text-white';
+      case 'hold': return 'bg-gray-600 text-white';
       default: return 'bg-gray-600 text-white';
     }
   };
@@ -239,6 +255,102 @@ export default function ResearchReportPreviewPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Company Snapshot & Price Performance */}
+      {(report.priceDate || report.fiftyTwoWeekRange != null || report.marketCap != null || report.sharesOutstanding != null || report.fiscalYearEnd || report.priceTargetEndDate || report.dataSource || (report.performanceMetrics && (report.performanceMetrics as any).absYTD != null)) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">Company Snapshot & Price Performance</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+              {report.priceDate && (
+                <div>
+                  <div className="text-gray-500">Date of Price</div>
+                  <div className="font-semibold">{report.priceDate}</div>
+                </div>
+              )}
+              {report.fiftyTwoWeekRange && (
+                <div>
+                  <div className="text-gray-500">52-Week Range ($)</div>
+                  <div className="font-semibold">{report.fiftyTwoWeekRange}</div>
+                </div>
+              )}
+              {report.marketCap != null && (
+                <div>
+                  <div className="text-gray-500">Market Cap ($ mn)</div>
+                  <div className="font-semibold">{report.marketCap.toLocaleString()}</div>
+                </div>
+              )}
+              {report.fiscalYearEnd && (
+                <div>
+                  <div className="text-gray-500">Fiscal Year End</div>
+                  <div className="font-semibold">{report.fiscalYearEnd}</div>
+                </div>
+              )}
+              {report.sharesOutstanding != null && (
+                <div>
+                  <div className="text-gray-500">Shares O/S (mn)</div>
+                  <div className="font-semibold">{report.sharesOutstanding.toLocaleString()}</div>
+                </div>
+              )}
+              {report.priceTargetEndDate && (
+                <div>
+                  <div className="text-gray-500">Price Target End Date</div>
+                  <div className="font-semibold">{report.priceTargetEndDate}</div>
+                </div>
+              )}
+            </div>
+            {report.dataSource && (
+              <p className="text-xs text-gray-500">Source: {report.dataSource}</p>
+            )}
+            {report.performanceMetrics && typeof (report.performanceMetrics as any).absYTD === 'number' && (
+              <div className="overflow-x-auto">
+                <h4 className="font-semibold mb-2">Price Performance</h4>
+                <table className="w-full border text-sm">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="border px-3 py-2 text-left"></th>
+                      <th className="border px-3 py-2 text-left">YTD</th>
+                      <th className="border px-3 py-2 text-left">1m</th>
+                      <th className="border px-3 py-2 text-left">3m</th>
+                      <th className="border px-3 py-2 text-left">12m</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="border px-3 py-2 font-medium">Abs</td>
+                      {(['absYTD', 'abs1m', 'abs3m', 'abs12m'] as const).map((key) => (
+                        <td key={key} className="border px-3 py-2">
+                          {(report.performanceMetrics as any)[key] != null ? `${(report.performanceMetrics as any)[key]}%` : '—'}
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="border px-3 py-2 font-medium">Rel</td>
+                      {(['relYTD', 'rel1m', 'rel3m', 'rel12m'] as const).map((key) => (
+                        <td key={key} className="border px-3 py-2">
+                          {(report.performanceMetrics as any)[key] != null ? `${(report.performanceMetrics as any)[key]}%` : '—'}
+                        </td>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {report.epsTableMarkdown && (
+              <div>
+                <h4 className="font-semibold mb-2">EPS (Recurring)</h4>
+                <div className="prose prose-sm max-w-none [&_table]:w-full [&_th]:border [&_td]:border [&_th]:px-2 [&_td]:px-2 [&_th]:py-1 [&_td]:py-1">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {report.epsTableMarkdown}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Executive Summary */}
       <Card>

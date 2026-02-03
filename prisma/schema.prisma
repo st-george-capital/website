@@ -245,12 +245,22 @@ model EquityResearchReport {
   reportDate            DateTime @default(now())
   analysts              String[] @default([]) // Array of analyst names
   coverageStatus        String   // "initiation" | "update"
-  recommendation        String   // "buy" | "hold" | "sell"
+  recommendation        String   // "buy" | "hold" | "sell" | "overweight" | "neutral" | "underweight"
   currentPrice          Float
   targetPrice           Float
   impliedUpside         Float    // Calculated: (targetPrice - currentPrice) / currentPrice
   timeHorizon           String   @default("12 months")
   currency              String   @default("USD")
+  // Company snapshot (JPM-style)
+  priceDate             String?  // e.g. "29 Sep 15"
+  fiftyTwoWeekRange     String?  // e.g. "22.81-39.27"
+  marketCap             Float?   // in millions
+  sharesOutstanding     Float?   // in millions
+  fiscalYearEnd         String?  // e.g. "Jun"
+  priceTargetEndDate    String?  // e.g. "31-Dec-16"
+  performanceMetrics    Json?    // { absYTD, abs1m, abs3m, abs12m, relYTD, rel1m, rel3m, rel12m }
+  epsTableMarkdown      String?  @db.Text // EPS table (markdown or pasted)
+  dataSource            String?  @db.Text // e.g. "Company data, Bloomberg, J.P. Morgan estimates"
   
   // Report Status & Collaboration
   status                String   @default("draft") // "draft" | "under_review" | "published"

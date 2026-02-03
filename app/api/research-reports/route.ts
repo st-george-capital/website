@@ -114,6 +114,16 @@ export async function POST(req: NextRequest) {
         dcfOutputs: data.dcfOutputs || null,
         showOnWebsite: data.showOnWebsite !== false,
         collaborators: [],
+        priceDate: data.priceDate || null,
+        fiftyTwoWeekRange: data.fiftyTwoWeekRange || null,
+        marketCap: data.marketCap != null ? data.marketCap : null,
+        sharesOutstanding: data.sharesOutstanding != null ? data.sharesOutstanding : null,
+        fiscalYearEnd: data.fiscalYearEnd || null,
+        priceTargetEndDate: data.priceTargetEndDate || null,
+        performanceMetrics: data.performanceMetrics || null,
+        epsTableMarkdown: data.epsTableMarkdown || null,
+        dataSource: data.dataSource || null,
+        timeHorizon: data.timeHorizon || '12 months',
       },
     });
 

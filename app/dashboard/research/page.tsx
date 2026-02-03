@@ -90,6 +90,10 @@ export default function ResearchDashboardPage() {
     switch (rec.toLowerCase()) {
       case 'buy': return 'bg-green-100 text-green-800';
       case 'sell': return 'bg-red-100 text-red-800';
+      case 'overweight': return 'bg-green-100 text-green-800';
+      case 'underweight': return 'bg-red-100 text-red-800';
+      case 'neutral': return 'bg-gray-100 text-gray-800';
+      case 'hold': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };

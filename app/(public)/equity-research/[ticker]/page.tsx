@@ -38,6 +38,10 @@ export default async function PublicResearchReportPage({
     switch (rec.toLowerCase()) {
       case 'buy': return 'bg-green-600 text-white';
       case 'sell': return 'bg-red-600 text-white';
+      case 'overweight': return 'bg-green-600 text-white';
+      case 'underweight': return 'bg-red-600 text-white';
+      case 'neutral': return 'bg-gray-600 text-white';
+      case 'hold': return 'bg-gray-600 text-white';
       default: return 'bg-gray-600 text-white';
     }
   };
@@ -134,6 +138,99 @@ export default async function PublicResearchReportPage({
             </div>
           </div>
         </div>
+
+        {/* Company Snapshot & Price Performance */}
+        {(report.priceDate || report.fiftyTwoWeekRange || report.marketCap != null || report.sharesOutstanding != null || report.fiscalYearEnd || report.priceTargetEndDate || report.dataSource || (report.performanceMetrics as any)?.absYTD != null) && (
+          <div className="bg-white rounded-2xl p-8 space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900">Company Snapshot & Price Performance</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+              {report.priceDate && (
+                <div>
+                  <div className="text-gray-500">Date of Price</div>
+                  <div className="font-semibold text-gray-900">{report.priceDate}</div>
+                </div>
+              )}
+              {report.fiftyTwoWeekRange && (
+                <div>
+                  <div className="text-gray-500">52-Week Range ($)</div>
+                  <div className="font-semibold text-gray-900">{report.fiftyTwoWeekRange}</div>
+                </div>
+              )}
+              {report.marketCap != null && (
+                <div>
+                  <div className="text-gray-500">Market Cap ($ mn)</div>
+                  <div className="font-semibold text-gray-900">{report.marketCap.toLocaleString()}</div>
+                </div>
+              )}
+              {report.fiscalYearEnd && (
+                <div>
+                  <div className="text-gray-500">Fiscal Year End</div>
+                  <div className="font-semibold text-gray-900">{report.fiscalYearEnd}</div>
+                </div>
+              )}
+              {report.sharesOutstanding != null && (
+                <div>
+                  <div className="text-gray-500">Shares O/S (mn)</div>
+                  <div className="font-semibold text-gray-900">{report.sharesOutstanding.toLocaleString()}</div>
+                </div>
+              )}
+              {report.priceTargetEndDate && (
+                <div>
+                  <div className="text-gray-500">Price Target End Date</div>
+                  <div className="font-semibold text-gray-900">{report.priceTargetEndDate}</div>
+                </div>
+              )}
+            </div>
+            {report.dataSource && (
+              <p className="text-sm text-gray-500">Source: {report.dataSource}</p>
+            )}
+            {report.performanceMetrics && (report.performanceMetrics as any).absYTD != null && (
+              <div className="overflow-x-auto">
+                <h3 className="font-semibold text-lg text-gray-900 mb-2">Price Performance</h3>
+                <table className="w-full border text-sm">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="border px-3 py-2 text-left"> </th>
+                      <th className="border px-3 py-2 text-left">YTD</th>
+                      <th className="border px-3 py-2 text-left">1m</th>
+                      <th className="border px-3 py-2 text-left">3m</th>
+                      <th className="border px-3 py-2 text-left">12m</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="border px-3 py-2 font-medium">Abs</td>
+                      {['absYTD', 'abs1m', 'abs3m', 'abs12m'].map((key) => (
+                        <td key={key} className="border px-3 py-2">
+                          {(report.performanceMetrics as any)[key] != null ? `${(report.performanceMetrics as any)[key]}%` : '—'}
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="border px-3 py-2 font-medium">Rel</td>
+                      {['relYTD', 'rel1m', 'rel3m', 'rel12m'].map((key) => (
+                        <td key={key} className="border px-3 py-2">
+                          {(report.performanceMetrics as any)[key] != null ? `${(report.performanceMetrics as any)[key]}%` : '—'}
+                        </td>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {report.epsTableMarkdown && (
+              <div>
+                <h3 className="font-semibold text-lg text-gray-900 mb-2">EPS (Recurring)</h3>
+                <div className="prose prose-sm max-w-none text-gray-700
+                  [&_table]:w-full [&_table]:border-collapse [&_th]:border [&_td]:border [&_th]:px-2 [&_td]:px-2 [&_th]:py-1 [&_td]:py-1 [&_th]:bg-gray-50">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {report.epsTableMarkdown}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Executive Summary */}
         <div className="bg-white rounded-2xl p-8 space-y-6">

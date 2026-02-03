@@ -1033,6 +1033,29 @@ export default function DCFToolPage() {
     });
   };
 
+  // Build outputs with bull/bear scenarios for saving (report can pre-fill from these)
+  const getOutputsWithScenarios = () => {
+    const bullParams = advancedScenarioMode ? customScenarioParams.bull : { revenueGrowthAdj: 0.02, marginAdj: 0.015, waccAdj: -0.0075, termGrowthAdj: 0.005 };
+    const bearParams = advancedScenarioMode ? customScenarioParams.bear : { revenueGrowthAdj: -0.02, marginAdj: -0.015, waccAdj: 0.01, termGrowthAdj: -0.005 };
+    const bullInputs = {
+      ...inputs,
+      revenueGrowth: inputs.revenueGrowth.map((g: number) => g + bullParams.revenueGrowthAdj),
+      ebitMargin: inputs.ebitMargin.map((m: number) => m + bullParams.marginAdj),
+      riskFreeRate: inputs.riskFreeRate + bullParams.waccAdj,
+      perpetualGrowth: Math.max(0.005, Math.min(inputs.perpetualGrowth + bullParams.termGrowthAdj, inputs.riskFreeRate + bullParams.waccAdj - 0.01))
+    };
+    const bearInputs = {
+      ...inputs,
+      revenueGrowth: inputs.revenueGrowth.map((g: number) => g + bearParams.revenueGrowthAdj),
+      ebitMargin: inputs.ebitMargin.map((m: number) => m + bearParams.marginAdj),
+      riskFreeRate: inputs.riskFreeRate + bearParams.waccAdj,
+      perpetualGrowth: Math.max(0.005, Math.min(inputs.perpetualGrowth + bearParams.termGrowthAdj, inputs.riskFreeRate + bearParams.waccAdj - 0.01))
+    };
+    const bullOutputs = calculateDCF(bullInputs);
+    const bearOutputs = calculateDCF(bearInputs);
+    return { ...outputs, bull: bullOutputs, bear: bearOutputs };
+  };
+
   // Save DCF Model
   const saveDCFModel = async () => {
     if (!modelName.trim()) {
@@ -1042,6 +1065,7 @@ export default function DCFToolPage() {
 
     setIsSaving(true);
     try {
+      const outputsToSave = getOutputsWithScenarios();
       const response = await fetch('/api/dcf-models', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1049,7 +1073,7 @@ export default function DCFToolPage() {
           ticker: inputs.ticker,
           companyName: inputs.companyName,
           inputs,
-          outputs,
+          outputs: outputsToSave,
           financialData,
           name: modelName,
         }),
@@ -1075,12 +1099,13 @@ export default function DCFToolPage() {
 
     setIsSaving(true);
     try {
+      const outputsToSave = getOutputsWithScenarios();
       const response = await fetch(`/api/dcf-models/${savedModelId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           inputs,
-          outputs,
+          outputs: outputsToSave,
           financialData,
         }),
       });
