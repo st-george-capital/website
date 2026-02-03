@@ -18,6 +18,7 @@ interface ResearchReport {
   impliedUpside: number;
   status: string;
   published: boolean;
+  showOnWebsite: boolean;
   updatedAt: string;
   analysts: string[];
 }
@@ -65,6 +66,24 @@ export default function ResearchDashboardPage() {
     } catch (error) {
       console.error('Error deleting report:', error);
       alert('Failed to delete report');
+    }
+  };
+
+  const toggleWebsiteVisibility = async (id: string, currentValue: boolean) => {
+    try {
+      const response = await fetch(`/api/research-reports/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ showOnWebsite: !currentValue }),
+      });
+
+      if (!response.ok) throw new Error('Failed to update report');
+
+      setReports(reports.map(r => r.id === id ? { ...r, showOnWebsite: !currentValue } : r));
+      alert(!currentValue ? 'Report added to website' : 'Report removed from website');
+    } catch (error) {
+      console.error('Error updating report:', error);
+      alert('Failed to update report');
     }
   };
 
@@ -205,15 +224,26 @@ export default function ResearchDashboardPage() {
                       Edit
                     </Button>
                     {report.published && (
-                      <Button
-                        onClick={() => window.open(`/equity-research/${report.ticker}`, '_blank')}
-                        variant="outline"
-                        size="sm"
-                        className="bg-green-50 text-green-700 hover:bg-green-100"
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        View Public
-                      </Button>
+                      <>
+                        <Button
+                          onClick={() => window.open(`/equity-research/${report.ticker}`, '_blank')}
+                          variant="outline"
+                          size="sm"
+                          className="bg-green-50 text-green-700 hover:bg-green-100"
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          View Public
+                        </Button>
+                        <Button
+                          onClick={() => toggleWebsiteVisibility(report.id, report.showOnWebsite)}
+                          variant="outline"
+                          size="sm"
+                          className={report.showOnWebsite ? 'bg-purple-50 text-purple-700 hover:bg-purple-100' : ''}
+                        >
+                          <FileText className="w-4 h-4 mr-2" />
+                          {report.showOnWebsite ? 'On Website' : 'Add to Website'}
+                        </Button>
+                      </>
                     )}
                     <Button
                       onClick={() => deleteReport(report.id)}

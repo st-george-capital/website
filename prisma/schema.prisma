@@ -258,6 +258,7 @@ model EquityResearchReport {
   createdBy             String   // User ID
   lastEditedBy          String?  // User ID
   collaborators         String[] @default([]) // Array of user IDs with edit access
+  showOnWebsite         Boolean  @default(false) // Show on /research page alongside articles
   
   // DCF Integration
   dcfModelId            String?  @unique
