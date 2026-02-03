@@ -222,6 +222,21 @@ export default function EditResearchReportPage({ params }: { params: { id: strin
       // Get fiscal year end from financial data (usually stored as month name like "December")
       const fiscalYearEnd = model.financialData?.fiscalYearEnd || prev.fiscalYearEnd;
       
+      // Build EPS table from quarterly earnings data
+      let epsTable = '';
+      if (model.financialData?.quarterlyEPS && model.financialData.quarterlyEPS.length > 0) {
+        const quarters = model.financialData.quarterlyEPS.slice(0, 12); // Last 12 quarters (3 years)
+        epsTable = '| Quarter | Reported EPS |\n|---------|-------------|\n';
+        quarters.forEach((q: any) => {
+          const date = new Date(q.fiscalDateEnding);
+          const qtr = `Q${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear().toString().slice(-2)}`;
+          epsTable += `| ${qtr} | $${q.reportedEPS} |\n`;
+        });
+      }
+      
+      // Get price performance from DCF financial data
+      const pricePerformance = model.financialData?.pricePerformance || null;
+      
       setMetadata(prev => ({
         ...prev,
         companyName: model.companyName || prev.companyName,
@@ -237,6 +252,8 @@ export default function EditResearchReportPage({ params }: { params: { id: strin
         sharesOutstanding: sharesOutstanding ? sharesOutstanding / 1e6 : null, // convert to millions for display
         fiscalYearEnd: fiscalYearEnd,
         dataSource: 'Company data, Bloomberg, Alpha Vantage API',
+        epsTableMarkdown: epsTable || prev.epsTableMarkdown,
+        performanceMetrics: pricePerformance || prev.performanceMetrics,
       }));
 
       // Auto-populate valuation analysis with comprehensive DCF results including tables

@@ -38,6 +38,8 @@ interface ResearchReport {
   } | null;
   epsTableMarkdown?: string | null;
   dataSource?: string | null;
+  dcfInputs?: any;
+  dcfOutputs?: any;
   investmentThesis: Array<{
     claim: string;
     driver: string;
@@ -257,7 +259,7 @@ export default function ResearchReportPreviewPage() {
       </Card>
 
       {/* Company Snapshot & Price Performance */}
-      {(report.priceDate || report.fiftyTwoWeekRange != null || report.marketCap != null || report.sharesOutstanding != null || report.fiscalYearEnd || report.priceTargetEndDate || report.dataSource || (report.performanceMetrics && (report.performanceMetrics as any).absYTD != null)) && (
+      {(report.priceDate || report.fiftyTwoWeekRange != null || report.marketCap != null || report.sharesOutstanding != null || report.fiscalYearEnd || report.priceTargetEndDate || report.dataSource || (report.performanceMetrics && (report.performanceMetrics as any).absYTD != null) || report.dcfInputs) && (
         <Card>
           <CardHeader>
             <CardTitle className="text-xl">Company Snapshot & Price Performance</CardTitle>
@@ -298,6 +300,18 @@ export default function ResearchReportPreviewPage() {
                 <div>
                   <div className="text-gray-500">Price Target End Date</div>
                   <div className="font-semibold">{report.priceTargetEndDate}</div>
+                </div>
+              )}
+              {report.dcfInputs?.peRatio && (
+                <div>
+                  <div className="text-gray-500">P/E Ratio</div>
+                  <div className="font-semibold">{report.dcfInputs.peRatio.toFixed(2)}</div>
+                </div>
+              )}
+              {report.dcfInputs?.forwardPE && (
+                <div>
+                  <div className="text-gray-500">Forward P/E</div>
+                  <div className="font-semibold">{report.dcfInputs.forwardPE.toFixed(2)}</div>
                 </div>
               )}
             </div>
@@ -345,6 +359,45 @@ export default function ResearchReportPreviewPage() {
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {report.epsTableMarkdown}
                   </ReactMarkdown>
+                </div>
+              </div>
+            )}
+            {report.dcfInputs?.priceHistory && report.dcfInputs.priceHistory.length > 0 && (
+              <div>
+                <h4 className="font-semibold mb-2">Price Chart (1 Year)</h4>
+                <div className="w-full h-64 relative">
+                  <svg viewBox="0 0 800 200" className="w-full h-full">
+                    {(() => {
+                      const data = report.dcfInputs.priceHistory.slice(0, 252); // ~1 year of trading days
+                      const prices = data.map((d: any) => d.close);
+                      const minPrice = Math.min(...prices);
+                      const maxPrice = Math.max(...prices);
+                      const priceRange = maxPrice - minPrice;
+                      const padding = priceRange * 0.1;
+                      
+                      const points = data.map((d: any, i: number) => {
+                        const x = (i / (data.length - 1)) * 780 + 10;
+                        const y = 190 - ((d.close - minPrice + padding) / (priceRange + 2 * padding)) * 180;
+                        return `${x},${y}`;
+                      }).join(' ');
+                      
+                      return (
+                        <>
+                          <polyline
+                            points={points}
+                            fill="none"
+                            stroke="#3b82f6"
+                            strokeWidth="2"
+                          />
+                          <line x1="10" y1="190" x2="790" y2="190" stroke="#e5e7eb" strokeWidth="1" />
+                          <text x="10" y="205" fontSize="12" fill="#6b7280">{data[data.length - 1]?.date}</text>
+                          <text x="790" y="205" fontSize="12" fill="#6b7280" textAnchor="end">{data[0]?.date}</text>
+                          <text x="10" y="15" fontSize="12" fill="#6b7280">${maxPrice.toFixed(2)}</text>
+                          <text x="10" y="195" fontSize="12" fill="#6b7280">${minPrice.toFixed(2)}</text>
+                        </>
+                      );
+                    })()}
+                  </svg>
                 </div>
               </div>
             )}

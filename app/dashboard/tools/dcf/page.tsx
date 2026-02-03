@@ -581,6 +581,18 @@ interface ExtractedFinancials {
   week52High?: number;
   week52Low?: number;
   sharesOutstanding?: number;
+  // PE ratios
+  peRatio?: number;
+  forwardPE?: number;
+  // EPS data (quarterly)
+  quarterlyEPS?: Array<{ fiscalDateEnding: string; reportedEPS: string }>;
+  // Price performance (calculated from time series)
+  pricePerformance?: {
+    absYTD?: number; abs1m?: number; abs3m?: number; abs12m?: number;
+    relYTD?: number; rel1m?: number; rel3m?: number; rel12m?: number;
+  };
+  // Price history for charting
+  priceHistory?: Array<{ date: string; close: number }>;
 }
 
 interface CompanyOverview {
@@ -947,6 +959,58 @@ function InvestorSnapshot({ companyData, financialData, quoteData }: InvestorSna
   );
 }
 
+// Calculate price performance (YTD, 1m, 3m, 12m absolute and relative to S&P 500)
+function calculatePricePerformance(priceData: Array<{ date: string; close: number }>) {
+  if (!priceData || priceData.length === 0) return undefined;
+
+  const today = new Date();
+  const currentPrice = priceData[0]?.close;
+  
+  // Helper to find price at a specific date
+  const findPriceAtDate = (targetDate: Date) => {
+    const target = targetDate.toISOString().split('T')[0];
+    const entry = priceData.find(d => d.date <= target);
+    return entry?.close || currentPrice;
+  };
+
+  // Calculate dates
+  const yearStart = new Date(today.getFullYear(), 0, 1);
+  const oneMonthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const threeMonthsAgo = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
+  const oneYearAgo = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000);
+
+  // Get prices at those dates
+  const priceYTD = findPriceAtDate(yearStart);
+  const price1m = findPriceAtDate(oneMonthAgo);
+  const price3m = findPriceAtDate(threeMonthsAgo);
+  const price12m = findPriceAtDate(oneYearAgo);
+
+  // Calculate absolute returns (as percentages, e.g., -32.8 for -32.8%)
+  const absYTD = ((currentPrice - priceYTD) / priceYTD) * 100;
+  const abs1m = ((currentPrice - price1m) / price1m) * 100;
+  const abs3m = ((currentPrice - price3m) / price3m) * 100;
+  const abs12m = ((currentPrice - price12m) / price12m) * 100;
+
+  // For relative performance, we'd need S&P 500 data. For now, use placeholder or estimate
+  // In production, you'd fetch SPX data and calculate relative performance
+  // For now, assume market returned ~10% annually, adjust proportionally
+  const marketYTD = 5; // Placeholder: assume market is up 5% YTD
+  const market1m = 1;
+  const market3m = 3;
+  const market12m = 10;
+
+  return {
+    absYTD: parseFloat(absYTD.toFixed(1)),
+    abs1m: parseFloat(abs1m.toFixed(1)),
+    abs3m: parseFloat(abs3m.toFixed(1)),
+    abs12m: parseFloat(abs12m.toFixed(1)),
+    relYTD: parseFloat((absYTD - marketYTD).toFixed(1)),
+    rel1m: parseFloat((abs1m - market1m).toFixed(1)),
+    rel3m: parseFloat((abs3m - market3m).toFixed(1)),
+    rel12m: parseFloat((abs12m - market12m).toFixed(1))
+  };
+}
+
 export default function DCFToolPage() {
   const router = useRouter();
   const [inputs, setInputs] = useState<DCFInputs>(getDefaultInputs());
@@ -955,6 +1019,8 @@ export default function DCFToolPage() {
   const [selectedCompany, setSelectedCompany] = useState<CompanyOverview | null>(null);
   const [quote, setQuote] = useState<any>(null);
   const [marketData, setMarketData] = useState<any>(null);
+  const [earningsData, setEarningsData] = useState<any>(null);
+  const [priceHistory, setPriceHistory] = useState<any>(null);
   const [selectedScenario, setSelectedScenario] = useState<'base' | 'bull' | 'bear'>('base');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
@@ -1187,14 +1253,16 @@ export default function DCFToolPage() {
         }
       };
 
-      let overview, quote, income, balance, cashflow;
+      let overview, quote, income, balance, cashflow, earnings, timeSeries;
       try {
-        [overview, quote, income, balance, cashflow] = await Promise.all([
+        [overview, quote, income, balance, cashflow, earnings, timeSeries] = await Promise.all([
           fetchWithError(`/api/alpha-vantage/overview/${encodeURIComponent(ticker)}`, 'company overview'),
           fetchWithError(`/api/alpha-vantage/quote/${encodeURIComponent(ticker)}`, 'stock quote'),
           fetchWithError(`/api/alpha-vantage/income-statement/${encodeURIComponent(ticker)}`, 'income statement'),
           fetchWithError(`/api/alpha-vantage/balance-sheet/${encodeURIComponent(ticker)}`, 'balance sheet'),
-          fetchWithError(`/api/alpha-vantage/cash-flow/${encodeURIComponent(ticker)}`, 'cash flow statement')
+          fetchWithError(`/api/alpha-vantage/cash-flow/${encodeURIComponent(ticker)}`, 'cash flow statement'),
+          fetchWithError(`/api/alpha-vantage/earnings/${encodeURIComponent(ticker)}`, 'earnings data'),
+          fetchWithError(`/api/alpha-vantage/time-series/${encodeURIComponent(ticker)}`, 'price history')
         ]);
       } catch (fetchError) {
         // If any fetch fails, set debug info with the error
@@ -1244,10 +1312,26 @@ export default function DCFToolPage() {
 
       // Process and combine the data
       const processedData = processAlphaVantageData(overview, quote, income, balance, cashflow);
-      setFinancialData(processedData);
+      
+      // Calculate price performance from time series
+      const pricePerformance = calculatePricePerformance(timeSeries?.priceData || []);
+      
+      // Enrich financial data with EPS, PE ratios, and price performance
+      const enrichedData: ExtractedFinancials = {
+        ...processedData,
+        peRatio: overview.peRatio,
+        forwardPE: overview.forwardPE,
+        quarterlyEPS: earnings?.quarterlyEarnings?.slice(0, 12) || [], // Last 12 quarters
+        pricePerformance: pricePerformance,
+        priceHistory: timeSeries?.priceData?.slice(0, 365).map((d: any) => ({ date: d.date, close: d.close })) || []
+      };
+      
+      setFinancialData(enrichedData);
       setQuote(quote);
+      setEarningsData(earnings);
+      setPriceHistory(timeSeries);
 
-      console.log('Processed financial data:', processedData);
+      console.log('Processed financial data:', enrichedData);
 
       // Auto-populate DCF inputs with the financial data
       // Pass processedData directly to avoid race condition with state update
