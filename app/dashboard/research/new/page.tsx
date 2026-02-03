@@ -62,6 +62,8 @@ export default function NewResearchReportPage() {
     priceTargetEndDate: '',
     dataSource: '',
     epsTableMarkdown: '',
+    peRatio: null as number | null,
+    forwardPE: null as number | null,
     // Price performance (percentages, e.g. -32.8 for -32.8%)
     performanceMetrics: null as {
       absYTD?: number; abs1m?: number; abs3m?: number; abs12m?: number;
@@ -145,9 +147,14 @@ export default function NewResearchReportPage() {
       
       const model = await response.json();
       
-      // Store DCF data for saving with report
+      // Store DCF data for saving with report (merge in PE ratios and price history from API so they persist)
       setDcfData({
-        inputs: model.inputs,
+        inputs: {
+          ...model.inputs,
+          peRatio: model.financialData?.peRatio,
+          forwardPE: model.financialData?.forwardPE,
+          priceHistory: model.financialData?.priceHistory
+        },
         outputs: model.outputs
       });
       
@@ -197,6 +204,8 @@ export default function NewResearchReportPage() {
           dataSource: 'Company data, Bloomberg, Alpha Vantage API',
           epsTableMarkdown: epsTable || prev.epsTableMarkdown,
           performanceMetrics: pricePerformance || prev.performanceMetrics,
+          peRatio: model.financialData?.peRatio ?? prev.peRatio,
+          forwardPE: model.financialData?.forwardPE ?? prev.forwardPE,
         };
       });
 
@@ -396,6 +405,7 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
         dcfModelId,
         dcfInputs: dcfData?.inputs || null,
         dcfOutputs: dcfData?.outputs || null,
+        priceHistory: dcfData?.inputs?.priceHistory || null,
         investmentThesis: thesis,
         businessModel: businessModel.description,
         unitEconomics: businessModel.unitEconomics,

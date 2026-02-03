@@ -123,6 +123,9 @@ export async function POST(req: NextRequest) {
         performanceMetrics: data.performanceMetrics || null,
         epsTableMarkdown: data.epsTableMarkdown || null,
         dataSource: data.dataSource || null,
+        peRatio: data.peRatio != null ? data.peRatio : null,
+        forwardPE: data.forwardPE != null ? data.forwardPE : null,
+        priceHistory: data.priceHistory || null,
         timeHorizon: data.timeHorizon || '12 months',
       },
     });

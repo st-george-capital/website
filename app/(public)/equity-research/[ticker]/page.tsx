@@ -180,16 +180,16 @@ export default async function PublicResearchReportPage({
                   <div className="font-semibold text-gray-900">{report.priceTargetEndDate}</div>
                 </div>
               )}
-              {(report.dcfInputs as any)?.peRatio && (
+              {((report as any).peRatio != null || (report.dcfInputs as any)?.peRatio != null) && (
                 <div>
                   <div className="text-gray-500">P/E Ratio</div>
-                  <div className="font-semibold text-gray-900">{((report.dcfInputs as any).peRatio as number).toFixed(2)}</div>
+                  <div className="font-semibold text-gray-900">{((report as any).peRatio ?? (report.dcfInputs as any)?.peRatio).toFixed(2)}</div>
                 </div>
               )}
-              {(report.dcfInputs as any)?.forwardPE && (
+              {((report as any).forwardPE != null || (report.dcfInputs as any)?.forwardPE != null) && (
                 <div>
                   <div className="text-gray-500">Forward P/E</div>
-                  <div className="font-semibold text-gray-900">{((report.dcfInputs as any).forwardPE as number).toFixed(2)}</div>
+                  <div className="font-semibold text-gray-900">{((report as any).forwardPE ?? (report.dcfInputs as any)?.forwardPE).toFixed(2)}</div>
                 </div>
               )}
             </div>
@@ -247,15 +247,15 @@ export default async function PublicResearchReportPage({
                 <div className="w-full h-64 relative">
                   <svg viewBox="0 0 800 200" className="w-full h-full">
                     {(() => {
-                      const data = (report.dcfInputs as any).priceHistory.slice(0, 252); // ~1 year of trading days
-                      const prices = data.map((d: any) => d.close);
+                      const chartData = ((report as any).priceHistory || (report.dcfInputs as any)?.priceHistory || []).slice(0, 252); // ~1 year of trading days
+                      const prices = chartData.map((d: any) => d.close);
                       const minPrice = Math.min(...prices);
                       const maxPrice = Math.max(...prices);
                       const priceRange = maxPrice - minPrice;
                       const padding = priceRange * 0.1;
                       
-                      const points = data.map((d: any, i: number) => {
-                        const x = (i / (data.length - 1)) * 780 + 10;
+                      const points = chartData.map((d: any, i: number) => {
+                        const x = (chartData.length > 1 ? i / (chartData.length - 1) : 0) * 780 + 10;
                         const y = 190 - ((d.close - minPrice + padding) / (priceRange + 2 * padding)) * 180;
                         return `${x},${y}`;
                       }).join(' ');
@@ -269,8 +269,8 @@ export default async function PublicResearchReportPage({
                             strokeWidth="2"
                           />
                           <line x1="10" y1="190" x2="790" y2="190" stroke="#e5e7eb" strokeWidth="1" />
-                          <text x="10" y="205" fontSize="12" fill="#6b7280">{data[data.length - 1]?.date}</text>
-                          <text x="790" y="205" fontSize="12" fill="#6b7280" textAnchor="end">{data[0]?.date}</text>
+                          <text x="10" y="205" fontSize="12" fill="#6b7280">{chartData[chartData.length - 1]?.date}</text>
+                          <text x="790" y="205" fontSize="12" fill="#6b7280" textAnchor="end">{chartData[0]?.date}</text>
                           <text x="10" y="15" fontSize="12" fill="#6b7280">${maxPrice.toFixed(2)}</text>
                           <text x="10" y="195" fontSize="12" fill="#6b7280">${minPrice.toFixed(2)}</text>
                         </>

@@ -261,6 +261,9 @@ model EquityResearchReport {
   performanceMetrics    Json?    // { absYTD, abs1m, abs3m, abs12m, relYTD, rel1m, rel3m, rel12m }
   epsTableMarkdown      String?  @db.Text // EPS table (markdown or pasted)
   dataSource            String?  @db.Text // e.g. "Company data, Bloomberg, J.P. Morgan estimates"
+  peRatio               Float?   // From API / DCF
+  forwardPE             Float?   // From API / DCF
+  priceHistory          Json?   // [{ date, close }] for chart (from DCF/API)
   
   // Report Status & Collaboration
   status                String   @default("draft") // "draft" | "under_review" | "published"

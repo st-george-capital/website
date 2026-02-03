@@ -38,6 +38,9 @@ interface ResearchReport {
   } | null;
   epsTableMarkdown?: string | null;
   dataSource?: string | null;
+  peRatio?: number | null;
+  forwardPE?: number | null;
+  priceHistory?: Array<{ date: string; close: number }> | null;
   dcfInputs?: any;
   dcfOutputs?: any;
   investmentThesis: Array<{
@@ -300,16 +303,16 @@ export default function ResearchReportPreviewPage() {
                   <div className="font-semibold">{report.priceTargetEndDate}</div>
                 </div>
               )}
-              {report.dcfInputs?.peRatio && (
+              {(report.peRatio != null || report.dcfInputs?.peRatio != null) && (
                 <div>
                   <div className="text-gray-500">P/E Ratio</div>
-                  <div className="font-semibold">{report.dcfInputs.peRatio.toFixed(2)}</div>
+                  <div className="font-semibold">{(report.peRatio ?? report.dcfInputs?.peRatio).toFixed(2)}</div>
                 </div>
               )}
-              {report.dcfInputs?.forwardPE && (
+              {(report.forwardPE != null || report.dcfInputs?.forwardPE != null) && (
                 <div>
                   <div className="text-gray-500">Forward P/E</div>
-                  <div className="font-semibold">{report.dcfInputs.forwardPE.toFixed(2)}</div>
+                  <div className="font-semibold">{(report.forwardPE ?? report.dcfInputs?.forwardPE).toFixed(2)}</div>
                 </div>
               )}
             </div>
@@ -352,29 +355,31 @@ export default function ResearchReportPreviewPage() {
             )}
             {report.epsTableMarkdown && (
               <div>
-                <h4 className="font-semibold mb-2">EPS (Recurring)</h4>
-                <div className="prose prose-sm max-w-none [&_table]:w-full [&_th]:border [&_td]:border [&_th]:px-2 [&_td]:px-2 [&_th]:py-1 [&_td]:py-1">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {report.epsTableMarkdown}
-                  </ReactMarkdown>
+                <h4 className="font-semibold text-gray-900 mb-3">EPS (Recurring)</h4>
+                <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                  <div className="prose prose-sm max-w-none [&_table]:w-full [&_table]:border-collapse [&_table]:m-0 [&_th]:bg-gray-50 [&_th]:border-b [&_th]:border-gray-200 [&_th]:px-4 [&_th]:py-3 [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-wider [&_th]:text-gray-600 [&_td]:border-b [&_td]:border-gray-100 [&_td]:px-4 [&_td]:py-3 [&_td]:text-sm [&_td]:text-gray-900 [&_tr:last-child_td]:border-b-0">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {report.epsTableMarkdown}
+                    </ReactMarkdown>
+                  </div>
                 </div>
               </div>
             )}
-            {report.dcfInputs?.priceHistory && report.dcfInputs.priceHistory.length > 0 && (
+            {((report.priceHistory && report.priceHistory.length > 0) || (report.dcfInputs?.priceHistory && report.dcfInputs.priceHistory.length > 0)) && (
               <div>
                 <h4 className="font-semibold mb-2">Price Chart (1 Year)</h4>
                 <div className="w-full h-64 relative">
                   <svg viewBox="0 0 800 200" className="w-full h-full">
                     {(() => {
-                      const data = report.dcfInputs.priceHistory.slice(0, 252); // ~1 year of trading days
-                      const prices = data.map((d: any) => d.close);
+                      const chartData = (report.priceHistory || report.dcfInputs?.priceHistory || []).slice(0, 252); // ~1 year of trading days
+                      const prices = chartData.map((d: any) => d.close);
                       const minPrice = Math.min(...prices);
                       const maxPrice = Math.max(...prices);
                       const priceRange = maxPrice - minPrice;
                       const padding = priceRange * 0.1;
                       
-                      const points = data.map((d: any, i: number) => {
-                        const x = (i / (data.length - 1)) * 780 + 10;
+                      const points = chartData.map((d: any, i: number) => {
+                        const x = (chartData.length > 1 ? i / (chartData.length - 1) : 0) * 780 + 10;
                         const y = 190 - ((d.close - minPrice + padding) / (priceRange + 2 * padding)) * 180;
                         return `${x},${y}`;
                       }).join(' ');
@@ -388,8 +393,8 @@ export default function ResearchReportPreviewPage() {
                             strokeWidth="2"
                           />
                           <line x1="10" y1="190" x2="790" y2="190" stroke="#e5e7eb" strokeWidth="1" />
-                          <text x="10" y="205" fontSize="12" fill="#6b7280">{data[data.length - 1]?.date}</text>
-                          <text x="790" y="205" fontSize="12" fill="#6b7280" textAnchor="end">{data[0]?.date}</text>
+                          <text x="10" y="205" fontSize="12" fill="#6b7280">{chartData[chartData.length - 1]?.date}</text>
+                          <text x="790" y="205" fontSize="12" fill="#6b7280" textAnchor="end">{chartData[0]?.date}</text>
                           <text x="10" y="15" fontSize="12" fill="#6b7280">${maxPrice.toFixed(2)}</text>
                           <text x="10" y="195" fontSize="12" fill="#6b7280">${minPrice.toFixed(2)}</text>
                         </>

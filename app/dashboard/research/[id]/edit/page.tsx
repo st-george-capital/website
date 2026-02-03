@@ -60,6 +60,8 @@ export default function EditResearchReportPage({ params }: { params: { id: strin
     priceTargetEndDate: '',
     dataSource: '',
     epsTableMarkdown: '',
+    peRatio: null as number | null,
+    forwardPE: null as number | null,
     performanceMetrics: null as {
       absYTD?: number; abs1m?: number; abs3m?: number; abs12m?: number;
       relYTD?: number; rel1m?: number; rel3m?: number; rel12m?: number;
@@ -135,6 +137,8 @@ export default function EditResearchReportPage({ params }: { params: { id: strin
           priceTargetEndDate: report.priceTargetEndDate || '',
           dataSource: report.dataSource || '',
           epsTableMarkdown: report.epsTableMarkdown || '',
+          peRatio: report.peRatio ?? null,
+          forwardPE: report.forwardPE ?? null,
           performanceMetrics: report.performanceMetrics ?? null,
         });
 
@@ -155,11 +159,14 @@ export default function EditResearchReportPage({ params }: { params: { id: strin
         setRisks(report.keyRisks || [{ title: '', description: '', impact: 'medium', mitigation: '' }]);
         setEsgFactors(report.esgFactors || '');
 
-        // Load DCF data if exists
-        if (report.dcfInputs && report.dcfOutputs) {
+        // Load DCF data if exists (include priceHistory from report so chart persists)
+        if (report.dcfInputs || report.dcfOutputs) {
           setDcfData({
-            inputs: report.dcfInputs,
-            outputs: report.dcfOutputs
+            inputs: {
+              ...(report.dcfInputs || {}),
+              priceHistory: (report as any).priceHistory ?? report.dcfInputs?.priceHistory
+            },
+            outputs: report.dcfOutputs || {}
           });
         }
 
@@ -203,9 +210,14 @@ export default function EditResearchReportPage({ params }: { params: { id: strin
       
       const model = await response.json();
       
-      // Store DCF data for saving with report
+      // Store DCF data for saving with report (merge in PE ratios and price history from API so they persist)
       setDcfData({
-        inputs: model.inputs,
+        inputs: {
+          ...model.inputs,
+          peRatio: model.financialData?.peRatio,
+          forwardPE: model.financialData?.forwardPE,
+          priceHistory: model.financialData?.priceHistory
+        },
         outputs: model.outputs
       });
       
@@ -255,6 +267,8 @@ export default function EditResearchReportPage({ params }: { params: { id: strin
           dataSource: 'Company data, Bloomberg, Alpha Vantage API',
           epsTableMarkdown: epsTable || prev.epsTableMarkdown,
           performanceMetrics: pricePerformance || prev.performanceMetrics,
+          peRatio: model.financialData?.peRatio ?? prev.peRatio,
+          forwardPE: model.financialData?.forwardPE ?? prev.forwardPE,
         };
       });
 
@@ -453,6 +467,7 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
         ...metadata,
         dcfInputs: dcfData?.inputs || null,
         dcfOutputs: dcfData?.outputs || null,
+        priceHistory: dcfData?.inputs?.priceHistory || null,
         investmentThesis: thesis,
         businessModel: businessModel.description,
         unitEconomics: businessModel.unitEconomics,
