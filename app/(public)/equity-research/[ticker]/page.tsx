@@ -68,10 +68,10 @@ export default async function PublicResearchReportPage({
     <div className="min-h-screen bg-[#030116]">
       {/* Navigation */}
             <nav className="border-b border-white/10 bg-[#030116]/95 backdrop-blur-sm sticky top-0 z-50">
-              <div className="max-w-7xl mx-auto px-6 py-4">
+              <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
                 <Link href="/equity-research" className="inline-flex items-center text-white/80 hover:text-white transition-colors">
                   <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Research
+                  Back to Equity Research
                 </Link>
               </div>
             </nav>

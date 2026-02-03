@@ -34,8 +34,8 @@ export default async function ResearchPage() {
   return (
     <>
       <Hero
-        title="Research & Insights"
-        breadcrumb="What We Do / Research & Insights"
+        title="Our Take"
+        breadcrumb="What We Do / Our Take"
         height="small"
         align="left"
       />
@@ -44,80 +44,19 @@ export default async function ResearchPage() {
         <div className="grid md:grid-cols-2 gap-20 items-start">
           <div>
             <h2 className="font-serif text-5xl md:text-6xl font-bold">
-              Analyzing Current Events
+              Market Perspectives
             </h2>
           </div>
           <div className="space-y-6">
             <p className="text-lg text-gray-600 leading-relaxed">
-              We examine current events and forecast their impact by analyzing historical patterns and market mechanics. Our research uncovers opportunities through deep understanding of how markets respond to economic, political, and social developments.
+              Our Take provides perspective on current market events, macroeconomic trends, and investment themes. We analyze how historical patterns and evolving dynamics create opportunities across asset classes.
             </p>
             <p className="text-lg text-gray-600 leading-relaxed">
-              By combining rigorous historical analysis with real-time data, we identify mispriced assets and emerging trends before they become consensus.
+              Through rigorous analysis and real-time market monitoring, we identify mispriced assets and emerging trends before they reach consensus.
             </p>
           </div>
         </div>
       </Section>
-
-      {/* Equity Research Reports Section (if any are toggled for website) */}
-      {equityReports.length > 0 && (
-        <Section className="!py-12 !md:py-16 bg-gray-50">
-          <div className="max-w-7xl mx-auto">
-            <h2 className="font-serif text-3xl md:text-4xl font-bold mb-8">Equity Research Reports</h2>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {equityReports.map((report) => (
-                <Link
-                  key={report.id}
-                  href={`/equity-research/${report.ticker}`}
-                  className="group"
-                >
-                  <Card className="h-full hover:shadow-xl transition-all duration-300 bg-white border-2 border-transparent hover:border-blue-500">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div>
-                          <h3 className="text-xl font-bold group-hover:text-blue-600 transition-colors">
-                            {report.companyName}
-                          </h3>
-                          <p className="text-sm text-gray-600">{report.ticker} • {report.exchange}</p>
-                        </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          report.recommendation === 'buy' ? 'bg-green-100 text-green-800' :
-                          report.recommendation === 'sell' ? 'bg-red-100 text-red-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {report.recommendation.toUpperCase()}
-                        </span>
-                      </div>
-                      
-                      <div className="space-y-2 mb-4">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Target Price:</span>
-                          <span className="font-semibold">${report.targetPrice.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Upside:</span>
-                          <span className={`font-semibold ${report.impliedUpside >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {(report.impliedUpside * 100).toFixed(1)}%
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="text-xs text-gray-500 flex items-center">
-                        <Calendar className="w-3 h-3 mr-1" />
-                        {new Date(report.reportDate).toLocaleDateString()}
-                      </div>
-
-                      <div className="mt-4 flex items-center text-blue-600 text-sm font-medium group-hover:translate-x-1 transition-transform">
-                        Read Report
-                        <ArrowRight className="w-4 h-4 ml-1" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </Section>
-      )}
 
       {/* Research Articles Section */}
       <Section dark className="!py-12 !md:py-16">
