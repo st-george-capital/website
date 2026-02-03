@@ -5,7 +5,9 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { ArrowLeft, Download, Edit, Eye, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowLeft, Download, Edit, Eye, TrendingUp, TrendingDown, Printer } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface ResearchReport {
   id: string;
@@ -149,9 +151,19 @@ export default function ResearchReportPreviewPage() {
               Edit Report
             </Button>
           </Link>
-          <Button variant="outline" disabled>
+          <Button 
+            onClick={handleExportPDF}
+            className="bg-purple-600 text-white hover:bg-purple-700"
+          >
             <Download className="w-4 h-4 mr-2" />
-            Export PDF (Coming Soon)
+            Export to PDF
+          </Button>
+          <Button 
+            onClick={handleExportPDF}
+            variant="outline"
+          >
+            <Printer className="w-4 h-4 mr-2" />
+            Print Report
           </Button>
         </div>
       </div>
@@ -253,16 +265,20 @@ export default function ResearchReportPreviewPage() {
         <CardContent className="space-y-6">
           <div>
             <h3 className="font-semibold text-lg mb-2">How the Company Makes Money</h3>
-            <div className="prose max-w-none text-gray-700 whitespace-pre-wrap">
-              {report.businessModel || 'Not provided'}
+            <div className="prose prose-sm max-w-none text-gray-700">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {report.businessModel || 'Not provided'}
+              </ReactMarkdown>
             </div>
           </div>
           
           {report.unitEconomics && (
             <div>
               <h3 className="font-semibold text-lg mb-2">Unit Economics</h3>
-              <div className="prose max-w-none text-gray-700 whitespace-pre-wrap">
-                {report.unitEconomics}
+              <div className="prose prose-sm max-w-none text-gray-700">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {report.unitEconomics}
+                </ReactMarkdown>
               </div>
             </div>
           )}
@@ -270,8 +286,10 @@ export default function ResearchReportPreviewPage() {
           {report.economicMoat && (
             <div>
               <h3 className="font-semibold text-lg mb-2">Economic Moat</h3>
-              <div className="prose max-w-none text-gray-700 whitespace-pre-wrap">
-                {report.economicMoat}
+              <div className="prose prose-sm max-w-none text-gray-700">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {report.economicMoat}
+                </ReactMarkdown>
               </div>
             </div>
           )}
@@ -284,8 +302,10 @@ export default function ResearchReportPreviewPage() {
           <CardTitle className="text-2xl">Industry & Competitive Landscape</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="prose max-w-none text-gray-700 whitespace-pre-wrap">
-            {report.industryAnalysis || 'Not provided'}
+          <div className="prose prose-sm max-w-none text-gray-700">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {report.industryAnalysis || 'Not provided'}
+            </ReactMarkdown>
           </div>
         </CardContent>
       </Card>
@@ -342,8 +362,10 @@ export default function ResearchReportPreviewPage() {
           <CardTitle className="text-2xl">Valuation Analysis</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="prose max-w-none text-gray-700 whitespace-pre-wrap font-mono text-sm">
-            {report.valuationAnalysis || 'Not provided'}
+          <div className="prose prose-sm max-w-none text-gray-700">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {report.valuationAnalysis || 'Not provided'}
+            </ReactMarkdown>
           </div>
         </CardContent>
       </Card>
@@ -380,8 +402,10 @@ export default function ResearchReportPreviewPage() {
 
           <div>
             <h3 className="font-semibold text-lg mb-3">Bear Case Scenario</h3>
-            <div className="prose max-w-none text-gray-700 whitespace-pre-wrap border-l-4 border-red-500 pl-4 py-2 bg-red-50">
-              {report.bearCase || 'Not provided'}
+            <div className="prose prose-sm max-w-none text-gray-700 border-l-4 border-red-500 pl-4 py-2 bg-red-50">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {report.bearCase || 'Not provided'}
+              </ReactMarkdown>
             </div>
           </div>
         </CardContent>
@@ -394,8 +418,10 @@ export default function ResearchReportPreviewPage() {
             <CardTitle className="text-2xl">ESG & Governance</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="prose max-w-none text-gray-700 whitespace-pre-wrap">
-              {report.esgFactors}
+            <div className="prose prose-sm max-w-none text-gray-700">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {report.esgFactors}
+              </ReactMarkdown>
             </div>
           </CardContent>
         </Card>

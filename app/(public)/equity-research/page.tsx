@@ -45,7 +45,7 @@ export default async function ResearchIndexPage() {
             {reports.map((report) => (
               <Link
                 key={report.id}
-                href={`/research/${report.ticker}`}
+                href={`/equity-research/${report.ticker}`}
                 className="group block bg-white rounded-2xl overflow-hidden hover:shadow-2xl transition-all duration-300"
               >
                 <div className="p-6 space-y-4">

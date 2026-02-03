@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import { PrismaClient } from '@prisma/client';
 import Link from 'next/link';
 import { ArrowLeft, TrendingUp, TrendingDown, Calendar, User } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const prisma = new PrismaClient();
 
@@ -64,14 +66,14 @@ export default async function PublicResearchReportPage({
   return (
     <div className="min-h-screen bg-[#030116]">
       {/* Navigation */}
-      <nav className="border-b border-white/10 bg-[#030116]/95 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <Link href="/research" className="inline-flex items-center text-white/80 hover:text-white transition-colors">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Research
-          </Link>
-        </div>
-      </nav>
+            <nav className="border-b border-white/10 bg-[#030116]/95 backdrop-blur-sm sticky top-0 z-50">
+              <div className="max-w-7xl mx-auto px-6 py-4">
+                <Link href="/equity-research" className="inline-flex items-center text-white/80 hover:text-white transition-colors">
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Research
+                </Link>
+              </div>
+            </nav>
 
       <div className="max-w-5xl mx-auto px-6 py-12 space-y-8">
         {/* Cover Section */}
@@ -167,22 +169,28 @@ export default async function PublicResearchReportPage({
         {/* Business Model */}
         <div className="bg-white rounded-2xl p-8 space-y-6">
           <h2 className="text-3xl font-bold text-gray-900">Business Model & Economics</h2>
-          <div className="prose max-w-none text-gray-700 whitespace-pre-wrap">
-            {report.businessModel}
+          <div className="prose prose-sm max-w-none text-gray-700">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {report.businessModel}
+            </ReactMarkdown>
           </div>
           {report.unitEconomics && (
             <>
               <h3 className="font-semibold text-xl text-gray-900">Unit Economics</h3>
-              <div className="prose max-w-none text-gray-700 whitespace-pre-wrap">
-                {report.unitEconomics}
+              <div className="prose prose-sm max-w-none text-gray-700">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {report.unitEconomics}
+                </ReactMarkdown>
               </div>
             </>
           )}
           {report.economicMoat && (
             <>
               <h3 className="font-semibold text-xl text-gray-900">Economic Moat</h3>
-              <div className="prose max-w-none text-gray-700 whitespace-pre-wrap">
-                {report.economicMoat}
+              <div className="prose prose-sm max-w-none text-gray-700">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {report.economicMoat}
+                </ReactMarkdown>
               </div>
             </>
           )}
@@ -191,8 +199,10 @@ export default async function PublicResearchReportPage({
         {/* Industry Analysis */}
         <div className="bg-white rounded-2xl p-8 space-y-6">
           <h2 className="text-3xl font-bold text-gray-900">Industry & Competitive Landscape</h2>
-          <div className="prose max-w-none text-gray-700 whitespace-pre-wrap">
-            {report.industryAnalysis}
+          <div className="prose prose-sm max-w-none text-gray-700">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {report.industryAnalysis}
+            </ReactMarkdown>
           </div>
         </div>
 
@@ -244,8 +254,10 @@ export default async function PublicResearchReportPage({
         {/* Valuation */}
         <div className="bg-white rounded-2xl p-8 space-y-6">
           <h2 className="text-3xl font-bold text-gray-900">Valuation Analysis</h2>
-          <div className="prose max-w-none text-gray-700 whitespace-pre-wrap font-mono text-sm bg-gray-50 p-6 rounded-lg">
-            {report.valuationAnalysis}
+          <div className="prose prose-sm max-w-none text-gray-700 bg-gray-50 p-6 rounded-lg">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {report.valuationAnalysis}
+            </ReactMarkdown>
           </div>
         </div>
 
@@ -279,8 +291,10 @@ export default async function PublicResearchReportPage({
 
           <div>
             <h3 className="font-semibold text-xl mb-4 text-gray-900">Bear Case Scenario</h3>
-            <div className="prose max-w-none text-gray-700 whitespace-pre-wrap border-l-4 border-red-500 pl-4 py-3 bg-red-50 rounded-r">
-              {report.bearCase}
+            <div className="prose prose-sm max-w-none text-gray-700 border-l-4 border-red-500 pl-4 py-3 bg-red-50 rounded-r">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {report.bearCase}
+              </ReactMarkdown>
             </div>
           </div>
         </div>
@@ -289,8 +303,10 @@ export default async function PublicResearchReportPage({
         {report.esgFactors && (
           <div className="bg-white rounded-2xl p-8 space-y-6">
             <h2 className="text-3xl font-bold text-gray-900">ESG & Governance</h2>
-            <div className="prose max-w-none text-gray-700 whitespace-pre-wrap">
-              {report.esgFactors}
+            <div className="prose prose-sm max-w-none text-gray-700">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {report.esgFactors}
+              </ReactMarkdown>
             </div>
           </div>
         )}

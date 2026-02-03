@@ -206,7 +206,7 @@ export default function ResearchDashboardPage() {
                     </Button>
                     {report.published && (
                       <Button
-                        onClick={() => window.open(`/research/${report.ticker}`, '_blank')}
+                        onClick={() => window.open(`/equity-research/${report.ticker}`, '_blank')}
                         variant="outline"
                         size="sm"
                         className="bg-green-50 text-green-700 hover:bg-green-100"

@@ -661,13 +661,24 @@ This DCF model uses a ${model.inputs.forecastYears}-year explicit forecast perio
 
                 <div>
                   <label className="block text-sm font-medium mb-2">Analysts</label>
-                  <input
-                    type="text"
+                  <textarea
                     value={metadata.analysts.join(', ')}
-                    onChange={(e) => setMetadata({ ...metadata, analysts: e.target.value.split(',').map(a => a.trim()) })}
+                    onChange={(e) => {
+                      // Only split and trim when comma is present, otherwise keep raw input
+                      const value = e.target.value;
+                      if (value.includes(',')) {
+                        setMetadata({ ...metadata, analysts: value.split(',').map(a => a.trim()).filter(a => a) });
+                      } else {
+                        setMetadata({ ...metadata, analysts: value ? [value] : [''] });
+                      }
+                    }}
+                    rows={2}
                     className="w-full px-3 py-2 border rounded-md"
-                    placeholder="Analyst Name 1, Analyst Name 2"
+                    placeholder="Enter analyst names separated by commas (e.g., John Smith, Jane Doe)"
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Separate multiple analysts with commas
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -755,33 +766,89 @@ This DCF model uses a ${model.inputs.forecastYears}-year explicit forecast perio
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Business Model Description</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Business Model Description
+                    <span className="ml-2 text-xs font-normal text-blue-600">✓ Markdown & Images Supported</span>
+                  </label>
                   <textarea
                     value={businessModel.description}
                     onChange={(e) => setBusinessModel({ ...businessModel, description: e.target.value })}
-                    rows={8}
+                    rows={15}
                     className="w-full px-3 py-2 border rounded-md font-mono text-sm"
-                    placeholder="Describe revenue streams, pricing, cost structure..."
+                    placeholder="Describe revenue streams, pricing, cost structure...
+
+## Revenue Streams
+- Stream 1: Description
+- Stream 2: Description
+
+## Pricing Model
+How the company prices its products/services...
+
+## Cost Structure
+Key cost drivers...
+
+**To add images:**
+![Figure 1: Revenue Breakdown](https://your-image-url.com/image.png)
+*Figure 1: Caption describing the image*"
                   />
+                  <p className="text-xs text-gray-600 mt-1 space-y-1">
+                    <span className="block">💡 <strong>Markdown Tips:</strong> Use **bold**, *italic*, ## Headers, - Lists</span>
+                    <span className="block">🖼️ <strong>Images:</strong> ![Alt text](image-url) or upload to Imgur/your server and paste URL</span>
+                  </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Unit Economics (if applicable)</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Unit Economics (if applicable)
+                    <span className="ml-2 text-xs font-normal text-blue-600">✓ Markdown & Images Supported</span>
+                  </label>
                   <textarea
                     value={businessModel.unitEconomics}
                     onChange={(e) => setBusinessModel({ ...businessModel, unitEconomics: e.target.value })}
-                    rows={5}
+                    rows={10}
                     className="w-full px-3 py-2 border rounded-md font-mono text-sm"
-                    placeholder="ARPU, CAC, LTV, margins per unit, what improves with scale..."
+                    placeholder="## Key Metrics
+- **ARPU (Average Revenue Per User):** $X
+- **CAC (Customer Acquisition Cost):** $Y
+- **LTV (Lifetime Value):** $Z
+- **LTV:CAC Ratio:** X:1
+- **Payback Period:** X months
+
+## Economies of Scale
+What improves as company scales...
+
+![Figure: Unit Economics Trend](image-url)"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Economic Moat</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Economic Moat
+                    <span className="ml-2 text-xs font-normal text-blue-600">✓ Markdown & Images Supported</span>
+                  </label>
                   <textarea
                     value={businessModel.economicMoat}
                     onChange={(e) => setBusinessModel({ ...businessModel, economicMoat: e.target.value })}
-                    rows={5}
+                    rows={12}
                     className="w-full px-3 py-2 border rounded-md font-mono text-sm"
-                    placeholder="Cost advantages, switching costs, network effects, regulatory barriers..."
+                    placeholder="## Moat Sources
+
+### 1. Cost Advantages
+- Scale economies
+- Process advantages
+- Location advantages
+
+### 2. Switching Costs
+- Integration depth
+- Financial switching costs
+- Procedural switching costs
+
+### 3. Network Effects
+- Direct/indirect network effects
+- Platform lock-in
+
+### 4. Regulatory/IP Barriers
+- Patents, licenses, regulations
+
+![Figure: Competitive Moat Diagram](image-url)"
                   />
                 </div>
               </CardContent>
@@ -795,13 +862,43 @@ This DCF model uses a ${model.inputs.forecastYears}-year explicit forecast perio
                 <CardDescription>Industry dynamics and competitive positioning</CardDescription>
               </CardHeader>
               <CardContent>
-                <textarea
-                  value={industryAnalysis}
-                  onChange={(e) => setIndustryAnalysis(e.target.value)}
-                  rows={15}
-                  className="w-full px-3 py-2 border rounded-md font-mono text-sm"
-                  placeholder="Industry size and growth, key competitors, competitive positioning, secular vs cyclical forces..."
-                />
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Industry Analysis
+                    <span className="ml-2 text-xs font-normal text-blue-600">✓ Markdown & Images Supported</span>
+                  </label>
+                  <textarea
+                    value={industryAnalysis}
+                    onChange={(e) => setIndustryAnalysis(e.target.value)}
+                    rows={20}
+                    className="w-full px-3 py-2 border rounded-md font-mono text-sm"
+                    placeholder="## Industry Overview
+- **Market Size:** $X billion (2024)
+- **Growth Rate:** Y% CAGR (2024-2029)
+- **Key Trends:** List major trends
+
+## Competitive Landscape
+### Major Players
+1. **Company A** - Market share, positioning
+2. **Company B** - Market share, positioning
+
+### Competitive Positioning
+How does this company compare?
+
+![Figure: Market Share Analysis](image-url)
+
+## Industry Dynamics
+- **Secular Trends:** Long-term tailwinds/headwinds
+- **Cyclical Factors:** Short-term considerations
+- **Barriers to Entry:** What protects incumbents
+
+## Regulatory Environment
+Key regulations affecting the industry..."
+                  />
+                  <p className="text-xs text-gray-600 mt-1">
+                    💡 Include charts, tables, and diagrams to support analysis
+                  </p>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -943,13 +1040,33 @@ This DCF model uses a ${model.inputs.forecastYears}-year explicit forecast perio
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <textarea
-                  value={valuationAnalysis}
-                  onChange={(e) => setValuationAnalysis(e.target.value)}
-                  rows={20}
-                  className="w-full px-3 py-2 border rounded-md font-mono text-sm"
-                  placeholder="Primary valuation method, key assumptions (WACC, terminal growth, etc.), sensitivity analysis..."
-                />
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Valuation Analysis
+                    <span className="ml-2 text-xs font-normal text-blue-600">✓ Markdown & Tables Supported</span>
+                  </label>
+                  <textarea
+                    value={valuationAnalysis}
+                    onChange={(e) => setValuationAnalysis(e.target.value)}
+                    rows={25}
+                    className="w-full px-3 py-2 border rounded-md font-mono text-sm"
+                    placeholder="This section will be auto-populated when you load a DCF model above. You can also manually edit/add content here.
+
+## Additional Valuation Methods
+
+### Comparable Companies Analysis
+Add peer comparisons, trading multiples...
+
+### Precedent Transactions
+Recent M&A activity in the sector...
+
+### Sum-of-the-Parts
+If applicable for multi-business companies..."
+                  />
+                  <p className="text-xs text-gray-600 mt-1">
+                    📊 When you load a DCF model, this field auto-fills with comprehensive tables. You can edit or add supplementary analysis.
+                  </p>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -1035,13 +1152,32 @@ This DCF model uses a ${model.inputs.forecastYears}-year explicit forecast perio
                 </div>
 
                 <div>
-                  <h4 className="font-medium mb-4">Bear Case Scenario</h4>
+                  <h4 className="font-medium mb-2">
+                    Bear Case Scenario
+                    <span className="ml-2 text-xs font-normal text-blue-600">✓ Markdown & Images Supported</span>
+                  </h4>
                   <textarea
                     value={bearCase}
                     onChange={(e) => setBearCase(e.target.value)}
-                    rows={10}
+                    rows={15}
                     className="w-full px-3 py-2 border rounded-md font-mono text-sm"
-                    placeholder="Describe the bear case: what would invalidate this investment thesis? Include downside scenario valuation if possible..."
+                    placeholder="## Bear Case Thesis
+What would invalidate the investment thesis?
+
+## Downside Scenario
+- **Revenue Miss:** If growth falls to X%...
+- **Margin Compression:** If EBITDA margins contract to Y%...
+- **Multiple Compression:** If valuation re-rates to Z multiple...
+
+## Bear Case Valuation
+**Downside Target:** $XX per share (-XX%)
+
+Based on:
+- Conservative growth assumptions
+- Lower terminal multiple
+- Increased discount rate
+
+![Figure: Bear Case Scenario](image-url)"
                   />
                 </div>
               </CardContent>
@@ -1055,13 +1191,38 @@ This DCF model uses a ${model.inputs.forecastYears}-year explicit forecast perio
                 <CardDescription>Material ESG factors and governance considerations</CardDescription>
               </CardHeader>
               <CardContent>
-                <textarea
-                  value={esgFactors}
-                  onChange={(e) => setEsgFactors(e.target.value)}
-                  rows={10}
-                  className="w-full px-3 py-2 border rounded-md font-mono text-sm"
-                  placeholder="Material ESG factors, governance red flags, regulatory exposure..."
-                />
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    ESG Factors & Governance
+                    <span className="ml-2 text-xs font-normal text-blue-600">✓ Markdown & Images Supported</span>
+                  </label>
+                  <textarea
+                    value={esgFactors}
+                    onChange={(e) => setEsgFactors(e.target.value)}
+                    rows={15}
+                    className="w-full px-3 py-2 border rounded-md font-mono text-sm"
+                    placeholder="## Environmental Factors
+- Carbon footprint
+- Climate risk exposure
+- Environmental initiatives
+
+## Social Factors
+- Labor practices
+- Diversity & inclusion
+- Community impact
+
+## Governance
+- Board composition
+- Executive compensation
+- Shareholder rights
+- Related party transactions
+
+## Regulatory Exposure
+Key regulations affecting operations...
+
+![Figure: ESG Score Comparison](image-url)"
+                  />
+                </div>
               </CardContent>
             </Card>
           )}
