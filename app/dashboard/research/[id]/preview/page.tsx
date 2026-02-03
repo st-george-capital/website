@@ -62,8 +62,6 @@ interface ResearchReport {
     timeframe: string;
   }>;
   valuationAnalysis: string;
-  dcfInputs?: any;
-  dcfOutputs?: any;
   bearCase: string;
   bullCase?: string | null;
   bullBearJustification?: string | null;
