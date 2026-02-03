@@ -574,6 +574,13 @@ interface ExtractedFinancials {
   periods: string[];
   companyName?: string;
   ticker?: string;
+  // Company overview data (merged from selectedCompany for research report auto-population)
+  sector?: string;
+  industry?: string;
+  fiscalYearEnd?: string;
+  week52High?: number;
+  week52Low?: number;
+  sharesOutstanding?: number;
 }
 
 interface CompanyOverview {
@@ -603,6 +610,7 @@ interface CompanyOverview {
   operatingMarginTTM?: number;
   returnOnEquityTTM?: number;
   returnOnAssetsTTM?: number;
+  fiscalYearEnd?: string;
 }
 
 interface InvestorSnapshotProps {
@@ -1066,6 +1074,17 @@ export default function DCFToolPage() {
     setIsSaving(true);
     try {
       const outputsToSave = getOutputsWithScenarios();
+      // Merge company overview data into financialData for research report auto-population
+      const enrichedFinancialData = financialData ? {
+        ...financialData,
+        sector: selectedCompany?.sector || financialData.sector,
+        industry: selectedCompany?.industry || financialData.industry,
+        fiscalYearEnd: selectedCompany?.fiscalYearEnd,
+        week52High: selectedCompany?.week52High,
+        week52Low: selectedCompany?.week52Low,
+        sharesOutstanding: selectedCompany?.sharesOutstanding,
+      } : null;
+      
       const response = await fetch('/api/dcf-models', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1074,7 +1093,7 @@ export default function DCFToolPage() {
           companyName: inputs.companyName,
           inputs,
           outputs: outputsToSave,
-          financialData,
+          financialData: enrichedFinancialData,
           name: modelName,
         }),
       });
@@ -1100,13 +1119,24 @@ export default function DCFToolPage() {
     setIsSaving(true);
     try {
       const outputsToSave = getOutputsWithScenarios();
+      // Merge company overview data into financialData for research report auto-population
+      const enrichedFinancialData = financialData ? {
+        ...financialData,
+        sector: selectedCompany?.sector || financialData.sector,
+        industry: selectedCompany?.industry || financialData.industry,
+        fiscalYearEnd: selectedCompany?.fiscalYearEnd,
+        week52High: selectedCompany?.week52High,
+        week52Low: selectedCompany?.week52Low,
+        sharesOutstanding: selectedCompany?.sharesOutstanding,
+      } : null;
+      
       const response = await fetch(`/api/dcf-models/${savedModelId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           inputs,
           outputs: outputsToSave,
-          financialData,
+          financialData: enrichedFinancialData,
         }),
       });
 

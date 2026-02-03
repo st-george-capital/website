@@ -151,16 +151,34 @@ export default function NewResearchReportPage() {
         outputs: model.outputs
       });
       
-      // Auto-populate metadata from DCF
+      // Auto-populate metadata from DCF (including company snapshot data)
+      const currentPrice = model.inputs.currentPrice || prev.currentPrice;
+      const sharesOutstanding = model.inputs.sharesOutstanding || model.financialData?.sharesOutstanding || null;
+      const marketCap = currentPrice && sharesOutstanding ? (currentPrice * sharesOutstanding) / 1e6 : null; // in millions
+      
+      // Calculate 52-week range from DCF financial data
+      const week52High = model.financialData?.week52High;
+      const week52Low = model.financialData?.week52Low;
+      const fiftyTwoWeekRange = week52High && week52Low ? `${week52Low.toFixed(2)}-${week52High.toFixed(2)}` : prev.fiftyTwoWeekRange;
+      
+      // Get fiscal year end from financial data (usually stored as month name like "December")
+      const fiscalYearEnd = model.financialData?.fiscalYearEnd || prev.fiscalYearEnd;
+      
       setMetadata(prev => ({
         ...prev,
         companyName: model.companyName || prev.companyName,
         ticker: model.ticker || prev.ticker,
-        currentPrice: model.inputs.currentPrice || prev.currentPrice,
+        currentPrice: currentPrice,
         targetPrice: model.outputs.intrinsicValuePerShare || prev.targetPrice,
-        // Try to get sector/industry from financial data if available
         sector: model.financialData?.sector || prev.sector,
         industry: model.financialData?.industry || prev.industry,
+        // Company snapshot fields from DCF
+        priceDate: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: '2-digit' }).replace(',', ''),
+        fiftyTwoWeekRange: fiftyTwoWeekRange,
+        marketCap: marketCap,
+        sharesOutstanding: sharesOutstanding ? sharesOutstanding / 1e6 : null, // convert to millions for display
+        fiscalYearEnd: fiscalYearEnd,
+        dataSource: 'Company data, Bloomberg, Alpha Vantage API',
       }));
 
       // Auto-populate valuation analysis with comprehensive DCF results including tables
