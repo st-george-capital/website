@@ -286,7 +286,14 @@ export default function ResearchReportPreviewPage() {
         <CardContent className="space-y-6">
           <div>
             <h3 className="font-semibold text-lg mb-2">How the Company Makes Money</h3>
-            <div className="prose prose-sm max-w-none text-gray-700">
+            <div className="prose max-w-none text-gray-700
+              [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
+              [&_th]:bg-gray-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
+              [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
+              [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
+              [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-3 [&_h3]:mb-2
+              [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2
+              [&_strong]:font-semibold">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {report.businessModel || 'Not provided'}
               </ReactMarkdown>
@@ -296,7 +303,12 @@ export default function ResearchReportPreviewPage() {
           {report.unitEconomics && (
             <div>
               <h3 className="font-semibold text-lg mb-2">Unit Economics</h3>
-              <div className="prose prose-sm max-w-none text-gray-700">
+              <div className="prose max-w-none text-gray-700
+                [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
+                [&_th]:bg-gray-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
+                [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
+                [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
+                [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {report.unitEconomics}
                 </ReactMarkdown>
@@ -307,7 +319,12 @@ export default function ResearchReportPreviewPage() {
           {report.economicMoat && (
             <div>
               <h3 className="font-semibold text-lg mb-2">Economic Moat</h3>
-              <div className="prose prose-sm max-w-none text-gray-700">
+              <div className="prose max-w-none text-gray-700
+                [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
+                [&_th]:bg-gray-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
+                [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
+                [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
+                [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {report.economicMoat}
                 </ReactMarkdown>
@@ -323,7 +340,12 @@ export default function ResearchReportPreviewPage() {
           <CardTitle className="text-2xl">Industry & Competitive Landscape</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="prose prose-sm max-w-none text-gray-700">
+          <div className="prose max-w-none text-gray-700
+            [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
+            [&_th]:bg-gray-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
+            [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
+            [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
+            [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {report.industryAnalysis || 'Not provided'}
             </ReactMarkdown>
@@ -383,7 +405,16 @@ export default function ResearchReportPreviewPage() {
           <CardTitle className="text-2xl">Valuation Analysis</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="prose prose-sm max-w-none text-gray-700">
+          <div className="prose prose-lg max-w-none text-gray-700 
+            [&_table]:w-full [&_table]:border-collapse [&_table]:my-6
+            [&_th]:bg-blue-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-4 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
+            [&_td]:border [&_td]:border-gray-300 [&_td]:px-4 [&_td]:py-2
+            [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mt-8 [&_h1]:mb-4 [&_h1]:text-gray-900
+            [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mt-6 [&_h2]:mb-3 [&_h2]:text-gray-900
+            [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:text-gray-800
+            [&_strong]:font-bold [&_strong]:text-gray-900
+            [&_ul]:list-disc [&_ul]:ml-6 [&_ul]:my-3
+            [&_li]:my-1">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {report.valuationAnalysis || 'Not provided'}
             </ReactMarkdown>
@@ -423,7 +454,12 @@ export default function ResearchReportPreviewPage() {
 
           <div>
             <h3 className="font-semibold text-lg mb-3">Bear Case Scenario</h3>
-            <div className="prose prose-sm max-w-none text-gray-700 border-l-4 border-red-500 pl-4 py-2 bg-red-50">
+            <div className="prose max-w-none text-gray-700 border-l-4 border-red-500 pl-4 py-2 bg-red-50
+              [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
+              [&_th]:bg-red-100 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
+              [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
+              [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
+              [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {report.bearCase || 'Not provided'}
               </ReactMarkdown>
@@ -439,7 +475,12 @@ export default function ResearchReportPreviewPage() {
             <CardTitle className="text-2xl">ESG & Governance</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="prose prose-sm max-w-none text-gray-700">
+            <div className="prose max-w-none text-gray-700
+              [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
+              [&_th]:bg-gray-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
+              [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
+              [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
+              [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {report.esgFactors}
               </ReactMarkdown>

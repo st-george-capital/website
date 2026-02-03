@@ -169,7 +169,12 @@ export default async function PublicResearchReportPage({
         {/* Business Model */}
         <div className="bg-white rounded-2xl p-8 space-y-6">
           <h2 className="text-3xl font-bold text-gray-900">Business Model & Economics</h2>
-          <div className="prose prose-sm max-w-none text-gray-700">
+          <div className="prose max-w-none text-gray-700
+            [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
+            [&_th]:bg-gray-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
+            [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
+            [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
+            [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {report.businessModel}
             </ReactMarkdown>
@@ -177,7 +182,12 @@ export default async function PublicResearchReportPage({
           {report.unitEconomics && (
             <>
               <h3 className="font-semibold text-xl text-gray-900">Unit Economics</h3>
-              <div className="prose prose-sm max-w-none text-gray-700">
+              <div className="prose max-w-none text-gray-700
+                [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
+                [&_th]:bg-gray-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
+                [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
+                [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
+                [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {report.unitEconomics}
                 </ReactMarkdown>
@@ -187,7 +197,12 @@ export default async function PublicResearchReportPage({
           {report.economicMoat && (
             <>
               <h3 className="font-semibold text-xl text-gray-900">Economic Moat</h3>
-              <div className="prose prose-sm max-w-none text-gray-700">
+              <div className="prose max-w-none text-gray-700
+                [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
+                [&_th]:bg-gray-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
+                [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
+                [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
+                [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {report.economicMoat}
                 </ReactMarkdown>
@@ -199,7 +214,12 @@ export default async function PublicResearchReportPage({
         {/* Industry Analysis */}
         <div className="bg-white rounded-2xl p-8 space-y-6">
           <h2 className="text-3xl font-bold text-gray-900">Industry & Competitive Landscape</h2>
-          <div className="prose prose-sm max-w-none text-gray-700">
+          <div className="prose max-w-none text-gray-700
+            [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
+            [&_th]:bg-gray-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
+            [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
+            [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
+            [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {report.industryAnalysis}
             </ReactMarkdown>
@@ -254,7 +274,16 @@ export default async function PublicResearchReportPage({
         {/* Valuation */}
         <div className="bg-white rounded-2xl p-8 space-y-6">
           <h2 className="text-3xl font-bold text-gray-900">Valuation Analysis</h2>
-          <div className="prose prose-sm max-w-none text-gray-700 bg-gray-50 p-6 rounded-lg">
+          <div className="prose prose-lg max-w-none text-gray-700 bg-gray-50 p-6 rounded-lg
+            [&_table]:w-full [&_table]:border-collapse [&_table]:my-6 [&_table]:bg-white
+            [&_th]:bg-blue-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-4 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
+            [&_td]:border [&_td]:border-gray-300 [&_td]:px-4 [&_td]:py-2 [&_td]:bg-white
+            [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mt-8 [&_h1]:mb-4 [&_h1]:text-gray-900
+            [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mt-6 [&_h2]:mb-3 [&_h2]:text-gray-900
+            [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:text-gray-800
+            [&_strong]:font-bold [&_strong]:text-gray-900
+            [&_ul]:list-disc [&_ul]:ml-6 [&_ul]:my-3
+            [&_li]:my-1">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {report.valuationAnalysis}
             </ReactMarkdown>
@@ -291,7 +320,12 @@ export default async function PublicResearchReportPage({
 
           <div>
             <h3 className="font-semibold text-xl mb-4 text-gray-900">Bear Case Scenario</h3>
-            <div className="prose prose-sm max-w-none text-gray-700 border-l-4 border-red-500 pl-4 py-3 bg-red-50 rounded-r">
+            <div className="prose max-w-none text-gray-700 border-l-4 border-red-500 pl-4 py-3 bg-red-50 rounded-r
+              [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
+              [&_th]:bg-red-100 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
+              [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
+              [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
+              [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {report.bearCase}
               </ReactMarkdown>
@@ -303,7 +337,12 @@ export default async function PublicResearchReportPage({
         {report.esgFactors && (
           <div className="bg-white rounded-2xl p-8 space-y-6">
             <h2 className="text-3xl font-bold text-gray-900">ESG & Governance</h2>
-            <div className="prose prose-sm max-w-none text-gray-700">
+            <div className="prose max-w-none text-gray-700
+              [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
+              [&_th]:bg-gray-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
+              [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
+              [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
+              [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {report.esgFactors}
               </ReactMarkdown>
