@@ -26,7 +26,6 @@ export default function ArticlesPage() {
   const router = useRouter();
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deleting, setDeleting] = useState<string | null>(null);
 
   const isAdmin = session?.user?.role === 'admin';
 
@@ -52,25 +51,26 @@ export default function ArticlesPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this article?')) return;
-
-    setDeleting(id);
+  const togglePublish = async (id: string, currentStatus: boolean) => {
     try {
       const res = await fetch(`/api/articles/${id}`, {
-        method: 'DELETE',
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          published: !currentStatus,
+          publishedAt: !currentStatus ? new Date().toISOString() : null
+        }),
       });
 
       if (res.ok) {
-        setArticles(articles.filter((a) => a.id !== id));
+        const updated = await res.json();
+        setArticles(articles.map((a) => a.id === id ? updated : a));
       } else {
-        alert('Failed to delete article');
+        alert('Failed to update article');
       }
     } catch (error) {
-      console.error('Error deleting article:', error);
-      alert('Failed to delete article');
-    } finally {
-      setDeleting(null);
+      console.error('Error updating article:', error);
+      alert('Failed to update article');
     }
   };
 
@@ -184,12 +184,15 @@ export default function ArticlesPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDelete(article.id)}
-                          disabled={deleting === article.id}
-                          title="Delete article"
-                          className="hover:bg-red-50"
+                          onClick={() => togglePublish(article.id, article.published)}
+                          title={article.published ? 'Unpublish article' : 'Publish article'}
+                          className={article.published ? 'hover:bg-orange-50' : 'hover:bg-green-50'}
                         >
-                          <Trash2 className="w-4 h-4 text-red-600" />
+                          {article.published ? (
+                            <EyeOff className="w-4 h-4 text-orange-600" />
+                          ) : (
+                            <Eye className="w-4 h-4 text-green-600" />
+                          )}
                         </Button>
                       </>
                     )}
