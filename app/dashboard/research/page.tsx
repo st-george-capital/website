@@ -189,6 +189,14 @@ export default function ResearchDashboardPage() {
 
                   <div className="flex flex-col gap-2 ml-4">
                     <Button
+                      onClick={() => router.push(`/dashboard/research/${report.id}/preview`)}
+                      className="bg-blue-600 text-white hover:bg-blue-700"
+                      size="sm"
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      Preview Report
+                    </Button>
+                    <Button
                       onClick={() => router.push(`/dashboard/research/${report.id}`)}
                       variant="outline"
                       size="sm"
@@ -196,14 +204,17 @@ export default function ResearchDashboardPage() {
                       <Edit className="w-4 h-4 mr-2" />
                       Edit
                     </Button>
-                    <Button
-                      onClick={() => router.push(`/dashboard/research/${report.id}/preview`)}
-                      variant="outline"
-                      size="sm"
-                    >
-                      <Eye className="w-4 h-4 mr-2" />
-                      Preview
-                    </Button>
+                    {report.published && (
+                      <Button
+                        onClick={() => window.open(`/research/${report.ticker}`, '_blank')}
+                        variant="outline"
+                        size="sm"
+                        className="bg-green-50 text-green-700 hover:bg-green-100"
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        View Public
+                      </Button>
+                    )}
                     <Button
                       onClick={() => deleteReport(report.id)}
                       variant="outline"

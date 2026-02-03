@@ -1,143 +1,103 @@
-import { Hero } from '@/components/hero';
-import { Section, SectionHeader } from '@/components/section';
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/card';
-import { Button } from '@/components/button';
+import { PrismaClient } from '@prisma/client';
 import Link from 'next/link';
-import { prisma } from '@/lib/prisma';
-import { ArrowRight, Calendar, User } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowRight } from 'lucide-react';
 
-// Force dynamic rendering to prevent static generation issues with database calls
-export const dynamic = 'force-dynamic';
+const prisma = new PrismaClient();
 
-async function getArticles() {
-  const articles = await prisma.article.findMany({
-    where: {
-      published: true,
-    },
-    orderBy: {
-      publishedAt: 'desc',
-    },
+async function getPublishedReports() {
+  const reports = await prisma.equityResearchReport.findMany({
+    where: { published: true },
+    orderBy: { publishedAt: 'desc' },
   });
-  return articles;
+
+  return reports;
 }
 
-export default async function ResearchPage() {
-  const articles = await getArticles();
+export default async function ResearchIndexPage() {
+  const reports = await getPublishedReports();
+
+  const getRecommendationColor = (rec: string) => {
+    switch (rec.toLowerCase()) {
+      case 'buy': return 'bg-green-600 text-white';
+      case 'sell': return 'bg-red-600 text-white';
+      default: return 'bg-gray-600 text-white';
+    }
+  };
 
   return (
-    <>
-      <Hero
-        title="Research & Insights"
-        breadcrumb="What We Do / Research & Insights"
-        height="small"
-        align="left"
-      />
-
-      <Section className="!py-12 !md:py-16">
-        <div className="grid md:grid-cols-2 gap-20 items-start">
-          <div>
-            <h2 className="font-serif text-5xl md:text-6xl font-bold">
-              Analyzing Current Events
-            </h2>
-          </div>
-          <div className="space-y-6">
-            <p className="text-lg text-gray-600 leading-relaxed">
-              We examine current events and forecast their impact by analyzing historical patterns and market mechanics. Our research uncovers opportunities through deep understanding of how markets respond to economic, political, and social developments.
-            </p>
-            <p className="text-lg text-gray-600 leading-relaxed">
-              By combining rigorous historical analysis with real-time data, we identify mispriced assets and emerging trends before they become consensus.
-            </p>
-          </div>
+    <div className="min-h-screen bg-[#030116]">
+      <div className="max-w-7xl mx-auto px-6 py-16">
+        <div className="text-center mb-16">
+          <h1 className="text-5xl font-bold text-white mb-4">
+            Equity Research
+          </h1>
+          <p className="text-xl text-white/70 max-w-2xl mx-auto">
+            Institutional-grade equity research reports from St. George Capital
+          </p>
         </div>
-      </Section>
 
-      <Section dark className="!py-12 !md:py-16">
-        <div className="max-w-7xl mx-auto">
-          {articles.length === 0 ? (
-            <Card className="bg-white">
-              <CardHeader className="text-center py-12">
-                <CardTitle className="font-serif text-2xl mb-3">No Research Published Yet</CardTitle>
-                <CardDescription>
-                  Check back soon for our latest research and market insights.
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {articles.map((article) => (
-                <Link key={article.id} href={`/research/${article.slug}`}>
-                  <Card className="h-full hover:shadow-xl transition-shadow cursor-pointer bg-white">
-                    {article.coverImage && (
-                      <div className="w-full h-48 overflow-hidden rounded-t-lg">
-                        <img
-                          src={article.coverImage}
-                          alt={article.title}
-                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                        />
-                      </div>
-                    )}
-                    <CardHeader>
-                      <div className="flex items-center space-x-2 text-sm text-gray-500 mb-3">
-                        <span className="px-2 py-1 bg-primary/10 text-primary rounded text-xs font-medium">
-                          {article.division}
-                        </span>
-                        {article.featured && (
-                          <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
-                            Featured
-                          </span>
-                        )}
-                      </div>
-                      <CardTitle className="font-serif text-xl mb-3 line-clamp-2">
-                        {article.title}
-                      </CardTitle>
-                      <CardDescription className="line-clamp-3 mb-4">
-                        {article.excerpt}
-                      </CardDescription>
-                      <div className="flex items-center justify-between text-sm text-gray-500 pt-4 border-t">
-                        <div className="flex items-center space-x-4">
-                          <span className="flex items-center">
-                            <User className="w-4 h-4 mr-1" />
-                            {article.author}
-                          </span>
-                          {article.publishedAt && (
-                            <span className="flex items-center">
-                              <Calendar className="w-4 h-4 mr-1" />
-                              {new Date(article.publishedAt).toLocaleDateString()}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center text-primary font-medium mt-4">
-                        Read More
-                        <ArrowRight className="w-4 h-4 ml-2" />
-                      </div>
-                    </CardHeader>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      </Section>
-
-      {articles.length > 0 && (
-        <Section className="!py-12 !md:py-16">
-          <div className="max-w-4xl mx-auto text-center">
-            <h2 className="font-serif text-3xl md:text-4xl font-bold mb-6">
-              Want to Contribute?
-            </h2>
-            <p className="text-xl mb-8 text-gray-600">
-              Join our research team and publish your insights
-            </p>
-            <Link href="/contact">
-              <Button size="lg">
-                <span>Get In Touch</span>
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
+        {reports.length === 0 ? (
+          <div className="text-center py-16">
+            <p className="text-white/60 text-lg">No published research reports yet.</p>
           </div>
-        </Section>
-      )}
-    </>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {reports.map((report) => (
+              <Link
+                key={report.id}
+                href={`/research/${report.ticker}`}
+                className="group block bg-white rounded-2xl overflow-hidden hover:shadow-2xl transition-all duration-300"
+              >
+                <div className="p-6 space-y-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="text-2xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                        {report.companyName}
+                      </h3>
+                      <div className="text-sm text-gray-600 mt-1">
+                        {report.ticker} • {report.exchange}
+                      </div>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${getRecommendationColor(report.recommendation)}`}>
+                      {report.recommendation.toUpperCase()}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 py-4 border-t border-b border-gray-200">
+                    <div>
+                      <div className="text-xs text-gray-500">Target Price</div>
+                      <div className="text-xl font-bold text-gray-900">
+                        ${report.targetPrice.toFixed(2)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">Upside</div>
+                      <div className={`text-xl font-bold flex items-center ${report.impliedUpside >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {report.impliedUpside >= 0 ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
+                        {(report.impliedUpside * 100).toFixed(1)}%
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-sm text-gray-600">
+                    {report.sector} • {report.industry}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="text-xs text-gray-500">
+                      {new Date(report.reportDate).toLocaleDateString()}
+                    </div>
+                    <div className="flex items-center text-blue-600 font-medium text-sm group-hover:translate-x-1 transition-transform">
+                      Read Report
+                      <ArrowRight className="w-4 h-4 ml-1" />
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
