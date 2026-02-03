@@ -138,11 +138,161 @@ export default function NewResearchReportPage() {
         industry: model.financialData?.industry || prev.industry,
       }));
 
-      // Auto-populate valuation analysis with comprehensive DCF results
+      // Auto-populate valuation analysis with comprehensive DCF results including tables
       const avgRevGrowth = model.inputs.revenueGrowth.reduce((sum: number, g: number) => sum + g, 0) / model.inputs.revenueGrowth.length;
       const avgEBITMargin = model.inputs.ebitMargin.reduce((sum: number, m: number) => sum + m, 0) / model.inputs.ebitMargin.length;
       
+      // Build revenue projections table
+      let revenueTable = '\n| Year | Revenue ($M) | Growth % | EBIT ($M) | EBIT Margin % | FCFF ($M) |\n';
+      revenueTable += '|------|-------------|----------|-----------|---------------|----------|\n';
+      let revenue = model.inputs.startingRevenue;
+      model.outputs.revenues.forEach((rev: number, i: number) => {
+        const growth = i === 0 ? model.inputs.revenueGrowth[i] : (rev / model.outputs.revenues[i-1] - 1);
+        const ebit = model.outputs.ebit[i];
+        const ebitMargin = ebit / rev;
+        const fcff = model.outputs.freeCashFlow[i];
+        revenueTable += `| Year ${i+1} | $${(rev / 1e6).toFixed(0)} | ${(growth * 100).toFixed(1)}% | $${(ebit / 1e6).toFixed(0)} | ${(ebitMargin * 100).toFixed(1)}% | $${(fcff / 1e6).toFixed(0)} |\n`;
+      });
+      
+      // Build WACC calculation table
+      const waccTable = `
+| Component | Value |
+|-----------|-------|
+| Risk-Free Rate | ${(model.inputs.riskFreeRate * 100).toFixed(2)}% |
+| Equity Risk Premium | ${(model.inputs.equityRiskPremium * 100).toFixed(2)}% |
+| Beta | ${model.inputs.beta.toFixed(2)} |
+| **Cost of Equity** | **${(model.outputs.costOfEquity * 100).toFixed(2)}%** |
+| Cost of Debt (Pre-Tax) | ${(model.inputs.costOfDebt * 100).toFixed(2)}% |
+| Tax Rate | ${(model.inputs.taxRate * 100).toFixed(1)}% |
+| **After-Tax Cost of Debt** | **${(model.outputs.afterTaxCostOfDebt * 100).toFixed(2)}%** |
+| Target Equity Weight | ${((1 - model.inputs.targetDebtRatio) * 100).toFixed(1)}% |
+| Target Debt Weight | ${(model.inputs.targetDebtRatio * 100).toFixed(1)}% |
+| **WACC** | **${(model.outputs.wacc * 100).toFixed(2)}%** |`;
+
+      // Build valuation summary table
+      const valuationSummaryTable = `
+| Metric | Value |
+|--------|-------|
+| **Enterprise Value** | **$${(model.outputs.enterpriseValue / 1e9).toFixed(2)}B** |
+| Less: Net Debt | $${((model.inputs.totalDebt - model.inputs.cashEquivalents) / 1e9).toFixed(2)}B |
+| Less: Preferred Equity | $${(model.inputs.preferredEquity / 1e9).toFixed(2)}B |
+| Less: Minority Interest | $${(model.inputs.minorityInterest / 1e9).toFixed(2)}B |
+| **Equity Value** | **$${(model.outputs.equityValue / 1e9).toFixed(2)}B** |
+| Diluted Shares Outstanding | ${(model.inputs.sharesDiluted / 1e6).toFixed(1)}M |
+| **Intrinsic Value per Share** | **$${model.outputs.intrinsicValuePerShare.toFixed(2)}** |
+| Current Market Price | $${model.inputs.currentPrice.toFixed(2)} |
+| **Implied Upside/(Downside)** | **${(model.outputs.upsideDownside * 100).toFixed(1)}%** |`;
+
+      // Build sensitivity table for WACC vs Growth
+      let sensitivityTable = '\n### Sensitivity Analysis: Intrinsic Value per Share\n\n';
+      sensitivityTable += '**WACC vs Terminal Growth Rate**\n\n';
+      sensitivityTable += '|  | ';
+      const termGrowthRange = [-0.01, -0.005, 0, 0.005, 0.01];
+      termGrowthRange.forEach(tg => {
+        sensitivityTable += `${((model.inputs.perpetualGrowth + tg) * 100).toFixed(1)}% | `;
+      });
+      sensitivityTable += '\n|---|' + '---|'.repeat(termGrowthRange.length) + '\n';
+      
+      const waccRange = [-0.01, -0.005, 0, 0.005, 0.01];
+      waccRange.forEach(wd => {
+        const testWacc = model.outputs.wacc + wd;
+        sensitivityTable += `| **${(testWacc * 100).toFixed(2)}%** | `;
+        termGrowthRange.forEach(tg => {
+          const testGrowth = model.inputs.perpetualGrowth + tg;
+          // Simple approximation of intrinsic value with different WACC and growth
+          const lastFCFF = model.outputs.freeCashFlow[model.outputs.freeCashFlow.length - 1];
+          const termValue = lastFCFF * (1 + testGrowth) / (testWacc - testGrowth);
+          const pvFcff = model.outputs.freeCashFlow.reduce((sum: number, fcf: number, i: number) => 
+            sum + fcf / Math.pow(1 + testWacc, i + 1), 0);
+          const pvTermValue = termValue / Math.pow(1 + testWacc, model.inputs.forecastYears);
+          const ev = pvFcff + pvTermValue;
+          const equity = ev - model.inputs.totalDebt + model.inputs.cashEquivalents - model.inputs.preferredEquity - model.inputs.minorityInterest;
+          const perShare = equity / model.inputs.sharesDiluted;
+          sensitivityTable += `$${perShare.toFixed(2)} | `;
+        });
+        sensitivityTable += '\n';
+      });
+      
       setValuationAnalysis(`# DCF Valuation Analysis
+
+## Executive Summary
+
+Our DCF model values ${model.companyName} at **$${model.outputs.intrinsicValuePerShare.toFixed(2)} per share**, representing a **${(model.outputs.upsideDownside * 100).toFixed(1)}%** ${model.outputs.upsideDownside >= 0 ? 'upside' : 'downside'} to the current market price of $${model.inputs.currentPrice.toFixed(2)}. The valuation is based on a ${model.inputs.forecastYears}-year explicit forecast period and a terminal value using ${model.inputs.terminalMethod === 'perpetual' ? 'perpetuity growth' : 'exit multiple'} methodology.
+
+## Valuation Summary
+${valuationSummaryTable}
+
+## Cost of Capital (WACC)
+
+We calculate a WACC of **${(model.outputs.wacc * 100).toFixed(2)}%** using the Capital Asset Pricing Model (CAPM) for the cost of equity and the company's marginal cost of debt.
+${waccTable}
+
+**WACC Calculation:**
+- Cost of Equity = Risk-Free Rate + (Beta × Equity Risk Premium)
+- Cost of Equity = ${(model.inputs.riskFreeRate * 100).toFixed(2)}% + (${model.inputs.beta.toFixed(2)} × ${(model.inputs.equityRiskPremium * 100).toFixed(2)}%) = ${(model.outputs.costOfEquity * 100).toFixed(2)}%
+- WACC = (E/V × Cost of Equity) + (D/V × After-Tax Cost of Debt)
+- WACC = (${((1 - model.inputs.targetDebtRatio) * 100).toFixed(1)}% × ${(model.outputs.costOfEquity * 100).toFixed(2)}%) + (${(model.inputs.targetDebtRatio * 100).toFixed(1)}% × ${(model.outputs.afterTaxCostOfDebt * 100).toFixed(2)}%) = **${(model.outputs.wacc * 100).toFixed(2)}%**
+
+## Revenue and Cash Flow Projections
+
+Our model projects revenue growing at a ${model.inputs.forecastYears}-year CAGR of **${(avgRevGrowth * 100).toFixed(1)}%**, with EBIT margins expanding to an average of **${(avgEBITMargin * 100).toFixed(1)}%** over the forecast period.
+${revenueTable}
+
+### Key Operating Assumptions
+
+| Assumption | Value |
+|------------|-------|
+| Capex as % of Revenue | ${(model.inputs.capexPercentOfRevenue * 100).toFixed(1)}% |
+| D&A as % of Revenue | ${(model.inputs.depreciationPercentOfRevenue * 100).toFixed(1)}% |
+| NWC Change as % of Revenue Change | ${(model.inputs.nwcChangePercentOfRevenueChange * 100).toFixed(1)}% |
+| Cash Tax Rate | ${(model.inputs.cashTaxRate * 100).toFixed(1)}% |
+
+## Terminal Value
+
+**Method**: ${model.inputs.terminalMethod === 'perpetual' ? 'Perpetuity Growth' : model.inputs.terminalMethod === 'multiple' ? 'Exit Multiple' : 'Blended Approach'}
+**Perpetual Growth Rate**: ${(model.inputs.perpetualGrowth * 100).toFixed(2)}%
+
+| Metric | Value |
+|--------|-------|
+| Terminal FCFF | $${(model.outputs.freeCashFlow[model.outputs.freeCashFlow.length - 1] * (1 + model.inputs.perpetualGrowth) / 1e6).toFixed(0)}M |
+| Terminal Value | $${(model.outputs.terminalValue / 1e9).toFixed(2)}B |
+| PV of Terminal Value | $${(model.outputs.pvOfTerminalValue / 1e9).toFixed(2)}B |
+| Terminal Value as % of EV | **${(model.outputs.terminalValueContribution * 100).toFixed(1)}%** |
+
+The terminal value assumes a perpetual growth rate of ${(model.inputs.perpetualGrowth * 100).toFixed(2)}%, which is in line with expected long-term GDP growth and below the company's forecasted growth rate during the explicit period.
+${sensitivityTable}
+
+*Note: Highlighted cell represents base case valuation of $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share*
+
+## Valuation Methodology
+
+Our DCF analysis employs a Free Cash Flow to the Firm (FCFF) approach, which values the enterprise based on cash flows available to all capital providers (debt and equity holders). The methodology involves:
+
+1. **Explicit Forecast Period** (${model.inputs.forecastYears} years): We project operating performance based on management guidance, historical trends, and industry dynamics.
+
+2. **Terminal Value**: Represents value beyond the explicit forecast period, calculated using a perpetuity growth model. This accounts for ${(model.outputs.terminalValueContribution * 100).toFixed(1)}% of total enterprise value.
+
+3. **Discount Rate**: All cash flows are discounted at the WACC of ${(model.outputs.wacc * 100).toFixed(2)}%, reflecting the company's cost of capital and risk profile.
+
+4. **Bridge to Equity Value**: Enterprise value is adjusted for net debt, preferred equity, and minority interests to arrive at equity value attributable to common shareholders.
+
+### Key Valuation Drivers
+
+- **Revenue Growth**: ${(avgRevGrowth * 100).toFixed(1)}% CAGR driven by [insert key growth drivers]
+- **Operating Leverage**: EBIT margins expanding to ${(avgEBITMargin * 100).toFixed(1)}% through [insert margin drivers]
+- **Capital Efficiency**: Capex requirements of ${(model.inputs.capexPercentOfRevenue * 100).toFixed(1)}% of revenue
+- **Terminal Growth**: ${(model.inputs.perpetualGrowth * 100).toFixed(2)}% perpetual growth assumption
+
+## Investment Conclusion
+
+At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuation suggests the stock is currently **${model.outputs.upsideDownside >= 0 ? 'undervalued' : 'overvalued'}** by ${Math.abs(model.outputs.upsideDownside * 100).toFixed(1)}%. The valuation is most sensitive to assumptions around terminal growth rate and discount rate, as illustrated in the sensitivity table above.`);
+
+      alert('DCF model loaded successfully! Full valuation analysis with tables and sensitivity analysis has been generated.');
+    } catch (error) {
+      console.error('Error loading DCF model:', error);
+      alert('Failed to load DCF model');
+    }
+  };
 
 ## Valuation Summary
 
@@ -590,7 +740,7 @@ This DCF model uses a ${model.inputs.forecastYears}-year explicit forecast perio
                     </div>
                   </div>
                 ))}
-                <Button onClick={addThesisBullet} variant="outline">
+                <Button onClick={addThesisBullet} className="border-blue-500 text-blue-700 hover:bg-blue-50">
                   Add Thesis Point
                 </Button>
               </CardContent>
@@ -716,7 +866,7 @@ This DCF model uses a ${model.inputs.forecastYears}-year explicit forecast perio
                         </div>
                       </div>
                     ))}
-                    <Button onClick={() => addCatalyst('near')} variant="outline">
+                    <Button onClick={() => addCatalyst('near')} className="border-blue-500 text-blue-700 hover:bg-blue-50">
                       Add Near-Term Catalyst
                     </Button>
                   </div>
@@ -775,7 +925,7 @@ This DCF model uses a ${model.inputs.forecastYears}-year explicit forecast perio
                         </div>
                       </div>
                     ))}
-                    <Button onClick={() => addCatalyst('medium')} variant="outline">
+                    <Button onClick={() => addCatalyst('medium')} className="border-blue-500 text-blue-700 hover:bg-blue-50">
                       Add Medium-Term Catalyst
                     </Button>
                   </div>
@@ -877,10 +1027,10 @@ This DCF model uses a ${model.inputs.forecastYears}-year explicit forecast perio
                           />
                         </div>
                       </div>
-                    ))}
-                    <Button onClick={addRisk} variant="outline">
-                      Add Risk
-                    </Button>
+                ))}
+                <Button onClick={addRisk} className="border-red-500 text-red-700 hover:bg-red-50">
+                  Add Risk
+                </Button>
                   </div>
                 </div>
 
