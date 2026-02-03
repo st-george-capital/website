@@ -389,9 +389,6 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
 
       if (!response.ok) throw new Error('Failed to save report');
 
-      const savedReport = await response.json();
-      setReportId(savedReport.id);
-      
       alert(publishNow ? 'Report published successfully!' : 'Report saved as draft');
       if (publishNow) {
         router.push('/dashboard/research');
