@@ -190,30 +190,29 @@ export default function ResearchDashboardPage() {
 
                   <div className="flex flex-col gap-2 ml-4">
                     <Button
-                      onClick={() => router.push(`/dashboard/research/${report.id}/preview`)}
+                      onClick={() => router.push(`/dashboard/research/${report.id}/edit`)}
                       className="bg-blue-600 text-white hover:bg-blue-700"
-                      size="sm"
-                    >
-                      <Eye className="w-4 h-4 mr-2" />
-                      Preview Report
-                    </Button>
-                    <Button
-                      onClick={() => router.push(`/dashboard/research/${report.id}`)}
-                      variant="outline"
                       size="sm"
                     >
                       <Edit className="w-4 h-4 mr-2" />
                       Edit
                     </Button>
+                    <Button
+                      onClick={() => router.push(`/dashboard/research/${report.id}/preview`)}
+                      className="bg-green-600 text-white hover:bg-green-700"
+                      size="sm"
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      Preview
+                    </Button>
                     {report.published && (
                       <Button
                         onClick={() => window.open(`/equity-research/${report.ticker}`, '_blank')}
-                        variant="outline"
+                        className="bg-purple-600 text-white hover:bg-purple-700"
                         size="sm"
-                        className="bg-green-50 text-green-700 hover:bg-green-100"
                       >
                         <Eye className="w-4 h-4 mr-2" />
-                        View Public
+                        View Live
                       </Button>
                     )}
                     <Button

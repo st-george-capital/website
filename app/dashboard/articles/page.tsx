@@ -160,14 +160,24 @@ export default function ArticlesPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => router.push(`/dashboard/articles/${article.id}/preview`)}
+                      title="Preview article"
+                      className="hover:bg-green-50"
+                    >
+                      <Eye className="w-4 h-4 text-green-600" />
+                    </Button>
                     {article.published && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => window.open(`/research/${article.slug}`, '_blank')}
-                        title="View on website"
+                        title="View published on website"
+                        className="hover:bg-purple-50"
                       >
-                        <Eye className="w-4 h-4" />
+                        <Eye className="w-4 h-4 text-purple-600" />
                       </Button>
                     )}
                     {isAdmin && (

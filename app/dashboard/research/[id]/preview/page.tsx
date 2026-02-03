@@ -169,8 +169,8 @@ export default function ResearchReportPreviewPage() {
           </Button>
         </Link>
         <div className="flex gap-2">
-          <Link href={`/dashboard/research/${report.id}`}>
-            <Button variant="outline">
+          <Link href={`/dashboard/research/${report.id}/edit`}>
+            <Button className="bg-blue-600 text-white hover:bg-blue-700">
               <Edit className="w-4 h-4 mr-2" />
               Edit Report
             </Button>
@@ -184,7 +184,7 @@ export default function ResearchReportPreviewPage() {
           </Button>
           <Button 
             onClick={handleExportPDF}
-            variant="outline"
+            className="bg-gray-600 text-white hover:bg-gray-700"
           >
             <Printer className="w-4 h-4 mr-2" />
             Print Report
