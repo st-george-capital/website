@@ -187,7 +187,7 @@ export default function ResearchReportPreviewPage() {
       {/* Header Actions */}
       <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow sticky top-0 z-10">
         <Link href="/dashboard/research">
-          <Button variant="outline">
+          <Button variant="outline" className="text-gray-700">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Reports
           </Button>
