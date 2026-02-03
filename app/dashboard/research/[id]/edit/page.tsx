@@ -29,7 +29,6 @@ interface Risk {
 
 export default function EditResearchReportPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const reportId = params.id; // Editing existing report
 
   const [activeSection, setActiveSection] = useState<string>('metadata');
@@ -90,14 +89,6 @@ export default function EditResearchReportPage({ params }: { params: { id: strin
   useEffect(() => {
     fetchSavedDCFModels();
   }, []);
-
-  // Load DCF model if ID provided
-  useEffect(() => {
-    if (dcfModelId) {
-      setSelectedDCFModelId(dcfModelId);
-      loadDCFModel(dcfModelId);
-    }
-  }, [dcfModelId]);
 
   // Load existing report data for editing
   useEffect(() => {
