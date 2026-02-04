@@ -150,6 +150,7 @@ export default function NewResearchReportPage() {
       const model = await response.json();
       
       // Store DCF data for saving with report (merge in PE ratios and price history from API so they persist)
+      console.log('Loading DCF model - priceHistory:', model.financialData?.priceHistory?.length || 0, 'data points');
       setDcfData({
         inputs: {
           ...model.inputs,
@@ -200,7 +201,22 @@ export default function NewResearchReportPage() {
           const nextYearNetIncome = nextYearEBIT ? nextYearEBIT * (1 - taxRate) : nextYearFCFF * 1.2; // Rough proxy
           const nextYearEPS = nextYearNetIncome / model.inputs.sharesDiluted;
           calculatedForwardPE = nextYearEPS > 0 ? currentPrice / nextYearEPS : null;
+          
+          console.log('Forward P/E Calculation:', {
+            currentPrice,
+            nextYearEBIT,
+            taxRate,
+            nextYearNetIncome,
+            sharesDiluted: model.inputs.sharesDiluted,
+            nextYearEPS,
+            calculatedForwardPE
+          });
         }
+        
+        console.log('Price History in DCF model:', {
+          fromFinancialData: model.financialData?.priceHistory?.length || 0,
+          fromInputs: model.inputs?.priceHistory?.length || 0
+        });
         
         return {
           ...prev,
@@ -417,6 +433,11 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
   const handleSave = async (publishNow: boolean = false) => {
     setSaving(true);
     try {
+      console.log('Saving report - priceHistory data points:', dcfData?.inputs?.priceHistory?.length || 0);
+      console.log('Saving report - metadata.peRatio:', metadata.peRatio);
+      console.log('Saving report - metadata.forwardPE:', metadata.forwardPE);
+      console.log('Saving report - metadata.forwardPEConsensus:', metadata.forwardPEConsensus);
+      
       const reportData = {
         ...metadata,
         dcfModelId,
