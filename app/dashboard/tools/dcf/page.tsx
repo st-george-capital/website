@@ -1372,7 +1372,7 @@ export default function DCFToolPage() {
         timeSeries: { hasPriceData: !!timeSeries?.priceData, count: timeSeries?.priceData?.length || 0 }
       });
 
-      // Check for critical errors (overview and quote are required, others are optional for price history)
+      // Check for critical errors (overview and quote are required)
       if (overview.error || quote.error) {
         throw new Error(
           overview.error?.details ||
@@ -1385,11 +1385,17 @@ export default function DCFToolPage() {
       if (income.error) console.warn('Income statement fetch failed:', income.error);
       if (balance.error) console.warn('Balance sheet fetch failed:', balance.error);
       if (cashflow.error) console.warn('Cash flow statement fetch failed:', cashflow.error);
+      
+      // Check if we have enough data to proceed with DCF
+      const hasFinancialStatements = income.annualReports && balance.annualReports && cashflow.annualReports;
+      if (!hasFinancialStatements) {
+        console.warn('Missing financial statements - will only populate price history and company info');
+      }
 
       // Set company overview so Investor Snapshot and rest of app have PE ratios and company info
       setSelectedCompany(overview);
 
-      // Process and combine the data
+      // Process and combine the data (will return empty arrays if statements missing)
       const processedData = processAlphaVantageData(overview, quote, income, balance, cashflow);
       
       // Calculate price performance from time series
