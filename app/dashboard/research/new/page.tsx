@@ -192,25 +192,25 @@ export default function NewResearchReportPage() {
         
         // Calculate our own Forward P/E from DCF projections
         // Forward P/E = Current Price / Next Year's Projected EPS
+        // Use TTM EPS grown by our Year 1 revenue growth rate
         let calculatedForwardPE = null;
-        if (currentPrice > 0 && model.outputs?.freeCashFlow?.[0] && model.inputs?.sharesDiluted) {
-          // Approximate next year's net income from FCFF
-          const nextYearFCFF = model.outputs.freeCashFlow[0];
-          const nextYearEBIT = model.outputs.ebit?.[0];
-          const taxRate = model.inputs.taxRate || 0.25;
-          const nextYearNetIncome = nextYearEBIT ? nextYearEBIT * (1 - taxRate) : nextYearFCFF * 1.2; // Rough proxy
-          const nextYearEPS = nextYearNetIncome / model.inputs.sharesDiluted;
-          calculatedForwardPE = nextYearEPS > 0 ? currentPrice / nextYearEPS : null;
+        if (currentPrice > 0 && model.inputs?.revenueGrowth?.[0] != null) {
+          const ttmEPS = model.financialData?.dilutedEPSTTM;
+          const year1GrowthRate = model.inputs.revenueGrowth[0]; // Year 1 growth rate from DCF
           
-          console.log('Forward P/E Calculation:', {
-            currentPrice,
-            nextYearEBIT,
-            taxRate,
-            nextYearNetIncome,
-            sharesDiluted: model.inputs.sharesDiluted,
-            nextYearEPS,
-            calculatedForwardPE
-          });
+          if (ttmEPS && ttmEPS > 0) {
+            // Assume EPS grows at same rate as revenue (conservative)
+            const nextYearEPS = ttmEPS * (1 + year1GrowthRate);
+            calculatedForwardPE = currentPrice / nextYearEPS;
+            
+            console.log('Forward P/E Calculation:', {
+              currentPrice,
+              ttmEPS,
+              year1GrowthRate: (year1GrowthRate * 100).toFixed(1) + '%',
+              nextYearEPS,
+              calculatedForwardPE: calculatedForwardPE.toFixed(2)
+            });
+          }
         }
         
         console.log('Price History in DCF model:', {

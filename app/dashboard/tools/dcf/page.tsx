@@ -587,6 +587,7 @@ interface ExtractedFinancials {
   forwardPE?: number; // Calculated from DCF
   forwardPEConsensus?: number; // From API (analyst consensus)
   dividendYield?: number;
+  dilutedEPSTTM?: number; // From API
   // EPS data (quarterly)
   quarterlyEPS?: Array<{ fiscalDateEnding: string; reportedEPS: string }>;
   // Price performance (calculated from time series)
@@ -1371,6 +1372,7 @@ export default function DCFToolPage() {
         peRatio: overview.peRatio,
         forwardPEConsensus: overview.forwardPE, // Analyst consensus from API
         dividendYield: overview.dividendYield ? overview.dividendYield * 100 : undefined, // Convert to percentage
+        dilutedEPSTTM: overview.dilutedEPSTTM,
         quarterlyEPS: earnings?.quarterlyEarnings?.slice(0, 12) || [], // Last 12 quarters
         pricePerformance: pricePerformance,
         priceHistory: timeSeries?.priceData?.slice(0, 365).map((d: any) => ({ date: d.date, close: d.close })) || []
@@ -2321,14 +2323,11 @@ export default function DCFToolPage() {
               {/* EPS Comparison - Our Projection vs Consensus */}
               {(() => {
                 const currentPrice = inputs.currentPrice || 0;
-                const nextYearFCFF = outputs.freeCashFlow?.[0] || 0;
-                const nextYearEBIT = outputs.ebit?.[0] || 0;
-                const taxRate = inputs.taxRate || 0.25;
-                const sharesDiluted = inputs.sharesDiluted || 1;
+                const ttmEPS = financialData?.dilutedEPSTTM || 0;
+                const year1GrowthRate = inputs.revenueGrowth?.[0] || 0;
                 
-                // Calculate our projected EPS
-                const nextYearNetIncome = nextYearEBIT ? nextYearEBIT * (1 - taxRate) : nextYearFCFF * 1.2;
-                const ourProjectedEPS = nextYearNetIncome / sharesDiluted;
+                // Calculate our projected EPS using TTM EPS grown by Year 1 growth rate
+                const ourProjectedEPS = ttmEPS > 0 ? ttmEPS * (1 + year1GrowthRate) : 0;
                 const ourForwardPE = currentPrice > 0 && ourProjectedEPS > 0 ? currentPrice / ourProjectedEPS : null;
                 
                 // Get consensus from API
@@ -2357,7 +2356,7 @@ export default function DCFToolPage() {
                               ${ourProjectedEPS.toFixed(2)}
                             </div>
                             <div className="text-sm text-gray-600 mb-2">Forward P/E: {ourForwardPE ? `${ourForwardPE.toFixed(1)}x` : 'N/A'}</div>
-                            <div className="text-xs text-gray-500">Based on DCF projections</div>
+                            <div className="text-xs text-gray-500">TTM EPS: ${ttmEPS.toFixed(2)} × {((year1GrowthRate) * 100).toFixed(1)}% growth</div>
                           </div>
                         </div>
                         <div className="bg-white p-4 rounded-lg border border-blue-200">
