@@ -39,6 +39,13 @@ export async function GET(
         note: data.Note
       }, { status: 429 });
     }
+    
+    if (data.Information) {
+      return NextResponse.json({
+        error: 'API rate limit - burst pattern',
+        details: data.Information,
+      }, { status: 429 });
+    }
 
     if (data['Error Message']) {
       return NextResponse.json({
