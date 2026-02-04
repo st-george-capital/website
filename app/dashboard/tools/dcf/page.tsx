@@ -1321,14 +1321,17 @@ export default function DCFToolPage() {
           fetchWithError(`/api/alpha-vantage/cash-flow/${encodeURIComponent(ticker)}`, 'cash flow statement')
         ]);
         
-        // Wait 300ms to avoid burst pattern
-        await new Promise(resolve => setTimeout(resolve, 300));
+        // Wait 1 second to avoid burst pattern (Alpha Vantage is strict about this)
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Batch 2: Earnings and price data (2 requests)
-        [earnings, timeSeries] = await Promise.all([
-          fetchWithError(`/api/alpha-vantage/earnings/${encodeURIComponent(ticker)}`, 'earnings data'),
-          fetchWithError(`/api/alpha-vantage/time-series/${encodeURIComponent(ticker)}`, 'price history')
-        ]);
+        // Batch 2: Earnings (1 request)
+        earnings = await fetchWithError(`/api/alpha-vantage/earnings/${encodeURIComponent(ticker)}`, 'earnings data');
+        
+        // Wait another second before time series (this endpoint is particularly sensitive)
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Batch 3: Price data (1 request)
+        timeSeries = await fetchWithError(`/api/alpha-vantage/time-series/${encodeURIComponent(ticker)}`, 'price history');
         
         console.log('Price history data received:', {
           hasPriceData: !!timeSeries?.priceData,

@@ -11,8 +11,9 @@ export async function GET(
   const internalPath = new URL(request.url).pathname;
 
   try {
-    // Use TIME_SERIES_DAILY with outputsize=full to get enough history
-    const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&outputsize=full&apikey=${ALPHA_VANTAGE_API_KEY}`;
+    // Use TIME_SERIES_DAILY with outputsize=compact (last 100 days) to reduce API load
+    // This is enough for 1-year chart and performance metrics
+    const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&outputsize=compact&apikey=${ALPHA_VANTAGE_API_KEY}`;
     const response = await fetch(url);
     const upstreamStatus = response.status;
     const data = await response.json();
@@ -78,7 +79,7 @@ export async function GET(
     return NextResponse.json({
       symbol: data['Meta Data']['2. Symbol'],
       lastRefreshed: data['Meta Data']['3. Last Refreshed'],
-      priceData: priceData.slice(0, 500) // Return last ~2 years of daily data
+      priceData: priceData.slice(0, 252) // Return last ~1 year of trading days
     });
 
   } catch (error) {
