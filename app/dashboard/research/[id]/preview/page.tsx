@@ -336,40 +336,6 @@ export default function ResearchReportPreviewPage() {
             {report.dataSource && (
               <p className="text-xs text-gray-500">Source: {report.dataSource}</p>
             )}
-            {report.performanceMetrics && typeof (report.performanceMetrics as any).absYTD === 'number' && (
-              <div className="overflow-x-auto">
-                <h4 className="font-semibold mb-2">Price Performance</h4>
-                <table className="w-full border text-sm">
-                  <thead>
-                    <tr className="bg-gray-50">
-                      <th className="border px-3 py-2 text-left"></th>
-                      <th className="border px-3 py-2 text-left">YTD</th>
-                      <th className="border px-3 py-2 text-left">1m</th>
-                      <th className="border px-3 py-2 text-left">3m</th>
-                      <th className="border px-3 py-2 text-left">12m</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td className="border px-3 py-2 font-medium">Abs</td>
-                      {(['absYTD', 'abs1m', 'abs3m', 'abs12m'] as const).map((key) => (
-                        <td key={key} className="border px-3 py-2">
-                          {(report.performanceMetrics as any)[key] != null ? `${(report.performanceMetrics as any)[key]}%` : '—'}
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="border px-3 py-2 font-medium">Rel</td>
-                      {(['relYTD', 'rel1m', 'rel3m', 'rel12m'] as const).map((key) => (
-                        <td key={key} className="border px-3 py-2">
-                          {(report.performanceMetrics as any)[key] != null ? `${(report.performanceMetrics as any)[key]}%` : '—'}
-                        </td>
-                      ))}
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            )}
             {report.epsTableMarkdown && (
               <div>
                 <h4 className="font-semibold text-gray-900 mb-3">EPS (Recurring)</h4>
@@ -383,43 +349,48 @@ export default function ResearchReportPreviewPage() {
               </div>
             )}
             {(((report.priceHistory && report.priceHistory.length > 0) || (report.dcfInputs?.priceHistory && report.dcfInputs.priceHistory.length > 0)) || report.priceChartImageUrl) && (
-              <div>
-                <h4 className="font-semibold mb-2">Price Chart (1 Year)</h4>
+              <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+                <h4 className="font-semibold mb-3 text-gray-800">Price Chart (100 Days)</h4>
                 {report.priceChartImageUrl && !(report.priceHistory && report.priceHistory.length > 0) ? (
                   <div className="w-full">
-                    <img src={report.priceChartImageUrl} alt="Price Chart" className="w-full h-auto border rounded" />
+                    <img src={report.priceChartImageUrl} alt="Price Chart" className="w-full h-auto rounded" />
                   </div>
                 ) : (
                 <div className="w-full h-64 relative">
-                  <svg viewBox="0 0 800 200" className="w-full h-full">
+                  <svg viewBox="0 0 800 220" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
                     {(() => {
-                      const chartData = (report.priceHistory || report.dcfInputs?.priceHistory || []).slice(0, 252); // ~1 year of trading days
+                      const chartData = (report.priceHistory || report.dcfInputs?.priceHistory || []).slice(0, 100);
                       if (!chartData.length) return null;
                       const prices = chartData.map((d: any) => d.close);
-                      const minPrice = Math.min(...prices);
                       const maxPrice = Math.max(...prices);
-                      const priceRange = maxPrice - minPrice;
-                      const padding = priceRange * 0.1;
+                      const topPad = maxPrice * 0.05;
+                      const range = maxPrice + topPad;
                       
                       const points = chartData.map((d: any, i: number) => {
-                        const x = (chartData.length > 1 ? i / (chartData.length - 1) : 0) * 780 + 10;
-                        const y = 190 - ((d.close - minPrice + padding) / (priceRange + 2 * padding)) * 180;
+                        const x = (chartData.length > 1 ? i / (chartData.length - 1) : 0) * 760 + 20;
+                        const y = 200 - (d.close / range) * 180;
                         return `${x},${y}`;
                       }).join(' ');
+                      const areaPoints = `${points} 760,200 20,200`;
                       
                       return (
                         <>
+                          <rect x="20" y="20" width="760" height="180" fill="white" rx="4" />
+                          <line x1="20" y1="200" x2="780" y2="200" stroke="#e5e7eb" strokeWidth="1" />
+                          <line x1="20" y1="20" x2="20" y2="200" stroke="#e5e7eb" strokeWidth="1" />
+                          <polygon points={areaPoints} fill="rgba(59, 130, 246, 0.08)" stroke="none" />
                           <polyline
                             points={points}
                             fill="none"
-                            stroke="#3b82f6"
+                            stroke="#2563eb"
                             strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
                           />
-                          <line x1="10" y1="190" x2="790" y2="190" stroke="#e5e7eb" strokeWidth="1" />
-                          <text x="10" y="205" fontSize="12" fill="#6b7280">{chartData[chartData.length - 1]?.date}</text>
-                          <text x="790" y="205" fontSize="12" fill="#6b7280" textAnchor="end">{chartData[0]?.date}</text>
-                          <text x="10" y="15" fontSize="12" fill="#6b7280">${maxPrice.toFixed(2)}</text>
-                          <text x="10" y="195" fontSize="12" fill="#6b7280">${minPrice.toFixed(2)}</text>
+                          <text x="20" y="215" fontSize="11" fill="#6b7280">{chartData[chartData.length - 1]?.date}</text>
+                          <text x="780" y="215" fontSize="11" fill="#6b7280" textAnchor="end">{chartData[0]?.date}</text>
+                          <text x="20" y="28" fontSize="11" fill="#6b7280" fontWeight="500">${maxPrice.toFixed(2)}</text>
+                          <text x="20" y="208" fontSize="11" fill="#6b7280" fontWeight="500">$0</text>
                         </>
                       );
                     })()}

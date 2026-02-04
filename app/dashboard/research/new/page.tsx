@@ -948,34 +948,37 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
                   <div className="mt-4">
                     <label className="block text-sm font-medium mb-2">Price Chart Preview (from DCF)</label>
                     {dcfData?.inputs?.priceHistory && dcfData.inputs.priceHistory.length > 0 ? (
-                      <div className="border rounded-md p-4 bg-gray-50">
-                        <svg viewBox="0 0 800 200" className="w-full h-48">
+                      <div className="border rounded-lg p-4 bg-gray-50">
+                        <svg viewBox="0 0 800 220" className="w-full h-48" preserveAspectRatio="xMidYMid meet">
                           {(() => {
-                            const chartData = dcfData.inputs.priceHistory.slice(0, 252);
+                            const chartData = dcfData.inputs.priceHistory.slice(0, 100);
                             if (!chartData.length) return null;
                             const prices = chartData.map((d: any) => d.close);
-                            const minPrice = Math.min(...prices);
                             const maxPrice = Math.max(...prices);
-                            const priceRange = maxPrice - minPrice;
-                            const padding = priceRange * 0.1;
+                            const topPad = maxPrice * 0.05;
+                            const range = maxPrice + topPad;
                             const points = chartData.map((d: any, i: number) => {
-                              const x = (chartData.length > 1 ? i / (chartData.length - 1) : 0) * 780 + 10;
-                              const y = 190 - ((d.close - minPrice + padding) / (priceRange + 2 * padding)) * 180;
+                              const x = (chartData.length > 1 ? i / (chartData.length - 1) : 0) * 760 + 20;
+                              const y = 200 - (d.close / range) * 180;
                               return `${x},${y}`;
                             }).join(' ');
+                            const areaPoints = `${points} 760,200 20,200`;
                             return (
                               <>
-                                <polyline points={points} fill="none" stroke="#3b82f6" strokeWidth="2" />
-                                <line x1="10" y1="190" x2="790" y2="190" stroke="#e5e7eb" strokeWidth="1" />
-                                <text x="10" y="205" fontSize="12" fill="#6b7280">{chartData[chartData.length - 1]?.date}</text>
-                                <text x="790" y="205" fontSize="12" fill="#6b7280" textAnchor="end">{chartData[0]?.date}</text>
-                                <text x="10" y="15" fontSize="12" fill="#6b7280">${maxPrice.toFixed(2)}</text>
-                                <text x="10" y="195" fontSize="12" fill="#6b7280">${minPrice.toFixed(2)}</text>
+                                <rect x="20" y="20" width="760" height="180" fill="white" rx="4" />
+                                <line x1="20" y1="200" x2="780" y2="200" stroke="#e5e7eb" strokeWidth="1" />
+                                <line x1="20" y1="20" x2="20" y2="200" stroke="#e5e7eb" strokeWidth="1" />
+                                <polygon points={areaPoints} fill="rgba(59, 130, 246, 0.08)" stroke="none" />
+                                <polyline points={points} fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                <text x="20" y="215" fontSize="11" fill="#6b7280">{chartData[chartData.length - 1]?.date}</text>
+                                <text x="780" y="215" fontSize="11" fill="#6b7280" textAnchor="end">{chartData[0]?.date}</text>
+                                <text x="20" y="28" fontSize="11" fill="#6b7280" fontWeight="500">${maxPrice.toFixed(2)}</text>
+                                <text x="20" y="208" fontSize="11" fill="#6b7280" fontWeight="500">$0</text>
                               </>
                             );
                           })()}
                         </svg>
-                        <p className="text-xs text-gray-500 mt-2">1-year price history (will be shown on the published report)</p>
+                        <p className="text-xs text-gray-500 mt-2">100 days price history (will be shown on the published report)</p>
                       </div>
                     ) : (
                       <div className="border rounded-md p-4 bg-yellow-50 border-yellow-200">
