@@ -1302,15 +1302,29 @@ export default function DCFToolPage() {
 
       let overview, quote, income, balance, cashflow, earnings, timeSeries;
       try {
-        [overview, quote, income, balance, cashflow, earnings, timeSeries] = await Promise.all([
+        // Fetch in batches to avoid Alpha Vantage rate limit (5 requests/second)
+        // Batch 1: Core financial data (5 requests)
+        [overview, quote, income, balance, cashflow] = await Promise.all([
           fetchWithError(`/api/alpha-vantage/overview/${encodeURIComponent(ticker)}`, 'company overview'),
           fetchWithError(`/api/alpha-vantage/quote/${encodeURIComponent(ticker)}`, 'stock quote'),
           fetchWithError(`/api/alpha-vantage/income-statement/${encodeURIComponent(ticker)}`, 'income statement'),
           fetchWithError(`/api/alpha-vantage/balance-sheet/${encodeURIComponent(ticker)}`, 'balance sheet'),
-          fetchWithError(`/api/alpha-vantage/cash-flow/${encodeURIComponent(ticker)}`, 'cash flow statement'),
+          fetchWithError(`/api/alpha-vantage/cash-flow/${encodeURIComponent(ticker)}`, 'cash flow statement')
+        ]);
+        
+        // Wait 300ms to avoid burst pattern
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Batch 2: Earnings and price data (2 requests)
+        [earnings, timeSeries] = await Promise.all([
           fetchWithError(`/api/alpha-vantage/earnings/${encodeURIComponent(ticker)}`, 'earnings data'),
           fetchWithError(`/api/alpha-vantage/time-series/${encodeURIComponent(ticker)}`, 'price history')
         ]);
+        
+        console.log('Price history data received:', {
+          hasPriceData: !!timeSeries?.priceData,
+          priceDataLength: timeSeries?.priceData?.length || 0
+        });
       } catch (fetchError) {
         // If any fetch fails, set debug info with the error
         setDebugInfo({
@@ -1334,7 +1348,9 @@ export default function DCFToolPage() {
         quote: !!quote['Global Quote'],
         income: !!income.annualReports,
         balance: !!balance.annualReports,
-        cashflow: !!cashflow.annualReports
+        cashflow: !!cashflow.annualReports,
+        earnings: !!earnings?.quarterlyEarnings,
+        timeSeries: !!timeSeries?.priceData
       });
 
       console.log('API response details:', {
@@ -1342,7 +1358,9 @@ export default function DCFToolPage() {
         quote: { hasQuote: !!quote['Global Quote'], error: quote.error },
         income: { hasReports: !!income.annualReports, error: income.error },
         balance: { hasReports: !!balance.annualReports, error: balance.error },
-        cashflow: { hasReports: !!cashflow.annualReports, error: cashflow.error }
+        cashflow: { hasReports: !!cashflow.annualReports, error: cashflow.error },
+        earnings: { hasEarnings: !!earnings?.quarterlyEarnings, count: earnings?.quarterlyEarnings?.length || 0 },
+        timeSeries: { hasPriceData: !!timeSeries?.priceData, count: timeSeries?.priceData?.length || 0 }
       });
 
       // Check for errors
