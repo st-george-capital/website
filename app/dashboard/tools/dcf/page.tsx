@@ -1198,6 +1198,13 @@ export default function DCFToolPage() {
         sharesOutstanding: selectedCompany?.sharesOutstanding,
       } : null;
       
+      console.log('Saving DCF model with financialData:', {
+        hasPriceHistory: !!enrichedFinancialData?.priceHistory,
+        priceHistoryLength: enrichedFinancialData?.priceHistory?.length || 0,
+        hasQuarterlyEPS: !!enrichedFinancialData?.quarterlyEPS,
+        quarterlyEPSLength: enrichedFinancialData?.quarterlyEPS?.length || 0
+      });
+      
       const response = await fetch('/api/dcf-models', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1228,6 +1235,8 @@ export default function DCFToolPage() {
   // Update existing DCF Model
   const updateDCFModel = async () => {
     if (!savedModelId) return;
+    
+    console.log('Updating DCF model - financialData has priceHistory:', !!financialData?.priceHistory, 'length:', financialData?.priceHistory?.length || 0);
 
     setIsSaving(true);
     try {
@@ -1384,6 +1393,13 @@ export default function DCFToolPage() {
       // Calculate price performance from time series
       const pricePerformance = calculatePricePerformance(timeSeries?.priceData || []);
       
+      console.log('Time series data received:', {
+        hasTimeSeries: !!timeSeries,
+        hasPriceData: !!timeSeries?.priceData,
+        priceDataLength: timeSeries?.priceData?.length || 0,
+        sampleData: timeSeries?.priceData?.slice(0, 2)
+      });
+      
       // Enrich financial data with EPS, PE ratios, dividend yield, and price performance
       const enrichedData: ExtractedFinancials = {
         ...processedData,
@@ -1395,6 +1411,8 @@ export default function DCFToolPage() {
         pricePerformance: pricePerformance,
         priceHistory: timeSeries?.priceData?.slice(0, 365).map((d: any) => ({ date: d.date, close: d.close })) || []
       };
+      
+      console.log('Enriched data priceHistory:', enrichedData.priceHistory?.length || 0, 'data points');
       
       setFinancialData(enrichedData);
       setQuote(quote);
