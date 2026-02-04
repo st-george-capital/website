@@ -255,9 +255,14 @@ export default async function PublicResearchReportPage({
                 </div>
               </div>
             )}
-            {(report.dcfInputs as any)?.priceHistory && (report.dcfInputs as any).priceHistory.length > 0 && (
+            {(((report as any).priceHistory && (report as any).priceHistory.length > 0) || ((report.dcfInputs as any)?.priceHistory && (report.dcfInputs as any).priceHistory.length > 0) || (report as any).priceChartImageUrl) && (
               <div>
                 <h3 className="font-semibold text-lg text-gray-900 mb-2">Price Chart (1 Year)</h3>
+                {(report as any).priceChartImageUrl && !((report as any).priceHistory && (report as any).priceHistory.length > 0) ? (
+                  <div className="w-full">
+                    <img src={(report as any).priceChartImageUrl} alt="Price Chart" className="w-full h-auto border rounded" />
+                  </div>
+                ) : (
                 <div className="w-full h-64 relative">
                   <svg viewBox="0 0 800 200" className="w-full h-full">
                     {(() => {
@@ -293,6 +298,7 @@ export default async function PublicResearchReportPage({
                     })()}
                   </svg>
                 </div>
+                )}
               </div>
             )}
           </div>

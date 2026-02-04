@@ -265,6 +265,7 @@ model EquityResearchReport {
   forwardPE             Float?   // Calculated from DCF projections
   forwardPEConsensus    Float?   // From API (analyst consensus)
   dividendYield         Float?   // From API (as percentage, e.g. 2.5 for 2.5%)
+  priceChartImageUrl    String?  // Custom uploaded chart image URL (fallback if priceHistory unavailable)
   priceHistory          Json?   // [{ date, close }] for chart (from DCF/API)
   
   // Report Status & Collaboration

@@ -64,6 +64,7 @@ export default function EditResearchReportPage({ params }: { params: { id: strin
     forwardPE: null as number | null, // Calculated from DCF
     forwardPEConsensus: null as number | null, // From API
     dividendYield: null as number | null,
+    priceChartImageUrl: null as string | null, // Custom uploaded chart image
     performanceMetrics: null as {
       absYTD?: number; abs1m?: number; abs3m?: number; abs12m?: number;
       relYTD?: number; rel1m?: number; rel3m?: number; rel12m?: number;
@@ -143,6 +144,7 @@ export default function EditResearchReportPage({ params }: { params: { id: strin
           forwardPE: report.forwardPE ?? null,
           forwardPEConsensus: (report as any).forwardPEConsensus ?? null,
           dividendYield: (report as any).dividendYield ?? null,
+          priceChartImageUrl: (report as any).priceChartImageUrl ?? null,
           performanceMetrics: report.performanceMetrics ?? null,
         });
 
@@ -1028,7 +1030,41 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
                       </div>
                     ) : (
                       <div className="border rounded-md p-4 bg-yellow-50 border-yellow-200">
-                        <p className="text-sm text-yellow-800">⚠️ Could not load price history. Run DCF analysis with a valid ticker to fetch price data from Alpha Vantage API.</p>
+                        <p className="text-sm text-yellow-800 mb-3">⚠️ Could not load price history. Run DCF analysis with a valid ticker to fetch price data from Alpha Vantage API.</p>
+                        <p className="text-sm text-gray-600 mb-2">Or upload a custom price chart image:</p>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            
+                            try {
+                              const response = await fetch('/api/upload-image', {
+                                method: 'POST',
+                                body: formData,
+                              });
+                              
+                              if (!response.ok) throw new Error('Upload failed');
+                              
+                              const data = await response.json();
+                              setMetadata(prev => ({ ...prev, priceChartImageUrl: data.url }));
+                              alert('Chart image uploaded successfully!');
+                            } catch (error) {
+                              console.error('Error uploading chart:', error);
+                              alert('Failed to upload chart image');
+                            }
+                          }}
+                          className="text-sm"
+                        />
+                        {metadata.priceChartImageUrl && (
+                          <div className="mt-3">
+                            <img src={metadata.priceChartImageUrl} alt="Price Chart" className="max-w-full h-auto border rounded" />
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

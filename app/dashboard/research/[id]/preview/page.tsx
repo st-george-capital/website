@@ -42,6 +42,7 @@ interface ResearchReport {
   forwardPE?: number | null;
   forwardPEConsensus?: number | null;
   dividendYield?: number | null;
+  priceChartImageUrl?: string | null;
   priceHistory?: Array<{ date: string; close: number }> | null;
   dcfInputs?: any;
   dcfOutputs?: any;
@@ -381,9 +382,14 @@ export default function ResearchReportPreviewPage() {
                 </div>
               </div>
             )}
-            {((report.priceHistory && report.priceHistory.length > 0) || (report.dcfInputs?.priceHistory && report.dcfInputs.priceHistory.length > 0)) && (
+            {(((report.priceHistory && report.priceHistory.length > 0) || (report.dcfInputs?.priceHistory && report.dcfInputs.priceHistory.length > 0)) || report.priceChartImageUrl) && (
               <div>
                 <h4 className="font-semibold mb-2">Price Chart (1 Year)</h4>
+                {report.priceChartImageUrl && !(report.priceHistory && report.priceHistory.length > 0) ? (
+                  <div className="w-full">
+                    <img src={report.priceChartImageUrl} alt="Price Chart" className="w-full h-auto border rounded" />
+                  </div>
+                ) : (
                 <div className="w-full h-64 relative">
                   <svg viewBox="0 0 800 200" className="w-full h-full">
                     {(() => {
@@ -419,6 +425,7 @@ export default function ResearchReportPreviewPage() {
                     })()}
                   </svg>
                 </div>
+                )}
               </div>
             )}
           </CardContent>
