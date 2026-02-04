@@ -157,7 +157,7 @@ export default function EditStrategyDocumentPage() {
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/dashboard/strategy" className="inline-flex items-center px-4 py-2 text-sm font-medium text-white/60 hover:text-white hover:bg-white/10 rounded-md transition-colors">
+        <Link href="/dashboard/strategy" className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Strategy
         </Link>

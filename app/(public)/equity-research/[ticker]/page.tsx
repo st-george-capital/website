@@ -295,12 +295,25 @@ export default async function PublicResearchReportPage({
             <div className="space-y-4">
               {thesis.map((bullet: any, index: number) => (
                 <div key={index} className="border-l-4 border-blue-500 pl-4 py-3 bg-blue-50 rounded-r">
-                  <div className="font-semibold text-gray-900 mb-2">{bullet.claim}</div>
+                  {bullet.title && (
+                    <div className="font-semibold text-gray-900 mb-2 prose prose-sm max-w-none [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{bullet.title}</ReactMarkdown>
+                    </div>
+                  )}
+                  <div className="text-gray-700 mb-1 prose prose-sm max-w-none [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{bullet.claim}</ReactMarkdown>
+                  </div>
                   <div className="text-sm text-gray-700 mb-1">
-                    <span className="font-medium">Driver:</span> {bullet.driver}
+                    <span className="font-medium">Driver:</span>
+                    <div className="prose prose-sm max-w-none mt-0.5 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{bullet.driver || '—'}</ReactMarkdown>
+                    </div>
                   </div>
                   <div className="text-sm text-gray-700">
-                    <span className="font-medium">Market Mispricing:</span> {bullet.mispricing}
+                    <span className="font-medium">Market Mispricing:</span>
+                    <div className="prose prose-sm max-w-none mt-0.5 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{bullet.mispricing || '—'}</ReactMarkdown>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -316,7 +329,7 @@ export default async function PublicResearchReportPage({
             [&_th]:bg-gray-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
             [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
             [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
-            [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
+            [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {report.businessModel}
             </ReactMarkdown>
@@ -329,7 +342,7 @@ export default async function PublicResearchReportPage({
                 [&_th]:bg-gray-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
                 [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
                 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
-                [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
+                [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {report.unitEconomics}
                 </ReactMarkdown>
@@ -344,7 +357,7 @@ export default async function PublicResearchReportPage({
                 [&_th]:bg-gray-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
                 [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
                 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
-                [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
+                [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {report.economicMoat}
                 </ReactMarkdown>
@@ -361,7 +374,7 @@ export default async function PublicResearchReportPage({
             [&_th]:bg-gray-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
             [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
             [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
-            [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
+            [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {report.industryAnalysis}
             </ReactMarkdown>
@@ -438,7 +451,7 @@ export default async function PublicResearchReportPage({
                 [&_th]:bg-green-100 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
                 [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
                 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
-                [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
+                [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {report.bullCase}
                 </ReactMarkdown>
@@ -453,7 +466,7 @@ export default async function PublicResearchReportPage({
               [&_th]:bg-red-100 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
               [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
               [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
-              [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
+              [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {report.bearCase}
               </ReactMarkdown>
@@ -508,7 +521,7 @@ export default async function PublicResearchReportPage({
               [&_th]:bg-gray-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
               [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
               [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
-              [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
+              [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {report.aiStrategies}
               </ReactMarkdown>
@@ -525,9 +538,27 @@ export default async function PublicResearchReportPage({
               [&_th]:bg-gray-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
               [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
               [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
-              [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
+              [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {report.esgFactors}
+              </ReactMarkdown>
+            </div>
+          </div>
+        )}
+
+        {/* Conclusion */}
+        {report.concludingSection != null && report.concludingSection !== '' && (
+          <div className="bg-white rounded-2xl p-8 space-y-6">
+            <h2 className="text-3xl font-bold text-gray-900">Conclusion</h2>
+            <div className="prose max-w-none text-gray-700
+              [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
+              [&_th]:bg-gray-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
+              [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
+              [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
+              [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-3 [&_h3]:mb-2
+              [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {report.concludingSection}
               </ReactMarkdown>
             </div>
           </div>

@@ -8,6 +8,7 @@ import { Button } from '@/components/button';
 import { ArrowLeft, Save, Eye, FileText, DollarSign, TrendingUp, AlertTriangle, Target, Building2, Upload, Image as ImageIcon } from 'lucide-react';
 
 interface ThesisBullet {
+  title: string;
   claim: string;
   driver: string;
   mispricing: string;
@@ -72,8 +73,9 @@ export default function EditResearchReportPage({ params }: { params: { id: strin
   });
 
   const [thesis, setThesis] = useState<ThesisBullet[]>([
-    { claim: '', driver: '', mispricing: '' }
+    { title: '', claim: '', driver: '', mispricing: '' }
   ]);
+  const [concludingSection, setConcludingSection] = useState('');
 
   const [businessModel, setBusinessModel] = useState({
     description: '',
@@ -148,7 +150,13 @@ export default function EditResearchReportPage({ params }: { params: { id: strin
           performanceMetrics: report.performanceMetrics ?? null,
         });
 
-        setThesis(report.investmentThesis || [{ claim: '', driver: '', mispricing: '' }]);
+        setThesis((report.investmentThesis || [{ claim: '', driver: '', mispricing: '' }]).map((b: any) => ({
+          title: b.title || '',
+          claim: b.claim || '',
+          driver: b.driver || '',
+          mispricing: b.mispricing || '',
+        })));
+        setConcludingSection((report as any).concludingSection || '');
         setBusinessModel({
           description: report.businessModel || '',
           unitEconomics: report.unitEconomics || '',
@@ -505,6 +513,7 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
         aiStrategies,
         keyRisks: risks,
         esgFactors,
+        concludingSection: concludingSection || null,
         financialSnapshot: {}, // Will be populated from DCF
         forecastAssumptions: {},
         incomeStatementForecast: {},
@@ -550,10 +559,11 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
     { id: 'risks', name: 'Risks', icon: AlertTriangle },
     { id: 'aistrategies', name: 'AI Strategies', icon: Target },
     { id: 'esg', name: 'ESG (Optional)', icon: FileText },
+    { id: 'concluding', name: 'Conclusion', icon: FileText },
   ];
 
   const addThesisBullet = () => {
-    setThesis([...thesis, { claim: '', driver: '', mispricing: '' }]);
+    setThesis([...thesis, { title: '', claim: '', driver: '', mispricing: '' }]);
   };
 
   const addCatalyst = (type: 'near' | 'medium') => {
@@ -614,7 +624,7 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href="/dashboard/research">
-            <Button variant="outline">
+            <Button variant="outline" className="text-gray-700">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
@@ -1150,7 +1160,7 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
               <CardHeader>
                 <CardTitle>Investment Thesis</CardTitle>
                 <CardDescription>
-                  3-5 bullet points. Each must include: claim, driver, and why the market misprices it
+                  Add a one-liner title per point, then claim, driver, and mispricing. All fields support **markdown**.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -1163,51 +1173,66 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
                           onClick={() => setThesis(thesis.filter((_, i) => i !== index))}
                           variant="outline"
                           size="sm"
+                          className="text-gray-700"
                         >
                           Remove
                         </Button>
                       )}
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Claim</label>
-                      <input
-                        type="text"
+                      <label className="block text-sm font-medium mb-1">Title (one-liner grabber) — Markdown</label>
+                      <textarea
+                        value={bullet.title}
+                        onChange={(e) => {
+                          const newThesis = [...thesis];
+                          newThesis[index].title = e.target.value;
+                          setThesis(newThesis);
+                        }}
+                        rows={2}
+                        className="w-full px-3 py-2 border rounded-md font-mono text-sm"
+                        placeholder="e.g., **Undervalued on 20% margin expansion** or *Key catalyst in 12 months*"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Claim — Markdown</label>
+                      <textarea
                         value={bullet.claim}
                         onChange={(e) => {
                           const newThesis = [...thesis];
                           newThesis[index].claim = e.target.value;
                           setThesis(newThesis);
                         }}
-                        className="w-full px-3 py-2 border rounded-md"
-                        placeholder="e.g., Trading at 15x despite 20% structural advantage in..."
+                        rows={3}
+                        className="w-full px-3 py-2 border rounded-md font-mono text-sm"
+                        placeholder="e.g., Trading at **15x** despite 20% structural advantage in..."
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Driver</label>
-                      <input
-                        type="text"
+                      <label className="block text-sm font-medium mb-1">Driver — Markdown</label>
+                      <textarea
                         value={bullet.driver}
                         onChange={(e) => {
                           const newThesis = [...thesis];
                           newThesis[index].driver = e.target.value;
                           setThesis(newThesis);
                         }}
-                        className="w-full px-3 py-2 border rounded-md"
-                        placeholder="e.g., New product cycle driving 30% margin expansion..."
+                        rows={3}
+                        className="w-full px-3 py-2 border rounded-md font-mono text-sm"
+                        placeholder="e.g., New product cycle driving **30%** margin expansion..."
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Market Mispricing</label>
-                      <input
-                        type="text"
+                      <label className="block text-sm font-medium mb-1">Market Mispricing — Markdown</label>
+                      <textarea
                         value={bullet.mispricing}
                         onChange={(e) => {
                           const newThesis = [...thesis];
                           newThesis[index].mispricing = e.target.value;
                           setThesis(newThesis);
                         }}
-                        className="w-full px-3 py-2 border rounded-md"
-                        placeholder="e.g., Market not yet pricing in regulatory approval..."
+                        rows={3}
+                        className="w-full px-3 py-2 border rounded-md font-mono text-sm"
+                        placeholder="e.g., Market not yet pricing in **regulatory approval**..."
                       />
                     </div>
                   </div>
@@ -1253,8 +1278,7 @@ Key cost drivers...
 *Figure 1: Caption describing the image*"
                   />
                   <p className="text-xs text-gray-600 mt-1 space-y-1">
-                    <span className="block">💡 <strong>Markdown Tips:</strong> Use **bold**, *italic*, ## Headers, - Lists</span>
-                    <span className="block">🖼️ <strong>Images:</strong> ![Alt text](image-url) or upload to Imgur/your server and paste URL</span>
+                    <span className="block">💡 <strong>Sections:</strong> Use <code className="bg-gray-100 px-1 rounded">## Section</code> and <code className="bg-gray-100 px-1 rounded">### Subsection</code>. <strong>Images:</strong> <code className="bg-gray-100 px-1 rounded">![alt](url)</code> — they render centered. Resize with HTML: <code className="bg-gray-100 px-1 rounded">&lt;img src=&quot;url&quot; width=&quot;400&quot; class=&quot;mx-auto rounded&quot; /&gt;</code></span>
                   </p>
                 </div>
                 <div>
@@ -1357,7 +1381,7 @@ How does this company compare?
 Key regulations affecting the industry..."
                   />
                   <p className="text-xs text-gray-600 mt-1">
-                    💡 Include charts, tables, and diagrams to support analysis
+                    💡 Use <code className="bg-gray-100 px-1 rounded">## Section</code> and <code className="bg-gray-100 px-1 rounded">### Subsection</code>. Images render centered; resize with <code className="bg-gray-100 px-1 rounded">&lt;img src=&quot;url&quot; width=&quot;400&quot; class=&quot;mx-auto rounded&quot; /&gt;</code>
                   </p>
                 </div>
               </CardContent>
@@ -1724,6 +1748,35 @@ Key regulations affecting operations...
 ![Figure: ESG Score Comparison](image-url)"
                   />
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {activeSection === 'concluding' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Conclusion</CardTitle>
+                <CardDescription>Sum up your thoughts and investment view. Markdown supported. Use ## and ### for subsections.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <textarea
+                  value={concludingSection}
+                  onChange={(e) => setConcludingSection(e.target.value)}
+                  rows={18}
+                  className="w-full px-3 py-2 border rounded-md font-mono text-sm"
+                  placeholder="Use ## Section Title and ### Subsection for structure.
+
+## Summary
+Key takeaways and why we recommend [Overweight/Neutral/Underweight].
+
+## Key Risks to Monitor
+- Risk 1
+- Risk 2
+
+## Catalysts to Watch
+Near-term events that could move the stock."
+                />
+                <p className="text-xs text-gray-600 mt-1">💡 Images: use ![alt](url). To center and resize: <code className="bg-gray-100 px-1 rounded">&lt;img src=&quot;url&quot; width=&quot;400&quot; class=&quot;mx-auto rounded&quot; /&gt;</code></p>
               </CardContent>
             </Card>
           )}

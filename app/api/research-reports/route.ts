@@ -130,6 +130,7 @@ export async function POST(req: NextRequest) {
         priceChartImageUrl: data.priceChartImageUrl || null,
         priceHistory: data.priceHistory || null,
         timeHorizon: data.timeHorizon || '12 months',
+        concludingSection: data.concludingSection || null,
       },
     });
 

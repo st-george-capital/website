@@ -322,6 +322,9 @@ model EquityResearchReport {
   esgFactors            String?  @db.Text
   governanceIssues      String?  @db.Text
   
+  // Conclusion
+  concludingSection     String?  @db.Text
+  
   // Files & Exports
   coverImage            String?
   pdfExport             String?

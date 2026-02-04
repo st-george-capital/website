@@ -160,7 +160,7 @@ export default function EditWeeklyContentPage() {
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center space-x-4">
-        <Link href="/dashboard/weekly" className="p-2 text-muted-foreground hover:text-primary transition-colors">
+        <Link href="/dashboard/weekly" className="p-2 text-gray-700 hover:text-gray-900 transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>

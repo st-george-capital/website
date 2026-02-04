@@ -77,7 +77,7 @@ export default function WeeklyContentViewPage() {
     <div className="max-w-4xl mx-auto p-8">
       {/* Header */}
       <div className="mb-8">
-        <Link href="/dashboard/weekly" className="inline-flex items-center text-muted-foreground hover:text-primary transition-colors mb-6">
+        <Link href="/dashboard/weekly" className="inline-flex items-center text-gray-700 hover:text-gray-900 transition-colors mb-6">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Weekly Content
         </Link>

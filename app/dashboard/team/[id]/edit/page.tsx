@@ -174,7 +174,7 @@ export default function EditTeamMemberPage() {
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <Link href="/dashboard/team">
-        <Button variant="ghost" className="mb-6 inline-flex items-center">
+        <Button variant="ghost" className="mb-6 inline-flex items-center text-gray-700 hover:text-gray-900">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Team
         </Button>

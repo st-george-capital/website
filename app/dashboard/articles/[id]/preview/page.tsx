@@ -76,7 +76,7 @@ export default function ArticlePreviewPage() {
       <div className="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/dashboard/articles">
-            <Button variant="outline">
+            <Button variant="outline" className="text-gray-700">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Articles
             </Button>

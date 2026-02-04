@@ -208,7 +208,7 @@ export default function EditArticlePage() {
   return (
     <div className="p-8 max-w-5xl mx-auto">
       <Link href="/dashboard/articles">
-        <Button variant="ghost" className="mb-6 inline-flex items-center">
+        <Button variant="ghost" className="mb-6 inline-flex items-center text-gray-700 hover:text-gray-900">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Articles
         </Button>
