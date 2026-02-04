@@ -1372,17 +1372,19 @@ export default function DCFToolPage() {
         timeSeries: { hasPriceData: !!timeSeries?.priceData, count: timeSeries?.priceData?.length || 0 }
       });
 
-      // Check for errors
-      if (overview.error || quote.error || income.error || balance.error || cashflow.error) {
+      // Check for critical errors (overview and quote are required, others are optional for price history)
+      if (overview.error || quote.error) {
         throw new Error(
           overview.error?.details ||
           quote.error?.details ||
-          income.error?.details ||
-          balance.error?.details ||
-          cashflow.error?.details ||
-          'Failed to fetch complete financial data'
+          'Failed to fetch company overview or quote'
         );
       }
+      
+      // Log warnings for non-critical errors but continue
+      if (income.error) console.warn('Income statement fetch failed:', income.error);
+      if (balance.error) console.warn('Balance sheet fetch failed:', balance.error);
+      if (cashflow.error) console.warn('Cash flow statement fetch failed:', cashflow.error);
 
       // Set company overview so Investor Snapshot and rest of app have PE ratios and company info
       setSelectedCompany(overview);
