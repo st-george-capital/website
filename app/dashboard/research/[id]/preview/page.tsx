@@ -8,6 +8,7 @@ import { Button } from '@/components/button';
 import { ArrowLeft, Download, Edit, Eye, TrendingUp, TrendingDown, Printer } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import { InstitutionalValuationSection } from '@/components/InstitutionalValuationSection';
 
 interface ResearchReport {
@@ -343,7 +344,7 @@ export default function ResearchReportPreviewPage() {
                 <h4 className="font-semibold text-gray-900 mb-3">EPS (Recurring)</h4>
                 <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
                   <div className="prose prose-sm max-w-none [&_table]:w-full [&_table]:border-collapse [&_table]:m-0 [&_th]:bg-gray-50 [&_th]:border-b [&_th]:border-gray-200 [&_th]:px-4 [&_th]:py-3 [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-wider [&_th]:text-gray-600 [&_td]:border-b [&_td]:border-gray-100 [&_td]:px-4 [&_td]:py-3 [&_td]:text-sm [&_td]:text-gray-900 [&_tr:last-child_td]:border-b-0">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                       {report.epsTableMarkdown}
                     </ReactMarkdown>
                   </div>
@@ -437,22 +438,22 @@ export default function ResearchReportPreviewPage() {
                 <div key={index} className="border-l-4 border-blue-500 pl-4 py-2 bg-blue-50 rounded-r">
                   {bullet.title && (
                     <div className="font-semibold text-gray-900 mb-2 prose prose-sm max-w-none [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{bullet.title}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{bullet.title}</ReactMarkdown>
                     </div>
                   )}
                   <div className="text-gray-700 mb-1 prose prose-sm max-w-none [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{bullet.claim}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{bullet.claim}</ReactMarkdown>
                   </div>
-                  <div className="text-sm text-gray-700 mb-1">
-                    <span className="font-medium">Driver:</span>
+                  <div className="text-gray-700 mb-2">
+                    <div className="font-semibold text-base text-gray-900 mb-0.5">Driver</div>
                     <div className="prose prose-sm max-w-none mt-0.5 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{bullet.driver || '—'}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{bullet.driver || '—'}</ReactMarkdown>
                     </div>
                   </div>
-                  <div className="text-sm text-gray-700">
-                    <span className="font-medium">Market Mispricing:</span>
+                  <div className="text-gray-700">
+                    <div className="font-semibold text-base text-gray-900 mb-0.5">Market Mispricing</div>
                     <div className="prose prose-sm max-w-none mt-0.5 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{bullet.mispricing || '—'}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{bullet.mispricing || '—'}</ReactMarkdown>
                     </div>
                   </div>
                 </div>
@@ -478,7 +479,7 @@ export default function ResearchReportPreviewPage() {
               [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-3 [&_h3]:mb-2
               [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2
               [&_strong]:font-semibold [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                 {report.businessModel || 'Not provided'}
               </ReactMarkdown>
             </div>
@@ -493,7 +494,7 @@ export default function ResearchReportPreviewPage() {
                 [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
                 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
                 [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                   {report.unitEconomics}
                 </ReactMarkdown>
               </div>
@@ -509,7 +510,7 @@ export default function ResearchReportPreviewPage() {
                 [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
                 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
                 [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                   {report.economicMoat}
                 </ReactMarkdown>
               </div>
@@ -530,7 +531,7 @@ export default function ResearchReportPreviewPage() {
             [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
             [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
             [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
               {report.industryAnalysis || 'Not provided'}
             </ReactMarkdown>
           </div>
@@ -615,7 +616,7 @@ export default function ResearchReportPreviewPage() {
                 [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
                 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
                 [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                   {report.bullCase}
                 </ReactMarkdown>
               </div>
@@ -630,7 +631,7 @@ export default function ResearchReportPreviewPage() {
               [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
               [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
               [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                 {report.bearCase || 'Not provided'}
               </ReactMarkdown>
             </div>
@@ -643,7 +644,7 @@ export default function ResearchReportPreviewPage() {
                 [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
                 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
                 [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                   {report.bullBearJustification}
                 </ReactMarkdown>
               </div>
@@ -694,7 +695,7 @@ export default function ResearchReportPreviewPage() {
               [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
               [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
               [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                 {report.aiStrategies}
               </ReactMarkdown>
             </div>
@@ -715,7 +716,7 @@ export default function ResearchReportPreviewPage() {
               [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
               [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
               [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                 {report.esgFactors}
               </ReactMarkdown>
             </div>
@@ -737,7 +738,7 @@ export default function ResearchReportPreviewPage() {
               [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
               [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-3 [&_h3]:mb-2
               [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                 {report.concludingSection}
               </ReactMarkdown>
             </div>

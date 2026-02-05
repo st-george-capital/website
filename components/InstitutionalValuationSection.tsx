@@ -51,7 +51,7 @@ export function InstitutionalValuationSection({ dcfData, valuationText }: Props)
     // Fallback to text-only if no DCF data
     return (
       <div className="prose prose-lg max-w-none text-gray-700 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
           {valuationText}
         </ReactMarkdown>
       </div>

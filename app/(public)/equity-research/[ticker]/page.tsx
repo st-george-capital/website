@@ -215,7 +215,7 @@ export default async function PublicResearchReportPage({
                 <h3 className="font-semibold text-lg text-gray-900 mb-2">EPS (Recurring)</h3>
                 <div className="prose prose-sm max-w-none text-gray-700
                   [&_table]:w-full [&_table]:border-collapse [&_th]:border [&_td]:border [&_th]:px-2 [&_td]:px-2 [&_th]:py-1 [&_td]:py-1 [&_th]:bg-gray-50">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                     {report.epsTableMarkdown}
                   </ReactMarkdown>
                 </div>
@@ -297,22 +297,22 @@ export default async function PublicResearchReportPage({
                 <div key={index} className="border-l-4 border-blue-500 pl-4 py-3 bg-blue-50 rounded-r">
                   {bullet.title && (
                     <div className="font-semibold text-gray-900 mb-2 prose prose-sm max-w-none [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{bullet.title}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{bullet.title}</ReactMarkdown>
                     </div>
                   )}
                   <div className="text-gray-700 mb-1 prose prose-sm max-w-none [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{bullet.claim}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{bullet.claim}</ReactMarkdown>
                   </div>
-                  <div className="text-sm text-gray-700 mb-1">
-                    <span className="font-medium">Driver:</span>
+                  <div className="text-gray-700 mb-2">
+                    <div className="font-semibold text-base text-gray-900 mb-0.5">Driver</div>
                     <div className="prose prose-sm max-w-none mt-0.5 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{bullet.driver || '—'}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{bullet.driver || '—'}</ReactMarkdown>
                     </div>
                   </div>
-                  <div className="text-sm text-gray-700">
-                    <span className="font-medium">Market Mispricing:</span>
+                  <div className="text-gray-700">
+                    <div className="font-semibold text-base text-gray-900 mb-0.5">Market Mispricing</div>
                     <div className="prose prose-sm max-w-none mt-0.5 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{bullet.mispricing || '—'}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{bullet.mispricing || '—'}</ReactMarkdown>
                     </div>
                   </div>
                 </div>
@@ -330,7 +330,7 @@ export default async function PublicResearchReportPage({
             [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
             [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
             [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
               {report.businessModel}
             </ReactMarkdown>
           </div>
@@ -343,7 +343,7 @@ export default async function PublicResearchReportPage({
                 [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
                 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
                 [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                   {report.unitEconomics}
                 </ReactMarkdown>
               </div>
@@ -358,7 +358,7 @@ export default async function PublicResearchReportPage({
                 [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
                 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
                 [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                   {report.economicMoat}
                 </ReactMarkdown>
               </div>
@@ -375,7 +375,7 @@ export default async function PublicResearchReportPage({
             [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
             [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
             [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
               {report.industryAnalysis}
             </ReactMarkdown>
           </div>
@@ -452,7 +452,7 @@ export default async function PublicResearchReportPage({
                 [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
                 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
                 [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                   {report.bullCase}
                 </ReactMarkdown>
               </div>
@@ -467,7 +467,7 @@ export default async function PublicResearchReportPage({
               [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
               [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
               [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                 {report.bearCase}
               </ReactMarkdown>
             </div>
@@ -479,7 +479,7 @@ export default async function PublicResearchReportPage({
               <div className="prose max-w-none text-gray-700 bg-gray-50 border rounded-lg p-4
                 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
                 [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                   {report.bullBearJustification}
                 </ReactMarkdown>
               </div>
@@ -522,7 +522,7 @@ export default async function PublicResearchReportPage({
               [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
               [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
               [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                 {report.aiStrategies}
               </ReactMarkdown>
             </div>
@@ -539,7 +539,7 @@ export default async function PublicResearchReportPage({
               [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
               [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
               [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                 {report.esgFactors}
               </ReactMarkdown>
             </div>
@@ -557,7 +557,7 @@ export default async function PublicResearchReportPage({
               [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
               [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-3 [&_h3]:mb-2
               [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                 {report.concludingSection}
               </ReactMarkdown>
             </div>
