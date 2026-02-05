@@ -2142,31 +2142,6 @@ export default function DCFToolPage() {
               isAnalyzing={isAnalyzing}
             />
 
-            {analysisError && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-sm text-red-700">{analysisError}</p>
-                {debugInfo && (
-                  <details className="mt-2">
-                    <summary className="text-xs text-red-600 cursor-pointer hover:text-red-800">
-                      🔍 Debug Information
-                    </summary>
-                    <div className="mt-2 p-2 bg-red-100 rounded text-xs font-mono">
-                      <div><strong>Ticker:</strong> {debugInfo.ticker}</div>
-                      <div><strong>Timestamp:</strong> {debugInfo.timestamp}</div>
-                      <div><strong>API Status:</strong></div>
-                      <ul className="ml-4 mt-1">
-                        {Object.entries(debugInfo.apiResponses || {}).map(([api, status]) => (
-                          <li key={api} className={status !== 'No error' ? 'text-red-800' : 'text-gray-600'}>
-                            {api}: {String(status)}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </details>
-                )}
-              </div>
-            )}
-
             {financialData && (
               <div className="p-3 bg-green-50 border border-green-200 rounded-md">
                 <p className="text-sm text-green-700">

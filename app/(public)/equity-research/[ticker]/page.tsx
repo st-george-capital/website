@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ArrowLeft, TrendingUp, TrendingDown, Calendar, User } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import { InstitutionalValuationSection } from '@/components/InstitutionalValuationSection';
 
 const prisma = new PrismaClient();
