@@ -14,6 +14,10 @@ export const metadata: Metadata = {
   description: "St. George Capital is a dynamic organization at the University of Toronto, dedicated to empowering future financial experts by merging traditional and quantitative finance.",
   keywords: ["finance", "quantitative", "trading", "research", "University of Toronto", "UofT", "student organization"],
   authors: [{ name: "St. George Capital" }],
+  icons: {
+    icon: "/images/logo/sgc_logo.png",
+    apple: "/images/logo/sgc_logo.png",
+  },
   openGraph: {
     type: "website",
     locale: "en_US",
