@@ -7,19 +7,26 @@ import { Button } from '@/components/button';
 import {
   Plus,
   Trash2,
-  X,
   TrendingUp,
   TrendingDown,
   DollarSign,
   BarChart3,
   PieChart,
   RefreshCw,
+  Wallet,
+  Award,
+  AlertTriangle,
 } from 'lucide-react';
 import { formatCurrency, formatPercent } from '@/lib/utils';
+import { TradeModal } from '@/components/portfolio/TradeModal';
+import { TradeHistory } from '@/components/portfolio/TradeHistory';
+import { PortfolioChart } from '@/components/portfolio/PortfolioChart';
 
 interface EnrichedHolding {
   id: string;
   ticker: string;
+  apiTicker: string | null;
+  exchange: string;
   assetType: string;
   quantity: number;
   costBasis: number | null;
@@ -41,9 +48,16 @@ interface EnrichedHolding {
 
 interface PortfolioSummary {
   totalValue: number;
+  stocksValue: number;
+  cashBalance: number;
+  initialCash: number;
   totalCostBasis: number;
   totalPnL: number;
   totalPnLPercent: number;
+  totalReturn: number;
+  realizedPnL: number;
+  bestPerformer: { ticker: string; percent: number | null } | null;
+  worstPerformer: { ticker: string; percent: number | null } | null;
   positionCount: number;
   lastUpdated: string;
 }
@@ -54,20 +68,8 @@ export default function HoldingsPage() {
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [formData, setFormData] = useState({
-    ticker: '',
-    assetType: 'Equity',
-    quantity: '',
-    costBasis: '',
-    entryDate: new Date().toISOString().split('T')[0],
-    notes: '',
-    sector: '',
-    region: '',
-    strategyTag: '',
-    visible: true,
-  });
+  const [showTradeModal, setShowTradeModal] = useState(false);
+  const [tradeRefreshKey, setTradeRefreshKey] = useState(0);
 
   const isAdmin = session?.user?.role === 'admin';
 
@@ -94,56 +96,6 @@ export default function HoldingsPage() {
     return () => clearInterval(interval);
   }, [fetchPortfolio]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-
-    try {
-      const res = await fetch('/api/holdings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ticker: formData.ticker.toUpperCase(),
-          assetType: formData.assetType,
-          quantity: parseFloat(formData.quantity),
-          costBasis: formData.costBasis ? parseFloat(formData.costBasis) : null,
-          entryDate: formData.entryDate,
-          notes: formData.notes || null,
-          sector: formData.sector || null,
-          region: formData.region || null,
-          strategyTag: formData.strategyTag || null,
-          visible: formData.visible,
-        }),
-      });
-
-      if (res.ok) {
-        alert('Holding added successfully!');
-        setShowAddModal(false);
-        setFormData({
-          ticker: '',
-          assetType: 'Equity',
-          quantity: '',
-          costBasis: '',
-          entryDate: new Date().toISOString().split('T')[0],
-          notes: '',
-          sector: '',
-          region: '',
-          strategyTag: '',
-          visible: true,
-        });
-        fetchPortfolio();
-      } else {
-        const error = await res.json();
-        alert(`Failed to add holding: ${error.error}`);
-      }
-    } catch (error) {
-      console.error('Error adding holding:', error);
-      alert('Failed to add holding');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this holding?')) return;
 
@@ -162,6 +114,11 @@ export default function HoldingsPage() {
       console.error('Error deleting holding:', error);
       alert('Failed to delete holding');
     }
+  };
+
+  const handleTradeComplete = () => {
+    fetchPortfolio();
+    setTradeRefreshKey((k) => k + 1);
   };
 
   if (loading) {
@@ -194,90 +151,171 @@ export default function HoldingsPage() {
               variant="outline"
               onClick={() => fetchPortfolio(true)}
               disabled={refreshing}
+              className="border-gray-300 text-gray-700 hover:bg-gray-100"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
             {isAdmin && (
-              <Button onClick={() => setShowAddModal(true)}>
+              <Button
+                onClick={() => setShowTradeModal(true)}
+              >
                 <Plus className="w-4 h-4 mr-2" />
-                Add Holding
+                New Trade
               </Button>
             )}
           </div>
         </div>
 
-        {/* Summary Cards */}
+        {/* Summary Cards - 2 rows of 3 */}
         {summary && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Total Portfolio Value */}
-            <Card hover={false}>
-              <CardContent className="p-5">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <DollarSign className="w-5 h-5 text-blue-600" />
+          <div className="space-y-4">
+            {/* Row 1: Value cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Total Portfolio Value */}
+              <Card hover={false}>
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <DollarSign className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">Total Portfolio Value</p>
                   </div>
-                  <p className="text-sm text-muted-foreground">Total Market Value</p>
-                </div>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(summary.totalValue)}
-                </p>
-              </CardContent>
-            </Card>
+                  <p className="text-2xl font-bold">
+                    {formatCurrency(summary.totalValue)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Stocks: {formatCurrency(summary.stocksValue)} + Cash: {formatCurrency(summary.cashBalance)}
+                  </p>
+                </CardContent>
+              </Card>
 
-            {/* Total Cost Basis */}
-            <Card hover={false}>
-              <CardContent className="p-5">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                    <BarChart3 className="w-5 h-5 text-gray-600" />
+              {/* Stocks Value */}
+              <Card hover={false}>
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <BarChart3 className="w-5 h-5 text-gray-600" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">Total Cost Basis</p>
                   </div>
-                  <p className="text-sm text-muted-foreground">Total Cost Basis</p>
-                </div>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(summary.totalCostBasis)}
-                </p>
-              </CardContent>
-            </Card>
+                  <p className="text-2xl font-bold">
+                    {formatCurrency(summary.totalCostBasis)}
+                  </p>
+                </CardContent>
+              </Card>
 
-            {/* Total P&L */}
-            <Card hover={false}>
-              <CardContent className="p-5">
-                <div className="flex items-center gap-3 mb-3">
-                  <div
-                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      summary.totalPnL >= 0 ? 'bg-green-100' : 'bg-red-100'
+              {/* Cash Balance */}
+              <Card hover={false}>
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                      <Wallet className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">Cash Balance</p>
+                  </div>
+                  <p className="text-2xl font-bold">
+                    {formatCurrency(summary.cashBalance)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {((summary.cashBalance / summary.totalValue) * 100).toFixed(1)}% of portfolio
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Row 2: Performance cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Unrealized P&L */}
+              <Card hover={false}>
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div
+                      className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                        summary.totalPnL >= 0 ? 'bg-green-100' : 'bg-red-100'
+                      }`}
+                    >
+                      {summary.totalPnL >= 0 ? (
+                        <TrendingUp className="w-5 h-5 text-green-600" />
+                      ) : (
+                        <TrendingDown className="w-5 h-5 text-red-600" />
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">Unrealized P&L</p>
+                  </div>
+                  <p
+                    className={`text-2xl font-bold ${
+                      summary.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'
                     }`}
                   >
-                    {summary.totalPnL >= 0 ? (
-                      <TrendingUp className="w-5 h-5 text-green-600" />
-                    ) : (
-                      <TrendingDown className="w-5 h-5 text-red-600" />
-                    )}
+                    {formatCurrency(summary.totalPnL)}
+                  </p>
+                  <p
+                    className={`text-sm font-medium ${
+                      summary.totalPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'
+                    }`}
+                  >
+                    {formatPercent(summary.totalPnLPercent)}
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Best Performer */}
+              <Card hover={false}>
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                      <Award className="w-5 h-5 text-green-600" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">Best Performer</p>
                   </div>
-                  <p className="text-sm text-muted-foreground">Total P&L</p>
-                </div>
-                <p
-                  className={`text-2xl font-bold ${
-                    summary.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'
-                  }`}
-                >
-                  {formatCurrency(summary.totalPnL)}
-                </p>
-                <p
-                  className={`text-sm font-medium ${
-                    summary.totalPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'
-                  }`}
-                >
-                  {formatPercent(summary.totalPnLPercent)}
-                </p>
-              </CardContent>
-            </Card>
+                  {summary.bestPerformer ? (
+                    <>
+                      <p className="text-2xl font-bold">{summary.bestPerformer.ticker}</p>
+                      <p className="text-sm font-medium text-green-600">
+                        {summary.bestPerformer.percent !== null
+                          ? formatPercent(summary.bestPerformer.percent)
+                          : '--'}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-2xl font-bold text-muted-foreground">--</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Worst Performer */}
+              <Card hover={false}>
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                      <AlertTriangle className="w-5 h-5 text-red-600" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">Worst Performer</p>
+                  </div>
+                  {summary.worstPerformer ? (
+                    <>
+                      <p className="text-2xl font-bold">{summary.worstPerformer.ticker}</p>
+                      <p className="text-sm font-medium text-red-600">
+                        {summary.worstPerformer.percent !== null
+                          ? formatPercent(summary.worstPerformer.percent)
+                          : '--'}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-2xl font-bold text-muted-foreground">--</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </div>
         )}
 
+        {/* Portfolio Timeline Chart */}
+        <PortfolioChart isAdmin={isAdmin} refreshKey={tradeRefreshKey} />
+
         {/* Holdings Table */}
-        <Card>
+        <Card hover={false}>
           <CardHeader>
             <CardTitle>Active Positions</CardTitle>
             <CardDescription>All current portfolio holdings with live market data</CardDescription>
@@ -286,12 +324,12 @@ export default function HoldingsPage() {
             {holdings.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-muted-foreground mb-4">
-                  No holdings yet. Add your first position to get started.
+                  No holdings yet. Record a trade or import a position to get started.
                 </p>
                 {isAdmin && (
-                  <Button onClick={() => setShowAddModal(true)}>
+                  <Button onClick={() => setShowTradeModal(true)}>
                     <Plus className="w-4 h-4 mr-2" />
-                    Add First Holding
+                    New Trade
                   </Button>
                 )}
               </div>
@@ -316,7 +354,14 @@ export default function HoldingsPage() {
                   <tbody>
                     {holdings.map((holding) => (
                       <tr key={holding.id} className="border-b border-border">
-                        <td className="py-4 font-bold">{holding.ticker}</td>
+                        <td className="py-4">
+                          <span className="font-bold">{holding.ticker}</span>
+                          {holding.exchange !== 'US' && (
+                            <span className="ml-1 text-xs text-gray-400">
+                              {holding.exchange}
+                            </span>
+                          )}
+                        </td>
                         <td className="py-4">
                           <span className="px-2 py-1 bg-gray-100 rounded text-sm">
                             {holding.assetType}
@@ -422,7 +467,7 @@ export default function HoldingsPage() {
 
         {/* Asset Breakdown */}
         {holdings.length > 0 && (
-          <Card>
+          <Card hover={false}>
             <CardHeader>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -436,6 +481,25 @@ export default function HoldingsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
+                {/* Cash allocation */}
+                {summary && summary.cashBalance > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium">Cash</span>
+                      <span className="text-primary font-semibold">
+                        {((summary.cashBalance / summary.totalValue) * 100).toFixed(1)}% ({formatCurrency(summary.cashBalance)})
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-500 rounded-full"
+                        style={{
+                          width: `${(summary.cashBalance / summary.totalValue) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
                 {Array.from(new Set(holdings.map((h) => h.assetType))).map((type) => {
                   const typeHoldings = holdings.filter((h) => h.assetType === type);
                   const typeValue = typeHoldings.reduce(
@@ -466,174 +530,20 @@ export default function HoldingsPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Trade History */}
+        <TradeHistory refreshKey={tradeRefreshKey} />
       </div>
 
-      {/* Add Holding Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b p-6 flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Add New Holding</h2>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {/* Trade Modal */}
+      <TradeModal
+        isOpen={showTradeModal}
+        onClose={() => setShowTradeModal(false)}
+        onTradeComplete={handleTradeComplete}
+        existingTickers={holdings.map((h) => h.ticker)}
+        cashBalance={summary?.cashBalance || 0}
+      />
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
-              {/* Ticker */}
-              <div>
-                <label className="block text-sm font-medium mb-2">Ticker Symbol *</label>
-                <input
-                  type="text"
-                  value={formData.ticker}
-                  onChange={(e) =>
-                    setFormData({ ...formData, ticker: e.target.value.toUpperCase() })
-                  }
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="AAPL"
-                />
-              </div>
-
-              {/* Asset Type & Quantity */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Asset Type *</label>
-                  <select
-                    value={formData.assetType}
-                    onChange={(e) => setFormData({ ...formData, assetType: e.target.value })}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="Equity">Equity</option>
-                    <option value="ETF">ETF</option>
-                    <option value="Commodity">Commodity</option>
-                    <option value="Crypto">Crypto</option>
-                    <option value="Cash">Cash</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Quantity *</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.quantity}
-                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="100"
-                  />
-                </div>
-              </div>
-
-              {/* Cost Basis & Entry Date */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Cost Basis (per unit)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.costBasis}
-                    onChange={(e) => setFormData({ ...formData, costBasis: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="150.00"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Entry Date *</label>
-                  <input
-                    type="date"
-                    value={formData.entryDate}
-                    onChange={(e) => setFormData({ ...formData, entryDate: e.target.value })}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-              </div>
-
-              {/* Sector & Region */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Sector</label>
-                  <input
-                    type="text"
-                    value={formData.sector}
-                    onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="Technology"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Region</label>
-                  <input
-                    type="text"
-                    value={formData.region}
-                    onChange={(e) => setFormData({ ...formData, region: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="North America"
-                  />
-                </div>
-              </div>
-
-              {/* Strategy Tag */}
-              <div>
-                <label className="block text-sm font-medium mb-2">Strategy Tag</label>
-                <input
-                  type="text"
-                  value={formData.strategyTag}
-                  onChange={(e) => setFormData({ ...formData, strategyTag: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="Growth, Value, Momentum, etc."
-                />
-              </div>
-
-              {/* Notes */}
-              <div>
-                <label className="block text-sm font-medium mb-2">Investment Thesis / Notes</label>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="Why we invested in this position..."
-                />
-              </div>
-
-              {/* Visibility */}
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="visible"
-                  checked={formData.visible}
-                  onChange={(e) => setFormData({ ...formData, visible: e.target.checked })}
-                  className="w-4 h-4"
-                />
-                <label htmlFor="visible" className="text-sm font-medium">
-                  Make this holding visible to the public
-                </label>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-end space-x-4 pt-4 border-t">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowAddModal(false)}
-                  disabled={saving}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={saving}>
-                  {saving ? 'Adding...' : 'Add Holding'}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </>
   );
 }

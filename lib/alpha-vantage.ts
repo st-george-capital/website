@@ -44,3 +44,46 @@ export async function fetchAlphaVantageQuote(ticker: string): Promise<AlphaVanta
     volume: parseInt(quote['06. volume'] || '0', 10),
   };
 }
+
+export interface DailyPrice {
+  date: string;
+  close: number;
+}
+
+export async function fetchAlphaVantageDailyHistory(
+  ticker: string,
+  outputSize: 'compact' | 'full' = 'compact'
+): Promise<DailyPrice[]> {
+  const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
+  if (!apiKey) {
+    throw new Error('ALPHA_VANTAGE_API_KEY not configured');
+  }
+
+  const url = `${ALPHA_VANTAGE_BASE}?function=TIME_SERIES_DAILY&symbol=${encodeURIComponent(ticker)}&outputsize=${outputSize}&apikey=${apiKey}`;
+  const response = await fetch(url, { next: { revalidate: 0 } });
+
+  if (!response.ok) {
+    throw new Error(`Alpha Vantage API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  if (data.Note) {
+    throw new Error('Alpha Vantage rate limit reached');
+  }
+  if (data['Error Message']) {
+    throw new Error(`Alpha Vantage error: ${data['Error Message']}`);
+  }
+
+  const timeSeries = data['Time Series (Daily)'];
+  if (!timeSeries) {
+    throw new Error(`No daily data for ${ticker}`);
+  }
+
+  return Object.entries(timeSeries)
+    .map(([date, values]: [string, unknown]) => ({
+      date,
+      close: parseFloat((values as Record<string, string>)['4. close']),
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}

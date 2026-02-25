@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import { fetchAlphaVantageQuote } from '@/lib/alpha-vantage';
+import { getCashBalance } from '@/lib/cash';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,15 +17,19 @@ export async function GET() {
     });
 
     // Collect unique tickers (exclude Cash asset type)
-    const tickers = [
-      ...new Set(
-        holdings.filter((h) => h.assetType !== 'Cash').map((h) => h.ticker)
-      ),
-    ];
+    // Use apiTicker for API calls, fall back to ticker
+    const tickerMap: Record<string, string> = {};
+    for (const h of holdings) {
+      if (h.assetType !== 'Cash') {
+        const apiTicker = h.apiTicker || h.ticker;
+        tickerMap[h.ticker] = apiTicker;
+      }
+    }
+    const apiTickers = [...new Set(Object.values(tickerMap))];
 
     // Check MarketData cache for all tickers
     const cachedData = await prisma.marketData.findMany({
-      where: { ticker: { in: tickers } },
+      where: { ticker: { in: apiTickers } },
     });
 
     const now = Date.now();
@@ -47,7 +52,7 @@ export async function GET() {
       }
     }
 
-    const missing = tickers.filter(
+    const missing = apiTickers.filter(
       (t) => !cachedData.find((c) => c.ticker === t)
     );
     const toFetch = [...stale, ...missing];
@@ -110,7 +115,8 @@ export async function GET() {
     let totalCostBasis = 0;
 
     const enrichedHoldings = holdings.map((h) => {
-      const market = marketDataMap[h.ticker];
+      const apiTicker = h.apiTicker || h.ticker;
+      const market = marketDataMap[apiTicker];
       const currentPrice = market?.price ?? null;
       const currentValue =
         currentPrice !== null ? h.quantity * currentPrice : null;
@@ -130,6 +136,8 @@ export async function GET() {
       return {
         id: h.id,
         ticker: h.ticker,
+        apiTicker: h.apiTicker,
+        exchange: h.exchange,
         assetType: h.assetType,
         quantity: h.quantity,
         costBasis: h.costBasis,
@@ -150,25 +158,72 @@ export async function GET() {
       };
     });
 
-    // Compute weights
-    const totalValue = totalStockValue;
+    // Get cash balance
+    const { cashBalance, initialCash } = await getCashBalance();
+    const totalPortfolioValue = totalStockValue + cashBalance;
+
+    // Compute weights against total portfolio (stocks + cash)
     for (const h of enrichedHoldings) {
-      if (h.currentValue !== null && totalValue > 0) {
-        h.weight = (h.currentValue / totalValue) * 100;
+      if (h.currentValue !== null && totalPortfolioValue > 0) {
+        h.weight = (h.currentValue / totalPortfolioValue) * 100;
       }
     }
 
-    const totalPnL = totalStockValue - totalCostBasis;
-    const totalPnLPercent =
-      totalCostBasis > 0 ? (totalPnL / totalCostBasis) * 100 : 0;
+    // Unrealized P&L
+    const unrealizedPnL = totalStockValue - totalCostBasis;
+    const unrealizedPnLPercent =
+      totalCostBasis > 0 ? (unrealizedPnL / totalCostBasis) * 100 : 0;
+
+    // Total return vs initial capital
+    const totalReturn =
+      initialCash > 0
+        ? ((totalPortfolioValue - initialCash) / initialCash) * 100
+        : 0;
+
+    // Realized P&L from closed trades
+    const realizedPnLResult = await prisma.transaction.aggregate({
+      _sum: { realizedPnL: true },
+      where: { realizedPnL: { not: null } },
+    });
+    const realizedPnL = realizedPnLResult._sum.realizedPnL || 0;
+
+    // Best/worst performers (among holdings with gainLossPercent)
+    const holdingsWithPnL = enrichedHoldings.filter(
+      (h) => h.gainLossPercent !== null
+    );
+    const bestPerformer = holdingsWithPnL.length > 0
+      ? holdingsWithPnL.reduce((best, h) =>
+          (h.gainLossPercent ?? -Infinity) > (best.gainLossPercent ?? -Infinity)
+            ? h
+            : best
+        )
+      : null;
+    const worstPerformer = holdingsWithPnL.length > 0
+      ? holdingsWithPnL.reduce((worst, h) =>
+          (h.gainLossPercent ?? Infinity) < (worst.gainLossPercent ?? Infinity)
+            ? h
+            : worst
+        )
+      : null;
 
     return NextResponse.json({
       holdings: enrichedHoldings,
       summary: {
-        totalValue: totalStockValue,
+        totalValue: totalPortfolioValue,
+        stocksValue: totalStockValue,
+        cashBalance,
+        initialCash,
         totalCostBasis,
-        totalPnL,
-        totalPnLPercent,
+        totalPnL: unrealizedPnL,
+        totalPnLPercent: unrealizedPnLPercent,
+        totalReturn,
+        realizedPnL,
+        bestPerformer: bestPerformer
+          ? { ticker: bestPerformer.ticker, percent: bestPerformer.gainLossPercent }
+          : null,
+        worstPerformer: worstPerformer
+          ? { ticker: worstPerformer.ticker, percent: worstPerformer.gainLossPercent }
+          : null,
         positionCount: holdings.length,
         lastUpdated: new Date().toISOString(),
       },
