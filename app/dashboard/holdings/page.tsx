@@ -1,12 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { Plus, Edit, Trash2, X } from 'lucide-react';
+import {
+  Plus,
+  Trash2,
+  X,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  BarChart3,
+  PieChart,
+  RefreshCw,
+} from 'lucide-react';
+import { formatCurrency, formatPercent } from '@/lib/utils';
 
-interface Holding {
+interface EnrichedHolding {
   id: string;
   ticker: string;
   assetType: string;
@@ -18,12 +29,31 @@ interface Holding {
   region: string | null;
   strategyTag: string | null;
   visible: boolean;
+  currentPrice: number | null;
+  priceChange: number | null;
+  priceChangePercent: number | null;
+  currentValue: number | null;
+  totalCost: number | null;
+  gainLoss: number | null;
+  gainLossPercent: number | null;
+  weight: number;
+}
+
+interface PortfolioSummary {
+  totalValue: number;
+  totalCostBasis: number;
+  totalPnL: number;
+  totalPnLPercent: number;
+  positionCount: number;
+  lastUpdated: string;
 }
 
 export default function HoldingsPage() {
   const { data: session } = useSession();
-  const [holdings, setHoldings] = useState<Holding[]>([]);
+  const [holdings, setHoldings] = useState<EnrichedHolding[]>([]);
+  const [summary, setSummary] = useState<PortfolioSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -41,21 +71,28 @@ export default function HoldingsPage() {
 
   const isAdmin = session?.user?.role === 'admin';
 
-  useEffect(() => {
-    fetchHoldings();
-  }, []);
-
-  const fetchHoldings = async () => {
+  const fetchPortfolio = useCallback(async (showRefresh = false) => {
+    if (showRefresh) setRefreshing(true);
     try {
-      const response = await fetch('/api/holdings');
-      const data = await response.json();
-      setHoldings(data);
+      const response = await fetch('/api/portfolio/summary');
+      if (response.ok) {
+        const data = await response.json();
+        setHoldings(data.holdings);
+        setSummary(data.summary);
+      }
     } catch (error) {
-      console.error('Failed to fetch holdings:', error);
+      console.error('Failed to fetch portfolio:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchPortfolio();
+    const interval = setInterval(() => fetchPortfolio(), 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [fetchPortfolio]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,7 +131,7 @@ export default function HoldingsPage() {
           strategyTag: '',
           visible: true,
         });
-        fetchHoldings();
+        fetchPortfolio();
       } else {
         const error = await res.json();
         alert(`Failed to add holding: ${error.error}`);
@@ -116,7 +153,7 @@ export default function HoldingsPage() {
       });
 
       if (res.ok) {
-        setHoldings(holdings.filter((h) => h.id !== id));
+        fetchPortfolio();
         alert('Holding deleted successfully!');
       } else {
         alert('Failed to delete holding');
@@ -127,16 +164,12 @@ export default function HoldingsPage() {
     }
   };
 
-  const totalValue = holdings.reduce((sum, h) => {
-    return sum + (h.costBasis ? h.quantity * h.costBasis : 0);
-  }, 0);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading holdings...</p>
+          <p className="text-muted-foreground">Loading portfolio...</p>
         </div>
       </div>
     );
@@ -146,26 +179,108 @@ export default function HoldingsPage() {
     <>
       <div className="space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold mb-2">Portfolio Holdings</h1>
             <p className="text-muted-foreground">
-              {holdings.length} positions • Est. Total: ${totalValue.toLocaleString()}
+              {summary?.positionCount || 0} positions
+              {summary?.lastUpdated && (
+                <> &middot; Updated {new Date(summary.lastUpdated).toLocaleTimeString()}</>
+              )}
             </p>
           </div>
-          {isAdmin && (
-            <Button onClick={() => setShowAddModal(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Holding
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={() => fetchPortfolio(true)}
+              disabled={refreshing}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh
             </Button>
-          )}
+            {isAdmin && (
+              <Button onClick={() => setShowAddModal(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Holding
+              </Button>
+            )}
+          </div>
         </div>
+
+        {/* Summary Cards */}
+        {summary && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Total Portfolio Value */}
+            <Card hover={false}>
+              <CardContent className="p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <DollarSign className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">Total Market Value</p>
+                </div>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(summary.totalValue)}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Total Cost Basis */}
+            <Card hover={false}>
+              <CardContent className="p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <BarChart3 className="w-5 h-5 text-gray-600" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">Total Cost Basis</p>
+                </div>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(summary.totalCostBasis)}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Total P&L */}
+            <Card hover={false}>
+              <CardContent className="p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      summary.totalPnL >= 0 ? 'bg-green-100' : 'bg-red-100'
+                    }`}
+                  >
+                    {summary.totalPnL >= 0 ? (
+                      <TrendingUp className="w-5 h-5 text-green-600" />
+                    ) : (
+                      <TrendingDown className="w-5 h-5 text-red-600" />
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground">Total P&L</p>
+                </div>
+                <p
+                  className={`text-2xl font-bold ${
+                    summary.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}
+                >
+                  {formatCurrency(summary.totalPnL)}
+                </p>
+                <p
+                  className={`text-sm font-medium ${
+                    summary.totalPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}
+                >
+                  {formatPercent(summary.totalPnLPercent)}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Holdings Table */}
         <Card>
           <CardHeader>
             <CardTitle>Active Positions</CardTitle>
-            <CardDescription>All current portfolio holdings</CardDescription>
+            <CardDescription>All current portfolio holdings with live market data</CardDescription>
           </CardHeader>
           <CardContent>
             {holdings.length === 0 ? (
@@ -186,13 +301,15 @@ export default function HoldingsPage() {
                   <thead>
                     <tr className="border-b border-border text-left">
                       <th className="pb-3 font-semibold">Ticker</th>
-                      <th className="pb-3 font-semibold">Asset Type</th>
-                      <th className="pb-3 font-semibold text-right">Quantity</th>
-                      <th className="pb-3 font-semibold text-right">Cost Basis</th>
-                      <th className="pb-3 font-semibold text-right">Total Cost</th>
-                      <th className="pb-3 font-semibold">Sector</th>
-                      <th className="pb-3 font-semibold">Entry Date</th>
-                      <th className="pb-3 font-semibold">Visibility</th>
+                      <th className="pb-3 font-semibold">Type</th>
+                      <th className="pb-3 font-semibold text-right">Shares</th>
+                      <th className="pb-3 font-semibold text-right">Avg Cost</th>
+                      <th className="pb-3 font-semibold text-right">Price</th>
+                      <th className="pb-3 font-semibold text-right">Day Chg%</th>
+                      <th className="pb-3 font-semibold text-right">Value</th>
+                      <th className="pb-3 font-semibold text-right">Gain/Loss</th>
+                      <th className="pb-3 font-semibold text-right">G/L %</th>
+                      <th className="pb-3 font-semibold text-right">Weight</th>
                       {isAdmin && <th className="pb-3 font-semibold text-right">Actions</th>}
                     </tr>
                   </thead>
@@ -207,38 +324,91 @@ export default function HoldingsPage() {
                         </td>
                         <td className="py-4 text-right">{holding.quantity.toLocaleString()}</td>
                         <td className="py-4 text-right">
-                          {holding.costBasis ? `$${holding.costBasis.toFixed(2)}` : '-'}
+                          {holding.costBasis !== null ? formatCurrency(holding.costBasis) : '--'}
+                        </td>
+                        <td className="py-4 text-right font-medium">
+                          {holding.currentPrice !== null
+                            ? formatCurrency(holding.currentPrice)
+                            : '--'}
+                        </td>
+                        <td className="py-4 text-right">
+                          {holding.priceChangePercent !== null ? (
+                            <span
+                              className={`inline-flex items-center gap-1 font-medium ${
+                                holding.priceChangePercent >= 0
+                                  ? 'text-green-600'
+                                  : 'text-red-600'
+                              }`}
+                            >
+                              {holding.priceChangePercent >= 0 ? (
+                                <TrendingUp className="w-3 h-3" />
+                              ) : (
+                                <TrendingDown className="w-3 h-3" />
+                              )}
+                              {formatPercent(holding.priceChangePercent)}
+                            </span>
+                          ) : (
+                            '--'
+                          )}
                         </td>
                         <td className="py-4 text-right font-semibold">
-                          {holding.costBasis
-                            ? `$${(holding.quantity * holding.costBasis).toLocaleString()}`
-                            : '-'}
+                          {holding.currentValue !== null
+                            ? formatCurrency(holding.currentValue)
+                            : '--'}
                         </td>
-                        <td className="py-4">{holding.sector || '-'}</td>
-                        <td className="py-4">
-                          {new Date(holding.entryDate).toLocaleDateString()}
+                        <td className="py-4 text-right">
+                          {holding.gainLoss !== null ? (
+                            <span
+                              className={`font-medium ${
+                                holding.gainLoss >= 0 ? 'text-green-600' : 'text-red-600'
+                              }`}
+                            >
+                              {formatCurrency(holding.gainLoss)}
+                            </span>
+                          ) : (
+                            '--'
+                          )}
                         </td>
-                        <td className="py-4">
-                          <span
-                            className={`px-2 py-1 rounded text-xs ${
-                              holding.visible
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}
-                          >
-                            {holding.visible ? 'Public' : 'Private'}
-                          </span>
+                        <td className="py-4 text-right">
+                          {holding.gainLossPercent !== null ? (
+                            <span
+                              className={`font-medium ${
+                                holding.gainLossPercent >= 0
+                                  ? 'text-green-600'
+                                  : 'text-red-600'
+                              }`}
+                            >
+                              {formatPercent(holding.gainLossPercent)}
+                            </span>
+                          ) : (
+                            '--'
+                          )}
+                        </td>
+                        <td className="py-4 text-right">
+                          {holding.weight > 0 ? (
+                            <div className="flex flex-col items-end gap-1">
+                              <span className="text-sm font-medium">
+                                {holding.weight.toFixed(1)}%
+                              </span>
+                              <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-primary rounded-full"
+                                  style={{ width: `${Math.min(holding.weight, 100)}%` }}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            '--'
+                          )}
                         </td>
                         {isAdmin && (
                           <td className="py-4 text-right">
-                            <div className="flex items-center justify-end space-x-2">
-                              <button
-                                onClick={() => handleDelete(holding.id)}
-                                className="p-2 hover:bg-red-50 text-red-600 rounded-lg"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
+                            <button
+                              onClick={() => handleDelete(holding.id)}
+                              className="p-2 hover:bg-red-50 text-red-600 rounded-lg"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </td>
                         )}
                       </tr>
@@ -254,17 +424,25 @@ export default function HoldingsPage() {
         {holdings.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Portfolio Breakdown</CardTitle>
-              <CardDescription>Distribution by asset type</CardDescription>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <PieChart className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <CardTitle>Portfolio Breakdown</CardTitle>
+                  <CardDescription>Distribution by asset type</CardDescription>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {Array.from(new Set(holdings.map((h) => h.assetType))).map((type) => {
                   const typeHoldings = holdings.filter((h) => h.assetType === type);
                   const typeValue = typeHoldings.reduce(
-                    (sum, h) => sum + (h.costBasis ? h.quantity * h.costBasis : 0),
+                    (sum, h) => sum + (h.currentValue ?? (h.costBasis ? h.quantity * h.costBasis : 0)),
                     0
                   );
+                  const totalValue = summary?.totalValue || 1;
                   const percentage = totalValue > 0 ? (typeValue / totalValue) * 100 : 0;
 
                   return (
@@ -272,12 +450,12 @@ export default function HoldingsPage() {
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-medium">{type}</span>
                         <span className="text-primary font-semibold">
-                          {percentage.toFixed(1)}% (${typeValue.toLocaleString()})
+                          {percentage.toFixed(1)}% ({formatCurrency(typeValue)})
                         </span>
                       </div>
                       <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-primary"
+                          className="h-full bg-primary rounded-full"
                           style={{ width: `${percentage}%` }}
                         />
                       </div>
