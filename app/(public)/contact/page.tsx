@@ -129,6 +129,15 @@ export default function ContactPage() {
             <JobPostingsSection />
           </div>
 
+          {/* 📄 RESUME BOOK */}
+          <div className="mb-16">
+            <div className="text-center mb-8">
+              <h3 className="font-serif text-2xl font-bold mb-3">Resume Book</h3>
+              <p className="text-white/70 max-w-xl mx-auto">Submit your resume to our talent pool. Our leadership reviews submissions for future opportunities and firm referrals.</p>
+            </div>
+            <ResumeBookSection />
+          </div>
+
           {/* Team Sections */}
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
             <div className="text-center">
@@ -709,6 +718,265 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
                 {submitting ? 'Submitting...' : 'Submit Application'}
               </Button>
             </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Resume Book Section ───────────────────────────────────────────────
+const FACULTY_OPTIONS = [
+  {
+    value: 'engineering',
+    label: 'Engineering',
+    subs: [
+      { value: 'electrical_engineering', label: 'Electrical Engineering' },
+      { value: 'mechanical_engineering', label: 'Mechanical Engineering' },
+      { value: 'industrial_engineering', label: 'Industrial Engineering' },
+      { value: 'engineering_science', label: 'Engineering Science' },
+      { value: 'chemical_engineering', label: 'Chemical Engineering' },
+      { value: 'materials_engineering', label: 'Materials Engineering' },
+      { value: 'civil_engineering', label: 'Civil Engineering' },
+    ],
+  },
+  {
+    value: 'arts_science',
+    label: 'Arts & Science',
+    subs: [
+      { value: 'economics', label: 'Economics' },
+      { value: 'philosophy', label: 'Philosophy' },
+      { value: 'marketing', label: 'Marketing' },
+      { value: 'mathematics', label: 'Mathematics' },
+      { value: 'computer_science', label: 'Computer Science' },
+    ],
+  },
+  {
+    value: 'rotman',
+    label: 'Rotman Commerce',
+    subs: [],
+  },
+];
+
+const INTERNSHIP_FIELDS = [
+  { value: 'finance', label: 'Finance' },
+  { value: 'tech', label: 'Technology' },
+  { value: 'research', label: 'Research' },
+  { value: 'other', label: 'Other' },
+];
+
+function ResumeBookSection() {
+  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    faculty: '',
+    subfaculty: '',
+    internshipCount: '0',
+    internshipFields: [] as string[],
+    resumeFile: '',
+  });
+
+  const selectedFaculty = FACULTY_OPTIONS.find(f => f.value === form.faculty);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { alert('File must be under 10MB'); return; }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      if (res.ok) {
+        const data = await res.json();
+        setForm(prev => ({ ...prev, resumeFile: data.url }));
+      } else {
+        alert('Upload failed – please try again.');
+      }
+    } catch {
+      alert('Upload failed – please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const toggleField = (val: string) => {
+    setForm(prev => ({
+      ...prev,
+      internshipFields: prev.internshipFields.includes(val)
+        ? prev.internshipFields.filter(f => f !== val)
+        : [...prev.internshipFields, val],
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.resumeFile) { alert('Please upload your resume PDF first.'); return; }
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/resume-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, internshipCount: Number(form.internshipCount) }),
+      });
+      if (res.ok) {
+        setSubmitted(true);
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Submission failed.');
+      }
+    } catch {
+      alert('Submission failed. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (submitted) {
+    return (
+      <div className="max-w-xl mx-auto text-center py-10 bg-white/5 border border-white/10 rounded-2xl px-8">
+        <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+          <FileText className="w-8 h-8 text-green-400" />
+        </div>
+        <h4 className="text-xl font-semibold text-white mb-2">Resume Submitted!</h4>
+        <p className="text-white/70">Thank you, {form.name}. We&apos;ll keep your resume on file for future opportunities.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto">
+      <Card className="bg-white/5 border-white/10">
+        <CardContent className="pt-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Name + Email */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-white/80 mb-1">Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={form.name}
+                  onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-white/50"
+                  placeholder="Jane Smith"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-white/80 mb-1">Email *</label>
+                <input
+                  type="email"
+                  required
+                  value={form.email}
+                  onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-white/50"
+                  placeholder="jane@mail.utoronto.ca"
+                />
+              </div>
+            </div>
+
+            {/* Faculty */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-white/80 mb-1">Faculty *</label>
+                <select
+                  required
+                  value={form.faculty}
+                  onChange={e => setForm(p => ({ ...p, faculty: e.target.value, subfaculty: '' }))}
+                  className="w-full px-3 py-2 bg-[#030116] border border-white/20 rounded-md text-white focus:outline-none focus:border-white/50"
+                >
+                  <option value="">Select faculty…</option>
+                  {FACULTY_OPTIONS.map(f => (
+                    <option key={f.value} value={f.value}>{f.label}</option>
+                  ))}
+                </select>
+              </div>
+              {selectedFaculty && selectedFaculty.subs.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-white/80 mb-1">Program *</label>
+                  <select
+                    required
+                    value={form.subfaculty}
+                    onChange={e => setForm(p => ({ ...p, subfaculty: e.target.value }))}
+                    className="w-full px-3 py-2 bg-[#030116] border border-white/20 rounded-md text-white focus:outline-none focus:border-white/50"
+                  >
+                    <option value="">Select program…</option>
+                    {selectedFaculty.subs.map(s => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Internship count */}
+            <div>
+              <label className="block text-sm font-medium text-white/80 mb-1">Number of Previous Internships</label>
+              <select
+                value={form.internshipCount}
+                onChange={e => setForm(p => ({ ...p, internshipCount: e.target.value }))}
+                className="w-full px-3 py-2 bg-[#030116] border border-white/20 rounded-md text-white focus:outline-none focus:border-white/50"
+              >
+                {['0', '1', '2', '3', '4', '5'].map(n => (
+                  <option key={n} value={n}>{n === '5' ? '5 or more' : n}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Internship fields */}
+            <div>
+              <label className="block text-sm font-medium text-white/80 mb-2">Field(s) of Internship (select all that apply)</label>
+              <div className="flex flex-wrap gap-2">
+                {INTERNSHIP_FIELDS.map(f => (
+                  <button
+                    key={f.value}
+                    type="button"
+                    onClick={() => toggleField(f.value)}
+                    className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                      form.internshipFields.includes(f.value)
+                        ? 'bg-blue-500 border-blue-400 text-white'
+                        : 'bg-white/10 border-white/20 text-white/70 hover:bg-white/20'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Resume upload */}
+            <div>
+              <label className="block text-sm font-medium text-white/80 mb-1">Resume PDF *</label>
+              <div className="border-2 border-dashed border-white/20 rounded-lg p-5 text-center">
+                {form.resumeFile ? (
+                  <div className="space-y-2">
+                    <p className="text-green-400 text-sm font-medium">✓ Resume uploaded</p>
+                    <a href={form.resumeFile} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline">
+                      View uploaded file
+                    </a>
+                    <div>
+                      <label className="cursor-pointer text-xs text-white/50 hover:text-white/70">
+                        Replace file
+                        <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" disabled={uploading} />
+                      </label>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="cursor-pointer">
+                    <FileText className="w-10 h-10 text-white/30 mx-auto mb-2" />
+                    <p className="text-sm text-white/60">{uploading ? 'Uploading…' : 'Click to upload your resume (PDF, max 10MB)'}</p>
+                    <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" disabled={uploading} />
+                  </label>
+                )}
+              </div>
+            </div>
+
+            <Button type="submit" className="w-full" disabled={submitting || uploading}>
+              {submitting ? 'Submitting…' : 'Submit Resume'}
+            </Button>
           </form>
         </CardContent>
       </Card>

@@ -370,6 +370,18 @@ model ReportComment {
   report                EquityResearchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 }
 
+model ResumeSubmission {
+  id               String   @id @default(cuid())
+  name             String
+  email            String
+  faculty          String   // "engineering" | "arts_science" | "rotman"
+  subfaculty       String?  // specific program within faculty
+  internshipCount  Int      @default(0)
+  internshipFields String[] @default([]) // "finance" | "tech" | "research" | "other"
+  resumeFile       String   // PDF URL (Vercel Blob)
+  createdAt        DateTime @default(now())
+}
+
 model SavedDCFModel {
   id                    String   @id @default(cuid())
   ticker                String
