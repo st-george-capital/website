@@ -784,7 +784,7 @@ function ResumeBookSection() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) { alert('File must be under 10MB'); return; }
+    if (file.size > 2 * 1024 * 1024) { alert('File must be under 2MB'); return; }
     setUploading(true);
     try {
       const fd = new FormData();
@@ -967,7 +967,7 @@ function ResumeBookSection() {
                 ) : (
                   <label className="cursor-pointer">
                     <FileText className="w-10 h-10 text-white/30 mx-auto mb-2" />
-                    <p className="text-sm text-white/60">{uploading ? 'Uploading…' : 'Click to upload your resume (PDF, max 10MB)'}</p>
+                    <p className="text-sm text-white/60">{uploading ? 'Uploading…' : 'Click to upload your resume (PDF, max 2MB)'}</p>
                     <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" disabled={uploading} />
                   </label>
                 )}
