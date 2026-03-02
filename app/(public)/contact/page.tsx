@@ -581,8 +581,8 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) { // 10MB limit
-        alert('File size must be less than 10MB');
+      if (file.size > 2 * 1024 * 1024) {
+        alert('File size must be less than 2MB');
         return;
       }
       handleFileUpload(file);
@@ -696,7 +696,7 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Accepted formats: PDF, DOC, DOCX (max 10MB)
+                Accepted formats: PDF, DOC, DOCX (max 2MB)
               </p>
             </div>
 
@@ -705,7 +705,7 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
                 type="button"
                 variant="outline"
                 onClick={onClose}
-                className="flex-1"
+                className="flex-1 text-gray-900 border-gray-400"
                 disabled={submitting}
               >
                 Cancel
