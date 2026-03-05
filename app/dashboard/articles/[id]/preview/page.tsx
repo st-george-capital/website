@@ -7,6 +7,8 @@ import { Section } from '@/components/section';
 import { Button } from '@/components/button';
 import { ArrowLeft, Calendar, User, Edit, Eye } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 
 interface Article {
   id: string;
@@ -162,6 +164,8 @@ export default function ArticlePreviewPage() {
           <div className="max-w-4xl mx-auto">
             <div className="prose prose-lg max-w-none">
               <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw]}
                 components={{
                   h1: ({ node, ...props }) => (
                     <h1 className="font-serif text-4xl font-bold mt-12 mb-6" {...props} />
@@ -176,13 +180,13 @@ export default function ArticlePreviewPage() {
                     <p className="mb-6 text-gray-700 leading-relaxed" {...props} />
                   ),
                   ul: ({ node, ...props }) => (
-                    <ul className="mb-6 space-y-2 list-disc list-inside" {...props} />
+                    <ul className="mb-6 space-y-1 list-disc pl-6" {...props} />
                   ),
                   ol: ({ node, ...props }) => (
-                    <ol className="mb-6 space-y-2 list-decimal list-inside" {...props} />
+                    <ol className="mb-6 space-y-1 list-decimal pl-6" {...props} />
                   ),
                   li: ({ node, ...props }) => (
-                    <li className="text-gray-700" {...props} />
+                    <li className="text-gray-700 leading-relaxed" {...props} />
                   ),
                   blockquote: ({ node, ...props }) => (
                     <blockquote
@@ -207,6 +211,23 @@ export default function ArticlePreviewPage() {
                     ) : (
                       <code className="block bg-gray-900 text-gray-100 p-4 rounded-lg my-6 overflow-x-auto" {...props} />
                     ),
+                  table: ({ node, ...props }) => (
+                    <div className="overflow-x-auto my-6">
+                      <table className="w-full border-collapse text-sm" {...props} />
+                    </div>
+                  ),
+                  thead: ({ node, ...props }) => (
+                    <thead className="bg-gray-100" {...props} />
+                  ),
+                  th: ({ node, ...props }) => (
+                    <th className="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-800" {...props} />
+                  ),
+                  td: ({ node, ...props }) => (
+                    <td className="border border-gray-300 px-4 py-2 text-gray-700" {...props} />
+                  ),
+                  tr: ({ node, ...props }) => (
+                    <tr className="even:bg-gray-50" {...props} />
+                  ),
                 }}
               >
                 {article.content}
