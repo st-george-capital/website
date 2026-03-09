@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Send, Save, Eye, EyeOff, CheckCircle, Loader2, RefreshCw, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { ArrowLeft, Send, Save, Eye, EyeOff, CheckCircle, Loader2, RefreshCw, TrendingUp, TrendingDown, Minus, X, Mail, Users, Hash } from 'lucide-react';
 import { Button } from '@/components/button';
 import { buildNewsletterEmail, MarketRow } from '@/lib/newsletter-email';
 
@@ -149,6 +149,7 @@ export default function NewsletterEditionPage() {
   const [dirty, setDirty] = useState(false);
   const [marketData, setMarketData] = useState<MarketRow[]>([]);
   const [marketLoading, setMarketLoading] = useState(true);
+  const [showSendModal, setShowSendModal] = useState(false);
 
   const loadMarket = useCallback(async () => {
     setMarketLoading(true);
@@ -198,8 +199,8 @@ export default function NewsletterEditionPage() {
     setDirty(false);
   }
 
-  async function handleSend() {
-    if (!confirm(`Send Issue #${edition?.issueNumber} to ${subscriberCount} subscriber${subscriberCount !== 1 ? 's' : ''}? This will fetch live market data at send time.`)) return;
+  async function handleConfirmSend() {
+    setShowSendModal(false);
     setSending(true);
     setSendResult(null);
 
@@ -272,7 +273,7 @@ export default function NewsletterEditionPage() {
                 <Save size={15} /> {saving ? 'Saving…' : 'Save'}
               </Button>
               <Button
-                onClick={handleSend}
+                onClick={() => setShowSendModal(true)}
                 disabled={sending}
                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
               >
@@ -354,6 +355,81 @@ export default function NewsletterEditionPage() {
           </div>
         )}
       </div>
+
+      {/* ── Pre-send review modal ── */}
+      {showSendModal && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-gray-950/80 backdrop-blur-sm">
+          {/* Modal header */}
+          <div className="flex-none bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
+                <Send size={16} className="text-blue-600" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-gray-900">Review before sending</h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Confirm this is exactly what you want subscribers to receive
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowSendModal(false)}
+              className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Meta strip */}
+          <div className="flex-none bg-gray-50 border-b border-gray-200 px-6 py-3 flex items-center gap-6 text-sm">
+            <div className="flex items-center gap-2 text-gray-600">
+              <Hash size={13} className="text-gray-400" />
+              <span className="font-medium text-gray-800">Issue #{edition.issueNumber}</span>
+            </div>
+            <div className="flex items-center gap-2 text-gray-600">
+              <Mail size={13} className="text-gray-400" />
+              <span>Subject: <span className="font-medium text-gray-800">SGC Daily Snapshot | Issue #{edition.issueNumber}: {title}</span></span>
+            </div>
+            <div className="flex items-center gap-2 text-gray-600 ml-auto">
+              <Users size={13} className="text-gray-400" />
+              <span>Sending to <span className="font-semibold text-blue-600">{subscriberCount} subscriber{subscriberCount !== 1 ? 's' : ''}</span></span>
+            </div>
+          </div>
+
+          {/* Full email preview */}
+          <div className="flex-1 overflow-hidden bg-gray-100">
+            <iframe
+              srcDoc={previewHtml}
+              title="Pre-send Email Preview"
+              className="w-full h-full border-0"
+              style={{ minHeight: 0 }}
+            />
+          </div>
+
+          {/* Action footer */}
+          <div className="flex-none bg-white border-t border-gray-200 px-6 py-4 flex items-center justify-between">
+            <p className="text-xs text-gray-400">
+              Live market data will be re-fetched at the moment of sending.
+            </p>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowSendModal(false)}
+                className="text-gray-700"
+              >
+                Go back & edit
+              </Button>
+              <Button
+                onClick={handleConfirmSend}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6"
+              >
+                <Send size={14} />
+                Confirm & Send to {subscriberCount} subscribers
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
