@@ -19,6 +19,19 @@ export interface MarketRow {
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+/** Run AV calls sequentially with a stagger to avoid burst throttling */
+async function sequential<T>(
+  fns: Array<() => Promise<T | null>>,
+  staggerMs = 400
+): Promise<Array<T | null>> {
+  const results: Array<T | null> = [];
+  for (const fn of fns) {
+    results.push(await fn());
+    await delay(staggerMs);
+  }
+  return results;
+}
+
 function isAvLimited(data: any): boolean {
   return !!(data?.Note || data?.Information || data?.['Error Message']);
 }
@@ -147,49 +160,49 @@ function spread(q: { price: number; change: number; changePercent: number } | nu
   return { price: q?.price ?? null, change: q?.change ?? null, changePercent: q?.changePercent ?? null };
 }
 
-// ─── Main handler — batched to respect AV rate limits ────────────────────────
+// ─── Main handler — sequential AV calls to avoid burst throttling ─────────────
 export async function GET() {
-  // ── Batch 1: Equity ETFs (5 calls) ──────────────────────────────────────
-  // DIA multiplier = 100: DIA was designed to trade at exactly 1/100th of DJIA
-  // so DIA × 100 gives the approximate Dow Jones level (~47,500).
-  const [qqq, dia, fez, ewj, ewh] = await Promise.all([
-    fetchQuote('QQQ'),        // NASDAQ 100 ETF — value meaningful as-is
-    fetchQuote('DIA', 100),   // Dow Jones: ×100 → approximate DJIA level
-    fetchQuote('FEZ'),        // Euro Stoxx 50 ETF
-    fetchQuote('EWJ'),        // Japan (Nikkei proxy) ETF
-    fetchQuote('EWH'),        // Hong Kong (Hang Seng proxy) ETF
+  // All Alpha Vantage calls run sequentially with 400ms between each.
+  // The route-level revalidate=300 means this only executes once per 5 min,
+  // so the ~8s total fetch time is not felt by users after the first load.
+
+  // ── Equity ETFs (5 AV calls) ────────────────────────────────────────────
+  // DIA multiplier=100: DIA is designed to track exactly 1/100th of DJIA
+  const [qqq, dia, fez, ewj, ewh] = await sequential([
+    () => fetchQuote('QQQ'),
+    () => fetchQuote('DIA', 100),  // ×100 → approximate DJIA level (~47,500)
+    () => fetchQuote('FEZ'),
+    () => fetchQuote('EWJ'),
+    () => fetchQuote('EWH'),
   ]);
 
-  // 800ms pause — mirrors DCF tool's inter-batch delay
-  await delay(800);
-
-  // ── Batch 2: FX spot rates (4 calls) ────────────────────────────────────
-  const [rUSDCAD, rEURUSD, rGBPUSD, rUSDJPY] = await Promise.all([
-    fetchFxRate('USD', 'CAD'),
-    fetchFxRate('EUR', 'USD'),
-    fetchFxRate('GBP', 'USD'),
-    fetchFxRate('USD', 'JPY'),
+  // ── FX spot rates (4 AV calls) ───────────────────────────────────────────
+  const [rUSDCAD, rEURUSD, rGBPUSD, rUSDJPY] = await sequential([
+    () => fetchFxRate('USD', 'CAD'),
+    () => fetchFxRate('EUR', 'USD'),
+    () => fetchFxRate('GBP', 'USD'),
+    () => fetchFxRate('USD', 'JPY'),
   ]);
 
-  await delay(800);
-
-  // ── Batch 3: FX previous closes (4 calls) ───────────────────────────────
-  const [pUSDCAD, pEURUSD, pGBPUSD, pUSDJPY] = await Promise.all([
-    fetchFxPrevClose('USD', 'CAD'),
-    fetchFxPrevClose('EUR', 'USD'),
-    fetchFxPrevClose('GBP', 'USD'),
-    fetchFxPrevClose('USD', 'JPY'),
+  // ── FX previous closes for change (4 AV calls) ──────────────────────────
+  const [pUSDCAD, pEURUSD, pGBPUSD, pUSDJPY] = await sequential([
+    () => fetchFxPrevClose('USD', 'CAD'),
+    () => fetchFxPrevClose('EUR', 'USD'),
+    () => fetchFxPrevClose('GBP', 'USD'),
+    () => fetchFxPrevClose('USD', 'JPY'),
   ]);
 
-  await delay(800);
+  // ── Treasury yields + commodities (5 AV calls) ──────────────────────────
+  const [us2y, us10y, gld, slv, vixy] = await sequential([
+    () => fetchTreasuryYield('2year'),
+    () => fetchTreasuryYield('10year'),
+    () => fetchQuote('GLD'),
+    () => fetchQuote('SLV'),
+    () => fetchQuote('VIXY'),
+  ]);
 
-  // ── Batch 4: Rates + commodities (5 AV + 2 FRED) ────────────────────────
-  const [us2y, us10y, gld, slv, vixy, de10y, jp10y] = await Promise.all([
-    fetchTreasuryYield('2year'),
-    fetchTreasuryYield('10year'),
-    fetchQuote('GLD'),
-    fetchQuote('SLV'),
-    fetchQuote('VIXY'),
+  // ── FRED bond yields run in parallel — different API, no AV limits ───────
+  const [de10y, jp10y] = await Promise.all([
     fetchFredYield('IRLTLT01DEM156N'),
     fetchFredYield('IRLTLT01JPM156N'),
   ]);
