@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Send, Save, Eye, EyeOff, CheckCircle, Loader2, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowLeft, Send, Save, Eye, EyeOff, CheckCircle, Loader2, RefreshCw, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Button } from '@/components/button';
 import { buildNewsletterEmail, MarketRow } from '@/lib/newsletter-email';
 
@@ -18,29 +18,58 @@ interface Edition {
   createdAt: string;
 }
 
-function formatPrice(row: MarketRow): string {
+const GROUP_LABELS: Record<string, string> = {
+  equities: 'Equities',
+  asia: 'Asia',
+  fx: 'FX',
+  rates: 'Rates',
+  commodities: 'Commodities & Volatility',
+};
+
+function fmtPrice(row: MarketRow): string {
   if (row.price === null) return '—';
-  if (row.category === 'fx') return row.price.toFixed(4);
+  if (row.category === 'yield') return `${row.price.toFixed(2)}%`;
+  if (row.category === 'fx') return row.ticker === 'USDJPY' ? row.price.toFixed(2) : row.price.toFixed(4);
   if (row.price >= 1000) return row.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return row.price.toFixed(2);
 }
 
+function fmtChange(row: MarketRow): string {
+  if (row.change === null) return '—';
+  const sign = row.change >= 0 ? '+' : '';
+  if (row.category === 'yield') return `${sign}${(row.change * 100).toFixed(1)} bps`;
+  if (row.category === 'fx') return row.ticker === 'USDJPY' ? `${sign}${row.change.toFixed(2)}` : `${sign}${row.change.toFixed(4)}`;
+  return `${sign}${row.change.toFixed(2)}`;
+}
+
+function fmtPct(row: MarketRow): string {
+  if (row.category === 'yield') return '';
+  if (row.changePercent === null) return '';
+  const sign = row.changePercent >= 0 ? '+' : '';
+  return `${sign}${row.changePercent.toFixed(2)}%`;
+}
+
 function MarketTable({ rows, loading, onRefresh }: { rows: MarketRow[]; loading: boolean; onRefresh: () => void }) {
+  // Group by group field
+  const groupOrder: string[] = [];
+  const grouped: Record<string, MarketRow[]> = {};
+  for (const row of rows) {
+    const g = row.group ?? 'equities';
+    if (!grouped[g]) { grouped[g] = []; groupOrder.push(g); }
+    grouped[g].push(row);
+  }
+
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
       <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50">
         <div className="flex items-center gap-2">
           <TrendingUp size={14} className="text-gray-400" />
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Live Market Snapshot</span>
-          <span className="text-xs text-gray-400">— embedded in sent email</span>
+          <span className="text-xs text-gray-400">— auto-embedded in sent email</span>
         </div>
-        <button
-          onClick={onRefresh}
-          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 transition-colors"
-          disabled={loading}
-        >
-          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-          Refresh
+        <button onClick={onRefresh} disabled={loading}
+          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 transition-colors">
+          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> Refresh
         </button>
       </div>
 
@@ -52,40 +81,51 @@ function MarketTable({ rows, loading, onRefresh }: { rows: MarketRow[]; loading:
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100">
-                <th className="px-5 py-2.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Instrument</th>
-                <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">Price</th>
-                <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">Change</th>
-                <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide pr-5">24h %</th>
+              <tr className="border-b-2 border-gray-100">
+                <th className="px-5 py-2.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide w-48">Instrument</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">Value</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">Change</th>
+                <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">24h %</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
-              {rows.map((row, i) => {
-                const isUp = (row.changePercent ?? 0) >= 0;
-                const colorClass = row.changePercent === null ? 'text-gray-400' : isUp ? 'text-green-600' : 'text-red-600';
-                const bgClass = i % 2 === 0 ? '' : 'bg-gray-50/50';
-                return (
-                  <tr key={row.ticker} className={bgClass}>
-                    <td className="px-5 py-2.5 font-medium text-gray-900">{row.name}</td>
-                    <td className="px-5 py-2.5 text-right font-mono text-gray-700">
-                      {row.price === null ? <span className="text-gray-300">—</span> : formatPrice(row)}
-                    </td>
-                    <td className={`px-5 py-2.5 text-right font-mono ${colorClass}`}>
-                      {row.change === null ? '—' : (
-                        <span>{isUp ? '+' : ''}{row.change.toFixed(row.category === 'fx' ? 4 : 2)}</span>
-                      )}
-                    </td>
-                    <td className={`px-5 py-2.5 text-right font-semibold pr-5 ${colorClass}`}>
-                      {row.changePercent === null ? '—' : (
-                        <span className="inline-flex items-center gap-1">
-                          {isUp ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-                          {isUp ? '+' : ''}{row.changePercent.toFixed(2)}%
-                        </span>
-                      )}
+            <tbody>
+              {groupOrder.map(g => (
+                <>
+                  <tr key={`group-${g}`} className="bg-gray-50/70">
+                    <td colSpan={4} className="px-5 py-1.5">
+                      <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">
+                        {GROUP_LABELS[g] ?? g}
+                      </span>
                     </td>
                   </tr>
-                );
-              })}
+                  {grouped[g].map((row, i) => {
+                    const isUp = (row.changePercent ?? 0) >= 0;
+                    const isFlat = row.change === null || Math.abs(row.change ?? 0) < 0.0001;
+                    const clr = isFlat ? 'text-gray-400' : isUp ? 'text-green-600' : 'text-red-600';
+                    return (
+                      <tr key={row.ticker} className={i % 2 === 0 ? '' : 'bg-gray-50/40'}>
+                        <td className="px-5 py-2 font-medium text-gray-900 text-xs">{row.name}</td>
+                        <td className="px-4 py-2 text-right font-mono text-gray-700 text-xs">
+                          {row.price === null ? <span className="text-gray-300">—</span> : fmtPrice(row)}
+                        </td>
+                        <td className={`px-4 py-2 text-right font-mono text-xs ${clr}`}>
+                          {fmtChange(row)}
+                        </td>
+                        <td className={`px-5 py-2 text-right font-semibold text-xs ${clr}`}>
+                          {isFlat ? (
+                            <Minus size={11} className="inline text-gray-300" />
+                          ) : (
+                            <span className="inline-flex items-center justify-end gap-0.5">
+                              {isUp ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+                              {fmtPct(row)}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </>
+              ))}
             </tbody>
           </table>
         </div>

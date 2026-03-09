@@ -11,7 +11,8 @@ export interface MarketRow {
   price: number | null;
   change: number | null;
   changePercent: number | null;
-  category: 'equity' | 'fx' | 'commodity';
+  category: 'equity' | 'fx' | 'commodity' | 'yield' | 'volatility';
+  group?: 'equities' | 'asia' | 'fx' | 'rates' | 'commodities';
 }
 
 export function buildNewsletterEmail(opts: {
@@ -124,63 +125,107 @@ export function buildNewsletterEmail(opts: {
 
 // ─── Market table ────────────────────────────────────────────────────────────
 
+const GROUP_LABELS: Record<string, string> = {
+  equities: 'Equities',
+  asia: 'Asia',
+  fx: 'FX',
+  rates: 'Rates',
+  commodities: 'Commodities & Volatility',
+};
+
 function buildMarketTable(rows: MarketRow[]): string {
+  // Bucket rows by group, preserving order of first appearance
+  const groupOrder: string[] = [];
+  const grouped: Record<string, MarketRow[]> = {};
+  for (const row of rows) {
+    const g = row.group ?? 'equities';
+    if (!grouped[g]) { grouped[g] = []; groupOrder.push(g); }
+    grouped[g].push(row);
+  }
+
   const header = `
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:4px;">
-      <tr>
-        <td colspan="3" style="padding-bottom:10px;">
-          <p style="margin:0;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#6b7280;">
-            Market Snapshot
-          </p>
-        </td>
-      </tr>
-    </table>`;
+    <p style="margin:0 0 10px 0;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#6b7280;">
+      Market Snapshot
+    </p>`;
 
-  const tableRows = rows.map((row, i) => {
-    const isUp = (row.changePercent ?? 0) >= 0;
-    const color = isUp ? '#15803d' : '#b91c1c';
-    const bg = i % 2 === 0 ? '#ffffff' : '#f8fafc';
-    const arrow = isUp ? '▲' : '▼';
-
-    const priceStr = formatPrice(row);
-    const changeStr = row.change !== null
-      ? `${isUp ? '+' : ''}${row.change.toFixed(row.category === 'fx' ? 4 : 2)}`
-      : '—';
-    const pctStr = row.changePercent !== null
-      ? `${isUp ? '+' : ''}${row.changePercent.toFixed(2)}%`
-      : '—';
-
-    return `<tr style="background-color:${bg};">
-      <td style="padding:7px 10px 7px 0;font-size:13px;font-weight:600;color:#111827;white-space:nowrap;border-bottom:1px solid #f1f5f9;">
-        ${escapeHtml(row.name)}
-      </td>
-      <td style="padding:7px 16px 7px 0;font-size:13px;color:#374151;text-align:right;white-space:nowrap;border-bottom:1px solid #f1f5f9;">
-        ${priceStr}
-      </td>
-      <td style="padding:7px 0;font-size:12px;font-weight:600;color:${color};text-align:right;white-space:nowrap;border-bottom:1px solid #f1f5f9;">
-        ${arrow} ${changeStr} &nbsp;(${pctStr})
-      </td>
+  const colHeader = `
+    <tr style="border-bottom:2px solid #e5e7eb;">
+      <th style="padding:5px 8px 5px 0;text-align:left;font-size:9px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;">Instrument</th>
+      <th style="padding:5px 14px 5px 0;text-align:right;font-size:9px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;">Value</th>
+      <th style="padding:5px 0;text-align:right;font-size:9px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;">24h Change</th>
     </tr>`;
+
+  let rowIdx = 0;
+  const sectionBlocks = groupOrder.map(g => {
+    const groupRows = grouped[g];
+    const label = GROUP_LABELS[g] ?? g;
+    const groupHeader = `
+      <tr>
+        <td colspan="3" style="padding:${rowIdx === 0 ? '2px' : '10px'} 0 4px 0;">
+          <span style="font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6366f1;">${label}</span>
+        </td>
+      </tr>`;
+
+    const dataRows = groupRows.map(row => {
+      const isUp = (row.changePercent ?? 0) >= 0;
+      const isFlat = row.changePercent === null || (row.change !== null && Math.abs(row.change) < 0.0001);
+      const color = isFlat ? '#6b7280' : isUp ? '#15803d' : '#b91c1c';
+      const bg = rowIdx++ % 2 === 0 ? '#ffffff' : '#f8fafc';
+      const arrow = isFlat ? '—' : isUp ? '▲' : '▼';
+
+      const priceStr = formatPrice(row);
+      const changeStr = formatChange(row);
+      const pctStr = formatPct(row);
+
+      return `<tr style="background-color:${bg};">
+        <td style="padding:6px 8px 6px 0;font-size:12px;font-weight:600;color:#111827;white-space:nowrap;border-bottom:1px solid #f1f5f9;">${escapeHtml(row.name)}</td>
+        <td style="padding:6px 14px 6px 0;font-size:12px;font-family:monospace;color:#374151;text-align:right;white-space:nowrap;border-bottom:1px solid #f1f5f9;">${priceStr}</td>
+        <td style="padding:6px 0;font-size:11px;font-weight:600;color:${color};text-align:right;white-space:nowrap;border-bottom:1px solid #f1f5f9;">${isFlat ? '—' : `${arrow}&nbsp;${changeStr}&nbsp;(${pctStr})`}</td>
+      </tr>`;
+    }).join('');
+
+    return groupHeader + dataRows;
   }).join('');
 
   return `${header}
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
-      <thead>
-        <tr style="border-bottom:2px solid #e5e7eb;">
-          <th style="padding:6px 10px 6px 0;text-align:left;font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;">Instrument</th>
-          <th style="padding:6px 16px 6px 0;text-align:right;font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;">Price</th>
-          <th style="padding:6px 0;text-align:right;font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;">24h Change</th>
-        </tr>
-      </thead>
-      <tbody>${tableRows}</tbody>
+      <thead>${colHeader}</thead>
+      <tbody>${sectionBlocks}</tbody>
     </table>`;
 }
 
 function formatPrice(row: MarketRow): string {
   if (row.price === null) return '—';
-  if (row.category === 'fx') return row.price.toFixed(4);
+  if (row.category === 'yield') return `${row.price.toFixed(2)}%`;
+  if (row.category === 'fx') {
+    // JPY pairs show 2 decimals; others show 4
+    return row.ticker === 'USDJPY' ? row.price.toFixed(2) : row.price.toFixed(4);
+  }
   if (row.price >= 1000) return row.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return row.price.toFixed(2);
+}
+
+function formatChange(row: MarketRow): string {
+  if (row.change === null) return '—';
+  const sign = row.change >= 0 ? '+' : '';
+  if (row.category === 'yield') {
+    // Show change in basis points
+    const bps = row.change * 100;
+    return `${sign}${bps.toFixed(1)} bps`;
+  }
+  if (row.category === 'fx') {
+    return row.ticker === 'USDJPY'
+      ? `${sign}${row.change.toFixed(2)}`
+      : `${sign}${row.change.toFixed(4)}`;
+  }
+  return `${sign}${row.change.toFixed(2)}`;
+}
+
+function formatPct(row: MarketRow): string {
+  if (row.category === 'yield') return ''; // bps already shown
+  if (row.changePercent === null) return '—';
+  const sign = row.changePercent >= 0 ? '+' : '';
+  return `${sign}${row.changePercent.toFixed(2)}%`;
 }
 
 // ─── Content parser ───────────────────────────────────────────────────────────
