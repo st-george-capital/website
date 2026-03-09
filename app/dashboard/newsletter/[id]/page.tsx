@@ -143,7 +143,7 @@ export default function NewsletterEditionPage() {
   const [showPreview, setShowPreview] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
-  const [sendResult, setSendResult] = useState<{ sent?: number; failed?: number; error?: string } | null>(null);
+  const [sendResult, setSendResult] = useState<{ sent?: number; failed?: number; error?: string; errorSample?: string; fromEmail?: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [subscriberCount, setSubscriberCount] = useState(0);
   const [dirty, setDirty] = useState(false);
@@ -209,8 +209,10 @@ export default function NewsletterEditionPage() {
     setSending(false);
 
     if (res.ok) {
-      setSendResult({ sent: data.sent, failed: data.failed });
-      setEdition(prev => prev ? { ...prev, status: 'sent', sentAt: new Date().toISOString(), recipientCount: data.sent } : prev);
+      setSendResult({ sent: data.sent, failed: data.failed, errorSample: data.errorSample, fromEmail: data.fromEmail });
+      if (data.sent > 0) {
+        setEdition(prev => prev ? { ...prev, status: 'sent', sentAt: new Date().toISOString(), recipientCount: data.sent } : prev);
+      }
     } else {
       setSendResult({ error: data.error });
     }
@@ -287,17 +289,37 @@ export default function NewsletterEditionPage() {
 
       {/* Send result banner */}
       {sendResult && (
-        <div className={`mb-6 px-4 py-3 rounded-lg text-sm flex items-center gap-2 ${
-          sendResult.error ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-green-50 border border-green-200 text-green-700'
+        <div className={`mb-6 px-4 py-3 rounded-lg text-sm ${
+          (sendResult.error || (sendResult.sent === 0 && (sendResult.failed ?? 0) > 0))
+            ? 'bg-red-50 border border-red-200 text-red-700'
+            : 'bg-green-50 border border-green-200 text-green-700'
         }`}>
           {sendResult.error ? (
-            <span>Error: {sendResult.error}</span>
+            <p>Error: {sendResult.error}</p>
+          ) : sendResult.sent === 0 && (sendResult.failed ?? 0) > 0 ? (
+            <div>
+              <p className="font-semibold">⚠ All {sendResult.failed} sends failed — email was NOT delivered.</p>
+              {sendResult.errorSample && (
+                <p className="mt-1 text-xs font-mono bg-red-100 rounded px-2 py-1 mt-1">{sendResult.errorSample}</p>
+              )}
+              {sendResult.fromEmail && (
+                <p className="mt-1 text-xs">Sending from: <code className="font-mono">{sendResult.fromEmail}</code> — check this domain is verified in your <a href="https://resend.com/domains" target="_blank" rel="noopener noreferrer" className="underline">Resend dashboard</a>.</p>
+              )}
+            </div>
           ) : (
-            <span>
-              <CheckCircle size={15} className="inline mr-1" />
-              Successfully sent to <strong>{sendResult.sent}</strong> subscribers.
-              {sendResult.failed ? ` (${sendResult.failed} failed)` : ''}
-            </span>
+            <div>
+              <p>
+                <CheckCircle size={15} className="inline mr-1" />
+                Successfully sent to <strong>{sendResult.sent}</strong> subscriber{sendResult.sent !== 1 ? 's' : ''}.
+                {(sendResult.failed ?? 0) > 0 && <span className="ml-2 text-amber-600">({sendResult.failed} failed)</span>}
+              </p>
+              {sendResult.fromEmail && (
+                <p className="mt-1 text-xs opacity-70">Sent from: <code className="font-mono">{sendResult.fromEmail}</code></p>
+              )}
+              {sendResult.errorSample && (
+                <p className="mt-1 text-xs font-mono bg-green-100 rounded px-2 py-1">{sendResult.errorSample}</p>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -389,6 +411,9 @@ export default function NewsletterEditionPage() {
             <div className="flex items-center gap-2 text-gray-600">
               <Mail size={13} className="text-gray-400" />
               <span>Subject: <span className="font-medium text-gray-800">SGC Daily Snapshot | Issue #{edition.issueNumber}: {title}</span></span>
+            </div>
+            <div className="flex items-center gap-2 text-gray-500 text-xs">
+              <span>From: <code className="font-mono">{process.env.NEXT_PUBLIC_NEWSLETTER_FROM || 'newsletter@stgeorgecapital.ca'}</code></span>
             </div>
             <div className="flex items-center gap-2 text-gray-600 ml-auto">
               <Users size={13} className="text-gray-400" />

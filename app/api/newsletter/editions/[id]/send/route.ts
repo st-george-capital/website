@@ -29,6 +29,14 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Validate Resend API key is configured
+    if (!process.env.RESEND_API_KEY) {
+      return NextResponse.json(
+        { error: 'RESEND_API_KEY is not configured in environment variables.' },
+        { status: 500 }
+      );
+    }
+
     const edition = await prisma.newsletterEdition.findUnique({
       where: { id: params.id },
     });
@@ -52,62 +60,79 @@ export async function POST(
       day: 'numeric',
     });
 
-    // Fetch live market data once and embed in every email
     const marketData = await fetchMarketSnapshot();
 
     let sent = 0;
-    const errors: string[] = [];
+    const failedEmails: string[] = [];
+    const errorDetails: string[] = [];
 
-    // Send in batches of 50 to respect rate limits
-    const batchSize = 50;
-    for (let i = 0; i < subscribers.length; i += batchSize) {
-      const batch = subscribers.slice(i, i + batchSize);
+    for (const sub of subscribers) {
+      const unsubscribeUrl = `${BASE_URL}/api/newsletter/subscribe?email=${encodeURIComponent(sub.email)}`;
+      const html = buildNewsletterEmail({
+        title: edition.title,
+        issueNumber: edition.issueNumber,
+        date: dateStr,
+        rawContent: edition.rawContent,
+        unsubscribeUrl,
+        marketData,
+      });
 
-      await Promise.all(
-        batch.map(async (sub) => {
-          const unsubscribeUrl = `${BASE_URL}/api/newsletter/subscribe?email=${encodeURIComponent(sub.email)}`;
-          const html = buildNewsletterEmail({
-            title: edition.title,
-            issueNumber: edition.issueNumber,
-            date: dateStr,
-            rawContent: edition.rawContent,
-            unsubscribeUrl,
-            marketData,
-          });
+      try {
+        const result = await resend.emails.send({
+          from: FROM_EMAIL,
+          to: sub.email,
+          subject: `SGC Daily Snapshot | Issue #${edition.issueNumber}: ${edition.title}`,
+          html,
+        });
 
-          try {
-            await resend.emails.send({
-              from: FROM_EMAIL,
-              to: sub.email,
-              subject: `SGC Daily Snapshot | Issue #${edition.issueNumber}: ${edition.title}`,
-              html,
-            });
-            sent++;
-          } catch (err) {
-            console.error(`Failed to send to ${sub.email}:`, err);
-            errors.push(sub.email);
-          }
-        })
-      );
+        // Resend SDK returns { data, error } — check both
+        if ((result as any).error) {
+          const errMsg = (result as any).error?.message ?? JSON.stringify((result as any).error);
+          console.error(`Resend rejected ${sub.email}:`, errMsg);
+          failedEmails.push(sub.email);
+          errorDetails.push(errMsg);
+        } else {
+          sent++;
+        }
+      } catch (err: any) {
+        const errMsg = err?.message ?? String(err);
+        console.error(`Failed to send to ${sub.email}:`, errMsg);
+        failedEmails.push(sub.email);
+        errorDetails.push(errMsg);
+      }
     }
 
-    await prisma.newsletterEdition.update({
-      where: { id: params.id },
-      data: {
-        status: 'sent',
-        sentAt: new Date(),
-        recipientCount: sent,
-      },
-    });
+    // Only mark as sent if at least one email actually went out
+    if (sent > 0) {
+      await prisma.newsletterEdition.update({
+        where: { id: params.id },
+        data: {
+          status: 'sent',
+          sentAt: new Date(),
+          recipientCount: sent,
+        },
+      });
+    }
+
+    // Surface the first unique error message to the admin
+    const uniqueErrors = [...new Set(errorDetails)];
+    const firstError = uniqueErrors[0];
 
     return NextResponse.json({
-      success: true,
+      success: sent > 0,
       sent,
-      failed: errors.length,
-      errors: errors.length > 0 ? errors : undefined,
+      failed: failedEmails.length,
+      fromEmail: FROM_EMAIL,
+      ...(failedEmails.length > 0 && {
+        failedEmails,
+        errorSample: firstError,
+      }),
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error sending newsletter:', error);
-    return NextResponse.json({ error: 'Failed to send newsletter' }, { status: 500 });
+    return NextResponse.json(
+      { error: error?.message ?? 'Failed to send newsletter' },
+      { status: 500 }
+    );
   }
 }
