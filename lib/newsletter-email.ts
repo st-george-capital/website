@@ -1,8 +1,18 @@
 /**
  * Converts raw pasted newsletter content into a styled HTML email.
- * Handles the format: numbered sections, • bullets, sub-heading labels (e.g. "Equities:"),
- * and strips inline image/source reference artifacts (￼ and [image]).
+ * Handles: numbered sections, bullet points (• or -), sub-heading labels (e.g. "Equities:"),
+ * **bold** inline text, and strips ￼ / [image] artifacts.
+ * Optionally injects a live market data table at the top.
  */
+
+export interface MarketRow {
+  name: string;
+  ticker: string;
+  price: number | null;
+  change: number | null;
+  changePercent: number | null;
+  category: 'equity' | 'fx' | 'commodity';
+}
 
 export function buildNewsletterEmail(opts: {
   title: string;
@@ -10,9 +20,11 @@ export function buildNewsletterEmail(opts: {
   date: string;
   rawContent: string;
   unsubscribeUrl: string;
+  marketData?: MarketRow[];
 }): string {
-  const { title, issueNumber, date, rawContent, unsubscribeUrl } = opts;
-  const html = parseContent(rawContent);
+  const { title, issueNumber, date, rawContent, unsubscribeUrl, marketData } = opts;
+  const bodyHtml = parseContent(rawContent);
+  const marketTableHtml = marketData && marketData.length > 0 ? buildMarketTable(marketData) : '';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -51,15 +63,25 @@ export function buildNewsletterEmail(opts: {
             </td>
           </tr>
 
-          <!-- DIVIDER BAR -->
+          <!-- GRADIENT DIVIDER -->
           <tr>
             <td style="height:4px;background:linear-gradient(90deg,#1a56db 0%,#7e3af2 50%,#c81e1e 100%);"></td>
           </tr>
 
+          ${marketTableHtml ? `
+          <!-- MARKET SNAPSHOT TABLE -->
+          <tr>
+            <td style="padding:24px 40px 8px;">
+              ${marketTableHtml}
+            </td>
+          </tr>
+          <tr><td style="padding:0 40px 8px;"><hr style="border:none;border-top:1px solid #e5e7eb;margin:0;" /></td></tr>
+          ` : ''}
+
           <!-- BODY -->
           <tr>
-            <td style="padding:36px 40px 24px;">
-              ${html}
+            <td style="padding:${marketTableHtml ? '24px' : '36px'} 40px 24px;">
+              ${bodyHtml}
             </td>
           </tr>
 
@@ -100,10 +122,72 @@ export function buildNewsletterEmail(opts: {
 </html>`;
 }
 
+// ─── Market table ────────────────────────────────────────────────────────────
+
+function buildMarketTable(rows: MarketRow[]): string {
+  const header = `
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:4px;">
+      <tr>
+        <td colspan="3" style="padding-bottom:10px;">
+          <p style="margin:0;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#6b7280;">
+            Market Snapshot
+          </p>
+        </td>
+      </tr>
+    </table>`;
+
+  const tableRows = rows.map((row, i) => {
+    const isUp = (row.changePercent ?? 0) >= 0;
+    const color = isUp ? '#15803d' : '#b91c1c';
+    const bg = i % 2 === 0 ? '#ffffff' : '#f8fafc';
+    const arrow = isUp ? '▲' : '▼';
+
+    const priceStr = formatPrice(row);
+    const changeStr = row.change !== null
+      ? `${isUp ? '+' : ''}${row.change.toFixed(row.category === 'fx' ? 4 : 2)}`
+      : '—';
+    const pctStr = row.changePercent !== null
+      ? `${isUp ? '+' : ''}${row.changePercent.toFixed(2)}%`
+      : '—';
+
+    return `<tr style="background-color:${bg};">
+      <td style="padding:7px 10px 7px 0;font-size:13px;font-weight:600;color:#111827;white-space:nowrap;border-bottom:1px solid #f1f5f9;">
+        ${escapeHtml(row.name)}
+      </td>
+      <td style="padding:7px 16px 7px 0;font-size:13px;color:#374151;text-align:right;white-space:nowrap;border-bottom:1px solid #f1f5f9;">
+        ${priceStr}
+      </td>
+      <td style="padding:7px 0;font-size:12px;font-weight:600;color:${color};text-align:right;white-space:nowrap;border-bottom:1px solid #f1f5f9;">
+        ${arrow} ${changeStr} &nbsp;(${pctStr})
+      </td>
+    </tr>`;
+  }).join('');
+
+  return `${header}
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+      <thead>
+        <tr style="border-bottom:2px solid #e5e7eb;">
+          <th style="padding:6px 10px 6px 0;text-align:left;font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;">Instrument</th>
+          <th style="padding:6px 16px 6px 0;text-align:right;font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;">Price</th>
+          <th style="padding:6px 0;text-align:right;font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;">24h Change</th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+    </table>`;
+}
+
+function formatPrice(row: MarketRow): string {
+  if (row.price === null) return '—';
+  if (row.category === 'fx') return row.price.toFixed(4);
+  if (row.price >= 1000) return row.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return row.price.toFixed(2);
+}
+
+// ─── Content parser ───────────────────────────────────────────────────────────
+
 function parseContent(raw: string): string {
-  // Strip inline image/source reference artifacts
   const cleaned = raw
-    .replace(/\uFFFC/g, '')  // Object Replacement Character (the ￼ boxes)
+    .replace(/\uFFFC/g, '')
     .replace(/\[image\]/gi, '')
     .replace(/[ \t]+\n/g, '\n')
     .trim();
@@ -115,12 +199,9 @@ function parseContent(raw: string): string {
   while (i < lines.length) {
     const line = lines[i].trim();
 
-    if (!line) {
-      i++;
-      continue;
-    }
+    if (!line) { i++; continue; }
 
-    // Numbered section header: e.g. "1. Executive Summary" or "1) Executive Summary"
+    // Numbered section header
     const sectionMatch = line.match(/^(\d+)[.)]\s+(.+)$/);
     if (sectionMatch) {
       blocks.push(renderSectionHeader(sectionMatch[1], sectionMatch[2]));
@@ -128,37 +209,28 @@ function parseContent(raw: string): string {
       continue;
     }
 
-    // Bullet with • or - or \t•
+    // Bullet list (• or -)
     if (line.startsWith('•') || line.startsWith('\t•') || (line.startsWith('-') && line.length > 2)) {
-      // Collect all consecutive bullets
       const bullets: string[] = [];
       while (i < lines.length) {
         const bl = lines[i].trim();
         if (bl.startsWith('•') || (bl.startsWith('-') && bl.length > 2)) {
           bullets.push(bl.replace(/^[•\-]\s*/, ''));
           i++;
-        } else {
-          break;
-        }
+        } else break;
       }
       blocks.push(renderBulletList(bullets));
       continue;
     }
 
-    // Sub-heading: a line that is just "Word:" or "Word/Word:" at the start (like "Equities:", "Rates/Bonds:")
+    // Sub-heading: "Equities:", "Rates/Bonds:", "Growth:" etc.
     const subheadMatch = line.match(/^([A-Z][A-Za-z /()&-]{1,40}):\s*(.*)$/);
     if (subheadMatch && subheadMatch[1].split(' ').length <= 4) {
-      const label = subheadMatch[1];
-      const rest = subheadMatch[2];
-      blocks.push(renderSubheading(label, rest));
+      blocks.push(renderSubheading(subheadMatch[1], subheadMatch[2]));
       i++;
       continue;
     }
 
-    // Market Regime Read label-value pairs: "Growth: Down. ..."
-    // Already handled by subheadMatch above.
-
-    // Plain paragraph
     blocks.push(renderParagraph(line));
     i++;
   }
@@ -167,8 +239,7 @@ function parseContent(raw: string): string {
 }
 
 function renderSectionHeader(num: string, text: string): string {
-  // Strip trailing reference artifacts from the heading text
-  const clean = stripTrailingArtifacts(text);
+  const clean = stripArtifacts(text);
   return `
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;margin-bottom:14px;">
       <tr>
@@ -181,43 +252,35 @@ function renderSectionHeader(num: string, text: string): string {
 }
 
 function renderBulletList(items: string[]): string {
-  const lis = items
-    .map(item => {
-      const clean = stripTrailingArtifacts(item);
-      return `<tr><td style="padding:4px 0 4px 8px;vertical-align:top;">
-        <table cellpadding="0" cellspacing="0" border="0"><tr>
-          <td style="padding-right:10px;padding-top:2px;vertical-align:top;color:#1a56db;font-size:16px;line-height:1;">•</td>
-          <td style="font-size:14px;color:#374151;line-height:1.65;">${inlineFormat(clean)}</td>
-        </tr></table>
-      </td></tr>`;
-    })
-    .join('');
+  const lis = items.map(item => {
+    const clean = stripArtifacts(item);
+    return `<tr><td style="padding:4px 0 4px 8px;vertical-align:top;">
+      <table cellpadding="0" cellspacing="0" border="0"><tr>
+        <td style="padding-right:10px;padding-top:2px;vertical-align:top;color:#1a56db;font-size:16px;line-height:1;">•</td>
+        <td style="font-size:14px;color:#374151;line-height:1.65;">${inlineFormat(clean)}</td>
+      </tr></table>
+    </td></tr>`;
+  }).join('');
   return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 12px 4px;">${lis}</table>`;
 }
 
 function renderSubheading(label: string, rest: string): string {
-  const cleanRest = stripTrailingArtifacts(rest);
+  const cleanRest = stripArtifacts(rest);
   return `<p style="margin:10px 0 5px 0;font-size:14px;color:#1e293b;line-height:1.65;">
     <span style="font-weight:700;color:#0f172a;">${escapeHtml(label)}:</span>${cleanRest ? ' ' + inlineFormat(cleanRest) : ''}
   </p>`;
 }
 
 function renderParagraph(text: string): string {
-  const clean = stripTrailingArtifacts(text);
+  const clean = stripArtifacts(text);
   if (!clean) return '';
   return `<p style="margin:0 0 12px 0;font-size:14px;color:#374151;line-height:1.7;">${inlineFormat(clean)}</p>`;
 }
 
-/** Strips trailing artifact characters and trims */
-function stripTrailingArtifacts(text: string): string {
-  return text
-    .replace(/\uFFFC/g, '')
-    .replace(/\[image\]/gi, '')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
+function stripArtifacts(text: string): string {
+  return text.replace(/\uFFFC/g, '').replace(/\[image\]/gi, '').replace(/\s{2,}/g, ' ').trim();
 }
 
-/** Converts **bold** and _italic_ markdown inline to HTML */
 function inlineFormat(text: string): string {
   return escapeHtml(text)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')

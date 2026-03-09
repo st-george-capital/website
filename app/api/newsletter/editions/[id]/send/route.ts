@@ -3,11 +3,21 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Resend } from 'resend';
-import { buildNewsletterEmail } from '@/lib/newsletter-email';
+import { buildNewsletterEmail, MarketRow } from '@/lib/newsletter-email';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const BASE_URL = process.env.NEXTAUTH_URL || 'https://stgeorgecapital.ca';
 const FROM_EMAIL = process.env.NEWSLETTER_FROM_EMAIL || 'newsletter@stgeorgecapital.ca';
+
+async function fetchMarketSnapshot(): Promise<MarketRow[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/newsletter/market-snapshot`);
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
 
 export async function POST(
   req: NextRequest,
@@ -42,6 +52,9 @@ export async function POST(
       day: 'numeric',
     });
 
+    // Fetch live market data once and embed in every email
+    const marketData = await fetchMarketSnapshot();
+
     let sent = 0;
     const errors: string[] = [];
 
@@ -59,6 +72,7 @@ export async function POST(
             date: dateStr,
             rawContent: edition.rawContent,
             unsubscribeUrl,
+            marketData,
           });
 
           try {

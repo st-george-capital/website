@@ -1061,7 +1061,6 @@ function NewsletterSubscribeSection() {
             {status === 'error' && (
               <p className="text-red-400 text-xs">{message}</p>
             )}
-            <p className="text-xs text-white/30">No spam. Unsubscribe anytime.</p>
           </form>
         )}
       </div>

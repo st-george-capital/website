@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Send, Save, Eye, EyeOff, CheckCircle, Users, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, Save, Eye, EyeOff, CheckCircle, Loader2, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react';
 import { Button } from '@/components/button';
-import { buildNewsletterEmail } from '@/lib/newsletter-email';
+import { buildNewsletterEmail, MarketRow } from '@/lib/newsletter-email';
 
 interface Edition {
   id: string;
@@ -18,9 +18,84 @@ interface Edition {
   createdAt: string;
 }
 
+function formatPrice(row: MarketRow): string {
+  if (row.price === null) return '—';
+  if (row.category === 'fx') return row.price.toFixed(4);
+  if (row.price >= 1000) return row.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return row.price.toFixed(2);
+}
+
+function MarketTable({ rows, loading, onRefresh }: { rows: MarketRow[]; loading: boolean; onRefresh: () => void }) {
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50">
+        <div className="flex items-center gap-2">
+          <TrendingUp size={14} className="text-gray-400" />
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Live Market Snapshot</span>
+          <span className="text-xs text-gray-400">— embedded in sent email</span>
+        </div>
+        <button
+          onClick={onRefresh}
+          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 transition-colors"
+          disabled={loading}
+        >
+          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+          Refresh
+        </button>
+      </div>
+
+      {loading && rows.length === 0 ? (
+        <div className="py-6 text-center text-gray-400 text-sm">
+          <Loader2 size={18} className="animate-spin inline mr-2" />Fetching market data…
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100">
+                <th className="px-5 py-2.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Instrument</th>
+                <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">Price</th>
+                <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">Change</th>
+                <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide pr-5">24h %</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {rows.map((row, i) => {
+                const isUp = (row.changePercent ?? 0) >= 0;
+                const colorClass = row.changePercent === null ? 'text-gray-400' : isUp ? 'text-green-600' : 'text-red-600';
+                const bgClass = i % 2 === 0 ? '' : 'bg-gray-50/50';
+                return (
+                  <tr key={row.ticker} className={bgClass}>
+                    <td className="px-5 py-2.5 font-medium text-gray-900">{row.name}</td>
+                    <td className="px-5 py-2.5 text-right font-mono text-gray-700">
+                      {row.price === null ? <span className="text-gray-300">—</span> : formatPrice(row)}
+                    </td>
+                    <td className={`px-5 py-2.5 text-right font-mono ${colorClass}`}>
+                      {row.change === null ? '—' : (
+                        <span>{isUp ? '+' : ''}{row.change.toFixed(row.category === 'fx' ? 4 : 2)}</span>
+                      )}
+                    </td>
+                    <td className={`px-5 py-2.5 text-right font-semibold pr-5 ${colorClass}`}>
+                      {row.changePercent === null ? '—' : (
+                        <span className="inline-flex items-center gap-1">
+                          {isUp ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                          {isUp ? '+' : ''}{row.changePercent.toFixed(2)}%
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function NewsletterEditionPage() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
 
   const [edition, setEdition] = useState<Edition | null>(null);
   const [title, setTitle] = useState('');
@@ -32,6 +107,21 @@ export default function NewsletterEditionPage() {
   const [loading, setLoading] = useState(true);
   const [subscriberCount, setSubscriberCount] = useState(0);
   const [dirty, setDirty] = useState(false);
+  const [marketData, setMarketData] = useState<MarketRow[]>([]);
+  const [marketLoading, setMarketLoading] = useState(true);
+
+  const loadMarket = useCallback(async () => {
+    setMarketLoading(true);
+    try {
+      const res = await fetch('/api/newsletter/market-snapshot');
+      const data = await res.json();
+      setMarketData(Array.isArray(data) ? data : []);
+    } catch {
+      setMarketData([]);
+    } finally {
+      setMarketLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -45,7 +135,8 @@ export default function NewsletterEditionPage() {
       setSubscriberCount(activeCount);
       setLoading(false);
     });
-  }, [id]);
+    loadMarket();
+  }, [id, loadMarket]);
 
   const previewHtml = buildNewsletterEmail({
     title: title || 'Preview',
@@ -53,23 +144,22 @@ export default function NewsletterEditionPage() {
     date: new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
     rawContent: rawContent,
     unsubscribeUrl: '#',
+    marketData: marketData,
   });
 
   async function handleSave() {
     setSaving(true);
-    const res = await fetch(`/api/newsletter/editions/${id}`, {
+    await fetch(`/api/newsletter/editions/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, rawContent }),
     });
     setSaving(false);
-    if (res.ok) {
-      setDirty(false);
-    }
+    setDirty(false);
   }
 
   async function handleSend() {
-    if (!confirm(`Send Issue #${edition?.issueNumber} to ${subscriberCount} subscriber${subscriberCount !== 1 ? 's' : ''}?`)) return;
+    if (!confirm(`Send Issue #${edition?.issueNumber} to ${subscriberCount} subscriber${subscriberCount !== 1 ? 's' : ''}? This will fetch live market data at send time.`)) return;
     setSending(true);
     setSendResult(null);
 
@@ -171,6 +261,9 @@ export default function NewsletterEditionPage() {
         </div>
       )}
 
+      {/* Live market table — always full-width above the editor/preview */}
+      <MarketTable rows={marketData} loading={marketLoading} onRefresh={loadMarket} />
+
       {/* Main layout: editor + preview */}
       <div className={`grid gap-6 ${showPreview ? 'grid-cols-2' : 'grid-cols-1 max-w-3xl'}`}>
         {/* Editor */}
@@ -198,9 +291,7 @@ export default function NewsletterEditionPage() {
           </div>
 
           {!isSent && dirty && (
-            <p className="text-xs text-amber-600 flex items-center gap-1">
-              ● Unsaved changes
-            </p>
+            <p className="text-xs text-amber-600 flex items-center gap-1">● Unsaved changes</p>
           )}
         </div>
 
@@ -210,14 +301,14 @@ export default function NewsletterEditionPage() {
             <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
               <Eye size={14} className="text-gray-400" />
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Email Preview</span>
-              <span className="ml-auto text-xs text-gray-400">Live · updates as you type</span>
+              <span className="ml-auto text-xs text-gray-400">Live · includes market data</span>
             </div>
-            <div className="overflow-y-auto" style={{ height: 'calc(100vh - 240px)' }}>
+            <div className="overflow-y-auto" style={{ height: 'calc(100vh - 300px)' }}>
               <iframe
                 srcDoc={previewHtml}
                 title="Newsletter Preview"
                 className="w-full border-0"
-                style={{ height: '2000px' }}
+                style={{ height: '2400px' }}
               />
             </div>
           </div>
