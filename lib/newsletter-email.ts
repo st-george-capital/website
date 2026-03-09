@@ -96,7 +96,7 @@ export function buildNewsletterEmail(opts: {
                       St. George Capital
                     </p>
                     <p style="margin:0;font-size:11px;color:#6b7280;">
-                      University of Toronto's Student-Run Investment Club
+                      University of Toronto's Premier Student-Run Investment Club
                     </p>
                   </td>
                   <td align="right">
@@ -228,8 +228,7 @@ function formatPct(row: MarketRow): string {
   return `${sign}${row.changePercent.toFixed(2)}%`;
 }
 
-// ─── Content parser ───────────────────────────────────────────────────────────
-
+// ─── Content parser (supports both ChatGPT markdown AND original bullet format)
 function parseContent(raw: string): string {
   const cleaned = raw
     .replace(/\uFFFC/g, '')
@@ -243,24 +242,47 @@ function parseContent(raw: string): string {
 
   while (i < lines.length) {
     const line = lines[i].trim();
-
     if (!line) { i++; continue; }
 
-    // Numbered section header
+    // ── Markdown headings ──────────────────────────────────────────────────
+    if (/^#{1}\s/.test(line) && !/^#{2,}/.test(line)) {
+      blocks.push(renderH1(line.replace(/^#+\s*/, '')));
+      i++; continue;
+    }
+    if (/^#{2}\s/.test(line) && !/^#{3,}/.test(line)) {
+      blocks.push(renderH2(line.replace(/^#+\s*/, '')));
+      i++; continue;
+    }
+    if (/^#{3,}\s/.test(line)) {
+      blocks.push(renderH3(line.replace(/^#+\s*/, '')));
+      i++; continue;
+    }
+
+    // ── Legacy numbered section header: "1. Executive Summary" ────────────
     const sectionMatch = line.match(/^(\d+)[.)]\s+(.+)$/);
     if (sectionMatch) {
-      blocks.push(renderSectionHeader(sectionMatch[1], sectionMatch[2]));
-      i++;
+      blocks.push(renderH1(`${sectionMatch[1]}. ${sectionMatch[2]}`));
+      i++; continue;
+    }
+
+    // ── Markdown table: lines starting with | ─────────────────────────────
+    if (line.startsWith('|')) {
+      const tableLines: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith('|')) {
+        tableLines.push(lines[i].trim());
+        i++;
+      }
+      blocks.push(renderMdTable(tableLines));
       continue;
     }
 
-    // Bullet list (• or -)
-    if (line.startsWith('•') || line.startsWith('\t•') || (line.startsWith('-') && line.length > 2)) {
+    // ── Bullet list: -, *, or • ────────────────────────────────────────────
+    if (/^[-*•]\s/.test(line)) {
       const bullets: string[] = [];
       while (i < lines.length) {
         const bl = lines[i].trim();
-        if (bl.startsWith('•') || (bl.startsWith('-') && bl.length > 2)) {
-          bullets.push(bl.replace(/^[•\-]\s*/, ''));
+        if (/^[-*•]\s/.test(bl)) {
+          bullets.push(bl.replace(/^[-*•]\s+/, ''));
           i++;
         } else break;
       }
@@ -268,38 +290,64 @@ function parseContent(raw: string): string {
       continue;
     }
 
-    // Sub-heading: "Equities:", "Rates/Bonds:", "Growth:" etc.
-    const subheadMatch = line.match(/^([A-Z][A-Za-z /()&-]{1,40}):\s*(.*)$/);
-    if (subheadMatch && subheadMatch[1].split(' ').length <= 4) {
-      blocks.push(renderSubheading(subheadMatch[1], subheadMatch[2]));
-      i++;
-      continue;
+    // ── Blockquote: > text ─────────────────────────────────────────────────
+    if (line.startsWith('> ')) {
+      const clean = stripArtifacts(line.slice(2));
+      blocks.push(`<blockquote style="margin:10px 0 12px 0;padding:10px 16px;border-left:3px solid #cbd5e1;color:#64748b;font-style:italic;font-size:13px;line-height:1.6;">${inlineFormat(clean)}</blockquote>`);
+      i++; continue;
     }
 
-    blocks.push(renderParagraph(line));
+    // ── Legacy label-colon sub-heading: "Equities:", "Rates/Bonds:" ────────
+    const subheadMatch = line.match(/^([A-Z][A-Za-z /()&-]{1,40}):\s*(.*)$/);
+    if (subheadMatch && subheadMatch[1].split(' ').length <= 5) {
+      const cleanRest = stripArtifacts(subheadMatch[2]);
+      blocks.push(`<p style="margin:10px 0 5px 0;font-size:14px;color:#1e293b;line-height:1.65;">
+        <span style="font-weight:700;color:#0f172a;">${escapeHtml(subheadMatch[1])}:</span>${cleanRest ? ' ' + inlineFormat(cleanRest) : ''}
+      </p>`);
+      i++; continue;
+    }
+
+    // ── Plain paragraph ────────────────────────────────────────────────────
+    const clean = stripArtifacts(line);
+    if (clean) blocks.push(`<p style="margin:0 0 12px 0;font-size:14px;color:#374151;line-height:1.7;">${inlineFormat(clean)}</p>`);
     i++;
   }
 
   return blocks.join('\n');
 }
 
-function renderSectionHeader(num: string, text: string): string {
+// ─── Block renderers ──────────────────────────────────────────────────────────
+
+/** H1 / numbered section — dark left-border tile */
+function renderH1(text: string): string {
   const clean = stripArtifacts(text);
   return `
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;margin-bottom:14px;">
       <tr>
         <td style="padding:10px 16px;background-color:#f1f5f9;border-left:4px solid #030116;border-radius:0 6px 6px 0;">
-          <span style="font-size:10px;font-weight:700;color:#6b7280;letter-spacing:0.12em;text-transform:uppercase;margin-right:8px;">${num}</span>
-          <span style="font-size:15px;font-weight:700;color:#0f172a;letter-spacing:-0.01em;">${escapeHtml(clean)}</span>
+          <span style="font-size:15px;font-weight:700;color:#0f172a;letter-spacing:-0.01em;">${inlineFormat(clean)}</span>
         </td>
       </tr>
     </table>`;
 }
 
+/** H2 — indigo underline */
+function renderH2(text: string): string {
+  const clean = stripArtifacts(text);
+  return `<p style="margin:20px 0 6px 0;font-size:14px;font-weight:700;color:#0f172a;border-bottom:1px solid #e2e8f0;padding-bottom:4px;">${inlineFormat(clean)}</p>`;
+}
+
+/** H3 — small bold label */
+function renderH3(text: string): string {
+  const clean = stripArtifacts(text);
+  return `<p style="margin:14px 0 4px 0;font-size:13px;font-weight:700;color:#334155;">${inlineFormat(clean)}</p>`;
+}
+
+/** Bullet list */
 function renderBulletList(items: string[]): string {
   const lis = items.map(item => {
     const clean = stripArtifacts(item);
-    return `<tr><td style="padding:4px 0 4px 8px;vertical-align:top;">
+    return `<tr><td style="padding:3px 0 3px 8px;vertical-align:top;">
       <table cellpadding="0" cellspacing="0" border="0"><tr>
         <td style="padding-right:10px;padding-top:2px;vertical-align:top;color:#1a56db;font-size:16px;line-height:1;">•</td>
         <td style="font-size:14px;color:#374151;line-height:1.65;">${inlineFormat(clean)}</td>
@@ -309,29 +357,54 @@ function renderBulletList(items: string[]): string {
   return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 12px 4px;">${lis}</table>`;
 }
 
-function renderSubheading(label: string, rest: string): string {
-  const cleanRest = stripArtifacts(rest);
-  return `<p style="margin:10px 0 5px 0;font-size:14px;color:#1e293b;line-height:1.65;">
-    <span style="font-weight:700;color:#0f172a;">${escapeHtml(label)}:</span>${cleanRest ? ' ' + inlineFormat(cleanRest) : ''}
-  </p>`;
+/** Markdown table: | col | col | */
+function renderMdTable(lines: string[]): string {
+  if (lines.length < 1) return '';
+  // Skip the separator row (|---|---|)
+  const dataLines = lines.filter(l => !/^\|[\s\-:|]+\|/.test(l.replace(/[^|\-:]/g, '')));
+  if (dataLines.length === 0) return '';
+
+  const parseRow = (l: string) =>
+    l.replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+
+  const [headerLine, ...bodyLines] = dataLines;
+  const headers = parseRow(headerLine);
+
+  const headerHtml = headers
+    .map(h => `<th style="padding:7px 12px;text-align:left;font-size:12px;font-weight:700;color:#374151;background:#f1f5f9;border-bottom:2px solid #e2e8f0;white-space:nowrap;">${inlineFormat(stripArtifacts(h))}</th>`)
+    .join('');
+
+  const bodyHtml = bodyLines.map((l, ri) => {
+    const cells = parseRow(l);
+    const bg = ri % 2 === 0 ? '#ffffff' : '#f8fafc';
+    const cellsHtml = cells
+      .map(c => `<td style="padding:6px 12px;font-size:13px;color:#374151;border-bottom:1px solid #f1f5f9;">${inlineFormat(stripArtifacts(c))}</td>`)
+      .join('');
+    return `<tr style="background-color:${bg};">${cellsHtml}</tr>`;
+  }).join('');
+
+  return `<div style="overflow-x:auto;margin:12px 0 16px;">
+    <table cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden;">
+      <thead><tr>${headerHtml}</tr></thead>
+      <tbody>${bodyHtml}</tbody>
+    </table>
+  </div>`;
 }
 
-function renderParagraph(text: string): string {
-  const clean = stripArtifacts(text);
-  if (!clean) return '';
-  return `<p style="margin:0 0 12px 0;font-size:14px;color:#374151;line-height:1.7;">${inlineFormat(clean)}</p>`;
-}
+// ─── Inline helpers ───────────────────────────────────────────────────────────
 
 function stripArtifacts(text: string): string {
   return text.replace(/\uFFFC/g, '').replace(/\[image\]/gi, '').replace(/\s{2,}/g, ' ').trim();
 }
 
+/** Converts **bold**, *italic*, `code`, [link](url) markdown to HTML inline */
 function inlineFormat(text: string): string {
   return escapeHtml(text)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/__(.+?)__/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/_(.+?)_/g, '<em>$1</em>');
+    .replace(/`(.+?)`/g, '<code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:12px;font-family:monospace;color:#0f172a;">$1</code>')
+    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" style="color:#1a56db;text-decoration:underline;">$1</a>');
 }
 
 function escapeHtml(str: string): string {
