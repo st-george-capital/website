@@ -23,6 +23,7 @@ import {
   Calculator,
   Target,
   BookMarked,
+  Newspaper,
 } from 'lucide-react';
 
 const navigation: Array<{
@@ -41,6 +42,7 @@ const navigation: Array<{
   { name: 'Investment Pitches', href: '/dashboard/pitches', icon: Presentation, userMinRole: 'user' },
   { name: 'Postings', href: '/dashboard/postings', icon: Briefcase, adminOnly: true },
   { name: 'Resume Book', href: '/dashboard/resume-book', icon: BookMarked, adminOnly: true },
+  { name: 'Newsletter', href: '/dashboard/newsletter', icon: Newspaper, adminOnly: true },
   { name: 'Tools', href: '/dashboard/tools', icon: Calculator, userMinRole: 'user' },
   { name: 'Users', href: '/dashboard/users', icon: Users, adminOnly: true },
   { name: 'Holdings', href: '/dashboard/holdings', icon: BarChart3, userMinRole: 'user' },

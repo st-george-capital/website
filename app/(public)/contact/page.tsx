@@ -138,6 +138,11 @@ export default function ContactPage() {
             <ResumeBookSection />
           </div>
 
+          {/* 📬 NEWSLETTER */}
+          <div className="mb-16">
+            <NewsletterSubscribeSection />
+          </div>
+
           {/* Team Sections */}
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
             <div className="text-center">
@@ -980,6 +985,86 @@ function ResumeBookSection() {
           </form>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function NewsletterSubscribeSection() {
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [message, setMessage] = useState('');
+
+  async function handleSubscribe(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email) return;
+    setStatus('loading');
+
+    const res = await fetch('/api/newsletter/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, name }),
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      setStatus('success');
+      setMessage(data.message || "You're subscribed!");
+    } else {
+      setStatus('error');
+      setMessage(data.error || 'Something went wrong.');
+    }
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto">
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
+        <div className="w-14 h-14 bg-blue-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <Mail className="w-7 h-7 text-blue-400" />
+        </div>
+        <h3 className="font-serif text-2xl font-bold mb-2">Daily Market Snapshot</h3>
+        <p className="text-white/60 text-sm max-w-md mx-auto mb-6">
+          Get SGC&apos;s daily briefing — key macro developments, cross-asset moves, earnings, and central bank signals — delivered straight to your inbox.
+        </p>
+
+        {status === 'success' ? (
+          <div className="bg-green-500/10 border border-green-500/20 rounded-xl px-6 py-4">
+            <p className="text-green-400 font-medium">✓ {message}</p>
+            <p className="text-sm text-white/50 mt-1">You&apos;ll receive the next edition when it&apos;s published.</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubscribe} className="space-y-3">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <input
+                type="text"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="First name (optional)"
+                className="px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent"
+              />
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="your@email.com"
+                required
+                className="px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={status === 'loading'}
+              className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold rounded-xl text-sm transition-colors"
+            >
+              {status === 'loading' ? 'Subscribing…' : 'Subscribe to Daily Snapshot'}
+            </button>
+            {status === 'error' && (
+              <p className="text-red-400 text-xs">{message}</p>
+            )}
+            <p className="text-xs text-white/30">No spam. Unsubscribe anytime.</p>
+          </form>
+        )}
+      </div>
     </div>
   );
 }

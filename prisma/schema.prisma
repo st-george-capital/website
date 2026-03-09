@@ -382,6 +382,26 @@ model ResumeSubmission {
   createdAt        DateTime @default(now())
 }
 
+model NewsletterSubscriber {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model NewsletterEdition {
+  id              String    @id @default(cuid())
+  title           String
+  issueNumber     Int
+  rawContent      String    @db.Text
+  sentAt          DateTime?
+  recipientCount  Int       @default(0)
+  status          String    @default("draft") // "draft" | "sent"
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
 model SavedDCFModel {
   id                    String   @id @default(cuid())
   ticker                String
