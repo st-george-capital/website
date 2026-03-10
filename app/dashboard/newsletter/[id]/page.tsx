@@ -199,6 +199,20 @@ export default function NewsletterEditionPage() {
     setDirty(false);
   }
 
+  async function handleOpenSendModal() {
+    // Always persist the current editor state to DB before opening the
+    // send modal — ensures the preview and the actual sent email are identical
+    setSaving(true);
+    await fetch(`/api/newsletter/editions/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, rawContent }),
+    });
+    setSaving(false);
+    setDirty(false);
+    setShowSendModal(true);
+  }
+
   async function handleConfirmSend() {
     setShowSendModal(false);
     setSending(true);
@@ -275,8 +289,8 @@ export default function NewsletterEditionPage() {
                 <Save size={15} /> {saving ? 'Saving…' : 'Save'}
               </Button>
               <Button
-                onClick={() => setShowSendModal(true)}
-                disabled={sending}
+                onClick={handleOpenSendModal}
+                disabled={sending || saving}
                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
               >
                 {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
