@@ -66,26 +66,28 @@ export async function POST(
     const failedEmails: string[] = [];
     const errorDetails: string[] = [];
 
+    // Build the HTML once — same content for everyone, only unsubscribe URL differs
+    const baseHtml = (unsubscribeUrl: string) => buildNewsletterEmail({
+      title: edition.title,
+      issueNumber: edition.issueNumber,
+      date: dateStr,
+      rawContent: edition.rawContent,
+      unsubscribeUrl,
+      marketData,
+    });
+
+    // Send sequentially — Resend allows 2 req/sec, 600ms gap keeps us safely under
     for (const sub of subscribers) {
       const unsubscribeUrl = `${BASE_URL}/api/newsletter/subscribe?email=${encodeURIComponent(sub.email)}`;
-      const html = buildNewsletterEmail({
-        title: edition.title,
-        issueNumber: edition.issueNumber,
-        date: dateStr,
-        rawContent: edition.rawContent,
-        unsubscribeUrl,
-        marketData,
-      });
 
       try {
         const result = await resend.emails.send({
           from: FROM_EMAIL,
           to: sub.email,
           subject: `SGC Daily Snapshot | Issue #${edition.issueNumber}: ${edition.title}`,
-          html,
+          html: baseHtml(unsubscribeUrl),
         });
 
-        // Resend SDK returns { data, error } — check both
         if ((result as any).error) {
           const errMsg = (result as any).error?.message ?? JSON.stringify((result as any).error);
           console.error(`Resend rejected ${sub.email}:`, errMsg);
@@ -100,6 +102,9 @@ export async function POST(
         failedEmails.push(sub.email);
         errorDetails.push(errMsg);
       }
+
+      // 600ms between sends → ~1.67 req/sec, safely under Resend's 2/sec limit
+      await new Promise(resolve => setTimeout(resolve, 600));
     }
 
     // Only mark as sent if at least one email actually went out
