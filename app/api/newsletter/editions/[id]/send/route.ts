@@ -7,7 +7,8 @@ import { buildNewsletterEmail, MarketRow } from '@/lib/newsletter-email';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const BASE_URL = process.env.NEXTAUTH_URL || 'https://stgeorgecapital.ca';
-const FROM_EMAIL = process.env.NEWSLETTER_FROM_EMAIL || 'outreach@stgeorgecapital.ca';
+const FROM_ADDRESS = process.env.NEWSLETTER_FROM_EMAIL || 'outreach@stgeorgecapital.ca';
+const FROM_EMAIL = `SGC Daily Snapshot <${FROM_ADDRESS}>`;
 
 async function fetchMarketSnapshot(): Promise<MarketRow[]> {
   try {
