@@ -85,7 +85,7 @@ export async function POST(
         const result = await resend.emails.send({
           from: FROM_EMAIL,
           to: sub.email,
-          subject: `SGC Daily Snapshot | Issue #${edition.issueNumber}: ${edition.title}`,
+          subject: edition.title,
           html: baseHtml(unsubscribeUrl),
         });
 
