@@ -135,12 +135,19 @@ async function fetchTreasuryYield(maturity: '2year' | '10year') {
 
 // ─── FRED: government bond yields ────────────────────────────────────────────
 async function fetchFredYield(seriesId: string) {
-  if (!FRED_KEY) return null;
+  if (!FRED_KEY) {
+    console.warn(`FRED_API_KEY not set — skipping ${seriesId}. Add FRED_API_KEY to Vercel env vars (free at fred.stlouisfed.org/docs/api/api_key.html).`);
+    return null;
+  }
   try {
     const res = await fetch(
       `${FRED_BASE}?series_id=${seriesId}&api_key=${FRED_KEY}&file_type=json&limit=2&sort_order=desc`
     );
     const data = await res.json();
+    if (data?.error_code || data?.error_message) {
+      console.warn(`FRED error for ${seriesId}:`, data.error_message);
+      return null;
+    }
     const obs: { date: string; value: string }[] = data?.observations ?? [];
     const valid = obs.filter(o => o.value && o.value !== '.');
     if (valid.length === 0) return null;
@@ -174,7 +181,7 @@ export async function GET() {
     () => fetchQuote('FEZ'),
     () => fetchQuote('EWJ'),
     () => fetchQuote('EWH'),
-  ]);
+  ], 550);
 
   // ── FX spot rates (4 AV calls) ───────────────────────────────────────────
   const [rUSDCAD, rEURUSD, rGBPUSD, rUSDJPY] = await sequential([
@@ -182,7 +189,7 @@ export async function GET() {
     () => fetchFxRate('EUR', 'USD'),
     () => fetchFxRate('GBP', 'USD'),
     () => fetchFxRate('USD', 'JPY'),
-  ]);
+  ], 550);
 
   // ── FX previous closes for change (4 AV calls) ──────────────────────────
   const [pUSDCAD, pEURUSD, pGBPUSD, pUSDJPY] = await sequential([
@@ -190,7 +197,7 @@ export async function GET() {
     () => fetchFxPrevClose('EUR', 'USD'),
     () => fetchFxPrevClose('GBP', 'USD'),
     () => fetchFxPrevClose('USD', 'JPY'),
-  ]);
+  ], 550);
 
   // ── Treasury yields + commodities (5 AV calls) ──────────────────────────
   const [us2y, us10y, gld, slv, vixy] = await sequential([
@@ -199,7 +206,7 @@ export async function GET() {
     () => fetchQuote('GLD'),
     () => fetchQuote('SLV'),
     () => fetchQuote('VIXY'),
-  ]);
+  ], 550);
 
   // ── FRED bond yields run in parallel — different API, no AV limits ───────
   const [de10y, jp10y] = await Promise.all([
