@@ -86,13 +86,14 @@ function MarketTable({ rows, loading, onRefresh }: { rows: MarketRow[]; loading:
                 <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">Value</th>
                 <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">Change</th>
                 <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">24h %</th>
+                <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide" title="Z-score vs 20-day history">σ</th>
               </tr>
             </thead>
             <tbody>
               {groupOrder.map(g => (
                 <>
                   <tr key={`group-${g}`} className="bg-gray-50/70">
-                    <td colSpan={4} className="px-5 py-1.5">
+                    <td colSpan={5} className="px-5 py-1.5">
                       <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">
                         {GROUP_LABELS[g] ?? g}
                       </span>
@@ -102,6 +103,12 @@ function MarketTable({ rows, loading, onRefresh }: { rows: MarketRow[]; loading:
                     const isUp = (row.changePercent ?? 0) >= 0;
                     const isFlat = row.change === null || Math.abs(row.change ?? 0) < 0.0001;
                     const clr = isFlat ? 'text-gray-400' : isUp ? 'text-green-600' : 'text-red-600';
+                    const z = row.zScore;
+                    const zAbs = z != null ? Math.abs(z) : null;
+                    const zClr = zAbs == null ? 'text-gray-300'
+                      : zAbs >= 2 ? (isUp ? 'text-green-700 font-bold' : 'text-red-700 font-bold')
+                      : zAbs >= 1 ? 'text-gray-500 font-medium'
+                      : 'text-gray-300';
                     return (
                       <tr key={row.ticker} className={i % 2 === 0 ? '' : 'bg-gray-50/40'}>
                         <td className="px-5 py-2 font-medium text-gray-900 text-xs">{row.name}</td>
@@ -120,6 +127,9 @@ function MarketTable({ rows, loading, onRefresh }: { rows: MarketRow[]; loading:
                               {fmtPct(row)}
                             </span>
                           )}
+                        </td>
+                        <td className={`px-5 py-2 text-right text-xs ${zClr}`} title="Z-score vs 20-day daily move history">
+                          {zAbs != null ? `${zAbs.toFixed(1)}σ` : '—'}
                         </td>
                       </tr>
                     );

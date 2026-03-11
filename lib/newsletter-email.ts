@@ -11,6 +11,7 @@ export interface MarketRow {
   price: number | null;
   change: number | null;
   changePercent: number | null;
+  zScore: number | null;
   category: 'equity' | 'fx' | 'commodity' | 'yield' | 'volatility';
   group?: 'equities' | 'asia' | 'fx' | 'rates' | 'commodities';
 }
@@ -152,7 +153,7 @@ function buildMarketTable(rows: MarketRow[]): string {
     <tr style="border-bottom:2px solid #e5e7eb;">
       <th style="padding:5px 8px 5px 0;text-align:left;font-size:9px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;">Instrument</th>
       <th style="padding:5px 14px 5px 0;text-align:right;font-size:9px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;">Value</th>
-      <th style="padding:5px 0;text-align:right;font-size:9px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;">24h Change</th>
+      <th style="padding:5px 0;text-align:right;font-size:9px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;">24h Change &nbsp;<span style="font-weight:400;color:#d1d5db;">(σ)</span></th>
     </tr>`;
 
   let rowIdx = 0;
@@ -176,11 +177,17 @@ function buildMarketTable(rows: MarketRow[]): string {
       const priceStr = formatPrice(row);
       const changeStr = formatChange(row);
       const pctStr = formatPct(row);
+      const zStr = formatZScore(row.zScore, isUp);
+
+      // For yield rows formatPct returns '' — omit the empty parens
+      const changePart = row.category === 'yield'
+        ? `${arrow}&nbsp;${changeStr}${zStr}`
+        : `${arrow}&nbsp;${changeStr}&nbsp;(${pctStr})${zStr}`;
 
       return `<tr style="background-color:${bg};">
         <td style="padding:6px 8px 6px 0;font-size:12px;font-weight:600;color:#111827;white-space:nowrap;border-bottom:1px solid #f1f5f9;">${escapeHtml(row.name)}</td>
         <td style="padding:6px 14px 6px 0;font-size:12px;font-family:monospace;color:#374151;text-align:right;white-space:nowrap;border-bottom:1px solid #f1f5f9;">${priceStr}</td>
-        <td style="padding:6px 0;font-size:11px;font-weight:600;color:${color};text-align:right;white-space:nowrap;border-bottom:1px solid #f1f5f9;">${isFlat ? '—' : `${arrow}&nbsp;${changeStr}&nbsp;(${pctStr})`}</td>
+        <td style="padding:6px 0;font-size:11px;font-weight:600;color:${color};text-align:right;white-space:nowrap;border-bottom:1px solid #f1f5f9;">${isFlat ? '—' : changePart}</td>
       </tr>`;
     }).join('');
 
@@ -226,6 +233,30 @@ function formatPct(row: MarketRow): string {
   if (row.changePercent === null) return '—';
   const sign = row.changePercent >= 0 ? '+' : '';
   return `${sign}${row.changePercent.toFixed(2)}%`;
+}
+
+/**
+ * Renders an inline z-score badge: "· 1.2σ"
+ * |z| < 1  → muted gray   (routine move)
+ * |z| 1–2  → medium gray  (notable)
+ * |z| ≥ 2  → green/red bold (significant move, colour follows direction)
+ */
+function formatZScore(z: number | null | undefined, isUp: boolean): string {
+  if (z == null) return '';
+  const abs = Math.abs(z);
+  let color: string;
+  let weight: string;
+  if (abs >= 2) {
+    color = isUp ? '#15803d' : '#b91c1c';
+    weight = '700';
+  } else if (abs >= 1) {
+    color = '#6b7280';
+    weight = '500';
+  } else {
+    color = '#9ca3af';
+    weight = '400';
+  }
+  return `&nbsp;<span style="font-size:9px;font-weight:${weight};color:${color};">· ${abs.toFixed(1)}σ</span>`;
 }
 
 // ─── Content parser (supports both ChatGPT markdown AND original bullet format)
