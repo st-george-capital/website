@@ -67,6 +67,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Auto-subscribe to newsletter
+    await prisma.newsletterSubscriber.upsert({
+      where: { email },
+      update: { active: true },
+      create: { email, name: name ?? undefined, active: true },
+    });
+
     // Send verification email
     try {
       await resend.emails.send({
