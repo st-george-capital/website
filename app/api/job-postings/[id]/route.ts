@@ -52,7 +52,7 @@ export async function PATCH(
       );
     }
 
-    const { title, description, team, endDate, published } = await req.json();
+    const { title, description, team, endDate, published, documentFile } = await req.json();
 
     // Validate team if provided
     if (team) {
@@ -68,11 +68,12 @@ export async function PATCH(
     const jobPosting = await prisma.jobPosting.update({
       where: { id: params.id },
       data: {
-        ...(title && { title }),
-        ...(description && { description }),
-        ...(team && { team }),
-        ...(endDate && { endDate: new Date(endDate) }),
+        ...(title !== undefined && { title }),
+        ...(description !== undefined && { description }),
+        ...(team !== undefined && { team }),
+        ...(endDate !== undefined && { endDate: new Date(endDate) }),
         ...(published !== undefined && { published }),
+        ...(documentFile !== undefined && { documentFile: documentFile || null }),
       },
     });
 

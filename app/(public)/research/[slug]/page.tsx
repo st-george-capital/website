@@ -5,6 +5,8 @@ import { Button } from '@/components/button';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, User, Tag } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 
 // Force dynamic rendering to prevent static generation issues with database calls
 export const dynamic = 'force-dynamic';
@@ -93,6 +95,8 @@ export default async function ArticlePage({ params }: { params: { slug: string }
         <div className="max-w-4xl mx-auto">
           <div className="prose prose-lg max-w-none">
             <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeRaw]}
               components={{
                 h1: ({ node, ...props }) => (
                   <h1 className="font-serif text-4xl font-bold mt-12 mb-6" {...props} />
@@ -107,10 +111,13 @@ export default async function ArticlePage({ params }: { params: { slug: string }
                   <p className="text-lg leading-relaxed mb-6" {...props} />
                 ),
                 ul: ({ node, ...props }) => (
-                  <ul className="list-disc list-inside mb-6 space-y-2" {...props} />
+                  <ul className="list-disc pl-6 mb-6 space-y-1" {...props} />
                 ),
                 ol: ({ node, ...props }) => (
-                  <ol className="list-decimal list-inside mb-6 space-y-2" {...props} />
+                  <ol className="list-decimal pl-6 mb-6 space-y-1" {...props} />
+                ),
+                li: ({ node, ...props }) => (
+                  <li className="text-gray-700 leading-relaxed" {...props} />
                 ),
                 blockquote: ({ node, ...props }) => (
                   <blockquote className="border-l-4 border-primary pl-6 italic my-6" {...props} />
@@ -123,6 +130,23 @@ export default async function ArticlePage({ params }: { params: { slug: string }
                   ),
                 img: ({ node, ...props }) => (
                   <img className="w-full h-auto rounded-lg my-8 shadow-lg" {...props} />
+                ),
+                table: ({ node, ...props }) => (
+                  <div className="overflow-x-auto my-6">
+                    <table className="w-full border-collapse text-sm" {...props} />
+                  </div>
+                ),
+                thead: ({ node, ...props }) => (
+                  <thead className="bg-gray-100" {...props} />
+                ),
+                th: ({ node, ...props }) => (
+                  <th className="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-800" {...props} />
+                ),
+                td: ({ node, ...props }) => (
+                  <td className="border border-gray-300 px-4 py-2 text-gray-700" {...props} />
+                ),
+                tr: ({ node, ...props }) => (
+                  <tr className="even:bg-gray-50" {...props} />
                 ),
               }}
             >
