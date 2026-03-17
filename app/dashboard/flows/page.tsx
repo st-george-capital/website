@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { RefreshCw, TrendingUp, TrendingDown, Minus, Activity, Loader2, AlertTriangle, Info } from 'lucide-react';
-import type { FlowsPayload, ETFRow, PairRatio } from '@/app/api/dashboard/flows/route';
+import { RefreshCw, TrendingUp, TrendingDown, Minus, Activity, Loader2, AlertTriangle, Info, BarChart2 } from 'lucide-react';
+import type { FlowsPayload, ETFRow, PairRatio, MarketStructure } from '@/app/api/dashboard/flows/route';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -57,10 +57,11 @@ const GROUP_LABELS: Record<ETFRow['group'], string> = {
   latam:      'Latin America',
   sector:     'Sectors',
   bonds:      'Bonds / Credit',
+  fx:         'FX / Dollar',
   volatility: 'Volatility',
 };
 
-const GROUP_ORDER: ETFRow['group'][] = ['us', 'europe', 'asia', 'latam', 'sector', 'bonds', 'volatility'];
+const GROUP_ORDER: ETFRow['group'][] = ['us', 'europe', 'asia', 'latam', 'sector', 'bonds', 'fx', 'volatility'];
 
 // ─── Regime Banner ────────────────────────────────────────────────────────────
 
@@ -116,6 +117,132 @@ function RegimeBanner({ regime }: { regime: FlowsPayload['regime'] }) {
   );
 }
 
+// ─── Market Structure Panel ───────────────────────────────────────────────────
+
+interface StructureMetric {
+  label: string;
+  value: string;
+  subtext: string;
+  color: string;
+  tooltip: string;
+}
+
+function interpretBreadth(pct: number | null, total: number): StructureMetric {
+  const label = 'Market Breadth';
+  const tooltip = 'What % of tracked ETFs closed up today. High breadth = broad rally / broad sell-off. Low breadth (market up but <40% of ETFs up) = a few names carrying the move — fragile.';
+  if (pct === null) return { label, value: '—', subtext: 'no data', color: 'text-gray-300', tooltip };
+  const color = pct > 65 ? 'text-emerald-600' : pct > 50 ? 'text-emerald-500' : pct > 35 ? 'text-yellow-600' : 'text-red-500';
+  const subtext = pct > 65 ? 'Broad rally — wide participation' : pct > 50 ? 'Majority up — mild breadth' : pct > 35 ? 'Minority up — narrow / weak' : 'Broad sell-off / de-risking';
+  return { label, value: `${pct.toFixed(0)}% up`, subtext: `${subtext} (${total} ETFs)`, color, tooltip };
+}
+
+function interpretDispersion(d: number | null): StructureMetric {
+  const label = 'Sector Dispersion';
+  const tooltip = 'Std dev of sector ETF 1D returns. Low dispersion = everything moving together = macro/ETF flows dominating. High dispersion = sectors diverging = stock-picking / fundamental regime.';
+  if (d === null) return { label, value: '—', subtext: 'no data', color: 'text-gray-300', tooltip };
+  const color = d > 1.5 ? 'text-emerald-600' : d > 0.8 ? 'text-yellow-600' : 'text-red-500';
+  const subtext = d > 1.5 ? 'High — fundamental / stock-picking regime' : d > 0.8 ? 'Moderate — mixed environment' : 'Low — macro/ETF flows dominating, everything moves together';
+  return { label, value: `±${d.toFixed(2)}%`, subtext, color, tooltip };
+}
+
+function interpretCorrelation(c: number | null): StructureMetric {
+  const label = 'Avg Sector Corr (20D)';
+  const tooltip = 'Average pairwise correlation across sector ETFs over 20 trading days. High (>0.70) = sectors all moving together = macro/ETF dominance. Low (<0.40) = sectors diverging = individual name/sector dynamics.';
+  if (c === null) return { label, value: '—', subtext: 'no data', color: 'text-gray-300', tooltip };
+  const pct = c * 100;
+  const color = c > 0.70 ? 'text-red-500' : c > 0.50 ? 'text-yellow-600' : 'text-emerald-600';
+  const subtext = c > 0.70 ? 'High — ETF/macro flows dominating tape' : c > 0.50 ? 'Moderate — mixed macro + idiosyncratic' : 'Low — stock-picking regime, macro fading';
+  return { label, value: `${pct.toFixed(0)}%`, subtext, color, tooltip };
+}
+
+function interpretRealizedVol(rv: number | null): StructureMetric {
+  const label = 'SPY Realised Vol (20D)';
+  const tooltip = 'SPY annualised 20-day realised volatility using log returns. Compare to VIXY return: if VIXY is surging but realised vol is low, the market is pricing fear ahead of actual moves (expensive implied vol). If realised is high but VIXY falling, hedges are cheap.';
+  if (rv === null) return { label, value: '—', subtext: 'no data', color: 'text-gray-300', tooltip };
+  const color = rv > 25 ? 'text-red-600' : rv > 18 ? 'text-orange-500' : rv > 12 ? 'text-yellow-600' : 'text-emerald-600';
+  const subtext = rv > 25 ? 'Elevated — stress / de-risking in progress' : rv > 18 ? 'Above-normal — cautious environment' : rv > 12 ? 'Normal range' : 'Low — calm, low-vol regime';
+  return { label, value: `${rv.toFixed(1)}%`, subtext, color, tooltip };
+}
+
+function interpretDxy(r5D: number | null): StructureMetric {
+  const label = 'USD Strength (UUP 5D)';
+  const tooltip = 'UUP is the DXY proxy ETF. USD strengthening = global risk-off or Fed tightening expectations. Strong USD is a headwind for EM (Korea, Vietnam, Brazil, Mexico) which borrow in dollars and export in local currency.';
+  if (r5D === null) return { label, value: '—', subtext: 'no data', color: 'text-gray-300', tooltip };
+  const color = r5D > 0.5 ? 'text-red-500' : r5D > -0.5 ? 'text-gray-500' : 'text-emerald-600';
+  const subtext = r5D > 0.5 ? 'USD strengthening — headwind for EM, risk-off signal' : r5D > -0.5 ? 'USD stable — neutral for EM flows' : 'USD weakening — tailwind for EM, risk-on signal';
+  return { label, value: fmt(r5D), subtext, color, tooltip };
+}
+
+function interpretIG(r5D: number | null): StructureMetric {
+  const label = 'IG Credit (LQD 5D)';
+  const tooltip = 'Investment grade bond ETF. IG moves slower than HY but confirms systemic stress. If both LQD and HYG are falling, it\'s broad credit stress, not just junk-bond worry. If only HYG falls but LQD holds, it\'s contained high-yield stress.';
+  if (r5D === null) return { label, value: '—', subtext: 'no data', color: 'text-gray-300', tooltip };
+  const color = r5D > 0.3 ? 'text-emerald-600' : r5D > -0.3 ? 'text-gray-500' : 'text-red-500';
+  const subtext = r5D > 0.3 ? 'IG tightening — institutional credit healthy' : r5D > -0.3 ? 'IG stable — credit neutral' : 'IG widening — systemic stress building';
+  return { label, value: fmt(r5D), subtext, color, tooltip };
+}
+
+function MarketStructurePanel({ structure }: { structure: MarketStructure }) {
+  const [tooltip, setTooltip] = useState<string | null>(null);
+
+  const metrics: StructureMetric[] = [
+    interpretBreadth(structure.breadthPctUp, structure.breadthTotal),
+    interpretDispersion(structure.dispersion1D),
+    interpretCorrelation(structure.avgCorrelation20D),
+    interpretRealizedVol(structure.realizedVol20D),
+    interpretDxy(structure.dxyReturn5D),
+    interpretIG(structure.igReturn5D),
+  ];
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
+      <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
+        <div className="flex items-center gap-2">
+          <BarChart2 size={14} className="text-indigo-500" />
+          <h2 className="text-sm font-semibold text-gray-700">Market Structure — Flow vs Fundamental Regime</h2>
+        </div>
+        <p className="text-xs text-gray-400 mt-0.5">
+          <strong className="text-gray-500">Low dispersion + high correlation</strong> = macro/ETF flows dominating &nbsp;·&nbsp;
+          <strong className="text-gray-500">High dispersion + low correlation</strong> = fundamental / stock-picking regime &nbsp;·&nbsp;
+          Click <Info size={10} className="inline" /> for methodology
+        </p>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-y divide-gray-100">
+        {metrics.map(m => (
+          <div key={m.label} className="p-4 relative">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide leading-tight">{m.label}</span>
+              <button
+                onMouseEnter={() => setTooltip(m.label)}
+                onMouseLeave={() => setTooltip(null)}
+                onClick={() => setTooltip(tooltip === m.label ? null : m.label)}
+                className="text-gray-200 hover:text-gray-400 transition-colors flex-shrink-0 ml-1"
+              >
+                <Info size={10} />
+              </button>
+            </div>
+            {tooltip === m.label ? (
+              <p className="text-[10px] text-indigo-600 leading-tight mt-1">{m.tooltip}</p>
+            ) : (
+              <>
+                <p className={`text-xl font-bold mt-1 ${m.color}`}>{m.value}</p>
+                <p className="text-[10px] text-gray-400 leading-tight mt-0.5">{m.subtext}</p>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="px-5 py-2.5 bg-gray-50/50 border-t border-gray-100">
+        <p className="text-[10px] text-gray-400">
+          <strong className="text-gray-500">Regime read:</strong>&nbsp;
+          When breadth is narrow + correlation is high + dispersion is low → ETF/macro flows are dominating and individual stock picking is unrewarding. That is when the 40%+ ETF-volume stat typically shows up. &nbsp;·&nbsp;
+          When dispersion is high + correlation is falling → fundamental regime, stock/sector selection matters more.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ─── ETF Heatmap ─────────────────────────────────────────────────────────────
 
 function ETFHeatmap({ etfs }: { etfs: ETFRow[] }) {
@@ -159,7 +286,7 @@ function ETFHeatmap({ etfs }: { etfs: ETFRow[] }) {
                       <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">{GROUP_LABELS[g]}</span>
                     </td>
                   </tr>
-                  {rows.map((etf, i) => (
+                  {rows.map((etf) => (
                     <tr key={etf.ticker} className={`${returnBg(etf.return1D)} hover:bg-gray-50/60 transition-colors`}>
                       <td className="px-5 py-2.5">
                         <span className="font-semibold text-gray-900 text-xs">{etf.name}</span>
@@ -200,7 +327,23 @@ function ETFHeatmap({ etfs }: { etfs: ETFRow[] }) {
 
 // ─── Pair Ratios ──────────────────────────────────────────────────────────────
 
+const PAIR_GROUP_LABELS: Record<string, string> = {
+  'Regional': 'Regional vs US',
+  'Sector':   'Sector / Factor',
+  'Credit':   'Credit',
+  'Risk':     'Risk / Safety / Dollar',
+};
+
+const PAIR_GROUPS: { label: string; pairs: string[] }[] = [
+  { label: 'Regional', pairs: ['Korea vs US', 'Taiwan vs US', 'China vs US', 'Europe vs US', 'LatAm vs US'] },
+  { label: 'Sector',   pairs: ['Semis vs Software', 'Cyclicals vs Defensives', 'Financials vs Market', 'Growth vs Value'] },
+  { label: 'Credit',   pairs: ['HY vs IG Credit', 'Credit vs Safety'] },
+  { label: 'Risk',     pairs: ['Risk vs Safety', 'Dollar vs Equities'] },
+];
+
 function PairsTable({ pairs }: { pairs: PairRatio[] }) {
+  const pairMap = new Map(pairs.map(p => [p.label, p]));
+
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
       <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
@@ -226,38 +369,51 @@ function PairsTable({ pairs }: { pairs: PairRatio[] }) {
             </tr>
           </thead>
           <tbody>
-            {pairs.map((pair, i) => (
-              <tr key={pair.label} className={i % 2 === 0 ? '' : 'bg-gray-50/40'}>
-                <td className="px-5 py-2.5">
-                  <div className="font-semibold text-gray-900 text-xs">{pair.label}</div>
-                  <div className="text-gray-400 text-[10px]">{pair.description}</div>
-                </td>
-                <td className="px-4 py-2.5 text-gray-500 text-xs hidden lg:table-cell max-w-xs">
-                  {pair.bullishMeans}
-                </td>
-                <td className="px-4 py-2.5 text-right font-mono text-gray-600 text-xs">
-                  {pair.ratio !== null ? pair.ratio.toFixed(4) : '—'}
-                </td>
-                <td className={`px-4 py-2.5 text-right text-xs ${returnColor(pair.trend1D)}`}>
-                  {fmt(pair.trend1D)}
-                </td>
-                <td className={`px-4 py-2.5 text-right text-xs font-medium ${returnColor(pair.trend5D)}`}>
-                  {fmt(pair.trend5D)}
-                </td>
-                <td className="px-4 py-2.5 text-right text-xs">
-                  <ZBadge z={pair.zScore1D} />
-                </td>
-                <td className="px-5 py-2.5 text-right">
-                  <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
-                    pair.signal === 'bullish' ? 'bg-emerald-50 text-emerald-700' :
-                    pair.signal === 'bearish' ? 'bg-red-50 text-red-700' :
-                    'bg-gray-100 text-gray-500'
-                  }`}>
-                    {pair.signal === 'bullish' ? <TrendingUp size={10} /> : pair.signal === 'bearish' ? <TrendingDown size={10} /> : <Minus size={10} />}
-                    {pair.signal}
-                  </span>
-                </td>
-              </tr>
+            {PAIR_GROUPS.map(g => (
+              <>
+                <tr key={`ghdr-${g.label}`} className="bg-gray-50/70">
+                  <td colSpan={7} className="px-5 py-1.5">
+                    <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">{PAIR_GROUP_LABELS[g.label]}</span>
+                  </td>
+                </tr>
+                {g.pairs.map(pLabel => {
+                  const pair = pairMap.get(pLabel);
+                  if (!pair) return null;
+                  return (
+                    <tr key={pair.label} className="hover:bg-gray-50/40 transition-colors">
+                      <td className="px-5 py-2.5">
+                        <div className="font-semibold text-gray-900 text-xs">{pair.label}</div>
+                        <div className="text-gray-400 text-[10px]">{pair.description}</div>
+                      </td>
+                      <td className="px-4 py-2.5 text-gray-500 text-xs hidden lg:table-cell max-w-xs">
+                        {pair.bullishMeans}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-mono text-gray-600 text-xs">
+                        {pair.ratio !== null ? pair.ratio.toFixed(4) : '—'}
+                      </td>
+                      <td className={`px-4 py-2.5 text-right text-xs ${returnColor(pair.trend1D)}`}>
+                        {fmt(pair.trend1D)}
+                      </td>
+                      <td className={`px-4 py-2.5 text-right text-xs font-medium ${returnColor(pair.trend5D)}`}>
+                        {fmt(pair.trend5D)}
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-xs">
+                        <ZBadge z={pair.zScore1D} />
+                      </td>
+                      <td className="px-5 py-2.5 text-right">
+                        <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                          pair.signal === 'bullish' ? 'bg-emerald-50 text-emerald-700' :
+                          pair.signal === 'bearish' ? 'bg-red-50 text-red-700' :
+                          'bg-gray-100 text-gray-500'
+                        }`}>
+                          {pair.signal === 'bullish' ? <TrendingUp size={10} /> : pair.signal === 'bearish' ? <TrendingDown size={10} /> : <Minus size={10} />}
+                          {pair.signal}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </>
             ))}
           </tbody>
         </table>
@@ -310,7 +466,7 @@ export default function FlowsDashboard() {
       {loading && !data && (
         <div className="flex items-center justify-center py-24 text-gray-400">
           <Loader2 size={20} className="animate-spin mr-3" />
-          <span className="text-sm">Fetching 21 ETFs sequentially — ~12s on first load, cached 5 min after…</span>
+          <span className="text-sm">Fetching 24 ETFs sequentially — ~14s on first load, cached 5 min after…</span>
         </div>
       )}
 
@@ -323,6 +479,7 @@ export default function FlowsDashboard() {
       {data && (
         <>
           <RegimeBanner regime={data.regime} />
+          <MarketStructurePanel structure={data.structure} />
           <ETFHeatmap etfs={data.etfs} />
           <PairsTable pairs={data.pairs} />
           <p className="text-xs text-gray-300 text-center mt-2">

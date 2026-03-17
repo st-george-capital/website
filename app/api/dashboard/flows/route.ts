@@ -28,12 +28,64 @@ function calcZScore(changes: number[], window = 20): number | null {
   return std === 0 ? null : (today - mean) / std;
 }
 
+function calcStdDev(arr: number[]): number | null {
+  if (arr.length < 2) return null;
+  const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
+  const variance = arr.reduce((a, b) => a + (b - mean) ** 2, 0) / arr.length;
+  return Math.sqrt(variance);
+}
+
+function closesToDailyReturns(closes: number[]): number[] {
+  const returns: number[] = [];
+  for (let i = 1; i < closes.length; i++) {
+    if (closes[i - 1] > 0) returns.push((closes[i] - closes[i - 1]) / closes[i - 1] * 100);
+  }
+  return returns;
+}
+
+function calcPearsonCorr(a: number[], b: number[]): number | null {
+  const len = Math.min(a.length, b.length);
+  if (len < 5) return null;
+  const as = a.slice(-len), bs = b.slice(-len);
+  const am = as.reduce((s, v) => s + v, 0) / len;
+  const bm = bs.reduce((s, v) => s + v, 0) / len;
+  const num = as.reduce((s, v, i) => s + (v - am) * (bs[i] - bm), 0);
+  const da = Math.sqrt(as.reduce((s, v) => s + (v - am) ** 2, 0));
+  const db = Math.sqrt(bs.reduce((s, v) => s + (v - bm) ** 2, 0));
+  return (da === 0 || db === 0) ? null : num / (da * db);
+}
+
+function calcAvgPairwiseCorr(allReturns: number[][]): number | null {
+  const corrs: number[] = [];
+  for (let i = 0; i < allReturns.length; i++) {
+    for (let j = i + 1; j < allReturns.length; j++) {
+      const c = calcPearsonCorr(allReturns[i], allReturns[j]);
+      if (c !== null) corrs.push(c);
+    }
+  }
+  return corrs.length === 0 ? null : corrs.reduce((a, b) => a + b, 0) / corrs.length;
+}
+
+// Annualised realised vol from close prices (log returns, %)
+function calcRealizedVol(closes: number[], windowDays = 20): number | null {
+  if (closes.length < windowDays + 1) return null;
+  const slice = closes.slice(-(windowDays + 1));
+  const logRets: number[] = [];
+  for (let i = 1; i < slice.length; i++) {
+    if (slice[i - 1] > 0 && slice[i] > 0) logRets.push(Math.log(slice[i] / slice[i - 1]));
+  }
+  if (logRets.length < 4) return null;
+  const mean = logRets.reduce((a, b) => a + b, 0) / logRets.length;
+  const variance = logRets.reduce((a, b) => a + (b - mean) ** 2, 0) / logRets.length;
+  return Math.sqrt(variance) * Math.sqrt(252) * 100;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface ETFRow {
   ticker: string;
   name: string;
-  group: 'us' | 'europe' | 'asia' | 'latam' | 'sector' | 'bonds' | 'volatility';
+  group: 'us' | 'europe' | 'asia' | 'latam' | 'sector' | 'bonds' | 'fx' | 'volatility';
   price: number | null;
   return1D: number | null;
   return5D: number | null;
@@ -44,12 +96,12 @@ export interface ETFRow {
 
 export interface PairRatio {
   label: string;
-  description: string;     // what the ratio tracks
-  bullishMeans: string;    // what rising ratio implies
+  description: string;
+  bullishMeans: string;
   ratio: number | null;
   trend1D: number | null;
   trend5D: number | null;
-  zScore1D: number | null; // significance of today's ratio move vs its own 20-day history
+  zScore1D: number | null;
   signal: 'bullish' | 'bearish' | 'neutral';
 }
 
@@ -57,9 +109,32 @@ export interface RegimeSignal {
   name: string;
   value: string;
   raw: number | null;
-  score: number;           // 0 = calm, 1 = elevated, 2 = stress, 3+ = extreme
+  score: number;
   note: string;
-  why: string;             // why this signal was included
+  why: string;
+}
+
+// ─── Market Structure metrics (Panel 4) ──────────────────────────────────────
+
+export interface MarketStructure {
+  // Breadth: % of all tracked ETFs with a positive 1D return
+  breadthPctUp: number | null;
+  breadthTotal: number;
+
+  // Dispersion: std dev of sector ETF 1D returns — high = stock-picking, low = macro
+  dispersion1D: number | null;
+
+  // Average pairwise correlation across sector ETFs over 20D — high = ETF/macro dominance
+  avgCorrelation20D: number | null;
+
+  // SPY 20-day annualised realised vol (%)
+  realizedVol20D: number | null;
+
+  // UUP (DXY proxy) 5D return — USD strength = risk-off for EM
+  dxyReturn5D: number | null;
+
+  // LQD 5D return — IG credit health
+  igReturn5D: number | null;
 }
 
 export interface FlowsPayload {
@@ -71,6 +146,7 @@ export interface FlowsPayload {
     color: 'green' | 'yellow' | 'orange' | 'red';
     signals: RegimeSignal[];
   };
+  structure: MarketStructure;
   timestamp: string;
 }
 
@@ -78,8 +154,8 @@ export interface FlowsPayload {
 
 interface Series {
   price: number;
-  closes: number[];   // oldest → newest (up to 22)
-  volumes: number[];  // oldest → newest (up to 22)
+  closes: number[];
+  volumes: number[];
 }
 
 async function fetchSeries(ticker: string): Promise<Series | null> {
@@ -173,7 +249,6 @@ function buildPair(
   const t1 = prev1 !== 0 ? ((cur - prev1) / prev1) * 100 : null;
   const t5 = prev5 && prev5 !== 0 ? ((cur - prev5) / prev5) * 100 : null;
 
-  // Z-score of the ratio's daily % changes — is today's spread move significant?
   const ratioPcts: number[] = [];
   for (let i = 1; i < ratios.length; i++) {
     if (ratios[i - 1] !== 0) ratioPcts.push(((ratios[i] - ratios[i - 1]) / ratios[i - 1]) * 100);
@@ -297,6 +372,48 @@ function buildRegime(etfs: ETFRow[], pairs: PairRatio[]): FlowsPayload['regime']
   };
 }
 
+// ─── Market Structure metrics ─────────────────────────────────────────────────
+
+function buildStructure(
+  etfs: ETFRow[],
+  seriesMap: Record<string, Series | null>,
+): MarketStructure {
+  // Breadth: % of all tracked ETFs with positive 1D return
+  const withReturn = etfs.filter(e => e.return1D !== null);
+  const breadthPctUp = withReturn.length > 0
+    ? (withReturn.filter(e => (e.return1D ?? 0) > 0).length / withReturn.length) * 100
+    : null;
+
+  // Dispersion: std dev of sector ETF 1D returns
+  const sectorReturns1D = etfs
+    .filter(e => e.group === 'sector' && e.return1D !== null)
+    .map(e => e.return1D!);
+  const dispersion1D = calcStdDev(sectorReturns1D);
+
+  // Average pairwise correlation across sector ETFs over 20D
+  const sectorTickers = etfs.filter(e => e.group === 'sector').map(e => e.ticker);
+  const sectorDailyReturns = sectorTickers
+    .map(t => seriesMap[t]?.closes)
+    .filter((c): c is number[] => !!c)
+    .map(closesToDailyReturns);
+  const avgCorrelation20D = sectorDailyReturns.length >= 3
+    ? calcAvgPairwiseCorrelation(sectorDailyReturns)
+    : null;
+
+  // SPY 20D realised vol
+  const realizedVol20D = seriesMap['SPY']
+    ? calcRealizedVol(seriesMap['SPY'].closes, 20)
+    : null;
+
+  // UUP 5D return (DXY proxy)
+  const dxyReturn5D = etfs.find(e => e.ticker === 'UUP')?.return5D ?? null;
+
+  // LQD 5D return (IG credit)
+  const igReturn5D = etfs.find(e => e.ticker === 'LQD')?.return5D ?? null;
+
+  return { breadthPctUp, breadthTotal: withReturn.length, dispersion1D, avgCorrelation20D, realizedVol20D, dxyReturn5D, igReturn5D };
+}
+
 // ─── Main handler ─────────────────────────────────────────────────────────────
 
 export async function GET() {
@@ -322,17 +439,20 @@ export async function GET() {
     { ticker: 'IGV',  name: 'Software (IGV)',        group: 'sector'     },
     { ticker: 'XLE',  name: 'Energy (XLE)',          group: 'sector'     },
     { ticker: 'XLV',  name: 'Healthcare (XLV)',      group: 'sector'     },
-    { ticker: 'XLF',  name: 'Financials (XLF)',       group: 'sector'     },
+    { ticker: 'XLF',  name: 'Financials (XLF)',      group: 'sector'     },
     { ticker: 'XLY',  name: 'Cyclicals (XLY)',       group: 'sector'     },
     { ticker: 'XLP',  name: 'Defensives (XLP)',      group: 'sector'     },
     // Bonds / Credit
     { ticker: 'TLT',  name: 'Long Bonds (TLT)',      group: 'bonds'      },
+    { ticker: 'LQD',  name: 'IG Credit (LQD)',       group: 'bonds'      },
     { ticker: 'HYG',  name: 'High Yield (HYG)',      group: 'bonds'      },
+    // FX / Dollar
+    { ticker: 'UUP',  name: 'USD Index (UUP)',       group: 'fx'         },
     // Volatility
     { ticker: 'VIXY', name: 'VIX Proxy (VIXY)',      group: 'volatility' },
   ];
 
-  // 21 ETFs × 550ms ≈ 11.5s sequential — cached 5 min after first load
+  // 24 ETFs × 550ms ≈ 13s sequential — cached 5 min after first load
   const seriesArray = await sequential(
     UNIVERSE.map(({ ticker }) => () => fetchSeries(ticker)),
     550
@@ -346,21 +466,31 @@ export async function GET() {
   );
 
   const pairs: PairRatio[] = [
-    buildPair('Korea vs US',             'EWY / SPY', 'Korea thematic outperforming US — Asia longs working',         seriesMap['EWY'],  seriesMap['SPY']  ),
-    buildPair('Taiwan vs US',            'EWT / SPY', 'Taiwan semis outperforming US — TSMC/hardware trade intact',   seriesMap['EWT'],  seriesMap['SPY']  ),
-    buildPair('China vs US',             'FXI / SPY', 'Chinese equities outperforming US — EM rotation into China',   seriesMap['FXI'],  seriesMap['SPY']  ),
-    buildPair('Europe vs US',            'EZU / SPY', 'Eurozone outperforming US — capital shifting to Europe',       seriesMap['EZU'],  seriesMap['SPY']  ),
-    buildPair('LatAm vs US',             'EWZ / SPY', 'Brazil/EM outperforming US — commodity/EM risk-on',           seriesMap['EWZ'],  seriesMap['SPY']  ),
-    buildPair('Semis vs Software',       'SOXX / IGV', 'Semis beating software — AI momentum trade intact, Korea/Taiwan longs working', seriesMap['SOXX'], seriesMap['IGV']  ),
-    buildPair('Cyclicals vs Defensives', 'XLY / XLP', 'Cyclicals beating defensives — broad risk appetite healthy',  seriesMap['XLY'],  seriesMap['XLP']  ),
-    buildPair('Credit vs Safety',        'HYG / TLT', 'HY credit beating Treasuries — investors taking risk, spreads tightening', seriesMap['HYG'],  seriesMap['TLT']  ),
-    buildPair('Growth vs Value',         'QQQ / SPY', 'Growth/tech premium expanding — risk-on, mega-cap leading',   seriesMap['QQQ'],  seriesMap['SPY']  ),
+    // Regional vs US
+    buildPair('Korea vs US',             'EWY / SPY',  'Korea thematic outperforming US — Asia longs working',                    seriesMap['EWY'],  seriesMap['SPY']  ),
+    buildPair('Taiwan vs US',            'EWT / SPY',  'Taiwan semis outperforming US — TSMC/hardware trade intact',              seriesMap['EWT'],  seriesMap['SPY']  ),
+    buildPair('China vs US',             'FXI / SPY',  'Chinese equities outperforming US — EM rotation into China',              seriesMap['FXI'],  seriesMap['SPY']  ),
+    buildPair('Europe vs US',            'EZU / SPY',  'Eurozone outperforming US — capital shifting to Europe',                  seriesMap['EZU'],  seriesMap['SPY']  ),
+    buildPair('LatAm vs US',             'EWZ / SPY',  'Brazil/EM outperforming US — commodity/EM risk-on',                      seriesMap['EWZ'],  seriesMap['SPY']  ),
+    // Sector / Factor
+    buildPair('Semis vs Software',       'SOXX / IGV', 'Semis beating software — AI momentum trade intact, Korea/Taiwan longs working', seriesMap['SOXX'], seriesMap['IGV'] ),
+    buildPair('Cyclicals vs Defensives', 'XLY / XLP',  'Cyclicals beating defensives — broad risk appetite healthy',              seriesMap['XLY'],  seriesMap['XLP']  ),
+    buildPair('Financials vs Market',    'XLF / SPY',  'Banks outperforming — leverage appetite rising, steeper yield curve expected', seriesMap['XLF'],  seriesMap['SPY']  ),
+    buildPair('Growth vs Value',         'QQQ / SPY',  'Growth/tech premium expanding — risk-on, mega-cap leading',              seriesMap['QQQ'],  seriesMap['SPY']  ),
+    // Credit
+    buildPair('HY vs IG Credit',         'HYG / LQD',  'High yield outperforming IG — investors taking credit risk, spreads tight', seriesMap['HYG'],  seriesMap['LQD']  ),
+    buildPair('Credit vs Safety',        'HYG / TLT',  'HY credit beating Treasuries — risk appetite healthy, spreads tightening', seriesMap['HYG'],  seriesMap['TLT']  ),
+    // Risk/Safety
+    buildPair('Risk vs Safety',          'SPY / TLT',  'Equities outperforming bonds — classic risk-on rotation, rate expectations stable', seriesMap['SPY'],  seriesMap['TLT']  ),
+    // Dollar vs risk
+    buildPair('Dollar vs Equities',      'UUP / SPY',  'USD strengthening vs equities — risk-off or global tightening; negative for EM', seriesMap['UUP'],  seriesMap['SPY']  ),
   ];
 
   const regime = buildRegime(etfs, pairs);
+  const structure = buildStructure(etfs, seriesMap);
 
   return NextResponse.json({
-    etfs, pairs, regime,
+    etfs, pairs, regime, structure,
     timestamp: new Date().toISOString(),
   } satisfies FlowsPayload);
 }
