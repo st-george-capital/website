@@ -193,16 +193,22 @@ function buildPair(
 
 function buildRegime(etfs: ETFRow[], pairs: PairRatio[]): FlowsPayload['regime'] {
   const vixy = etfs.find(e => e.ticker === 'VIXY');
-  const vixVal = vixy?.price ?? null;
+  // VIXY price ≠ VIX level (VIXY decays from futures roll costs).
+  // Use % return instead: rising VIXY = rising implied vol = rising hedge demand.
+  const vixyR1D = vixy?.return1D ?? null;
+  const vixyR5D = vixy?.return5D ?? null;
+  const vixyDisplay = vixyR5D !== null
+    ? `${vixyR5D > 0 ? '+' : ''}${vixyR5D.toFixed(1)}% 5D`
+    : (vixyR1D !== null ? `${vixyR1D > 0 ? '+' : ''}${vixyR1D.toFixed(1)}% 1D` : '—');
 
-  // VIX
   let vixScore = 0; let vixNote = 'unavailable';
-  if (vixVal !== null) {
-    if (vixVal < 15)      { vixScore = 0; vixNote = `${vixVal.toFixed(1)} — calm, low hedge demand`; }
-    else if (vixVal < 20) { vixScore = 1; vixNote = `${vixVal.toFixed(1)} — slightly elevated`; }
-    else if (vixVal < 25) { vixScore = 2; vixNote = `${vixVal.toFixed(1)} — elevated, hedging rising`; }
-    else if (vixVal < 30) { vixScore = 3; vixNote = `${vixVal.toFixed(1)} — stress regime`; }
-    else                  { vixScore = 4; vixNote = `${vixVal.toFixed(1)} — extreme fear / macro hedging dominant`; }
+  const vixyRef = vixyR5D ?? vixyR1D;
+  if (vixyRef !== null) {
+    if (vixyRef < -5)      { vixScore = 0; vixNote = `${vixyDisplay} — vol collapsing, hedging demand very low`; }
+    else if (vixyRef < 0)  { vixScore = 0; vixNote = `${vixyDisplay} — vol falling, calm`; }
+    else if (vixyRef < 5)  { vixScore = 1; vixNote = `${vixyDisplay} — vol slightly elevated, some hedging`; }
+    else if (vixyRef < 15) { vixScore = 2; vixNote = `${vixyDisplay} — vol rising, hedging demand building`; }
+    else                   { vixScore = 3; vixNote = `${vixyDisplay} — vol surging, macro hedging dominant`; }
   }
 
   // Semis vs Software
@@ -263,9 +269,9 @@ function buildRegime(etfs: ETFRow[], pairs: PairRatio[]): FlowsPayload['regime']
     label, score: totalScore, color,
     signals: [
       {
-        name: 'VIX (VIXY)', value: vixVal !== null ? vixVal.toFixed(1) : '—',
-        raw: vixVal, score: vixScore, note: vixNote,
-        why: 'Universal fear gauge. Measures implied volatility on S&P options — a direct proxy for how much investors are paying to hedge downside.',
+        name: 'VIX (VIXY return)', value: vixyDisplay,
+        raw: vixyRef, score: vixScore, note: vixNote,
+        why: "Uses VIXY's % return, not its price. VIXY's absolute price doesn't map to the VIX index — it decays over time from futures roll costs. Rising VIXY = rising implied vol = investors paying more to hedge downside.",
       },
       {
         name: 'Semis vs Software', value: ssTrend !== undefined && ssTrend !== null ? `${ssTrend > 0 ? '+' : ''}${ssTrend.toFixed(1)}% 5D` : '—',
@@ -316,6 +322,7 @@ export async function GET() {
     { ticker: 'IGV',  name: 'Software (IGV)',        group: 'sector'     },
     { ticker: 'XLE',  name: 'Energy (XLE)',          group: 'sector'     },
     { ticker: 'XLV',  name: 'Healthcare (XLV)',      group: 'sector'     },
+    { ticker: 'XLF',  name: 'Financials (XLF)',       group: 'sector'     },
     { ticker: 'XLY',  name: 'Cyclicals (XLY)',       group: 'sector'     },
     { ticker: 'XLP',  name: 'Defensives (XLP)',      group: 'sector'     },
     // Bonds / Credit

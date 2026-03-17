@@ -109,7 +109,8 @@ function RegimeBanner({ regime }: { regime: FlowsPayload['regime'] }) {
         ))}
       </div>
       <p className="text-xs text-gray-400 mt-3">
-        Click <Info size={10} className="inline" /> on any signal card for the reasoning behind it.
+        Click <Info size={10} className="inline" /> on any signal card for the reasoning behind it. &nbsp;·&nbsp;
+        <strong>Note:</strong> VIX signal uses VIXY % return (not price) — VIXY price decays over time from futures roll costs and does not equal the VIX index level.
       </p>
     </div>
   );
