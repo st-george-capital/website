@@ -220,19 +220,6 @@ function PairsTable({ pairs }: { pairs: PairRatio[] }) {
   );
 }
 
-function InterpretationCard({ lines }: { lines: string[] }) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-      <h2 className="text-sm font-semibold text-gray-700 mb-3">Trade Interpretation</h2>
-      <div className="space-y-2.5">
-        {lines.map((line, i) => (
-          <p key={i} className="text-sm text-gray-600 leading-relaxed border-l-2 border-indigo-100 pl-3">{line}</p>
-        ))}
-      </div>
-      <p className="text-xs text-gray-300 mt-4">Rule-based inference from ETF price/volume signals. Not investment advice.</p>
-    </div>
-  );
-}
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
@@ -310,8 +297,6 @@ export default function FlowsDashboard() {
             {/* Q3: Pairs */}
             <PairsTable pairs={data.pairs} />
 
-            {/* Interpretation */}
-            <InterpretationCard lines={data.interpretation} />
           </div>
 
           <p className="text-xs text-gray-300 text-center mt-4">

@@ -68,7 +68,6 @@ export interface FlowsPayload {
     color: 'green' | 'yellow' | 'orange' | 'red';
     signals: RegimeSignal[];
   };
-  interpretation: string[];  // 3–4 sentences
   timestamp: string;
 }
 
@@ -270,66 +269,6 @@ function buildRegime(
   };
 }
 
-// ─── Interpretation ───────────────────────────────────────────────────────────
-
-function buildInterpretation(etfs: ETFRow[], pairs: PairRatio[], regime: FlowsPayload['regime']): string[] {
-  const sentences: string[] = [];
-
-  // Top geo performers (1D)
-  const geoETFs = etfs.filter(e => (e.group === 'us' || e.group === 'asia') && e.return1D !== null);
-  geoETFs.sort((a, b) => (b.return1D ?? 0) - (a.return1D ?? 0));
-  if (geoETFs.length >= 2) {
-    const top = geoETFs[0];
-    const bottom = geoETFs[geoETFs.length - 1];
-    const flowDir = (top.return1D ?? 0) > 0 ? 'flowing into' : 'rotating out of';
-    sentences.push(
-      `Geographic flows: Capital appears to be ${flowDir} ${top.name} (${top.return1D !== null ? (top.return1D > 0 ? '+' : '') + top.return1D.toFixed(2) + '%' : '—'} today)` +
-      `, with ${bottom.name} the weakest link (${bottom.return1D !== null ? (bottom.return1D > 0 ? '+' : '') + bottom.return1D.toFixed(2) + '%' : '—'}).`
-    );
-  }
-
-  // Sector signal (semis vs software)
-  const semisSw = pairs.find(p => p.label === 'Semis vs Software');
-  const ewyUS = pairs.find(p => p.label === 'Korea vs US');
-  const ewtUS = pairs.find(p => p.label === 'Taiwan vs US');
-  if (semisSw?.trend5D !== null && semisSw?.trend5D !== undefined) {
-    const aiTrade = semisSw.trend5D > 0;
-    const koreaTw = ((ewyUS?.trend5D ?? 0) + (ewtUS?.trend5D ?? 0)) / 2;
-    sentences.push(
-      aiTrade
-        ? `The AI/momentum trade is holding: semis are outperforming software over 5 days (${semisSw.trend5D > 0 ? '+' : ''}${semisSw.trend5D.toFixed(1)}%), with Korea and Taiwan ${koreaTw > 0 ? 'supporting' : 'diverging from'} the thesis.`
-        : `The semis vs software spread is compressing (${semisSw.trend5D.toFixed(1)}% 5D), suggesting pressure on the crowded long-semis/short-software trade — a key de-risking signal for Asia-tech longs.`
-    );
-  }
-
-  // Risk regime sentence
-  const vixSig = regime.signals.find(s => s.name === 'VIX (VIXY)');
-  const volSig = regime.signals.find(s => s.name === 'ETF Volume Spike');
-  sentences.push(
-    `Risk regime is ${regime.label} (score ${regime.score}/13): ` +
-    `${vixSig?.note ?? ''}${volSig && volSig.score >= 2 ? ` and ETF volume at ${volSig.value} — consistent with macro hedging via futures and ETF shorts` : ''}.`
-  );
-
-  // Trade structure conclusion
-  const stressHigh = regime.score >= 6;
-  const koreaUp = (ewyUS?.trend5D ?? 0) > 0;
-  const taiwanUp = (ewtUS?.trend5D ?? 0) > 0;
-  const semiLed = (semisSw?.trend5D ?? 0) > 0;
-  if (stressHigh) {
-    sentences.push(
-      'Likely trade structure: Institutions holding single-stock longs while shorting macro products (index ETFs, futures). ' +
-      `${(koreaUp || taiwanUp) ? 'Korea/Taiwan thematic longs are retained but under pressure' : 'Korea/Taiwan positioning is unwinding'}. Watch for a sharp reversal squeeze if geopolitical headlines turn positive.`
-    );
-  } else {
-    sentences.push(
-      `Likely trade structure: ${semiLed ? 'Long semis (Korea/Taiwan exposure), hedge via index puts or short software' : 'Rotation toward defensives and bonds — reduce cyclical exposure, add quality/safety'}. ` +
-      `${(koreaUp && taiwanUp) ? 'Asia thematic still intact.' : 'Reduce Asia thematic exposure given relative underperformance.'}`
-    );
-  }
-
-  return sentences;
-}
-
 // ─── Main handler ─────────────────────────────────────────────────────────────
 
 export async function GET() {
@@ -380,13 +319,11 @@ export async function GET() {
   ];
 
   const regime = buildRegime(etfs, pairs, {} as any);
-  const interpretation = buildInterpretation(etfs, pairs, regime);
 
   const payload: FlowsPayload = {
     etfs,
     pairs,
     regime,
-    interpretation,
     timestamp: new Date().toISOString(),
   };
 
