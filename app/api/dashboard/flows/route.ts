@@ -419,7 +419,7 @@ function buildStructure(etfs: ETFRow[], seriesMap: Record<string, Series | null>
     .filter((c): c is number[] => !!c)
     .map(closesToDailyReturns);
   const avgCorrelation20D = sectorDailyReturns.length >= 3
-    ? calcAvgPairwiseCorrelation(sectorDailyReturns)
+    ? calcAvgPairwiseCorr(sectorDailyReturns)
     : null;
 
   const realizedVol20D = seriesMap['SPY']
