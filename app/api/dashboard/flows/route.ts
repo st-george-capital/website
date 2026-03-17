@@ -66,7 +66,6 @@ function calcAvgPairwiseCorr(allReturns: number[][]): number | null {
   return corrs.length === 0 ? null : corrs.reduce((a, b) => a + b, 0) / corrs.length;
 }
 
-// Annualised realised vol from close prices (log returns, %)
 function calcRealizedVol(closes: number[], windowDays = 20): number | null {
   if (closes.length < windowDays + 1) return null;
   const slice = closes.slice(-(windowDays + 1));
@@ -89,7 +88,9 @@ export interface ETFRow {
   price: number | null;
   return1D: number | null;
   return5D: number | null;
-  return20D: number | null;
+  return20D: number | null;   // ~1 month
+  return63D: number | null;   // ~3 months
+  return95D: number | null;   // ~5 months (max from compact 100-day window)
   volumeRatio: number | null;
   zScore: number | null;
 }
@@ -101,6 +102,8 @@ export interface PairRatio {
   ratio: number | null;
   trend1D: number | null;
   trend5D: number | null;
+  trend1M: number | null;   // ~20 trading days
+  trend5M: number | null;   // ~95 trading days (max compact window)
   zScore1D: number | null;
   signal: 'bullish' | 'bearish' | 'neutral';
 }
@@ -114,27 +117,24 @@ export interface RegimeSignal {
   why: string;
 }
 
-// ─── Market Structure metrics (Panel 4) ──────────────────────────────────────
-
 export interface MarketStructure {
-  // Breadth: % of all tracked ETFs with a positive 1D return
   breadthPctUp: number | null;
   breadthTotal: number;
-
-  // Dispersion: std dev of sector ETF 1D returns — high = stock-picking, low = macro
   dispersion1D: number | null;
-
-  // Average pairwise correlation across sector ETFs over 20D — high = ETF/macro dominance
   avgCorrelation20D: number | null;
-
-  // SPY 20-day annualised realised vol (%)
   realizedVol20D: number | null;
-
-  // UUP (DXY proxy) 5D return — USD strength = risk-off for EM
   dxyReturn5D: number | null;
-
-  // LQD 5D return — IG credit health
   igReturn5D: number | null;
+}
+
+// Live macro context — fetched in parallel from different AV endpoints after ETFs
+export interface MacroContext {
+  fedFundsRate: number | null;   // US Federal Funds Rate (daily)
+  yield10Y: number | null;       // US 10-Year Treasury Yield (daily)
+  wtiCrude: number | null;       // WTI crude oil price (daily)
+  btcUSD: number | null;         // Bitcoin price (daily close)
+  wtiReturn5D: number | null;    // WTI 5-day % change
+  btcReturn5D: number | null;    // BTC 5-day % change
 }
 
 export interface FlowsPayload {
@@ -147,20 +147,22 @@ export interface FlowsPayload {
     signals: RegimeSignal[];
   };
   structure: MarketStructure;
+  macro: MacroContext;
   timestamp: string;
 }
 
-// ─── Fetch daily series ───────────────────────────────────────────────────────
+// ─── Fetch helpers ────────────────────────────────────────────────────────────
 
 interface Series {
   price: number;
-  closes: number[];
+  closes: number[];   // oldest → newest, up to 100 data points
   volumes: number[];
 }
 
 async function fetchSeries(ticker: string): Promise<Series | null> {
   try {
     const res = await fetch(
+      // compact gives 100 data points (~5 months of trading days)
       `${AV_BASE}?function=TIME_SERIES_DAILY&symbol=${ticker}&outputsize=compact&apikey=${AV_KEY}`
     );
     const data = await res.json();
@@ -168,7 +170,8 @@ async function fetchSeries(ticker: string): Promise<Series | null> {
     const series = data['Time Series (Daily)'];
     if (!series) return null;
     const dates = Object.keys(series).sort().reverse();
-    const window = dates.slice(0, Math.min(22, dates.length));
+    // Keep up to 100 data points — newest first, then reverse to oldest→newest
+    const window = dates.slice(0, Math.min(100, dates.length));
     const closes: number[] = [];
     const volumes: number[] = [];
     for (let i = window.length - 1; i >= 0; i--) {
@@ -183,6 +186,30 @@ async function fetchSeries(ticker: string): Promise<Series | null> {
     console.error(`fetchSeries(${ticker}):`, e);
     return null;
   }
+}
+
+// Fetch a simple time-series macro value (FEDERAL_FUNDS_RATE, TREASURY_YIELD, WTI, BRENT, NATURAL_GAS)
+async function fetchMacroSeries(url: string, n = 10): Promise<number[] | null> {
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    if (isAvLimited(data)) return null;
+    const items: Array<{ date: string; value: string }> = data?.data ?? [];
+    if (!items.length) return null;
+    const sorted = [...items].sort((a, b) => a.date.localeCompare(b.date));
+    return sorted.slice(-n).map(i => parseFloat(i.value)).filter(v => !isNaN(v));
+  } catch { return null; }
+}
+
+async function fetchBTC(n = 10): Promise<number[] | null> {
+  try {
+    const res = await fetch(`${AV_BASE}?function=DIGITAL_CURRENCY_DAILY&symbol=BTC&market=USD&apikey=${AV_KEY}`);
+    const data = await res.json();
+    const ts = data?.['Time Series (Digital Currency Daily)'];
+    if (!ts) return null;
+    const dates = Object.keys(ts).sort().reverse().slice(0, n).reverse();
+    return dates.map(d => parseFloat(ts[d]['4a. close (USD)'])).filter(v => !isNaN(v));
+  } catch { return null; }
 }
 
 // ─── Metric helpers ───────────────────────────────────────────────────────────
@@ -210,13 +237,15 @@ function zScoreFromCloses(closes: number[]): number | null {
 }
 
 function buildETFRow(ticker: string, name: string, group: ETFRow['group'], s: Series | null): ETFRow {
-  if (!s) return { ticker, name, group, price: null, return1D: null, return5D: null, return20D: null, volumeRatio: null, zScore: null };
+  if (!s) return { ticker, name, group, price: null, return1D: null, return5D: null, return20D: null, return63D: null, return95D: null, volumeRatio: null, zScore: null };
   return {
     ticker, name, group,
     price: s.price,
-    return1D: nDayReturn(s.closes, 1),
-    return5D: nDayReturn(s.closes, 5),
+    return1D:  nDayReturn(s.closes, 1),
+    return5D:  nDayReturn(s.closes, 5),
     return20D: nDayReturn(s.closes, 20),
+    return63D: nDayReturn(s.closes, 63),
+    return95D: nDayReturn(s.closes, 95),
     volumeRatio: volumeRatio(s.volumes),
     zScore: zScoreFromCloses(s.closes),
   };
@@ -231,7 +260,7 @@ function buildPair(
   numSeries: Series | null,
   denSeries: Series | null,
 ): PairRatio {
-  const empty: PairRatio = { label, description, bullishMeans, ratio: null, trend1D: null, trend5D: null, zScore1D: null, signal: 'neutral' };
+  const empty: PairRatio = { label, description, bullishMeans, ratio: null, trend1D: null, trend5D: null, trend1M: null, trend5M: null, zScore1D: null, signal: 'neutral' };
   if (!numSeries || !denSeries) return empty;
 
   const len = Math.min(numSeries.closes.length, denSeries.closes.length);
@@ -243,11 +272,16 @@ function buildPair(
   }
   if (ratios.length < 2) return empty;
 
-  const cur = ratios[ratios.length - 1];
-  const prev1 = ratios[ratios.length - 2];
-  const prev5 = ratios.length >= 6 ? ratios[ratios.length - 6] : null;
-  const t1 = prev1 !== 0 ? ((cur - prev1) / prev1) * 100 : null;
-  const t5 = prev5 && prev5 !== 0 ? ((cur - prev5) / prev5) * 100 : null;
+  const cur  = ratios[ratios.length - 1];
+  const prev1  = ratios[ratios.length - 2];
+  const prev5  = ratios.length >= 6  ? ratios[ratios.length - 6]  : null;
+  const prev20 = ratios.length >= 21 ? ratios[ratios.length - 21] : null;
+  const prev95 = ratios.length >= 96 ? ratios[ratios.length - 96] : null;
+
+  const t1D = prev1  !== 0 ? ((cur - prev1)  / prev1)  * 100 : null;
+  const t5D = prev5  && prev5  !== 0 ? ((cur - prev5)  / prev5)  * 100 : null;
+  const t1M = prev20 && prev20 !== 0 ? ((cur - prev20) / prev20) * 100 : null;
+  const t5M = prev95 && prev95 !== 0 ? ((cur - prev95) / prev95) * 100 : null;
 
   const ratioPcts: number[] = [];
   for (let i = 1; i < ratios.length; i++) {
@@ -256,20 +290,18 @@ function buildPair(
   const zScore1D = calcZScore(ratioPcts);
 
   let signal: PairRatio['signal'] = 'neutral';
-  if (t5 !== null) {
-    if (t5 > 0.5) signal = 'bullish';
-    else if (t5 < -0.5) signal = 'bearish';
+  if (t5D !== null) {
+    if (t5D > 0.5) signal = 'bullish';
+    else if (t5D < -0.5) signal = 'bearish';
   }
 
-  return { label, description, bullishMeans, ratio: cur, trend1D: t1, trend5D: t5, zScore1D, signal };
+  return { label, description, bullishMeans, ratio: cur, trend1D: t1D, trend5D: t5D, trend1M: t1M, trend5M: t5M, zScore1D, signal };
 }
 
 // ─── Risk regime ─────────────────────────────────────────────────────────────
 
 function buildRegime(etfs: ETFRow[], pairs: PairRatio[]): FlowsPayload['regime'] {
   const vixy = etfs.find(e => e.ticker === 'VIXY');
-  // VIXY price ≠ VIX level (VIXY decays from futures roll costs).
-  // Use % return instead: rising VIXY = rising implied vol = rising hedge demand.
   const vixyR1D = vixy?.return1D ?? null;
   const vixyR5D = vixy?.return5D ?? null;
   const vixyDisplay = vixyR5D !== null
@@ -286,40 +318,36 @@ function buildRegime(etfs: ETFRow[], pairs: PairRatio[]): FlowsPayload['regime']
     else                   { vixScore = 3; vixNote = `${vixyDisplay} — vol surging, macro hedging dominant`; }
   }
 
-  // Semis vs Software
   const semisSw = pairs.find(p => p.label === 'Semis vs Software');
   let ssScore = 1; let ssNote = 'unavailable';
   const ssTrend = semisSw?.trend5D;
   if (ssTrend !== null && ssTrend !== undefined) {
-    if (ssTrend > 1.5)       { ssScore = 0; ssNote = `+${ssTrend.toFixed(1)}% 5D — semis leading, AI/momentum trade intact`; }
-    else if (ssTrend > 0)    { ssScore = 1; ssNote = `+${ssTrend.toFixed(1)}% 5D — semis modestly ahead, trade holding`; }
-    else if (ssTrend > -1.5) { ssScore = 1; ssNote = `${ssTrend.toFixed(1)}% 5D — software creeping ahead, momentum fading`; }
-    else                     { ssScore = 2; ssNote = `${ssTrend.toFixed(1)}% 5D — software crushing semis, crowded longs unwinding`; }
+    if (ssTrend > 1.5)       { ssScore = 0; ssNote = `+${ssTrend.toFixed(1)}% 5D — semis leading`; }
+    else if (ssTrend > 0)    { ssScore = 1; ssNote = `+${ssTrend.toFixed(1)}% 5D — semis modestly ahead`; }
+    else if (ssTrend > -1.5) { ssScore = 1; ssNote = `${ssTrend.toFixed(1)}% 5D — software creeping ahead`; }
+    else                     { ssScore = 2; ssNote = `${ssTrend.toFixed(1)}% 5D — software dominating`; }
   }
 
-  // Cyclicals vs Defensives
   const cycDef = pairs.find(p => p.label === 'Cyclicals vs Defensives');
   let cdScore = 1; let cdNote = 'unavailable';
   const cdTrend = cycDef?.trend5D;
   if (cdTrend !== null && cdTrend !== undefined) {
-    if (cdTrend > 1)       { cdScore = 0; cdNote = `+${cdTrend.toFixed(1)}% 5D — cyclicals leading, risk appetite healthy`; }
+    if (cdTrend > 1)       { cdScore = 0; cdNote = `+${cdTrend.toFixed(1)}% 5D — cyclicals leading`; }
     else if (cdTrend > 0)  { cdScore = 1; cdNote = `+${cdTrend.toFixed(1)}% 5D — mild cyclical edge`; }
     else if (cdTrend > -1) { cdScore = 1; cdNote = `${cdTrend.toFixed(1)}% 5D — defensives creeping ahead`; }
-    else                   { cdScore = 2; cdNote = `${cdTrend.toFixed(1)}% 5D — defensives dominating, rotation to safety`; }
+    else                   { cdScore = 2; cdNote = `${cdTrend.toFixed(1)}% 5D — defensives dominating`; }
   }
 
-  // HYG credit
   const hyg = etfs.find(e => e.ticker === 'HYG');
   let creditScore = 1; let creditNote = 'unavailable';
   const hygR = hyg?.return5D;
   if (hygR !== null && hygR !== undefined) {
-    if (hygR > 0.5)       { creditScore = 0; creditNote = `+${hygR.toFixed(1)}% 5D — spreads tightening, risk appetite healthy`; }
+    if (hygR > 0.5)       { creditScore = 0; creditNote = `+${hygR.toFixed(1)}% 5D — spreads tightening`; }
     else if (hygR > -0.5) { creditScore = 1; creditNote = `${hygR.toFixed(1)}% 5D — credit neutral`; }
-    else if (hygR > -1.5) { creditScore = 2; creditNote = `${hygR.toFixed(1)}% 5D — spreads widening, stress building`; }
-    else                  { creditScore = 3; creditNote = `${hygR.toFixed(1)}% 5D — significant spread widening, credit stress`; }
+    else if (hygR > -1.5) { creditScore = 2; creditNote = `${hygR.toFixed(1)}% 5D — spreads widening`; }
+    else                  { creditScore = 3; creditNote = `${hygR.toFixed(1)}% 5D — significant credit stress`; }
   }
 
-  // ETF volume spike
   const etfsExVol = etfs.filter(e => e.ticker !== 'VIXY' && e.volumeRatio !== null);
   const avgVolRatio = etfsExVol.length > 0
     ? etfsExVol.reduce((a, e) => a + (e.volumeRatio ?? 1), 0) / etfsExVol.length
@@ -327,9 +355,9 @@ function buildRegime(etfs: ETFRow[], pairs: PairRatio[]): FlowsPayload['regime']
   let volScore = 0; let volNote = 'unavailable';
   if (avgVolRatio !== null) {
     if (avgVolRatio < 1.2)      { volScore = 0; volNote = `${avgVolRatio.toFixed(2)}× avg — normal activity`; }
-    else if (avgVolRatio < 1.5) { volScore = 1; volNote = `${avgVolRatio.toFixed(2)}× avg — elevated, some hedging`; }
-    else if (avgVolRatio < 2.0) { volScore = 2; volNote = `${avgVolRatio.toFixed(2)}× avg — high, macro hedging active`; }
-    else                        { volScore = 3; volNote = `${avgVolRatio.toFixed(2)}× avg — extreme, ETFs dominating tape`; }
+    else if (avgVolRatio < 1.5) { volScore = 1; volNote = `${avgVolRatio.toFixed(2)}× avg — elevated`; }
+    else if (avgVolRatio < 2.0) { volScore = 2; volNote = `${avgVolRatio.toFixed(2)}× avg — high, macro hedging`; }
+    else                        { volScore = 3; volNote = `${avgVolRatio.toFixed(2)}× avg — extreme`; }
   }
 
   const totalScore = vixScore + ssScore + cdScore + creditScore + volScore;
@@ -346,7 +374,7 @@ function buildRegime(etfs: ETFRow[], pairs: PairRatio[]): FlowsPayload['regime']
       {
         name: 'VIX (VIXY return)', value: vixyDisplay,
         raw: vixyRef, score: vixScore, note: vixNote,
-        why: "Uses VIXY's % return, not its price. VIXY's absolute price doesn't map to the VIX index — it decays over time from futures roll costs. Rising VIXY = rising implied vol = investors paying more to hedge downside.",
+        why: "Uses VIXY's 5D % return, not its price. VIXY decays from futures roll costs — its absolute price does not map to the VIX index level. Rising VIXY return = rising implied vol = investors paying more for downside protection.",
       },
       {
         name: 'Semis vs Software', value: ssTrend !== undefined && ssTrend !== null ? `${ssTrend > 0 ? '+' : ''}${ssTrend.toFixed(1)}% 5D` : '—',
@@ -366,7 +394,7 @@ function buildRegime(etfs: ETFRow[], pairs: PairRatio[]): FlowsPayload['regime']
       {
         name: 'ETF Volume Spike', value: avgVolRatio !== null ? `${avgVolRatio.toFixed(2)}×` : '—',
         raw: avgVolRatio, score: volScore, note: volNote,
-        why: 'Goldman signal: ETFs normally represent ~30% of total tape volume. When >40%, institutions are using ETFs to hedge macro risk (short SPY/QQQ baskets). Our proxy: avg ETF vol vs its 20-day norm.',
+        why: 'Goldman signal: ETFs normally represent ~30% of total tape volume. When >40%, institutions are using ETFs for macro hedging. Our proxy: avg ETF vol vs its 20-day norm.',
       },
     ],
   };
@@ -374,23 +402,17 @@ function buildRegime(etfs: ETFRow[], pairs: PairRatio[]): FlowsPayload['regime']
 
 // ─── Market Structure metrics ─────────────────────────────────────────────────
 
-function buildStructure(
-  etfs: ETFRow[],
-  seriesMap: Record<string, Series | null>,
-): MarketStructure {
-  // Breadth: % of all tracked ETFs with positive 1D return
+function buildStructure(etfs: ETFRow[], seriesMap: Record<string, Series | null>): MarketStructure {
   const withReturn = etfs.filter(e => e.return1D !== null);
   const breadthPctUp = withReturn.length > 0
     ? (withReturn.filter(e => (e.return1D ?? 0) > 0).length / withReturn.length) * 100
     : null;
 
-  // Dispersion: std dev of sector ETF 1D returns
   const sectorReturns1D = etfs
     .filter(e => e.group === 'sector' && e.return1D !== null)
     .map(e => e.return1D!);
   const dispersion1D = calcStdDev(sectorReturns1D);
 
-  // Average pairwise correlation across sector ETFs over 20D
   const sectorTickers = etfs.filter(e => e.group === 'sector').map(e => e.ticker);
   const sectorDailyReturns = sectorTickers
     .map(t => seriesMap[t]?.closes)
@@ -400,18 +422,50 @@ function buildStructure(
     ? calcAvgPairwiseCorrelation(sectorDailyReturns)
     : null;
 
-  // SPY 20D realised vol
   const realizedVol20D = seriesMap['SPY']
     ? calcRealizedVol(seriesMap['SPY'].closes, 20)
     : null;
 
-  // UUP 5D return (DXY proxy)
-  const dxyReturn5D = etfs.find(e => e.ticker === 'UUP')?.return5D ?? null;
+  return {
+    breadthPctUp,
+    breadthTotal: withReturn.length,
+    dispersion1D,
+    avgCorrelation20D,
+    realizedVol20D,
+    dxyReturn5D: etfs.find(e => e.ticker === 'UUP')?.return5D ?? null,
+    igReturn5D: etfs.find(e => e.ticker === 'LQD')?.return5D ?? null,
+  };
+}
 
-  // LQD 5D return (IG credit)
-  const igReturn5D = etfs.find(e => e.ticker === 'LQD')?.return5D ?? null;
+// ─── Macro context (parallel fetches after ETFs) ──────────────────────────────
 
-  return { breadthPctUp, breadthTotal: withReturn.length, dispersion1D, avgCorrelation20D, realizedVol20D, dxyReturn5D, igReturn5D };
+async function buildMacro(): Promise<MacroContext> {
+  const [ffr, ty10, wtiArr, btcArr] = await Promise.allSettled([
+    fetchMacroSeries(`${AV_BASE}?function=FEDERAL_FUNDS_RATE&interval=daily&apikey=${AV_KEY}`, 10),
+    fetchMacroSeries(`${AV_BASE}?function=TREASURY_YIELD&interval=daily&maturity=10year&apikey=${AV_KEY}`, 10),
+    fetchMacroSeries(`${AV_BASE}?function=WTI&interval=daily&apikey=${AV_KEY}`, 10),
+    fetchBTC(10),
+  ]).then(rs => rs.map(r => r.status === 'fulfilled' ? r.value : null));
+
+  const last = (arr: number[] | null) => arr && arr.length > 0 ? arr[arr.length - 1] : null;
+  const pctChange = (arr: number[] | null, n: number) => {
+    if (!arr || arr.length < n + 1) return null;
+    const cur = arr[arr.length - 1];
+    const prev = arr[arr.length - 1 - n];
+    return prev !== 0 ? ((cur - prev) / prev) * 100 : null;
+  };
+
+  const wtiData = wtiArr as number[] | null;
+  const btcData = btcArr as number[] | null;
+
+  return {
+    fedFundsRate: last(ffr as number[] | null),
+    yield10Y: last(ty10 as number[] | null),
+    wtiCrude: last(wtiData),
+    btcUSD: last(btcData),
+    wtiReturn5D: pctChange(wtiData, Math.min(5, (wtiData?.length ?? 0) - 1)),
+    btcReturn5D: pctChange(btcData, Math.min(5, (btcData?.length ?? 0) - 1)),
+  };
 }
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
@@ -452,7 +506,7 @@ export async function GET() {
     { ticker: 'VIXY', name: 'VIX Proxy (VIXY)',      group: 'volatility' },
   ];
 
-  // 24 ETFs × 550ms ≈ 13s sequential — cached 5 min after first load
+  // 24 ETFs × 550ms ≈ 13s — cached 5 min after first load
   const seriesArray = await sequential(
     UNIVERSE.map(({ ticker }) => () => fetchSeries(ticker)),
     550
@@ -466,31 +520,28 @@ export async function GET() {
   );
 
   const pairs: PairRatio[] = [
-    // Regional vs US
-    buildPair('Korea vs US',             'EWY / SPY',  'Korea thematic outperforming US — Asia longs working',                    seriesMap['EWY'],  seriesMap['SPY']  ),
-    buildPair('Taiwan vs US',            'EWT / SPY',  'Taiwan semis outperforming US — TSMC/hardware trade intact',              seriesMap['EWT'],  seriesMap['SPY']  ),
-    buildPair('China vs US',             'FXI / SPY',  'Chinese equities outperforming US — EM rotation into China',              seriesMap['FXI'],  seriesMap['SPY']  ),
-    buildPair('Europe vs US',            'EZU / SPY',  'Eurozone outperforming US — capital shifting to Europe',                  seriesMap['EZU'],  seriesMap['SPY']  ),
-    buildPair('LatAm vs US',             'EWZ / SPY',  'Brazil/EM outperforming US — commodity/EM risk-on',                      seriesMap['EWZ'],  seriesMap['SPY']  ),
-    // Sector / Factor
+    buildPair('Korea vs US',             'EWY / SPY',  'Korea thematic outperforming US — Asia longs working',                        seriesMap['EWY'],  seriesMap['SPY']  ),
+    buildPair('Taiwan vs US',            'EWT / SPY',  'Taiwan semis outperforming US — TSMC/hardware trade intact',                  seriesMap['EWT'],  seriesMap['SPY']  ),
+    buildPair('China vs US',             'FXI / SPY',  'Chinese equities outperforming US — EM rotation into China',                  seriesMap['FXI'],  seriesMap['SPY']  ),
+    buildPair('Europe vs US',            'EZU / SPY',  'Eurozone outperforming US — capital shifting to Europe',                      seriesMap['EZU'],  seriesMap['SPY']  ),
+    buildPair('LatAm vs US',             'EWZ / SPY',  'Brazil/EM outperforming US — commodity/EM risk-on',                          seriesMap['EWZ'],  seriesMap['SPY']  ),
     buildPair('Semis vs Software',       'SOXX / IGV', 'Semis beating software — AI momentum trade intact, Korea/Taiwan longs working', seriesMap['SOXX'], seriesMap['IGV'] ),
-    buildPair('Cyclicals vs Defensives', 'XLY / XLP',  'Cyclicals beating defensives — broad risk appetite healthy',              seriesMap['XLY'],  seriesMap['XLP']  ),
-    buildPair('Financials vs Market',    'XLF / SPY',  'Banks outperforming — leverage appetite rising, steeper yield curve expected', seriesMap['XLF'],  seriesMap['SPY']  ),
-    buildPair('Growth vs Value',         'QQQ / SPY',  'Growth/tech premium expanding — risk-on, mega-cap leading',              seriesMap['QQQ'],  seriesMap['SPY']  ),
-    // Credit
-    buildPair('HY vs IG Credit',         'HYG / LQD',  'High yield outperforming IG — investors taking credit risk, spreads tight', seriesMap['HYG'],  seriesMap['LQD']  ),
-    buildPair('Credit vs Safety',        'HYG / TLT',  'HY credit beating Treasuries — risk appetite healthy, spreads tightening', seriesMap['HYG'],  seriesMap['TLT']  ),
-    // Risk/Safety
-    buildPair('Risk vs Safety',          'SPY / TLT',  'Equities outperforming bonds — classic risk-on rotation, rate expectations stable', seriesMap['SPY'],  seriesMap['TLT']  ),
-    // Dollar vs risk
-    buildPair('Dollar vs Equities',      'UUP / SPY',  'USD strengthening vs equities — risk-off or global tightening; negative for EM', seriesMap['UUP'],  seriesMap['SPY']  ),
+    buildPair('Cyclicals vs Defensives', 'XLY / XLP',  'Cyclicals beating defensives — broad risk appetite healthy',                  seriesMap['XLY'],  seriesMap['XLP']  ),
+    buildPair('Financials vs Market',    'XLF / SPY',  'Banks outperforming — leverage appetite rising, yield curve expectations up',  seriesMap['XLF'],  seriesMap['SPY']  ),
+    buildPair('Growth vs Value',         'QQQ / SPY',  'Growth/tech premium expanding — risk-on, mega-cap leading',                  seriesMap['QQQ'],  seriesMap['SPY']  ),
+    buildPair('HY vs IG Credit',         'HYG / LQD',  'High yield outperforming IG — investors taking credit risk, spreads tight',   seriesMap['HYG'],  seriesMap['LQD']  ),
+    buildPair('Credit vs Safety',        'HYG / TLT',  'HY credit beating Treasuries — risk appetite healthy, spreads tightening',    seriesMap['HYG'],  seriesMap['TLT']  ),
+    buildPair('Risk vs Safety',          'SPY / TLT',  'Equities outperforming bonds — classic risk-on rotation',                     seriesMap['SPY'],  seriesMap['TLT']  ),
+    buildPair('Dollar vs Equities',      'UUP / SPY',  'USD strengthening vs equities — risk-off or global tightening; bad for EM',  seriesMap['UUP'],  seriesMap['SPY']  ),
   ];
 
   const regime = buildRegime(etfs, pairs);
   const structure = buildStructure(etfs, seriesMap);
+  // Macro context fetches in parallel (different AV endpoints, safe to run simultaneously)
+  const macro = await buildMacro();
 
   return NextResponse.json({
-    etfs, pairs, regime, structure,
+    etfs, pairs, regime, structure, macro,
     timestamp: new Date().toISOString(),
   } satisfies FlowsPayload);
 }
