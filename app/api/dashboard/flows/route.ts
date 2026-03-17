@@ -33,21 +33,23 @@ function calcZScore(changes: number[], window = 20): number | null {
 export interface ETFRow {
   ticker: string;
   name: string;
-  group: 'us' | 'asia' | 'sector' | 'bonds' | 'volatility';
+  group: 'us' | 'europe' | 'asia' | 'latam' | 'sector' | 'bonds' | 'volatility';
   price: number | null;
   return1D: number | null;
   return5D: number | null;
   return20D: number | null;
-  volumeRatio: number | null; // today / 20-day avg volume
+  volumeRatio: number | null;
   zScore: number | null;
 }
 
 export interface PairRatio {
   label: string;
-  description: string;
+  description: string;     // what the ratio tracks
+  bullishMeans: string;    // what rising ratio implies
   ratio: number | null;
-  trend1D: number | null; // % change in ratio over 1 day
-  trend5D: number | null; // % change in ratio over 5 days
+  trend1D: number | null;
+  trend5D: number | null;
+  zScore1D: number | null; // significance of today's ratio move vs its own 20-day history
   signal: 'bullish' | 'bearish' | 'neutral';
 }
 
@@ -55,8 +57,9 @@ export interface RegimeSignal {
   name: string;
   value: string;
   raw: number | null;
-  score: number; // 0 = calm, 1 = elevated, 2 = stress
+  score: number;           // 0 = calm, 1 = elevated, 2 = stress, 3+ = extreme
   note: string;
+  why: string;             // why this signal was included
 }
 
 export interface FlowsPayload {
@@ -64,7 +67,7 @@ export interface FlowsPayload {
   pairs: PairRatio[];
   regime: {
     label: 'Risk-on' | 'Neutral' | 'Hedging-heavy' | 'Stress';
-    score: number; // 0–10
+    score: number;
     color: 'green' | 'yellow' | 'orange' | 'red';
     signals: RegimeSignal[];
   };
@@ -75,8 +78,8 @@ export interface FlowsPayload {
 
 interface Series {
   price: number;
-  closes: number[];  // oldest → newest (up to 22)
-  volumes: number[]; // oldest → newest (up to 22)
+  closes: number[];   // oldest → newest (up to 22)
+  volumes: number[];  // oldest → newest (up to 22)
 }
 
 async function fetchSeries(ticker: string): Promise<Series | null> {
@@ -88,13 +91,11 @@ async function fetchSeries(ticker: string): Promise<Series | null> {
     if (isAvLimited(data)) { console.warn(`AV limited: ${ticker}`); return null; }
     const series = data['Time Series (Daily)'];
     if (!series) return null;
-
-    const dates = Object.keys(series).sort().reverse(); // newest first
+    const dates = Object.keys(series).sort().reverse();
     const window = dates.slice(0, Math.min(22, dates.length));
     const closes: number[] = [];
     const volumes: number[] = [];
-
-    for (let i = window.length - 1; i >= 0; i--) { // reverse → oldest first
+    for (let i = window.length - 1; i >= 0; i--) {
       const c = parseFloat(series[window[i]]['4. close']);
       const v = parseFloat(series[window[i]]['5. volume']);
       if (!isNaN(c)) closes.push(c);
@@ -150,19 +151,21 @@ function buildETFRow(ticker: string, name: string, group: ETFRow['group'], s: Se
 function buildPair(
   label: string,
   description: string,
+  bullishMeans: string,
   numSeries: Series | null,
   denSeries: Series | null,
-  higherMeansWhat: 'bullish' | 'bearish', // higher ratio = bullish or bearish signal?
 ): PairRatio {
-  if (!numSeries || !denSeries) return { label, description, ratio: null, trend1D: null, trend5D: null, signal: 'neutral' };
+  const empty: PairRatio = { label, description, bullishMeans, ratio: null, trend1D: null, trend5D: null, zScore1D: null, signal: 'neutral' };
+  if (!numSeries || !denSeries) return empty;
+
   const len = Math.min(numSeries.closes.length, denSeries.closes.length);
   const ratios: number[] = [];
   for (let i = 0; i < len; i++) {
-    const d = denSeries.closes[denSeries.closes.length - len + i];
     const n = numSeries.closes[numSeries.closes.length - len + i];
+    const d = denSeries.closes[denSeries.closes.length - len + i];
     if (d !== 0) ratios.push(n / d);
   }
-  if (ratios.length < 2) return { label, description, ratio: null, trend1D: null, trend5D: null, signal: 'neutral' };
+  if (ratios.length < 2) return empty;
 
   const cur = ratios[ratios.length - 1];
   const prev1 = ratios[ratios.length - 2];
@@ -170,101 +173,120 @@ function buildPair(
   const t1 = prev1 !== 0 ? ((cur - prev1) / prev1) * 100 : null;
   const t5 = prev5 && prev5 !== 0 ? ((cur - prev5) / prev5) * 100 : null;
 
+  // Z-score of the ratio's daily % changes — is today's spread move significant?
+  const ratioPcts: number[] = [];
+  for (let i = 1; i < ratios.length; i++) {
+    if (ratios[i - 1] !== 0) ratioPcts.push(((ratios[i] - ratios[i - 1]) / ratios[i - 1]) * 100);
+  }
+  const zScore1D = calcZScore(ratioPcts);
+
   let signal: PairRatio['signal'] = 'neutral';
   if (t5 !== null) {
-    const rising = t5 > 0.5;
-    const falling = t5 < -0.5;
-    if (rising) signal = higherMeansWhat === 'bullish' ? 'bullish' : 'bearish';
-    else if (falling) signal = higherMeansWhat === 'bullish' ? 'bearish' : 'bullish';
+    if (t5 > 0.5) signal = 'bullish';
+    else if (t5 < -0.5) signal = 'bearish';
   }
-  return { label, description, ratio: cur, trend1D: t1, trend5D: t5, signal };
+
+  return { label, description, bullishMeans, ratio: cur, trend1D: t1, trend5D: t5, zScore1D, signal };
 }
 
 // ─── Risk regime ─────────────────────────────────────────────────────────────
 
-function buildRegime(
-  etfs: ETFRow[],
-  pairs: PairRatio[],
-  seriesMap: Record<string, Series | null>
-): FlowsPayload['regime'] {
+function buildRegime(etfs: ETFRow[], pairs: PairRatio[]): FlowsPayload['regime'] {
   const vixy = etfs.find(e => e.ticker === 'VIXY');
   const vixVal = vixy?.price ?? null;
 
-  // Signal 1: VIX proxy
-  let vixScore = 0;
-  let vixNote = 'unavailable';
+  // VIX
+  let vixScore = 0; let vixNote = 'unavailable';
   if (vixVal !== null) {
-    if (vixVal < 15) { vixScore = 0; vixNote = `${vixVal.toFixed(1)} — calm, low hedge demand`; }
+    if (vixVal < 15)      { vixScore = 0; vixNote = `${vixVal.toFixed(1)} — calm, low hedge demand`; }
     else if (vixVal < 20) { vixScore = 1; vixNote = `${vixVal.toFixed(1)} — slightly elevated`; }
-    else if (vixVal < 25) { vixScore = 2; vixNote = `${vixVal.toFixed(1)} — elevated, hedging activity rising`; }
+    else if (vixVal < 25) { vixScore = 2; vixNote = `${vixVal.toFixed(1)} — elevated, hedging rising`; }
     else if (vixVal < 30) { vixScore = 3; vixNote = `${vixVal.toFixed(1)} — stress regime`; }
-    else { vixScore = 4; vixNote = `${vixVal.toFixed(1)} — extreme fear, macro hedging dominant`; }
+    else                  { vixScore = 4; vixNote = `${vixVal.toFixed(1)} — extreme fear / macro hedging dominant`; }
   }
 
-  // Signal 2: Semis vs Software (SOXX/IGV trend)
+  // Semis vs Software
   const semisSw = pairs.find(p => p.label === 'Semis vs Software');
-  let ssScore = 1;
-  let ssNote = 'unavailable';
-  if (semisSw?.trend5D !== null && semisSw?.trend5D !== undefined) {
-    if (semisSw.trend5D > 1.5) { ssScore = 0; ssNote = `Semis outpacing software (+${semisSw.trend5D.toFixed(1)}% 5D) — AI/momentum trade intact`; }
-    else if (semisSw.trend5D > 0) { ssScore = 1; ssNote = `Semis modestly ahead — AI trade holding`; }
-    else if (semisSw.trend5D > -1.5) { ssScore = 1; ssNote = `Slight software outperformance — momentum fading`; }
-    else { ssScore = 2; ssNote = `Software crushing semis (${semisSw.trend5D.toFixed(1)}% 5D) — momentum unwind / crowded longs under stress`; }
+  let ssScore = 1; let ssNote = 'unavailable';
+  const ssTrend = semisSw?.trend5D;
+  if (ssTrend !== null && ssTrend !== undefined) {
+    if (ssTrend > 1.5)       { ssScore = 0; ssNote = `+${ssTrend.toFixed(1)}% 5D — semis leading, AI/momentum trade intact`; }
+    else if (ssTrend > 0)    { ssScore = 1; ssNote = `+${ssTrend.toFixed(1)}% 5D — semis modestly ahead, trade holding`; }
+    else if (ssTrend > -1.5) { ssScore = 1; ssNote = `${ssTrend.toFixed(1)}% 5D — software creeping ahead, momentum fading`; }
+    else                     { ssScore = 2; ssNote = `${ssTrend.toFixed(1)}% 5D — software crushing semis, crowded longs unwinding`; }
   }
 
-  // Signal 3: Cyclicals vs Defensives
+  // Cyclicals vs Defensives
   const cycDef = pairs.find(p => p.label === 'Cyclicals vs Defensives');
-  let cdScore = 1;
-  let cdNote = 'unavailable';
-  if (cycDef?.trend5D !== null && cycDef?.trend5D !== undefined) {
-    if (cycDef.trend5D > 1) { cdScore = 0; cdNote = `Cyclicals leading (+${cycDef.trend5D.toFixed(1)}% 5D) — risk-on rotation`; }
-    else if (cycDef.trend5D > 0) { cdScore = 1; cdNote = `Slight cyclical edge — neutral`; }
-    else if (cycDef.trend5D > -1) { cdScore = 1; cdNote = `Defensives creeping ahead — mild caution`; }
-    else { cdScore = 2; cdNote = `Defensives dominating (${cycDef.trend5D.toFixed(1)}% 5D) — rotation into safety`; }
+  let cdScore = 1; let cdNote = 'unavailable';
+  const cdTrend = cycDef?.trend5D;
+  if (cdTrend !== null && cdTrend !== undefined) {
+    if (cdTrend > 1)       { cdScore = 0; cdNote = `+${cdTrend.toFixed(1)}% 5D — cyclicals leading, risk appetite healthy`; }
+    else if (cdTrend > 0)  { cdScore = 1; cdNote = `+${cdTrend.toFixed(1)}% 5D — mild cyclical edge`; }
+    else if (cdTrend > -1) { cdScore = 1; cdNote = `${cdTrend.toFixed(1)}% 5D — defensives creeping ahead`; }
+    else                   { cdScore = 2; cdNote = `${cdTrend.toFixed(1)}% 5D — defensives dominating, rotation to safety`; }
   }
 
-  // Signal 4: Credit (HYG 5D return)
+  // HYG credit
   const hyg = etfs.find(e => e.ticker === 'HYG');
-  let creditScore = 1;
-  let creditNote = 'unavailable';
-  if (hyg?.return5D !== null && hyg?.return5D !== undefined) {
-    if (hyg.return5D > 0.5) { creditScore = 0; creditNote = `HYG +${hyg.return5D.toFixed(1)}% 5D — credit spreads tightening, risk appetite healthy`; }
-    else if (hyg.return5D > -0.5) { creditScore = 1; creditNote = `HYG flat — credit neutral`; }
-    else if (hyg.return5D > -1.5) { creditScore = 2; creditNote = `HYG ${hyg.return5D.toFixed(1)}% 5D — spreads widening, stress building`; }
-    else { creditScore = 3; creditNote = `HYG ${hyg.return5D.toFixed(1)}% 5D — significant spread widening, credit stress`; }
+  let creditScore = 1; let creditNote = 'unavailable';
+  const hygR = hyg?.return5D;
+  if (hygR !== null && hygR !== undefined) {
+    if (hygR > 0.5)       { creditScore = 0; creditNote = `+${hygR.toFixed(1)}% 5D — spreads tightening, risk appetite healthy`; }
+    else if (hygR > -0.5) { creditScore = 1; creditNote = `${hygR.toFixed(1)}% 5D — credit neutral`; }
+    else if (hygR > -1.5) { creditScore = 2; creditNote = `${hygR.toFixed(1)}% 5D — spreads widening, stress building`; }
+    else                  { creditScore = 3; creditNote = `${hygR.toFixed(1)}% 5D — significant spread widening, credit stress`; }
   }
 
-  // Signal 5: Average ETF volume spike (ex-VIXY)
+  // ETF volume spike
   const etfsExVol = etfs.filter(e => e.ticker !== 'VIXY' && e.volumeRatio !== null);
   const avgVolRatio = etfsExVol.length > 0
     ? etfsExVol.reduce((a, e) => a + (e.volumeRatio ?? 1), 0) / etfsExVol.length
     : null;
-  let volScore = 0;
-  let volNote = 'unavailable';
+  let volScore = 0; let volNote = 'unavailable';
   if (avgVolRatio !== null) {
-    if (avgVolRatio < 1.2) { volScore = 0; volNote = `Avg ETF vol ${avgVolRatio.toFixed(2)}× — normal activity`; }
-    else if (avgVolRatio < 1.5) { volScore = 1; volNote = `Avg ETF vol ${avgVolRatio.toFixed(2)}× — elevated, some hedging`; }
-    else if (avgVolRatio < 2.0) { volScore = 2; volNote = `Avg ETF vol ${avgVolRatio.toFixed(2)}× — high, macro hedging active`; }
-    else { volScore = 3; volNote = `Avg ETF vol ${avgVolRatio.toFixed(2)}× — extreme, ETFs dominating tape (GS stress signal)`; }
+    if (avgVolRatio < 1.2)      { volScore = 0; volNote = `${avgVolRatio.toFixed(2)}× avg — normal activity`; }
+    else if (avgVolRatio < 1.5) { volScore = 1; volNote = `${avgVolRatio.toFixed(2)}× avg — elevated, some hedging`; }
+    else if (avgVolRatio < 2.0) { volScore = 2; volNote = `${avgVolRatio.toFixed(2)}× avg — high, macro hedging active`; }
+    else                        { volScore = 3; volNote = `${avgVolRatio.toFixed(2)}× avg — extreme, ETFs dominating tape`; }
   }
 
   const totalScore = vixScore + ssScore + cdScore + creditScore + volScore;
-
   let label: FlowsPayload['regime']['label'];
   let color: FlowsPayload['regime']['color'];
-  if (totalScore <= 3) { label = 'Risk-on'; color = 'green'; }
-  else if (totalScore <= 5) { label = 'Neutral'; color = 'yellow'; }
-  else if (totalScore <= 8) { label = 'Hedging-heavy'; color = 'orange'; }
-  else { label = 'Stress'; color = 'red'; }
+  if (totalScore <= 3)      { label = 'Risk-on';       color = 'green';  }
+  else if (totalScore <= 5) { label = 'Neutral';        color = 'yellow'; }
+  else if (totalScore <= 8) { label = 'Hedging-heavy';  color = 'orange'; }
+  else                      { label = 'Stress';         color = 'red';    }
 
   return {
     label, score: totalScore, color,
     signals: [
-      { name: 'VIX (VIXY)', value: vixVal !== null ? vixVal.toFixed(1) : '—', raw: vixVal, score: vixScore, note: vixNote },
-      { name: 'Semis vs Software', value: semisSw?.trend5D !== null && semisSw?.trend5D !== undefined ? `${semisSw.trend5D > 0 ? '+' : ''}${semisSw.trend5D.toFixed(1)}% 5D` : '—', raw: semisSw?.trend5D ?? null, score: ssScore, note: ssNote },
-      { name: 'Cyclicals vs Defensives', value: cycDef?.trend5D !== null && cycDef?.trend5D !== undefined ? `${cycDef.trend5D > 0 ? '+' : ''}${cycDef.trend5D.toFixed(1)}% 5D` : '—', raw: cycDef?.trend5D ?? null, score: cdScore, note: cdNote },
-      { name: 'HYG Credit', value: hyg?.return5D !== null && hyg?.return5D !== undefined ? `${hyg.return5D > 0 ? '+' : ''}${hyg.return5D.toFixed(1)}% 5D` : '—', raw: hyg?.return5D ?? null, score: creditScore, note: creditNote },
-      { name: 'ETF Volume Spike', value: avgVolRatio !== null ? `${avgVolRatio.toFixed(2)}×` : '—', raw: avgVolRatio, score: volScore, note: volNote },
+      {
+        name: 'VIX (VIXY)', value: vixVal !== null ? vixVal.toFixed(1) : '—',
+        raw: vixVal, score: vixScore, note: vixNote,
+        why: 'Universal fear gauge. Measures implied volatility on S&P options — a direct proxy for how much investors are paying to hedge downside.',
+      },
+      {
+        name: 'Semis vs Software', value: ssTrend !== undefined && ssTrend !== null ? `${ssTrend > 0 ? '+' : ''}${ssTrend.toFixed(1)}% 5D` : '—',
+        raw: ssTrend ?? null, score: ssScore, note: ssNote,
+        why: 'The Goldman "AI trade" pair. Long semis = Korea/Taiwan exposure. When semis underperform software, the most crowded institutional trade is unwinding — Korea/Taiwan longs follow.',
+      },
+      {
+        name: 'Cyclicals vs Defensives', value: cdTrend !== undefined && cdTrend !== null ? `${cdTrend > 0 ? '+' : ''}${cdTrend.toFixed(1)}% 5D` : '—',
+        raw: cdTrend ?? null, score: cdScore, note: cdNote,
+        why: 'Classic risk-on/off rotation. Cyclicals (XLY: Amazon, Tesla) vs Defensives (XLP: P&G, Walmart). Money flows to defensives when investors expect an economic slowdown.',
+      },
+      {
+        name: 'HYG Credit', value: hygR !== undefined && hygR !== null ? `${hygR > 0 ? '+' : ''}${hygR.toFixed(1)}% 5D` : '—',
+        raw: hygR ?? null, score: creditScore, note: creditNote,
+        why: 'Credit spreads are a leading indicator — institutions feel stress in credit before equities react. HYG falling = high-yield spreads widening = risk-off.',
+      },
+      {
+        name: 'ETF Volume Spike', value: avgVolRatio !== null ? `${avgVolRatio.toFixed(2)}×` : '—',
+        raw: avgVolRatio, score: volScore, note: volNote,
+        why: 'Goldman signal: ETFs normally represent ~30% of total tape volume. When >40%, institutions are using ETFs to hedge macro risk (short SPY/QQQ baskets). Our proxy: avg ETF vol vs its 20-day norm.',
+      },
     ],
   };
 }
@@ -273,29 +295,37 @@ function buildRegime(
 
 export async function GET() {
   const UNIVERSE: Array<{ ticker: string; name: string; group: ETFRow['group'] }> = [
-    // US
-    { ticker: 'SPY',  name: 'S&P 500 (SPY)',        group: 'us' },
-    { ticker: 'QQQ',  name: 'NASDAQ 100 (QQQ)',      group: 'us' },
+    // US & North America
+    { ticker: 'SPY',  name: 'S&P 500 (SPY)',        group: 'us'         },
+    { ticker: 'QQQ',  name: 'NASDAQ 100 (QQQ)',      group: 'us'         },
+    { ticker: 'EWC',  name: 'Canada (EWC)',          group: 'us'         },
+    // Europe
+    { ticker: 'EZU',  name: 'Eurozone (EZU)',        group: 'europe'     },
     // Asia
-    { ticker: 'EWY',  name: 'Korea (EWY)',           group: 'asia' },
-    { ticker: 'EWT',  name: 'Taiwan (EWT)',          group: 'asia' },
-    { ticker: 'EWJ',  name: 'Japan (EWJ)',           group: 'asia' },
-    { ticker: 'VNM',  name: 'Vietnam (VNM)',         group: 'asia' },
+    { ticker: 'EWY',  name: 'Korea (EWY)',           group: 'asia'       },
+    { ticker: 'EWT',  name: 'Taiwan (EWT)',          group: 'asia'       },
+    { ticker: 'EWJ',  name: 'Japan (EWJ)',           group: 'asia'       },
+    { ticker: 'FXI',  name: 'China (FXI)',           group: 'asia'       },
+    { ticker: 'INDA', name: 'India (INDA)',          group: 'asia'       },
+    { ticker: 'VNM',  name: 'Vietnam (VNM)',         group: 'asia'       },
+    // LatAm
+    { ticker: 'EWZ',  name: 'Brazil (EWZ)',          group: 'latam'      },
+    { ticker: 'EWW',  name: 'Mexico (EWW)',          group: 'latam'      },
     // Sectors
-    { ticker: 'SOXX', name: 'Semis (SOXX)',          group: 'sector' },
-    { ticker: 'IGV',  name: 'Software (IGV)',        group: 'sector' },
-    { ticker: 'XLE',  name: 'Energy (XLE)',          group: 'sector' },
-    { ticker: 'XLV',  name: 'Healthcare (XLV)',      group: 'sector' },
-    { ticker: 'XLY',  name: 'Cyclicals (XLY)',       group: 'sector' },
-    { ticker: 'XLP',  name: 'Defensives (XLP)',      group: 'sector' },
+    { ticker: 'SOXX', name: 'Semis (SOXX)',          group: 'sector'     },
+    { ticker: 'IGV',  name: 'Software (IGV)',        group: 'sector'     },
+    { ticker: 'XLE',  name: 'Energy (XLE)',          group: 'sector'     },
+    { ticker: 'XLV',  name: 'Healthcare (XLV)',      group: 'sector'     },
+    { ticker: 'XLY',  name: 'Cyclicals (XLY)',       group: 'sector'     },
+    { ticker: 'XLP',  name: 'Defensives (XLP)',      group: 'sector'     },
     // Bonds / Credit
-    { ticker: 'TLT',  name: 'Long Bonds (TLT)',      group: 'bonds' },
-    { ticker: 'HYG',  name: 'High Yield (HYG)',      group: 'bonds' },
+    { ticker: 'TLT',  name: 'Long Bonds (TLT)',      group: 'bonds'      },
+    { ticker: 'HYG',  name: 'High Yield (HYG)',      group: 'bonds'      },
     // Volatility
     { ticker: 'VIXY', name: 'VIX Proxy (VIXY)',      group: 'volatility' },
   ];
 
-  // Fetch all series sequentially (15 × 550ms ≈ 8.3s, cached 5 min)
+  // 21 ETFs × 550ms ≈ 11.5s sequential — cached 5 min after first load
   const seriesArray = await sequential(
     UNIVERSE.map(({ ticker }) => () => fetchSeries(ticker)),
     550
@@ -309,23 +339,21 @@ export async function GET() {
   );
 
   const pairs: PairRatio[] = [
-    buildPair('Korea vs US',             'EWY / SPY — Asia thematic vs US safety',              seriesMap['EWY'],  seriesMap['SPY'],  'bullish'),
-    buildPair('Taiwan vs US',            'EWT / SPY — Semi-heavy Asia vs US',                   seriesMap['EWT'],  seriesMap['SPY'],  'bullish'),
-    buildPair('Japan vs US',             'EWJ / SPY — Developed Asia vs US',                    seriesMap['EWJ'],  seriesMap['SPY'],  'bullish'),
-    buildPair('Semis vs Software',       'SOXX / IGV — AI momentum trade health',               seriesMap['SOXX'], seriesMap['IGV'],  'bullish'),
-    buildPair('Cyclicals vs Defensives', 'XLY / XLP — Risk appetite signal',                    seriesMap['XLY'],  seriesMap['XLP'],  'bullish'),
-    buildPair('Credit vs Safety',        'HYG / TLT — Risk credit vs safe haven',               seriesMap['HYG'],  seriesMap['TLT'],  'bullish'),
-    buildPair('Growth vs Value',         'QQQ / SPY — Growth premium signal',                   seriesMap['QQQ'],  seriesMap['SPY'],  'bullish'),
+    buildPair('Korea vs US',             'EWY / SPY', 'Korea thematic outperforming US — Asia longs working',         seriesMap['EWY'],  seriesMap['SPY']  ),
+    buildPair('Taiwan vs US',            'EWT / SPY', 'Taiwan semis outperforming US — TSMC/hardware trade intact',   seriesMap['EWT'],  seriesMap['SPY']  ),
+    buildPair('China vs US',             'FXI / SPY', 'Chinese equities outperforming US — EM rotation into China',   seriesMap['FXI'],  seriesMap['SPY']  ),
+    buildPair('Europe vs US',            'EZU / SPY', 'Eurozone outperforming US — capital shifting to Europe',       seriesMap['EZU'],  seriesMap['SPY']  ),
+    buildPair('LatAm vs US',             'EWZ / SPY', 'Brazil/EM outperforming US — commodity/EM risk-on',           seriesMap['EWZ'],  seriesMap['SPY']  ),
+    buildPair('Semis vs Software',       'SOXX / IGV', 'Semis beating software — AI momentum trade intact, Korea/Taiwan longs working', seriesMap['SOXX'], seriesMap['IGV']  ),
+    buildPair('Cyclicals vs Defensives', 'XLY / XLP', 'Cyclicals beating defensives — broad risk appetite healthy',  seriesMap['XLY'],  seriesMap['XLP']  ),
+    buildPair('Credit vs Safety',        'HYG / TLT', 'HY credit beating Treasuries — investors taking risk, spreads tightening', seriesMap['HYG'],  seriesMap['TLT']  ),
+    buildPair('Growth vs Value',         'QQQ / SPY', 'Growth/tech premium expanding — risk-on, mega-cap leading',   seriesMap['QQQ'],  seriesMap['SPY']  ),
   ];
 
-  const regime = buildRegime(etfs, pairs, {} as any);
+  const regime = buildRegime(etfs, pairs);
 
-  const payload: FlowsPayload = {
-    etfs,
-    pairs,
-    regime,
+  return NextResponse.json({
+    etfs, pairs, regime,
     timestamp: new Date().toISOString(),
-  };
-
-  return NextResponse.json(payload);
+  } satisfies FlowsPayload);
 }
