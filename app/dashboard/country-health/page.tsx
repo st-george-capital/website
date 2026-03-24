@@ -15,10 +15,12 @@ interface ScoredVariableUI {
   id: string; label: string; pillar: string;
   rawValue: number | null; unit: string; direction: string; kind: string;
   normalizedLevel: number | null; normalizedChange: number | null;
-  finalScore: number | null; why: string; missing: boolean;
+  finalScore: number | null; weight: number; contribution: number | null;
+  dataYear: string | null; why: string; missing: boolean;
 }
 interface PillarScoreUI {
   pillar: string; score: number | null; completeness: number;
+  lowConfidence: boolean;
   variables: ScoredVariableUI[];
 }
 interface CountryEntry {
@@ -157,6 +159,9 @@ function PillarCard({
         </div>
         <div className="flex items-center gap-3">
           <CompletenessTag pct={ps.completeness} />
+          {ps.lowConfidence && (
+            <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">low data</span>
+          )}
           <span className={`text-base font-bold ${scoreColor(score100)}`}>{fmtScore(score100)}</span>
           {expanded ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />}
         </div>
@@ -171,7 +176,10 @@ function PillarCard({
               <tr className="text-[10px] text-gray-400 uppercase tracking-wide border-b border-gray-100">
                 <th className="text-left pb-1.5 font-semibold">Variable</th>
                 <th className="text-right pb-1.5 font-semibold">Raw Value</th>
-                <th className="text-right pb-1.5 font-semibold">Score (0–1)</th>
+                <th className="text-right pb-1.5 font-semibold">Year</th>
+                <th className="text-right pb-1.5 font-semibold">Score</th>
+                <th className="text-right pb-1.5 font-semibold">Wt</th>
+                <th className="text-right pb-1.5 font-semibold">Contrib</th>
                 <th className="text-left pb-1.5 pl-2 font-semibold">Type</th>
               </tr>
             </thead>
@@ -199,10 +207,21 @@ function PillarCard({
                       </>
                     )}
                   </td>
+                  <td className="py-1.5 text-right tabular-nums text-gray-400">
+                    {v.dataYear ?? <span className="text-gray-200">—</span>}
+                  </td>
                   <td className="py-1.5 text-right tabular-nums">
                     {v.finalScore !== null ? (
                       <span className={v.finalScore >= 0.5 ? 'text-emerald-600' : 'text-red-500'}>
                         {v.finalScore.toFixed(2)}
+                      </span>
+                    ) : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="py-1.5 text-right tabular-nums text-gray-400">{v.weight}</td>
+                  <td className="py-1.5 text-right tabular-nums">
+                    {v.contribution !== null ? (
+                      <span className={`font-medium ${v.contribution >= 0.5 ? 'text-emerald-600' : v.contribution >= 0.35 ? 'text-gray-600' : 'text-red-400'}`}>
+                        {v.contribution.toFixed(2)}
                       </span>
                     ) : <span className="text-gray-300">—</span>}
                   </td>
@@ -217,6 +236,7 @@ function PillarCard({
               ))}
             </tbody>
           </table>
+          <p className="text-[9px] text-gray-300 mt-2">Score = normalized z-score [0–1] · Wt = within-pillar weight · Contrib = Score × Wt / total available weight</p>
         </div>
       )}
     </div>

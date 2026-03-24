@@ -14,6 +14,7 @@ export interface RawVariableRow {
   level: number | null;   // most-recent value
   prevLevel: number | null; // one-year-ago value (for momentum)
   population: number | null; // used only for per-capita patent normalization
+  dataYear: string | null;   // calendar year of the level observation
 }
 
 export interface ScoredVariable {
@@ -27,6 +28,9 @@ export interface ScoredVariable {
   normalizedLevel: number | null;   // 0–1
   normalizedChange: number | null;  // 0–1 (only populated if useChange=true)
   finalScore: number | null;        // 0–1 blended
+  weight: number;                   // within-pillar weight (raw integer)
+  contribution: number | null;      // finalScore * weight / pillarAvailableWeight
+  dataYear: string | null;          // calendar year the raw value is from
   why: string;
   missing: boolean;
 }
@@ -34,7 +38,8 @@ export interface ScoredVariable {
 export interface PillarScore {
   pillar: Pillar;
   score: number | null;   // 0–1
-  completeness: number;   // 0–1
+  completeness: number;   // 0–1 (weight-adjusted)
+  lowConfidence: boolean; // true when completeness < 0.40
   variables: ScoredVariable[];
 }
 
@@ -124,22 +129,19 @@ export function scoreCountries(
       const row = varMap?.get(c);
       if (!row) return null;
       let val = row.level;
-      // Special: patents → normalize per million population
+      // Per-capita normalizations so large countries don't dominate absolute-count variables
       if (def.id === 'patent_applications' && val !== null) {
         const pop = populations[c] ?? row.population;
         if (pop && pop > 0) val = (val / pop) * 1_000_000;
       }
-      // Special: ip_receipts → per capita
       if (def.id === 'ip_receipts' && val !== null) {
         const pop = populations[c] ?? row.population;
         if (pop && pop > 0) val = (val / pop);
       }
-      // Special: listed_companies → per million population
       if (def.id === 'listed_companies' && val !== null) {
         const pop = populations[c] ?? row.population;
         if (pop && pop > 0) val = (val / pop) * 1_000_000;
       }
-      // Special: portfolio_inflows → per capita
       if (def.id === 'portfolio_inflows' && val !== null) {
         const pop = populations[c] ?? row.population;
         if (pop && pop > 0) val = (val / pop);
@@ -177,6 +179,9 @@ export function scoreCountries(
         normalizedLevel: normL,
         normalizedChange: normC,
         finalScore: final,
+        weight: def.weight,
+        contribution: null, // filled in after pillar weight is known
+        dataYear: row?.dataYear ?? null,
         why: def.why,
         missing: rawVal === null,
       });
@@ -207,6 +212,9 @@ export function scoreCountries(
           normalizedLevel: null,
           normalizedChange: null,
           finalScore: null,
+          weight: def.weight,
+          contribution: null,
+          dataYear: null,
           why: def.why,
           missing: true,
         };
@@ -227,10 +235,20 @@ export function scoreCountries(
         score = weightedSum / availableWeight;
       }
 
+      const completeness = totalWeight > 0 ? availableWeight / totalWeight : 0;
+
+      // Backfill contribution for each variable now that availableWeight is known
+      vars.forEach(v => {
+        if (v.finalScore !== null && availableWeight > 0) {
+          v.contribution = (v.finalScore * v.weight) / availableWeight;
+        }
+      });
+
       pillarScores[pillar] = {
         pillar,
         score,
-        completeness: totalWeight > 0 ? availableWeight / totalWeight : 0,
+        completeness,
+        lowConfidence: completeness < 0.40, // flag when less than 40% of weight is covered
         variables: vars,
       };
     }

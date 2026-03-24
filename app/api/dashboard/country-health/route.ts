@@ -30,7 +30,7 @@ async function fetchWB(indicator: string, countryCodes: string[], years: number)
 
 // ─── Build lookup: { indicator -> { countryId -> { mostRecent, prevYear } } } ─
 
-interface DataPoint { level: number | null; prevLevel: number | null }
+interface DataPoint { level: number | null; prevLevel: number | null; dataYear: string | null }
 
 function buildLookup(
   observations: WBObservation[]
@@ -52,6 +52,7 @@ function buildLookup(
     singleIndicator.set(cid, {
       level: sorted[0]?.value ?? null,
       prevLevel: sorted[1]?.value ?? null,
+      dataYear: sorted[0]?.date ?? null,
     });
   }
 
@@ -106,13 +107,14 @@ async function fetchAllRawRows(countryCodes: string[]): Promise<RawVariableRow[]
   for (const def of VARIABLES) {
     const countryMap = results.get(def.code) ?? new Map<string, DataPoint>();
     for (const country of countryCodes) {
-      const dp = countryMap.get(country) ?? { level: null, prevLevel: null };
+      const dp = countryMap.get(country) ?? { level: null, prevLevel: null, dataYear: null };
       rows.push({
         id: def.id,
         country,
         level: dp.level,
         prevLevel: dp.prevLevel,
         population: null, // filled in separately from population table
+        dataYear: dp.dataYear ?? null,
       });
     }
   }
