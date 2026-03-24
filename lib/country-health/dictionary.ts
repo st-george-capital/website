@@ -23,6 +23,12 @@ export type Pillar =
 export type Direction = 'up_good' | 'down_good';
 export type VariableKind = 'structural' | 'cyclical';
 
+/** How YoY momentum is computed before cross-sectional z-scoring */
+export type MomentumMode =
+  | 'pp_delta'   // level − prev (pp change for rates / % of GDP)
+  | 'pct_change' // (level − prev) / max(|prev|, ε) for ratio-scale series (e.g. debt/GDP)
+  | 'growth_pp'; // same as pp_delta; growth-rate indicators
+
 export interface VariableDef {
   id: string;
   pillar: Pillar;
@@ -32,6 +38,7 @@ export interface VariableDef {
   direction: Direction;
   kind: VariableKind;
   useChange: boolean;         // blend level + YoY change?
+  momentumMode?: MomentumMode;
   why: string;
   weight: number;             // within-pillar weight (raw, normalized at runtime)
 }
@@ -71,6 +78,7 @@ export const VARIABLES: VariableDef[] = [
     direction: 'up_good',
     kind: 'cyclical',
     useChange: true,
+    momentumMode: 'growth_pp',
     why: 'Core measure of whether the economy is expanding in real terms.',
     weight: 3,
   },
@@ -83,6 +91,7 @@ export const VARIABLES: VariableDef[] = [
     direction: 'up_good',
     kind: 'structural',
     useChange: true,
+    momentumMode: 'growth_pp',
     why: 'Productivity and standard-of-living improvement; better than raw GDP.',
     weight: 2,
   },
@@ -99,15 +108,15 @@ export const VARIABLES: VariableDef[] = [
     weight: 2,
   },
   {
-    id: 'manufacturing_value_added',
+    id: 'manufacturing_va_per_capita',
     pillar: 'productive_capacity',
-    code: 'NV.IND.MANF.ZS',
-    label: 'Manufacturing Value Added',
-    unit: '% GDP',
+    code: 'NV.IND.MANF.KD',
+    label: 'Manufacturing VA (per capita)',
+    unit: 'constant USD',
     direction: 'up_good',
     kind: 'structural',
     useChange: false,
-    why: 'Ability to produce tradable goods and move up the value chain.',
+    why: 'Industrial depth without penalizing service-heavy advanced economies (unlike manufacturing % of GDP).',
     weight: 2,
   },
   {
@@ -185,6 +194,7 @@ export const VARIABLES: VariableDef[] = [
     direction: 'down_good',
     kind: 'structural',
     useChange: true,
+    momentumMode: 'pct_change',
     why: 'High and rising debt constrains fiscal capacity and raises solvency risk.',
     weight: 3,
   },
@@ -197,6 +207,7 @@ export const VARIABLES: VariableDef[] = [
     direction: 'down_good',
     kind: 'cyclical',
     useChange: true,
+    momentumMode: 'pp_delta',
     why: 'Unstable inflation erodes real returns, real wages, and policy credibility.',
     weight: 3,
   },
@@ -209,6 +220,7 @@ export const VARIABLES: VariableDef[] = [
     direction: 'up_good',
     kind: 'cyclical',
     useChange: true,
+    momentumMode: 'pp_delta',
     why: 'Persistent deficits signal external financing vulnerability.',
     weight: 2,
   },
@@ -454,4 +466,20 @@ export const COUNTRIES: CountryDef[] = [
   { id: 'BR', name: 'Brazil',        flag: '🇧🇷', region: 'Latin America' },
   { id: 'MX', name: 'Mexico',        flag: '🇲🇽', region: 'Latin America' },
   { id: 'ID', name: 'Indonesia',     flag: '🇮🇩', region: 'Asia' },
+  // Expanded peer-set only (sensitivity / larger z-score basket)
+  { id: 'FR', name: 'France',        flag: '🇫🇷', region: 'Europe' },
+  { id: 'IT', name: 'Italy',         flag: '🇮🇹', region: 'Europe' },
+  { id: 'CA', name: 'Canada',        flag: '🇨🇦', region: 'North America' },
+  { id: 'AU', name: 'Australia',     flag: '🇦🇺', region: 'Oceania' },
+  { id: 'SA', name: 'Saudi Arabia',  flag: '🇸🇦', region: 'Middle East' },
+  { id: 'AR', name: 'Argentina',     flag: '🇦🇷', region: 'Latin America' },
+  { id: 'TR', name: 'Turkey',        flag: '🇹🇷', region: 'Europe / Asia' },
+  { id: 'ZA', name: 'South Africa',  flag: '🇿🇦', region: 'Africa' },
 ];
+
+export const COUNTRY_META: Record<string, CountryDef> = Object.fromEntries(
+  COUNTRIES.map(c => [c.id, c])
+) as Record<string, CountryDef>;
+
+/** Primary dashboard / default z-score basket (first 10 in COUNTRIES) */
+export const DEFAULT_PEER_IDS: string[] = COUNTRIES.slice(0, 10).map(c => c.id);

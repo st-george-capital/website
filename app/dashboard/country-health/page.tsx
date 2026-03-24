@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   RefreshCw, Loader2, Info, Globe, ChevronDown, ChevronRight,
-  BarChart2, TrendingUp, TrendingDown, CheckCircle2, AlertTriangle,
+  BarChart2, TrendingUp, TrendingDown, AlertTriangle,
 } from 'lucide-react';
 import type { Pillar } from '@/lib/country-health/dictionary';
 import { PILLAR_LABELS } from '@/lib/country-health/dictionary';
@@ -18,9 +18,19 @@ interface ScoredVariableUI {
   finalScore: number | null; weight: number; contribution: number | null;
   dataYear: string | null; why: string; missing: boolean;
 }
+interface PillarConcentrationUI {
+  hhi: number | null;
+  top2Share: number | null;
+  concentrated: boolean;
+  topDrivers: string[];
+}
 interface PillarScoreUI {
-  pillar: string; score: number | null; completeness: number;
+  pillar: string;
+  score: number | null;
+  completeness: number;
+  confidenceTier: string;
   lowConfidence: boolean;
+  concentration: PillarConcentrationUI;
   variables: ScoredVariableUI[];
 }
 interface CountryEntry {
@@ -28,6 +38,9 @@ interface CountryEntry {
   coreScore: number | null;
   overlayScore: number | null;
   completeness: number;
+  confidenceScore?: number | null;
+  confidenceLabel?: string;
+  yearDispersion?: number | null;
   classification: string;
   classificationColor: string;
   meta: CountryMeta;
@@ -37,6 +50,16 @@ interface Payload {
   timestamp: string;
   countries: CountryEntry[];
   methodology: Record<string, unknown>;
+  robustness?: {
+    sameYearVsLatest: {
+      avgAbsRankMove: number;
+      maxAbsRankMove: number;
+      moves: { country: string; rankLatest: number; rankSameYear: number; delta: number }[];
+      interpretation: string;
+    };
+    peerSensitivity: Record<string, { label: string; order: string[]; ranks: Record<string, number>; scores: Record<string, number | null> }>;
+    notes: string[];
+  };
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -145,7 +168,25 @@ function PillarCard({
 }) {
   const label = PILLAR_LABELS[pillarKey as Pillar] ?? pillarKey;
   const icon = PILLAR_ICONS[pillarKey] ?? '📌';
-  const score100 = ps.score !== null ? ps.score * 100 : null;
+  const tier = ps.confidenceTier ?? 'normal';
+  const suppressed = tier === 'suppressed';
+  const score100 = suppressed ? null : (ps.score !== null ? ps.score * 100 : null);
+  const conc = ps.concentration ?? { hhi: null, top2Share: null, concentrated: false, topDrivers: [] as string[] };
+
+  const tierBadge = () => {
+    const t = tier;
+    if (t === 'normal') return null;
+    const map: Record<string, string> = {
+      suppressed: 'bg-red-100 text-red-700',
+      low: 'bg-orange-100 text-orange-800',
+      amber: 'bg-yellow-100 text-yellow-800',
+    };
+    return (
+      <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${map[t] ?? 'bg-gray-100 text-gray-600'}`}>
+        {t === 'suppressed' ? 'no score' : t === 'low' ? 'weak data' : 'partial data'}
+      </span>
+    );
+  };
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -159,18 +200,25 @@ function PillarCard({
         </div>
         <div className="flex items-center gap-3">
           <CompletenessTag pct={ps.completeness} />
-          {ps.lowConfidence && (
-            <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">low data</span>
-          )}
-          <span className={`text-base font-bold ${scoreColor(score100)}`}>{fmtScore(score100)}</span>
+          {tierBadge()}
+          <span className={`text-base font-bold ${scoreColor(score100)}`}>
+            {suppressed ? '—' : fmtScore(score100)}
+          </span>
           {expanded ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />}
         </div>
       </button>
       <div className="px-4 pb-1">
-        <ScoreBar score={ps.score} max={1} />
+        <ScoreBar score={suppressed ? null : ps.score} max={1} />
       </div>
       {expanded && (
         <div className="border-t border-gray-100 px-4 py-3">
+          {conc.concentrated && conc.top2Share !== null && (
+            <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1.5 mb-2">
+              Pillar driven by few variables: top-2 share {(conc.top2Share * 100).toFixed(0)}%
+              {conc.topDrivers.length > 0 && ` (${conc.topDrivers.join(', ')})`}
+              {conc.hhi !== null && ` · HHI ${conc.hhi.toFixed(2)}`}
+            </p>
+          )}
           <table className="w-full text-xs">
             <thead>
               <tr className="text-[10px] text-gray-400 uppercase tracking-wide border-b border-gray-100">
@@ -300,6 +348,81 @@ function CountryRow({
   );
 }
 
+// ─── Robustness (same-year vs latest, peer baskets) ────────────────────────────
+
+function RobustnessPanel({ robustness }: { robustness: NonNullable<Payload['robustness']> }) {
+  const [open, setOpen] = useState(false);
+  const sy = robustness.sameYearVsLatest;
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mt-4">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors"
+      >
+        <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+          <BarChart2 size={14} /> Robustness &amp; sensitivity
+        </div>
+        {open ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />}
+      </button>
+      {open && (
+        <div className="border-t border-gray-100 px-5 py-4 text-xs text-gray-600 space-y-4">
+          <div>
+            <div className="font-semibold text-gray-800 mb-1">Same-year vs latest-available (default 10)</div>
+            <p className="text-gray-500 mb-2">
+              Avg. absolute rank move: <span className="font-mono font-semibold text-gray-800">{sy.avgAbsRankMove.toFixed(2)}</span>
+              {' · '}Max: <span className="font-mono font-semibold text-gray-800">{sy.maxAbsRankMove}</span>
+            </p>
+            <p className="text-[11px] text-gray-500 italic mb-2">{sy.interpretation}</p>
+            <div className="overflow-x-auto border border-gray-100 rounded-lg">
+              <table className="w-full text-[11px]">
+                <thead>
+                  <tr className="bg-gray-50 text-gray-400 uppercase tracking-wide">
+                    <th className="text-left px-2 py-1.5">Country</th>
+                    <th className="text-right px-2 py-1.5">Rank latest</th>
+                    <th className="text-right px-2 py-1.5">Rank same-year</th>
+                    <th className="text-right px-2 py-1.5">|Δ|</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sy.moves.slice(0, 10).map(m => (
+                    <tr key={m.country} className="border-t border-gray-50">
+                      <td className="px-2 py-1 font-medium text-gray-700">{m.country}</td>
+                      <td className="px-2 py-1 text-right tabular-nums">{m.rankLatest}</td>
+                      <td className="px-2 py-1 text-right tabular-nums">{m.rankSameYear}</td>
+                      <td className="px-2 py-1 text-right tabular-nums font-semibold">{m.delta}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div>
+            <div className="font-semibold text-gray-800 mb-2">Peer-set sensitivity (core rank order)</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {Object.entries(robustness.peerSensitivity).map(([key, ps]) => (
+                <div key={key} className="border border-gray-100 rounded-lg p-3 bg-gray-50/50">
+                  <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">{ps.label}</div>
+                  <div className="text-[11px] text-gray-700 font-mono leading-relaxed">
+                    {ps.order.join(' → ')}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {robustness.notes?.length > 0 && (
+            <ul className="list-disc pl-4 text-[11px] text-gray-400 space-y-1">
+              {robustness.notes.map((n, i) => (
+                <li key={i}>{n}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Methodology Panel ────────────────────────────────────────────────────────
 
 function MethodologyPanel({ methodology }: { methodology: Record<string, unknown> }) {
@@ -329,6 +452,28 @@ function MethodologyPanel({ methodology }: { methodology: Record<string, unknown
             <div className="font-semibold text-gray-700 mb-1">Pillar Aggregation</div>
             <p>{String(methodology.pillarAggregation)}</p>
           </div>
+          {methodology.pillarConfidenceThresholds && (
+            <div>
+              <div className="font-semibold text-gray-700 mb-1">Pillar data thresholds</div>
+              <ul className="list-disc pl-4 space-y-0.5 text-gray-500">
+                {Object.entries(methodology.pillarConfidenceThresholds as Record<string, string>).map(([k, v]) => (
+                  <li key={k}><span className="text-gray-600">{k}:</span> {v}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {methodology.sameYearMode && (
+            <div>
+              <div className="font-semibold text-gray-700 mb-1">Same-year alignment (robustness)</div>
+              <p>{String(methodology.sameYearMode)}</p>
+            </div>
+          )}
+          {methodology.manufacturing && (
+            <div>
+              <div className="font-semibold text-gray-700 mb-1">Industrial / tradables proxy</div>
+              <p>{String(methodology.manufacturing)}</p>
+            </div>
+          )}
           <div>
             <div className="font-semibold text-gray-700 mb-1">Core Pillar Weights</div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-1">
@@ -392,7 +537,7 @@ function CountryDetail({ entry }: { entry: CountryEntry }) {
             <div className="text-lg font-bold text-gray-900">{entry.meta.name}</div>
             <div className="text-xs text-gray-400 mt-0.5">{entry.meta.region}</div>
           </div>
-          <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             <div>
               <div className="text-[10px] uppercase tracking-wide text-gray-400 font-medium mb-1">Core Score</div>
               <div className={`text-2xl font-bold tabular-nums ${scoreColor(entry.coreScore)}`}>{fmtScore(entry.coreScore)}</div>
@@ -402,6 +547,20 @@ function CountryDetail({ entry }: { entry: CountryEntry }) {
               <div className="text-[10px] uppercase tracking-wide text-gray-400 font-medium mb-1">Market Access</div>
               <div className={`text-2xl font-bold tabular-nums ${scoreColor(entry.overlayScore)}`}>{fmtScore(entry.overlayScore)}</div>
               <ScoreBar score={entry.overlayScore} max={100} height="h-1" />
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-gray-400 font-medium mb-1">Evidence confidence</div>
+              <div className={`text-2xl font-bold tabular-nums ${entry.confidenceScore != null && entry.confidenceScore >= 0.65 ? 'text-emerald-600' : entry.confidenceScore != null && entry.confidenceScore >= 0.45 ? 'text-yellow-600' : 'text-orange-500'}`}>
+                {entry.confidenceScore != null ? `${(entry.confidenceScore * 100).toFixed(0)}%` : '—'}
+              </div>
+              <div className="text-[10px] text-gray-400 mt-0.5">{entry.confidenceLabel ?? '—'}</div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-gray-400 font-medium mb-1">Year spread (core)</div>
+              <div className="text-2xl font-bold tabular-nums text-gray-700">
+                {entry.yearDispersion != null ? `${entry.yearDispersion.toFixed(1)} yrs` : '—'}
+              </div>
+              <div className="text-[10px] text-gray-400 mt-0.5">σ of observation years</div>
             </div>
             <div>
               <div className="text-[10px] uppercase tracking-wide text-gray-400 font-medium mb-1">Archetype</div>
@@ -425,10 +584,11 @@ function CountryDetail({ entry }: { entry: CountryEntry }) {
         <div className="mt-4 grid grid-cols-5 gap-2">
           {CORE_PILLARS.map(p => {
             const ps = entry.pillarScores[p];
-            const s = ps?.score !== null && ps?.score !== undefined ? ps.score * 100 : null;
+            const suppressed = ps?.confidenceTier === 'suppressed';
+            const s = suppressed ? null : (ps?.score !== null && ps?.score !== undefined ? ps.score * 100 : null);
             return (
               <div key={p} className="text-center">
-                <div className={`text-xs font-bold tabular-nums mb-1 ${scoreColor(s)}`}>{fmtScore(s)}</div>
+                <div className={`text-xs font-bold tabular-nums mb-1 ${scoreColor(s)}`}>{suppressed ? '—' : fmtScore(s)}</div>
                 <ScoreBar score={s} max={100} height="h-2" />
                 <div className="text-[9px] text-gray-400 mt-1 leading-tight">
                   {PILLAR_LABELS[p].split(' ').map((w, i) => <span key={i}>{w}<br /></span>)}
@@ -532,8 +692,8 @@ export default function CountryHealthPage() {
       {loading && (
         <div className="flex flex-col items-center justify-center py-24 gap-3">
           <Loader2 size={32} className="animate-spin text-gray-300" />
-          <p className="text-sm text-gray-400">Fetching World Bank data for 10 countries…</p>
-          <p className="text-[10px] text-gray-300">~30 indicators × 10 countries — may take 15–20 seconds</p>
+          <p className="text-sm text-gray-400">Fetching World Bank data (18-country union for sensitivity)…</p>
+          <p className="text-[10px] text-gray-300">~30 indicators × deep history — may take 25–40 seconds</p>
         </div>
       )}
 
@@ -662,6 +822,8 @@ export default function CountryHealthPage() {
               </div>
             </div>
           )}
+
+          {data.robustness && <RobustnessPanel robustness={data.robustness} />}
 
           <MethodologyPanel methodology={data.methodology} />
 

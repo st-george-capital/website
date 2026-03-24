@@ -6,15 +6,38 @@
 import { VARIABLES, PILLAR_WEIGHTS, getVariablesByPillar, type Pillar, type VariableDef } from './dictionary';
 import { classify } from './classification';
 
+const EPS = 1e-6;
+
+// ─── Confidence tiers (weight coverage within pillar) ────────────────────────
+export const PILLAR_COVERAGE_SUPPRESSED = 0.25; // below: no pillar score
+export const PILLAR_COVERAGE_LOW = 0.40;        // amber / low-data badge
+export const PILLAR_COVERAGE_NORMAL = 0.70;     // below: amber until here
+
+export type PillarConfidenceTier = 'suppressed' | 'low' | 'amber' | 'normal';
+
+export function pillarConfidenceTier(completeness: number): PillarConfidenceTier {
+  if (completeness < PILLAR_COVERAGE_SUPPRESSED) return 'suppressed';
+  if (completeness < PILLAR_COVERAGE_LOW) return 'low';
+  if (completeness < PILLAR_COVERAGE_NORMAL) return 'amber';
+  return 'normal';
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface RawVariableRow {
-  id: string;             // variable id from dictionary
-  country: string;        // ISO2
-  level: number | null;   // most-recent value
-  prevLevel: number | null; // one-year-ago value (for momentum)
-  population: number | null; // used only for per-capita patent normalization
-  dataYear: string | null;   // calendar year of the level observation
+  id: string;
+  country: string;
+  level: number | null;
+  prevLevel: number | null;
+  population: number | null;
+  dataYear: string | null;
+}
+
+export interface PillarConcentration {
+  hhi: number | null;           // Herfindahl on contribution shares (1 = one driver)
+  top2Share: number | null;     // sum of two largest shares
+  concentrated: boolean;        // true if top2 > 0.7 or hhi > 0.5
+  topDrivers: string[];         // up to 2 variable labels
 }
 
 export interface ScoredVariable {
@@ -25,48 +48,71 @@ export interface ScoredVariable {
   unit: string;
   direction: string;
   kind: string;
-  normalizedLevel: number | null;   // 0–1
-  normalizedChange: number | null;  // 0–1 (only populated if useChange=true)
-  finalScore: number | null;        // 0–1 blended
-  weight: number;                   // within-pillar weight (raw integer)
-  contribution: number | null;      // finalScore * weight / pillarAvailableWeight
-  dataYear: string | null;          // calendar year the raw value is from
+  normalizedLevel: number | null;
+  normalizedChange: number | null;
+  finalScore: number | null;
+  weight: number;
+  contribution: number | null;
+  dataYear: string | null;
   why: string;
   missing: boolean;
 }
 
 export interface PillarScore {
   pillar: Pillar;
-  score: number | null;   // 0–1
-  completeness: number;   // 0–1 (weight-adjusted)
-  lowConfidence: boolean; // true when completeness < 0.40
+  score: number | null;
+  completeness: number;
+  confidenceTier: PillarConfidenceTier;
+  lowConfidence: boolean; // true when tier is low, amber, or suppressed (UI legacy)
+  concentration: PillarConcentration;
   variables: ScoredVariable[];
 }
 
 export interface CountryScore {
   country: string;
-  coreScore: number | null;          // 0–100
-  overlayScore: number | null;       // 0–100
+  coreScore: number | null;
+  overlayScore: number | null;
   pillarScores: Record<Pillar, PillarScore>;
-  completeness: number;              // % of variables with data
+  completeness: number;
+  /** 0–1: weighted pillar coverage + calendar-year cohesion + structural availability */
+  confidenceScore: number | null;
+  confidenceLabel: string;
+  yearDispersion: number | null; // stdev of observation years (core vars)
   classification: string;
   classificationColor: string;
 }
 
-// ─── Step 1: direction-adjust (invert down_good to make high=good universal) ──
+// ─── Step 1: direction-adjust ─────────────────────────────────────────────────
 
 function directionAdjust(value: number | null, def: VariableDef): number | null {
   if (value === null) return null;
-  // Raw value is kept as-is for display; we negate down_good only during scoring
   return def.direction === 'down_good' ? -value : value;
 }
 
-// ─── Step 2: z-score normalize across a cross-section of countries ────────────
-//
-// Takes an array of (possibly null) direction-adjusted values and returns
-// z-scores clamped to [−3, +3] then scaled to [0, 1].
-//
-// Missing values get null (not scored, not counted against denominator for mean).
+// ─── Momentum: variable-specific ─────────────────────────────────────────────
+
+function momentumRaw(row: { level: number | null; prevLevel: number | null }, def: VariableDef): number | null {
+  if (!def.useChange) return null;
+  const { level, prevLevel } = row;
+  if (level === null || prevLevel === null) return null;
+  const mode = def.momentumMode ?? 'pp_delta';
+  let raw: number;
+  switch (mode) {
+    case 'pct_change': {
+      const den = Math.max(Math.abs(prevLevel), EPS);
+      raw = (level - prevLevel) / den;
+      break;
+    }
+    case 'growth_pp':
+    case 'pp_delta':
+    default:
+      raw = level - prevLevel;
+      break;
+  }
+  return raw;
+}
+
+// ─── Step 2: z-score normalize ───────────────────────────────────────────────
 
 export function crossSectionZScore(values: (number | null)[]): (number | null)[] {
   const valid = values.filter((v): v is number => v !== null);
@@ -80,14 +126,9 @@ export function crossSectionZScore(values: (number | null)[]): (number | null)[]
   return values.map(v => {
     if (v === null) return null;
     const z = Math.max(-3, Math.min(3, (v - mean) / std));
-    return (z + 3) / 6; // scale to [0,1]
+    return (z + 3) / 6;
   });
 }
-
-// ─── Step 3: momentum blend for variables with useChange=true ─────────────────
-//
-// finalScore = 0.70 * normalizedLevel + 0.30 * normalizedChange
-// If one side is unavailable, use the available side at full weight.
 
 function blendScore(
   normLevel: number | null,
@@ -99,10 +140,75 @@ function blendScore(
   return 0.7 * normLevel + 0.3 * normChange;
 }
 
-// ─── Main scoring function ────────────────────────────────────────────────────
-//
-// rawRows: one entry per (country × variable) — covers all countries/variables
-// population: { [iso2]: number } — for per-capita patent normalization
+function pillarConcentration(vars: ScoredVariable[], defs: VariableDef[]): PillarConcentration {
+  const pairs: { label: string; mass: number }[] = [];
+  defs.forEach((d, i) => {
+    const v = vars[i];
+    if (v.finalScore === null) return;
+    const mass = v.finalScore * d.weight;
+    pairs.push({ label: d.label, mass });
+  });
+  const total = pairs.reduce((s, p) => s + p.mass, 0);
+  if (total <= 0 || pairs.length === 0) {
+    return { hhi: null, top2Share: null, concentrated: false, topDrivers: [] };
+  }
+  const shares = pairs.map(p => p.mass / total).sort((a, b) => b - a);
+  const hhi = shares.reduce((s, x) => s + x * x, 0);
+  const top2Share = (shares[0] ?? 0) + (shares[1] ?? 0);
+  const sortedPairs = [...pairs].sort((a, b) => b.mass - a.mass);
+  const concentrated = top2Share > 0.7 || hhi > 0.5;
+  const topDrivers = sortedPairs.slice(0, 2).map(p => p.label);
+  return { hhi, top2Share, concentrated, topDrivers };
+}
+
+function countryConfidence(
+  pillarScores: Record<Pillar, PillarScore>,
+  scoredIndex: Map<string, Map<string, ScoredVariable>>,
+  country: string
+): { score: number | null; label: string; yearDispersion: number | null } {
+  const corePillars: Pillar[] = ['productive_capacity', 'human_capital', 'macro_sustainability', 'institutional', 'innovation'];
+  let wSum = 0;
+  let compSum = 0;
+  for (const p of corePillars) {
+    const pw = PILLAR_WEIGHTS[p];
+    wSum += pw;
+    compSum += (pillarScores[p]?.completeness ?? 0) * pw;
+  }
+  const weightedCompleteness = wSum > 0 ? compSum / wSum : 0;
+
+  const years: number[] = [];
+  for (const def of VARIABLES) {
+    if (def.pillar === 'overlay') continue;
+    const sv = scoredIndex.get(def.id)?.get(country);
+    if (sv?.dataYear) {
+      const y = Number(sv.dataYear);
+      if (Number.isFinite(y)) years.push(y);
+    }
+  }
+  let yearDispersion: number | null = null;
+  let yearScore = 0.85;
+  if (years.length >= 2) {
+    const mean = years.reduce((a, b) => a + b, 0) / years.length;
+    const varY = years.reduce((s, y) => s + (y - mean) ** 2, 0) / years.length;
+    yearDispersion = Math.sqrt(varY);
+    yearScore = Math.max(0, Math.min(1, 1 - yearDispersion / 4));
+  } else if (years.length === 1) {
+    yearDispersion = 0;
+    yearScore = 0.9;
+  }
+
+  const structDefs = VARIABLES.filter(v => v.pillar !== 'overlay' && v.kind === 'structural');
+  const structHit = structDefs.filter(d => !scoredIndex.get(d.id)?.get(country)?.missing).length;
+  const structRatio = structDefs.length > 0 ? structHit / structDefs.length : 0;
+
+  const conf = 0.45 * weightedCompleteness + 0.35 * yearScore + 0.20 * structRatio;
+  let label = 'High';
+  if (conf < 0.35) label = 'Low';
+  else if (conf < 0.55) label = 'Moderate';
+  else if (conf < 0.75) label = 'Fair';
+
+  return { score: conf, label, yearDispersion };
+}
 
 export function scoreCountries(
   rawRows: RawVariableRow[],
@@ -110,33 +216,28 @@ export function scoreCountries(
 ): CountryScore[] {
   const allCountries = [...new Set(rawRows.map(r => r.country))];
 
-  // Index raw data: { variableId -> { country -> RawVariableRow } }
   const index: Map<string, Map<string, RawVariableRow>> = new Map();
   for (const row of rawRows) {
     if (!index.has(row.id)) index.set(row.id, new Map());
     index.get(row.id)!.set(row.country, row);
   }
 
-  // Normalize each variable cross-sectionally
-  // Build: { variableId -> { country -> ScoredVariable } }
   const scoredIndex: Map<string, Map<string, ScoredVariable>> = new Map();
 
   for (const def of VARIABLES) {
     const varMap = index.get(def.id);
 
-    // Collect raw levels and changes for all countries
     const levels: (number | null)[] = allCountries.map(c => {
       const row = varMap?.get(c);
       if (!row) return null;
       let val = row.level;
-      // Per-capita normalizations so large countries don't dominate absolute-count variables
       if (def.id === 'patent_applications' && val !== null) {
         const pop = populations[c] ?? row.population;
         if (pop && pop > 0) val = (val / pop) * 1_000_000;
       }
       if (def.id === 'ip_receipts' && val !== null) {
         const pop = populations[c] ?? row.population;
-        if (pop && pop > 0) val = (val / pop);
+        if (pop && pop > 0) val = val / pop;
       }
       if (def.id === 'listed_companies' && val !== null) {
         const pop = populations[c] ?? row.population;
@@ -144,7 +245,11 @@ export function scoreCountries(
       }
       if (def.id === 'portfolio_inflows' && val !== null) {
         const pop = populations[c] ?? row.population;
-        if (pop && pop > 0) val = (val / pop);
+        if (pop && pop > 0) val = val / pop;
+      }
+      if (def.id === 'manufacturing_va_per_capita' && val !== null) {
+        const pop = populations[c] ?? row.population;
+        if (pop && pop > 0) val = val / pop;
       }
       return directionAdjust(val, def);
     });
@@ -152,9 +257,9 @@ export function scoreCountries(
     const changes: (number | null)[] = def.useChange
       ? allCountries.map(c => {
           const row = varMap?.get(c);
-          if (!row || row.level === null || row.prevLevel === null) return null;
-          const chg = row.level - row.prevLevel;
-          return directionAdjust(chg, def);
+          if (!row) return null;
+          const rawChg = momentumRaw(row, def);
+          return rawChg === null ? null : directionAdjust(rawChg, def);
         })
       : allCountries.map(() => null);
 
@@ -180,7 +285,7 @@ export function scoreCountries(
         normalizedChange: normC,
         finalScore: final,
         weight: def.weight,
-        contribution: null, // filled in after pillar weight is known
+        contribution: null,
         dataYear: row?.dataYear ?? null,
         why: def.why,
         missing: rawVal === null,
@@ -189,7 +294,6 @@ export function scoreCountries(
     scoredIndex.set(def.id, map);
   }
 
-  // Build per-country scores
   return allCountries.map(country => {
     const pillarList: Pillar[] = [
       'productive_capacity', 'human_capital', 'macro_sustainability', 'institutional', 'innovation', 'overlay',
@@ -221,13 +325,15 @@ export function scoreCountries(
       });
 
       const totalWeight = defs.reduce((s, d) => s + d.weight, 0);
-      const available = vars.filter(v => v.finalScore !== null);
       const availableWeight = defs
         .filter((_, i) => vars[i].finalScore !== null)
         .reduce((s, d) => s + d.weight, 0);
 
+      const completeness = totalWeight > 0 ? availableWeight / totalWeight : 0;
+      const tier = pillarConfidenceTier(completeness);
+
       let score: number | null = null;
-      if (available.length > 0) {
+      if (tier !== 'suppressed' && availableWeight > 0) {
         const weightedSum = defs.reduce((s, d, i) => {
           const fs = vars[i].finalScore;
           return fs !== null ? s + fs * d.weight : s;
@@ -235,27 +341,28 @@ export function scoreCountries(
         score = weightedSum / availableWeight;
       }
 
-      const completeness = totalWeight > 0 ? availableWeight / totalWeight : 0;
-
-      // Backfill contribution for each variable now that availableWeight is known
       vars.forEach(v => {
         if (v.finalScore !== null && availableWeight > 0) {
           v.contribution = (v.finalScore * v.weight) / availableWeight;
         }
       });
 
+      const concentration = pillarConcentration(vars, defs);
+
       pillarScores[pillar] = {
         pillar,
         score,
         completeness,
-        lowConfidence: completeness < 0.40, // flag when less than 40% of weight is covered
+        confidenceTier: tier,
+        lowConfidence: tier !== 'normal',
+        concentration,
         variables: vars,
       };
     }
 
-    // Core score: weighted average of core pillars (exclude overlay)
     const corePillars: Pillar[] = ['productive_capacity', 'human_capital', 'macro_sustainability', 'institutional', 'innovation'];
-    let coreWsum = 0, coreTotalW = 0;
+    let coreWsum = 0;
+    let coreTotalW = 0;
     for (const p of corePillars) {
       const ps = pillarScores[p];
       if (ps.score !== null) {
@@ -265,11 +372,9 @@ export function scoreCountries(
     }
     const coreScore = coreTotalW > 0 ? (coreWsum / coreTotalW) * 100 : null;
 
-    // Overlay score
     const overlayPs = pillarScores['overlay'];
     const overlayScore = overlayPs.score !== null ? overlayPs.score * 100 : null;
 
-    // Completeness
     const allVars = VARIABLES.filter(v => v.pillar !== 'overlay');
     const presentVars = allVars.filter(v => {
       const m = scoredIndex.get(v.id);
@@ -277,8 +382,8 @@ export function scoreCountries(
     });
     const completeness = allVars.length > 0 ? presentVars.length / allVars.length : 0;
 
-    // Classification
     const { label, color } = classify(coreScore, overlayScore, pillarScores);
+    const conf = countryConfidence(pillarScores, scoredIndex, country);
 
     return {
       country,
@@ -286,8 +391,48 @@ export function scoreCountries(
       overlayScore,
       pillarScores,
       completeness,
+      confidenceScore: conf.score,
+      confidenceLabel: conf.label,
+      yearDispersion: conf.yearDispersion,
       classification: label,
       classificationColor: color,
     };
   });
+}
+
+/** Rank countries by core score (1 = best). Null scores last. */
+export function rankByCoreScore(scores: CountryScore[]): { country: string; rank: number; coreScore: number | null }[] {
+  const sorted = [...scores].sort((a, b) => {
+    if (a.coreScore === null && b.coreScore === null) return a.country.localeCompare(b.country);
+    if (a.coreScore === null) return 1;
+    if (b.coreScore === null) return -1;
+    return b.coreScore - a.coreScore;
+  });
+  return sorted.map((s, i) => ({ country: s.country, rank: i + 1, coreScore: s.coreScore }));
+}
+
+export function rankComparisonStats(
+  latest: { country: string; rank: number }[],
+  sameYear: { country: string; rank: number }[]
+): {
+  avgAbsRankMove: number;
+  maxAbsRankMove: number;
+  moves: { country: string; rankLatest: number; rankSameYear: number; delta: number }[];
+} {
+  const mapL = new Map(latest.map(r => [r.country, r.rank]));
+  const mapS = new Map(sameYear.map(r => [r.country, r.rank]));
+  const countries = [...new Set([...mapL.keys(), ...mapS.keys()])];
+  const moves: { country: string; rankLatest: number; rankSameYear: number; delta: number }[] = [];
+  let sum = 0;
+  let max = 0;
+  for (const c of countries) {
+    const rl = mapL.get(c) ?? 999;
+    const rs = mapS.get(c) ?? 999;
+    const delta = Math.abs(rl - rs);
+    sum += delta;
+    if (delta > max) max = delta;
+    moves.push({ country: c, rankLatest: rl, rankSameYear: rs, delta });
+  }
+  const n = countries.length || 1;
+  return { avgAbsRankMove: sum / n, maxAbsRankMove: max, moves: moves.sort((a, b) => b.delta - a.delta) };
 }
