@@ -618,8 +618,8 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           jobPostingId: posting.id,
-          internshipCount: Number(formData.internshipCount),
           ...formData,
+          internshipCount: Number(formData.internshipCount),
         }),
       });
 
