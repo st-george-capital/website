@@ -552,11 +552,25 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    faculty: '',
+    subfaculty: '',
+    internshipCount: '0',
+    internshipFields: [] as string[],
     resumeFile: '',
   });
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const selectedFaculty = FACULTY_OPTIONS.find(f => f.value === formData.faculty);
+
+  const toggleInternshipField = (val: string) => {
+    setFormData(prev => ({
+      ...prev,
+      internshipFields: prev.internshipFields.includes(val)
+        ? prev.internshipFields.filter(f => f !== val)
+        : [...prev.internshipFields, val],
+    }));
+  };
 
   const handleFileUpload = async (file: File) => {
     setUploading(true);
@@ -604,6 +618,7 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           jobPostingId: posting.id,
+          internshipCount: Number(formData.internshipCount),
           ...formData,
         }),
       });
@@ -703,6 +718,73 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
               <p className="text-xs text-muted-foreground mt-1">
                 Accepted formats: PDF, DOC, DOCX (max 2MB)
               </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Faculty *</label>
+                <select
+                  required
+                  value={formData.faculty}
+                  onChange={(e) => setFormData(prev => ({ ...prev, faculty: e.target.value, subfaculty: '' }))}
+                  className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                >
+                  <option value="">Select faculty...</option>
+                  {FACULTY_OPTIONS.map(f => (
+                    <option key={f.value} value={f.value}>{f.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedFaculty && selectedFaculty.subs.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">Program *</label>
+                  <select
+                    required
+                    value={formData.subfaculty}
+                    onChange={(e) => setFormData(prev => ({ ...prev, subfaculty: e.target.value }))}
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  >
+                    <option value="">Select program...</option>
+                    {selectedFaculty.subs.map(s => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Number of Previous Internships</label>
+              <select
+                value={formData.internshipCount}
+                onChange={(e) => setFormData(prev => ({ ...prev, internshipCount: e.target.value }))}
+                className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              >
+                {['0', '1', '2', '3', '4', '5'].map(n => (
+                  <option key={n} value={n}>{n === '5' ? '5 or more' : n}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Field(s) of Internship (select all that apply)</label>
+              <div className="flex flex-wrap gap-2">
+                {INTERNSHIP_FIELDS.map(f => (
+                  <button
+                    key={f.value}
+                    type="button"
+                    onClick={() => toggleInternshipField(f.value)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                      formData.internshipFields.includes(f.value)
+                        ? 'bg-blue-100 border-blue-300 text-blue-700'
+                        : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="flex space-x-3 pt-4">

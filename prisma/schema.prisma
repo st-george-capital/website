@@ -227,6 +227,10 @@ model JobApplication {
   jobPostingId  String
   name          String
   email         String
+  faculty       String?
+  subfaculty    String?
+  internshipCount Int      @default(0)
+  internshipFields String[] @default([])
   resumeFile    String?    // Resume file URL
   appliedAt     DateTime   @default(now())
 

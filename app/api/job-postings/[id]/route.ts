@@ -111,19 +111,45 @@ export async function DELETE(
     if (posting) {
       for (const app of posting.applications.filter(a => a.resumeFile)) {
         try {
-          const existing = await prisma.resumeSubmission.findFirst({ where: { email: app.email } });
+          const existing = await prisma.resumeSubmission.findFirst({
+            where: {
+              OR: [
+                { name: { equals: app.name, mode: 'insensitive' } },
+                { email: app.email },
+              ],
+            },
+            orderBy: { createdAt: 'desc' },
+          });
           if (!existing) {
             await prisma.resumeSubmission.create({
               data: {
                 name: app.name,
                 email: app.email,
+                faculty: app.faculty || null,
+                subfaculty: app.subfaculty || null,
+                internshipCount: app.internshipCount || 0,
+                internshipFields: app.internshipFields || [],
+                resumeFile: app.resumeFile!,
+                source: 'job_application',
+                appliedFor: posting.title,
+              },
+            });
+          } else {
+            await prisma.resumeSubmission.update({
+              where: { id: existing.id },
+              data: {
+                name: app.name,
+                email: app.email,
+                faculty: app.faculty || existing.faculty || null,
+                subfaculty: app.subfaculty || existing.subfaculty || null,
+                internshipCount: app.internshipCount || existing.internshipCount || 0,
+                internshipFields: (app.internshipFields && app.internshipFields.length > 0) ? app.internshipFields : existing.internshipFields,
                 resumeFile: app.resumeFile!,
                 source: 'job_application',
                 appliedFor: posting.title,
               },
             });
           }
-          // If they already have an entry, their existing record is the authoritative copy — leave it
         } catch (syncErr) {
           console.error('Resume book sync on delete (non-fatal):', syncErr);
         }
