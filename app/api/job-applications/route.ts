@@ -102,6 +102,35 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Auto-sync applicant into Resume Book (dedup by email).
+    // Only syncs if they actually uploaded a resume.
+    if (resumeFile) {
+      try {
+        const existing = await prisma.resumeSubmission.findFirst({ where: { email } });
+        if (!existing) {
+          await prisma.resumeSubmission.create({
+            data: {
+              name,
+              email,
+              resumeFile,
+              source: 'job_application',
+              appliedFor: jobPosting.title,
+            },
+          });
+        } else if (!existing.resumeFile) {
+          // They're already in the book but without a file — update with this resume
+          await prisma.resumeSubmission.update({
+            where: { id: existing.id },
+            data: { resumeFile, appliedFor: existing.appliedFor ?? jobPosting.title },
+          });
+        }
+        // If they already have a resume on file, leave their existing entry untouched
+      } catch (syncErr) {
+        // Non-fatal — application was already saved successfully
+        console.error('Resume book sync error (non-fatal):', syncErr);
+      }
+    }
+
     return NextResponse.json(application, { status: 201 });
   } catch (error) {
     console.error('Error creating job application:', error);

@@ -100,6 +100,36 @@ export async function DELETE(
       );
     }
 
+    // Preserve applicant resumes before the cascade delete wipes the applications.
+    // Anyone who applied with a resume gets upserted into the Resume Book so the
+    // file is permanently on record even after the posting is gone.
+    const posting = await prisma.jobPosting.findUnique({
+      where: { id: params.id },
+      include: { applications: true },
+    });
+
+    if (posting) {
+      for (const app of posting.applications.filter(a => a.resumeFile)) {
+        try {
+          const existing = await prisma.resumeSubmission.findFirst({ where: { email: app.email } });
+          if (!existing) {
+            await prisma.resumeSubmission.create({
+              data: {
+                name: app.name,
+                email: app.email,
+                resumeFile: app.resumeFile!,
+                source: 'job_application',
+                appliedFor: posting.title,
+              },
+            });
+          }
+          // If they already have an entry, their existing record is the authoritative copy — leave it
+        } catch (syncErr) {
+          console.error('Resume book sync on delete (non-fatal):', syncErr);
+        }
+      }
+    }
+
     await prisma.jobPosting.delete({
       where: { id: params.id },
     });
