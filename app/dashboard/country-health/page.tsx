@@ -34,8 +34,22 @@ interface PillarScoreUI {
   concentration: PillarConcentrationUI;
   variables: ScoredVariableUI[];
 }
+interface VariableCoreContributionUI {
+  id: string;
+  label: string;
+  pillar: string;
+  pillarLabel: string;
+  rawValue: number | null;
+  normalizedScore: number | null;
+  weight: number;
+  contributionToPillar: number | null;
+  contributionToCore: number | null;
+  unit: string;
+}
+
 interface CountryEntry {
   country: string;
+  rank?: number;
   coreScore: number | null;
   overlayScore: number | null;
   completeness: number;
@@ -46,21 +60,42 @@ interface CountryEntry {
   classificationColor: string;
   meta: CountryMeta;
   pillarScores: Record<string, PillarScoreUI>;
+  coreContributions?: {
+    topPositive: VariableCoreContributionUI[];
+    topNegative: VariableCoreContributionUI[];
+    all: VariableCoreContributionUI[];
+  };
+  analysisRank?: number | null;
+  analysisCoreScore?: number | null;
+  /** When present, rank in the default 10-country leaderboard (vs extended analysis basket in `rank`) */
+  defaultBasketRank?: number | null;
 }
+
 interface Payload {
   timestamp: string;
   countries: CountryEntry[];
+  countriesAnalysis?: CountryEntry[];
+  analysisPeerIds?: string[];
   methodology: Record<string, unknown>;
   robustness?: {
     sameYearVsLatest: {
       avgAbsRankMove: number;
       maxAbsRankMove: number;
       moves: { country: string; rankLatest: number; rankSameYear: number; delta: number }[];
-      interpretation: string;
     };
     peerSensitivity: Record<string, { label: string; order: string[]; ranks: Record<string, number>; scores: Record<string, number | null> }>;
-    notes: string[];
   };
+  prunedRobustness?: Record<string, {
+    label: string;
+    spearmanRankVsFull: number | null;
+    avgAbsRankMove: number;
+    maxAbsRankMove: number;
+    perCountryDeltas: { country: string; baseRank: number; variantRank: number; delta: number }[];
+  }>;
+  altProductive?: Record<string, unknown>;
+  altHuman?: Record<string, unknown>;
+  altInnovation?: Record<string, unknown>;
+  overlayPlus?: Record<string, unknown>;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -291,6 +326,7 @@ function CountryRow({
 }: {
   entry: CountryEntry; rank: number; selected: boolean; onSelect: () => void;
 }) {
+  const displayRank = entry.rank ?? rank;
   return (
     <tr
       onClick={onSelect}
@@ -298,7 +334,7 @@ function CountryRow({
         selected ? 'bg-blue-50' : 'hover:bg-gray-50'
       }`}
     >
-      <td className="py-2.5 px-3 text-xs text-gray-400 font-mono tabular-nums">#{rank}</td>
+      <td className="py-2.5 px-3 text-xs text-gray-400 font-mono tabular-nums">#{displayRank}</td>
       <td className="py-2.5 pr-3">
         <div className="flex items-center gap-2">
           <span className="text-xl leading-none">{entry.meta.flag}</span>
@@ -366,7 +402,6 @@ function RobustnessPanel({ robustness }: { robustness: NonNullable<Payload['robu
               Avg. absolute rank move: <span className="font-mono font-semibold text-gray-800">{sy.avgAbsRankMove.toFixed(2)}</span>
               {' · '}Max: <span className="font-mono font-semibold text-gray-800">{sy.maxAbsRankMove}</span>
             </p>
-            <p className="text-[11px] text-gray-500 italic mb-2">{sy.interpretation}</p>
             <div className="overflow-x-auto border border-gray-100 rounded-lg">
               <table className="w-full text-[11px]">
                 <thead>
@@ -403,12 +438,98 @@ function RobustnessPanel({ robustness }: { robustness: NonNullable<Payload['robu
               ))}
             </div>
           </div>
-          {robustness.notes?.length > 0 && (
-            <ul className="list-disc pl-4 text-[11px] text-gray-400 space-y-1">
-              {robustness.notes.map((n, i) => (
-                <li key={i}>{n}</li>
-              ))}
-            </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Optional robustness payloads (?pruned=1 & …) ─────────────────────────────
+
+function SensitivityModesPanel({
+  prunedRobustness,
+  altProductive,
+  altHuman,
+  altInnovation,
+  overlayPlus
+}: {
+  prunedRobustness?: Payload['prunedRobustness'];
+  altProductive?: Payload['altProductive'];
+  altHuman?: Payload['altHuman'];
+  altInnovation?: Payload['altInnovation'];
+  overlayPlus?: Payload['overlayPlus'];
+}) {
+  const [open, setOpen] = useState(false);
+  const hasAny =
+    prunedRobustness ||
+    altProductive ||
+    altHuman ||
+    altInnovation ||
+    overlayPlus;
+  if (!hasAny) return null;
+
+  return (
+    <div className="bg-white border border-indigo-200 rounded-xl overflow-hidden mt-4">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-5 py-3 hover:bg-indigo-50/40 transition-colors"
+      >
+        <div className="flex items-center gap-2 text-sm font-semibold text-indigo-900">
+          <BarChart2 size={14} /> Experimental sensitivity modes
+        </div>
+        {open ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />}
+      </button>
+      {open && (
+        <div className="border-t border-indigo-100 px-5 py-4 text-xs text-gray-700 space-y-6">
+          {prunedRobustness && (
+            <div>
+              <div className="font-semibold text-gray-800 mb-2">Pruned pairs (vs full model)</div>
+              <div className="space-y-3">
+                {Object.entries(prunedRobustness).map(([key, v]) => (
+                  <div key={key} className="border border-gray-100 rounded-lg p-3 bg-gray-50/50">
+                    <div className="text-[10px] font-mono text-gray-400 mb-1">{key}</div>
+                    <div className="text-[11px] font-medium text-gray-700 mb-1">{v.label}</div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                      <span>Spearman: {v.spearmanRankVsFull != null ? v.spearmanRankVsFull.toFixed(3) : '—'}</span>
+                      <span>Avg |Δrank|: {v.avgAbsRankMove.toFixed(2)}</span>
+                      <span>Max |Δrank|: {v.maxAbsRankMove}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {overlayPlus && (
+            <div>
+              <div className="font-semibold text-gray-800 mb-1">Overlay plus (financial depth + services exports)</div>
+              <pre className="text-[10px] bg-gray-50 p-2 rounded overflow-x-auto text-gray-600 max-h-48">
+                {JSON.stringify(overlayPlus, null, 2)}
+              </pre>
+            </div>
+          )}
+          {(altProductive || altHuman || altInnovation) && (
+            <div>
+              <div className="font-semibold text-gray-800 mb-2">Alt pillar definitions</div>
+              {altProductive && (
+                <details className="mb-2">
+                  <summary className="cursor-pointer text-indigo-800 font-medium">Productive capacity</summary>
+                  <pre className="text-[10px] bg-gray-50 p-2 rounded mt-1 overflow-x-auto max-h-64">{JSON.stringify(altProductive, null, 2)}</pre>
+                </details>
+              )}
+              {altHuman && (
+                <details className="mb-2">
+                  <summary className="cursor-pointer text-indigo-800 font-medium">Human capital</summary>
+                  <pre className="text-[10px] bg-gray-50 p-2 rounded mt-1 overflow-x-auto max-h-64">{JSON.stringify(altHuman, null, 2)}</pre>
+                </details>
+              )}
+              {altInnovation && (
+                <details>
+                  <summary className="cursor-pointer text-indigo-800 font-medium">Innovation</summary>
+                  <pre className="text-[10px] bg-gray-50 p-2 rounded mt-1 overflow-x-auto max-h-64">{JSON.stringify(altInnovation, null, 2)}</pre>
+                </details>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -784,6 +905,83 @@ function CountryDetail({ entry }: { entry: CountryEntry }) {
         </div>
       </div>
 
+
+      {entry.coreContributions && (
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-gray-100">
+            <div className="text-sm font-semibold text-gray-800">Core score — variable contributions</div>
+            <p className="text-[11px] text-gray-500 mt-0.5">
+              Approximate share of each variable to the core score (pillar weight × within-pillar contribution). Overlay excluded.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-0 md:divide-x divide-gray-100">
+            <div className="p-4">
+              <div className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wide mb-2">Top positive drivers</div>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-[9px] text-gray-400 uppercase">
+                    <th className="text-left pb-1">Variable</th>
+                    <th className="text-right pb-1">Raw</th>
+                    <th className="text-right pb-1">Norm</th>
+                    <th className="text-right pb-1">Wt</th>
+                    <th className="text-right pb-1">Δ core</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {entry.coreContributions.topPositive.map(row => (
+                    <tr key={row.id} className="border-t border-gray-50">
+                      <td className="py-1.5 pr-2">
+                        <div className="text-gray-800">{row.label}</div>
+                        <div className="text-[9px] text-gray-400">{row.pillarLabel}</div>
+                      </td>
+                      <td className="py-1.5 text-right tabular-nums text-gray-600">{fmt(row.rawValue)}</td>
+                      <td className="py-1.5 text-right tabular-nums text-emerald-600">{row.normalizedScore != null ? row.normalizedScore.toFixed(2) : '—'}</td>
+                      <td className="py-1.5 text-right tabular-nums text-gray-400">{row.weight}</td>
+                      <td className="py-1.5 text-right tabular-nums font-medium text-emerald-700">
+                        {row.contributionToCore != null ? row.contributionToCore.toFixed(3) : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="p-4">
+              <div className="text-[10px] font-semibold text-rose-700 uppercase tracking-wide mb-2">Weakest contributors</div>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-[9px] text-gray-400 uppercase">
+                    <th className="text-left pb-1">Variable</th>
+                    <th className="text-right pb-1">Raw</th>
+                    <th className="text-right pb-1">Norm</th>
+                    <th className="text-right pb-1">Wt</th>
+                    <th className="text-right pb-1">Δ core</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {entry.coreContributions.topNegative.map(row => (
+                    <tr key={row.id} className="border-t border-gray-50">
+                      <td className="py-1.5 pr-2">
+                        <div className="text-gray-800">{row.label}</div>
+                        <div className="text-[9px] text-gray-400">{row.pillarLabel}</div>
+                      </td>
+                      <td className="py-1.5 text-right tabular-nums text-gray-600">{fmt(row.rawValue)}</td>
+                      <td className="py-1.5 text-right tabular-nums text-rose-500">{row.normalizedScore != null ? row.normalizedScore.toFixed(2) : '—'}</td>
+                      <td className="py-1.5 text-right tabular-nums text-gray-400">{row.weight}</td>
+                      <td className="py-1.5 text-right tabular-nums font-medium text-rose-700">
+                        {row.contributionToCore != null ? row.contributionToCore.toFixed(3) : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p className="px-4 pb-3 text-[9px] text-gray-400 mt-1">
+            Δ core = contribution to overall core score (0–1 scale on variables); pillar weight is baked in.
+          </p>
+        </div>
+      )}
+
       {/* Core pillars drilldown */}
       {CORE_PILLARS.map(p => {
         const ps = entry.pillarScores[p];
@@ -814,34 +1012,44 @@ function CountryDetail({ entry }: { entry: CountryEntry }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+const SENSITIVITY_QUERY =
+  '?pruned=1&alt_productive=1&alt_human=1&alt_innovation=1&overlay_plus=1';
+
 export default function CountryHealthPage() {
   const [data, setData] = useState<Payload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'rankings' | 'detail' | 'methodology'>('rankings');
+  const [sensitivityLoaded, setSensitivityLoaded] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { sensitivity?: boolean }) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/dashboard/country-health');
+      const qs = opts?.sensitivity ? SENSITIVITY_QUERY : '';
+      const res = await fetch(`/api/dashboard/country-health${qs}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json: Payload = await res.json();
       setData(json);
-      if (!selected && json.countries.length > 0) {
-        setSelected(json.countries[0].country);
-      }
+      setSensitivityLoaded(!!opts?.sensitivity);
+      const detailList = json.countriesAnalysis ?? json.countries;
+      setSelected(prev => {
+        if (prev && detailList.some(c => c.country === prev)) return prev;
+        const us = detailList.find(c => c.country === 'US');
+        return us?.country ?? detailList[0]?.country ?? null;
+      });
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setLoading(false);
     }
-  }, [selected]);
+  }, []);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
-  const selectedEntry = data?.countries.find(c => c.country === selected) ?? null;
+  const detailList = data?.countriesAnalysis ?? data?.countries ?? [];
+  const selectedEntry = detailList.find(c => c.country === selected) ?? null;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-4">
@@ -856,20 +1064,34 @@ export default function CountryHealthPage() {
             Core strength score across 5 pillars · Market Monetization Overlay · {CORE_PILLARS.length} pillars · World Bank Open Data
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           {data && (
             <span className="text-[10px] text-gray-400">
               Updated {new Date(data.timestamp).toLocaleString()}
             </span>
           )}
           <button
-            onClick={load}
+            type="button"
+            onClick={() => load()}
             disabled={loading}
             className="flex items-center gap-1.5 text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 disabled:opacity-40 transition-colors"
           >
             <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
             Refresh
           </button>
+          {!sensitivityLoaded && (
+            <button
+              type="button"
+              onClick={() => load({ sensitivity: true })}
+              disabled={loading}
+              className="flex items-center gap-1.5 text-xs text-indigo-700 border border-indigo-200 rounded-lg px-3 py-1.5 hover:bg-indigo-50 disabled:opacity-40 transition-colors"
+            >
+              Load sensitivity modes
+            </button>
+          )}
+          {sensitivityLoaded && (
+            <span className="text-[10px] text-indigo-600">Sensitivity payloads loaded</span>
+          )}
         </div>
       </div>
 
@@ -913,7 +1135,7 @@ export default function CountryHealthPage() {
               <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
                 <BarChart2 size={14} className="text-gray-400" />
                 <span className="text-sm font-semibold text-gray-700">Country Rankings</span>
-                <span className="text-[10px] text-gray-400 ml-1">Click a row to drill down</span>
+                <span className="text-[10px] text-gray-400 ml-1">10-country default basket · click a row to drill down</span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
@@ -971,9 +1193,12 @@ export default function CountryHealthPage() {
               {/* Country selector sidebar */}
               <div className="bg-white border border-gray-200 rounded-xl overflow-hidden h-fit">
                 <div className="px-4 py-2.5 border-b border-gray-100 text-[10px] text-gray-400 uppercase tracking-wide font-semibold">
-                  Select Country
+                  Select country
+                  <div className="text-[9px] font-normal normal-case text-gray-400 mt-0.5">
+                    {data.countriesAnalysis ? '13-peer analysis basket (z-scores vs this set)' : 'Default basket'}
+                  </div>
                 </div>
-                {data.countries.map((entry, i) => (
+                {[...detailList].sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99)).map(entry => (
                   <button
                     key={entry.country}
                     onClick={() => setSelected(entry.country)}
@@ -982,7 +1207,7 @@ export default function CountryHealthPage() {
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-gray-300 tabular-nums w-4">#{i + 1}</span>
+                      <span className="text-[10px] text-gray-300 tabular-nums w-4">#{entry.rank ?? '—'}</span>
                       <span className="text-base leading-none">{entry.meta.flag}</span>
                       <span className={`text-xs font-medium ${selected === entry.country ? 'text-blue-700' : 'text-gray-700'}`}>
                         {entry.meta.name}
@@ -1012,6 +1237,14 @@ export default function CountryHealthPage() {
           {activeTab === 'methodology' && <MethodologyTab />}
 
           {data.robustness && <RobustnessPanel robustness={data.robustness} />}
+
+          <SensitivityModesPanel
+            prunedRobustness={data.prunedRobustness}
+            altProductive={data.altProductive}
+            altHuman={data.altHuman}
+            altInnovation={data.altInnovation}
+            overlayPlus={data.overlayPlus}
+          />
 
           {/* Disclaimer */}
           <p className="text-[10px] text-gray-300 text-center pb-2">

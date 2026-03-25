@@ -2,7 +2,7 @@
 // Scores are relative; changing the basket changes levels. We expose multiple
 // baskets so users can see rank stability vs peer definition.
 
-import { DEFAULT_PEER_IDS } from './dictionary';
+import { DEFAULT_PEER_IDS, ANALYSIS_PEER_IDS } from './dictionary';
 
 export const PEER_SETS: Record<string, { label: string; ids: string[] }> = {
   default: {
@@ -27,7 +27,7 @@ export const PEER_SETS: Record<string, { label: string; ids: string[] }> = {
 export function allPeerCountryIds(): string[] {
   const s = new Set<string>();
   for (const p of Object.values(PEER_SETS)) p.ids.forEach(id => s.add(id));
-  // Always include the full default basket
+  ANALYSIS_PEER_IDS.forEach(id => s.add(id));
   DEFAULT_PEER_IDS.forEach(id => s.add(id));
   return [...s];
 }

@@ -1,6 +1,6 @@
 // ─── Build RawVariableRow[] from World Bank time series ────────────────────────
 
-import { VARIABLES } from './dictionary';
+import type { VariableDef } from './dictionary';
 import type { RawVariableRow } from './scoring';
 
 export interface WBObservation {
@@ -90,11 +90,12 @@ export function pickAnchorYear(
 export function buildRawRows(
   seriesByCode: SeriesByCode,
   countryCodes: string[],
-  mode: 'latest' | 'sameYear'
+  mode: 'latest' | 'sameYear',
+  variables: VariableDef[]
 ): RawVariableRow[] {
   const rows: RawVariableRow[] = [];
 
-  for (const def of VARIABLES) {
+  for (const def of variables) {
     const countryMap = seriesByCode.get(def.code);
     if (!countryMap) {
       for (const country of countryCodes) {

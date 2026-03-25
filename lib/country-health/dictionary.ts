@@ -80,7 +80,7 @@ export const VARIABLES: VariableDef[] = [
     useChange: false,
     momentumMode: 'growth_pp',
     why: 'Core measure of whether the economy is expanding in real terms.',
-    weight: 3,
+    weight: 2,
   },
   {
     id: 'gdp_per_capita_growth',
@@ -309,7 +309,7 @@ export const VARIABLES: VariableDef[] = [
     kind: 'structural',
     useChange: false,
     why: 'Low violence and disruption risk preserves planning horizons for firms.',
-    weight: 1,
+    weight: 0.5,
   },
   {
     id: 'voice_accountability',
@@ -414,18 +414,6 @@ export const VARIABLES: VariableDef[] = [
     weight: 2,
   },
   {
-    id: 'listed_companies',
-    pillar: 'overlay',
-    code: 'CM.MKT.LDOM.NO',
-    label: 'Listed Companies',
-    unit: 'per million people',
-    direction: 'up_good',
-    kind: 'structural',
-    useChange: false,
-    why: 'Market breadth — more listed companies means more opportunity for stock selection.',
-    weight: 1,
-  },
-  {
     id: 'portfolio_inflows',
     pillar: 'overlay',
     code: 'BX.PEF.TOTL.CD.WD',
@@ -443,6 +431,10 @@ export const VARIABLES: VariableDef[] = [
 
 export function getVariablesByPillar(pillar: Pillar): VariableDef[] {
   return VARIABLES.filter(v => v.pillar === pillar);
+}
+
+export function getVariablesByPillarFrom(defs: VariableDef[], pillar: Pillar): VariableDef[] {
+  return defs.filter(v => v.pillar === pillar);
 }
 
 // ─── Country universe ─────────────────────────────────────────────────────────
@@ -489,3 +481,6 @@ export const COUNTRY_META: Record<string, CountryDef> = Object.fromEntries(
 
 /** Primary dashboard / default z-score basket — all countries */
 export const DEFAULT_PEER_IDS: string[] = COUNTRIES.map(c => c.id);
+
+/** Extended analysis basket for detailed interpretation / sensitivities */
+export const ANALYSIS_PEER_IDS: string[] = [...new Set([...DEFAULT_PEER_IDS, 'SG', 'CH', 'VN'])];
