@@ -452,7 +452,7 @@ function MethodologyPanel({ methodology }: { methodology: Record<string, unknown
             <div className="font-semibold text-gray-700 mb-1">Pillar Aggregation</div>
             <p>{String(methodology.pillarAggregation)}</p>
           </div>
-          {methodology.pillarConfidenceThresholds && (
+          {Boolean(methodology.pillarConfidenceThresholds) ? (
             <div>
               <div className="font-semibold text-gray-700 mb-1">Pillar data thresholds</div>
               <ul className="list-disc pl-4 space-y-0.5 text-gray-500">
@@ -461,19 +461,19 @@ function MethodologyPanel({ methodology }: { methodology: Record<string, unknown
                 ))}
               </ul>
             </div>
-          )}
-          {methodology.sameYearMode && (
+          ) : null}
+          {Boolean(methodology.sameYearMode) ? (
             <div>
               <div className="font-semibold text-gray-700 mb-1">Same-year alignment (robustness)</div>
               <p>{String(methodology.sameYearMode)}</p>
             </div>
-          )}
-          {methodology.manufacturing && (
+          ) : null}
+          {Boolean(methodology.manufacturing) ? (
             <div>
               <div className="font-semibold text-gray-700 mb-1">Industrial / tradables proxy</div>
               <p>{String(methodology.manufacturing)}</p>
             </div>
-          )}
+          ) : null}
           <div>
             <div className="font-semibold text-gray-700 mb-1">Core Pillar Weights</div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-1">
