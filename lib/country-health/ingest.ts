@@ -34,17 +34,20 @@ export function observationsToSeries(
   into.set(code, countryMap);
 }
 
-/** Latest observation + prior year (for momentum), same as legacy buildLookup */
+/** Latest observation + exact prior year for momentum (falls back to second-most-recent). */
 export function valueAtLatest(
   series: { date: string; value: number }[] | undefined
 ): { level: number | null; prevLevel: number | null; dataYear: string | null } {
   if (!series || series.length === 0) {
     return { level: null, prevLevel: null, dataYear: null };
   }
+  const most = series[0];
+  const prevYear = String(Number(most.date) - 1);
+  const exactPrev = series.find(p => p.date === prevYear);
   return {
-    level: series[0].value,
-    prevLevel: series[1]?.value ?? null,
-    dataYear: series[0].date,
+    level: most.value,
+    prevLevel: exactPrev?.value ?? series[1]?.value ?? null,
+    dataYear: most.date,
   };
 }
 

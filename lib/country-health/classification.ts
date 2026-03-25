@@ -116,3 +116,72 @@ export function classify(
     description: 'Weakness across multiple pillars constrains growth and investment.',
   };
 }
+
+// ─── Exported thresholds and archetype definitions ────────────────────────────
+
+export const CLASSIFICATION_THRESHOLDS = { HIGH, MED } as const;
+
+export const ARCHETYPE_DEFS: {
+  label: string;
+  color: string;
+  textColor: string;
+  criteria: string;
+  description: string;
+}[] = [
+  {
+    label: 'Frontier Compounder',
+    color: 'bg-emerald-100',
+    textColor: 'text-emerald-800',
+    criteria: `Core ≥ ${HIGH}, Innovation ≥ ${HIGH}, Institutions ≥ ${HIGH}`,
+    description: 'Strong across all pillars. High innovation, strong institutions, accessible markets.',
+  },
+  {
+    label: 'Innovation Leader',
+    color: 'bg-blue-100',
+    textColor: 'text-blue-800',
+    criteria: `Innovation ≥ ${HIGH}, Institutions ≥ ${MED}, Core ≥ ${MED}`,
+    description: 'Leading in R&D, patents, and IP. Institutional quality supports long-duration investment.',
+  },
+  {
+    label: 'Industrial Climber',
+    color: 'bg-indigo-100',
+    textColor: 'text-indigo-800',
+    criteria: `Productive Capacity ≥ ${HIGH}, Innovation ≥ ${MED}, Institutions < ${HIGH}`,
+    description: 'Strong industrial and productive base. Innovation rising but institutions lag.',
+  },
+  {
+    label: 'State-Capacity Powerhouse',
+    color: 'bg-amber-100',
+    textColor: 'text-amber-800',
+    criteria: `(Productive Capacity ≥ ${HIGH} or Innovation ≥ ${HIGH}), Institutions < ${MED}`,
+    description: 'Real economic and innovative strength, but elevated intervention risk limits investor trust.',
+  },
+  {
+    label: 'Fragile Growth Story',
+    color: 'bg-orange-100',
+    textColor: 'text-orange-800',
+    criteria: `Productive Capacity ≥ ${MED}, Macro Sustainability < ${MED}`,
+    description: 'Decent growth momentum, but weak macro sustainability raises crisis vulnerability.',
+  },
+  {
+    label: 'Stable Mature Power',
+    color: 'bg-purple-100',
+    textColor: 'text-purple-800',
+    criteria: `Institutions ≥ ${HIGH}, Macro ≥ ${MED}, Productive Capacity < ${MED}`,
+    description: 'Sound institutions and macro, but lower growth and innovation upside.',
+  },
+  {
+    label: 'Developing Compounder',
+    color: 'bg-teal-100',
+    textColor: 'text-teal-800',
+    criteria: `Core ≥ ${MED}`,
+    description: 'Solid foundation with room to improve across multiple pillars.',
+  },
+  {
+    label: 'Declining System',
+    color: 'bg-red-100',
+    textColor: 'text-red-800',
+    criteria: `Core < ${MED}`,
+    description: 'Weakness across multiple pillars constrains growth and investment.',
+  },
+];

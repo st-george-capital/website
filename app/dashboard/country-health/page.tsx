@@ -6,7 +6,8 @@ import {
   BarChart2, TrendingUp, TrendingDown, AlertTriangle,
 } from 'lucide-react';
 import type { Pillar } from '@/lib/country-health/dictionary';
-import { PILLAR_LABELS } from '@/lib/country-health/dictionary';
+import { PILLAR_LABELS, VARIABLES, PILLAR_WEIGHTS, COUNTRIES } from '@/lib/country-health/dictionary';
+import { ARCHETYPE_DEFS, CLASSIFICATION_THRESHOLDS } from '@/lib/country-health/classification';
 
 // ─── Types (mirror the API shape) ────────────────────────────────────────────
 
@@ -268,7 +269,6 @@ function PillarCard({
                 <th className="text-right pb-1.5 font-semibold">Score</th>
                 <th className="text-right pb-1.5 font-semibold">Wt</th>
                 <th className="text-right pb-1.5 font-semibold">Contrib</th>
-                <th className="text-left pb-1.5 pl-2 font-semibold">Type</th>
               </tr>
             </thead>
             <tbody>
@@ -312,13 +312,6 @@ function PillarCard({
                         {v.contribution.toFixed(2)}
                       </span>
                     ) : <span className="text-gray-300">—</span>}
-                  </td>
-                  <td className="py-1.5 pl-2">
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
-                      v.kind === 'structural' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'
-                    }`}>
-                      {v.kind}
-                    </span>
                   </td>
                 </tr>
               ))}
@@ -570,91 +563,283 @@ function SensitivityModesPanel({
 
 // ─── Methodology Panel ────────────────────────────────────────────────────────
 
-function MethodologyPanel({ methodology }: { methodology: Record<string, unknown> }) {
-  const [open, setOpen] = useState(false);
+// ─── Methodology Tab ──────────────────────────────────────────────────────────
+
+function MethodologyTab() {
+  const coreVars = VARIABLES.filter(v => v.pillar !== 'overlay');
+  const overlayVars = VARIABLES.filter(v => v.pillar === 'overlay');
+  const perCapitaIds = ['patent_applications', 'ip_receipts', 'listed_companies', 'portfolio_inflows'];
+  const momentumVars = VARIABLES.filter(v => v.useChange);
+  const downGoodVars = VARIABLES.filter(v => v.direction === 'down_good');
+  const totalCoreWeight = CORE_PILLARS.reduce((s, p) => s + PILLAR_WEIGHTS[p], 0);
+
+  const SH = ({ children }: { children: React.ReactNode }) => (
+    <h2 className="text-sm font-bold text-gray-900 mb-3 pb-2 border-b border-gray-200 uppercase tracking-wide">{children}</h2>
+  );
+  const SubH = ({ children }: { children: React.ReactNode }) => (
+    <h3 className="text-xs font-semibold text-gray-800 mt-5 mb-1.5">{children}</h3>
+  );
+  const P = ({ children }: { children: React.ReactNode }) => (
+    <p className="text-xs text-gray-600 leading-relaxed mb-2">{children}</p>
+  );
+  const TH = ({ children, right }: { children: React.ReactNode; right?: boolean }) => (
+    <th className={`px-3 py-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wide bg-gray-50 ${right ? 'text-right' : 'text-left'}`}>{children}</th>
+  );
+  const TD = ({ children, right, mono }: { children: React.ReactNode; right?: boolean; mono?: boolean }) => (
+    <td className={`px-3 py-2 text-xs text-gray-600 border-t border-gray-50 ${right ? 'text-right' : ''} ${mono ? 'font-mono tabular-nums' : ''}`}>{children}</td>
+  );
+
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mt-4">
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors"
-      >
-        <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-          <Info size={14} /> Methodology
-        </div>
-        {open ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />}
-      </button>
-      {open && (
-        <div className="border-t border-gray-100 px-5 py-4 text-xs text-gray-600 space-y-3">
-          <div>
-            <div className="font-semibold text-gray-700 mb-1">Normalization</div>
-            <p>{String(methodology.normalization)}</p>
-          </div>
-          <div>
-            <div className="font-semibold text-gray-700 mb-1">Momentum Blend</div>
-            <p>{String(methodology.momentumBlend)}</p>
-          </div>
-          <div>
-            <div className="font-semibold text-gray-700 mb-1">Pillar Aggregation</div>
-            <p>{String(methodology.pillarAggregation)}</p>
-          </div>
-          {Boolean(methodology.pillarConfidenceThresholds) ? (
-            <div>
-              <div className="font-semibold text-gray-700 mb-1">Pillar data thresholds</div>
-              <ul className="list-disc pl-4 space-y-0.5 text-gray-500">
-                {Object.entries(methodology.pillarConfidenceThresholds as Record<string, string>).map(([k, v]) => (
-                  <li key={k}><span className="text-gray-600">{k}:</span> {v}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          {Boolean(methodology.sameYearMode) ? (
-            <div>
-              <div className="font-semibold text-gray-700 mb-1">Same-year alignment (robustness)</div>
-              <p>{String(methodology.sameYearMode)}</p>
-            </div>
-          ) : null}
-          {Boolean(methodology.manufacturing) ? (
-            <div>
-              <div className="font-semibold text-gray-700 mb-1">Industrial / tradables proxy</div>
-              <p>{String(methodology.manufacturing)}</p>
-            </div>
-          ) : null}
-          <div>
-            <div className="font-semibold text-gray-700 mb-1">Core Pillar Weights</div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-1">
-              {Object.entries(methodology.coreWeights as Record<string, string>).map(([k, v]) => (
-                <div key={k} className="flex justify-between">
-                  <span className="text-gray-500">{PILLAR_LABELS[k as Pillar] ?? k}</span>
-                  <span className="font-semibold text-gray-700">{v}</span>
-                </div>
+    <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-10 max-w-5xl">
+
+      {/* 1. Overview */}
+      <section>
+        <SH>Overview</SH>
+        <P>
+          The Country Macro Health Index benchmarks <strong>{COUNTRIES.length} countries</strong> across{' '}
+          <strong>{CORE_PILLARS.length} core pillars</strong> ({coreVars.length} indicators) plus a Market
+          Monetization Overlay ({overlayVars.length} indicators). All input data is retrieved from the{' '}
+          <strong>World Bank Open Data API</strong> — no proprietary sources, no normalization against external indices.
+        </P>
+        <P>
+          Scores are <strong>cross-sectional and relative</strong>: a country&apos;s score reflects its standing
+          within the peer set, not an absolute measure of economic strength. The peer set spans{' '}
+          {[...new Set(COUNTRIES.map(c => c.region))].join(', ')}.
+        </P>
+      </section>
+
+      {/* 2. Country Universe */}
+      <section>
+        <SH>Country Universe — {COUNTRIES.length} countries</SH>
+        <div className="overflow-x-auto border border-gray-200 rounded-xl">
+          <table className="w-full">
+            <thead><tr><TH>Country</TH><TH>ISO2</TH><TH>Region</TH></tr></thead>
+            <tbody>
+              {COUNTRIES.map(c => (
+                <tr key={c.id}>
+                  <TD><span className="mr-1.5">{c.flag}</span>{c.name}</TD>
+                  <TD mono>{c.id}</TD>
+                  <TD>{c.region}</TD>
+                </tr>
               ))}
-            </div>
-          </div>
-          <div>
-            <div className="font-semibold text-gray-700 mb-1">Data Source</div>
-            <p className="text-gray-400">{String(methodology.dataSource)}</p>
-          </div>
-          <div className="pt-2 border-t border-gray-100">
-            <div className="font-semibold text-gray-700 mb-2">Country Archetypes</div>
-            <div className="grid grid-cols-1 gap-1">
-              {[
-                { label: 'Frontier Compounder', desc: 'Strong across all pillars. High innovation + strong institutions.', color: 'bg-emerald-100 text-emerald-800' },
-                { label: 'Innovation Leader', desc: 'R&D/IP/patent strength with solid institutional quality.', color: 'bg-blue-100 text-blue-800' },
-                { label: 'Industrial Climber', desc: 'Strong productive base, rising innovation, institutional lag.', color: 'bg-indigo-100 text-indigo-800' },
-                { label: 'State-Capacity Powerhouse', desc: 'Real economic strength, elevated intervention risk.', color: 'bg-amber-100 text-amber-800' },
-                { label: 'Fragile Growth Story', desc: 'Decent growth, weak macro sustainability.', color: 'bg-orange-100 text-orange-800' },
-                { label: 'Stable Mature Power', desc: 'Sound institutions, lower growth upside.', color: 'bg-purple-100 text-purple-800' },
-                { label: 'Declining System', desc: 'Weakness across multiple pillars.', color: 'bg-red-100 text-red-800' },
-              ].map(a => (
-                <div key={a.label} className="flex items-start gap-2">
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${a.color}`}>{a.label}</span>
-                  <span className="text-gray-400 text-[10px] leading-tight mt-0.5">{a.desc}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+            </tbody>
+          </table>
         </div>
-      )}
+      </section>
+
+      {/* 3. Pillar Architecture */}
+      <section>
+        <SH>Pillar Architecture</SH>
+        <P>
+          The core score is a weighted average of {CORE_PILLARS.length} pillars. The Market Monetization
+          Overlay is scored separately and does not contribute to the core score.
+        </P>
+        <div className="overflow-x-auto border border-gray-200 rounded-xl">
+          <table className="w-full">
+            <thead><tr><TH>Pillar</TH><TH right>Core Weight</TH><TH right>Variables</TH></tr></thead>
+            <tbody>
+              {CORE_PILLARS.map(p => (
+                <tr key={p}>
+                  <TD><span className="mr-1.5">{PILLAR_ICONS[p]}</span>{PILLAR_LABELS[p]}</TD>
+                  <TD right mono>{(PILLAR_WEIGHTS[p] / totalCoreWeight * 100).toFixed(0)}%</TD>
+                  <TD right>{VARIABLES.filter(v => v.pillar === p).length}</TD>
+                </tr>
+              ))}
+              <tr>
+                <TD><span className="mr-1.5">{PILLAR_ICONS['overlay']}</span>{PILLAR_LABELS['overlay']}</TD>
+                <TD right><span className="text-gray-400 italic text-[10px]">not in core</span></TD>
+                <TD right>{overlayVars.length}</TD>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* 4. Variable Directory */}
+      <section>
+        <SH>Variable Directory</SH>
+        <P>
+          Each variable maps to a specific World Bank indicator code. Within-pillar weights are integers;
+          contribution = weight / sum of available weights (missing variables excluded from denominator).
+        </P>
+        {([...CORE_PILLARS, 'overlay' as Pillar]).map(p => {
+          const vars = VARIABLES.filter(v => v.pillar === p);
+          const totalWt = vars.reduce((s, v) => s + v.weight, 0);
+          return (
+            <div key={p} className="mb-6">
+              <SubH>
+                {PILLAR_ICONS[p]} {PILLAR_LABELS[p]}
+                {p !== 'overlay' && (
+                  <span className="ml-2 font-normal text-gray-400">
+                    — {(PILLAR_WEIGHTS[p] / totalCoreWeight * 100).toFixed(0)}% of core score
+                  </span>
+                )}
+              </SubH>
+              <div className="overflow-x-auto border border-gray-200 rounded-xl">
+                <table className="w-full">
+                  <thead>
+                    <tr>
+                      <TH>Variable</TH>
+                      <TH>WB Code</TH>
+                      <TH>Unit (displayed)</TH>
+                      <TH>Direction</TH>
+                      <TH right>Wt</TH>
+                      <TH right>Wt%</TH>
+                      <TH>Scoring</TH>
+                      <TH>Rationale</TH>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {vars.map(v => (
+                      <tr key={v.id}>
+                        <TD><span className="font-medium text-gray-800">{v.label}</span></TD>
+                        <TD mono><span className="text-blue-600">{v.code}</span></TD>
+                        <td className="px-3 py-2 text-xs text-gray-600 border-t border-gray-50">
+                          {v.unit}
+                          {perCapitaIds.includes(v.id) && (
+                            <span className="ml-1 text-[9px] text-amber-600 bg-amber-50 px-1 rounded">÷ pop</span>
+                          )}
+                        </td>
+                        <TD>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${v.direction === 'up_good' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                            {v.direction === 'up_good' ? '↑ higher = better' : '↓ lower = better'}
+                          </span>
+                        </TD>
+                        <TD right mono>{v.weight}</TD>
+                        <TD right mono>{(v.weight / totalWt * 100).toFixed(0)}%</TD>
+                        <TD>
+                          {v.useChange
+                            ? <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">70% level + 30% Δ</span>
+                            : <span className="text-[10px] text-gray-400">level only</span>}
+                        </TD>
+                        <TD>{v.why}</TD>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })}
+      </section>
+
+      {/* 5. Scoring Pipeline */}
+      <section>
+        <SH>Scoring Pipeline</SH>
+
+        <SubH>Step 1 — Per-capita normalization</SubH>
+        <P>
+          Absolute-count variables are divided by population before scoring so large countries do not
+          dominate on volume: {perCapitaIds.map(id => VARIABLES.find(v => v.id === id)?.label).filter(Boolean).join(', ')}.
+          Population sourced from World Bank SP.POP.TOTL.
+        </P>
+
+        <SubH>Step 2 — Direction adjustment</SubH>
+        <P>
+          Variables where lower is better are negated before scoring so high always means good.
+          Down-good variables: {downGoodVars.map(v => v.label).join(', ')}.
+          Raw values in the UI are original un-negated figures.
+        </P>
+
+        <SubH>Step 3 — Cross-sectional z-score normalization</SubH>
+        <P>
+          For each variable, scores are z-scored across all {COUNTRIES.length} countries simultaneously.
+          Z-scores are clamped to [−3, +3] to prevent outliers from collapsing the distribution, then
+          scaled to [0, 1]. Countries missing a variable are excluded from that variable&apos;s mean and std.
+        </P>
+
+        <SubH>Step 4 — Momentum blend</SubH>
+        <P>
+          {momentumVars.length > 0
+            ? <>For {momentumVars.length} variable{momentumVars.length !== 1 ? 's' : ''} where trend matters,
+              the final score blends normalized level (70%) with normalized year-over-year change (30%):
+              {' '}{momentumVars.map(v => v.label).join(', ')}.
+              Variables already expressed as rates (GDP growth %, CPI %) use level-only scoring to avoid
+              computing a second derivative.</>
+            : 'All variables use level-only scoring.'}
+        </P>
+
+        <SubH>Step 5 — Pillar aggregation</SubH>
+        <P>
+          Each pillar score is the weighted average of its variables using only available data.
+          Missing variables reduce completeness but do not block scoring.
+          A pillar with less than 40% weight coverage is flagged as low confidence.
+        </P>
+
+        <SubH>Step 6 — Core score</SubH>
+        <P>
+          Weighted average of the {CORE_PILLARS.length} pillar scores × 100, scaled to [0–100].
+          Pillars with no data are excluded from the denominator.
+          The Market Monetization Overlay is computed separately and not blended into core.
+        </P>
+
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 font-mono text-xs text-gray-600 leading-loose">
+          raw values → per-capita normalization (4 variables)<br/>
+          → direction adjustment (negate down_good)<br/>
+          → cross-sectional z-score → clamp [−3,+3] → scale [0,1]<br/>
+          {momentumVars.length > 0 && <>→ momentum blend: 0.70 × level + 0.30 × Δ (where applicable)<br/></>}
+          → weighted average within pillar<br/>
+          → weighted average across pillars × 100 = core score [0–100]
+        </div>
+      </section>
+
+      {/* 6. Classification */}
+      <section>
+        <SH>Classification Archetypes</SH>
+        <P>
+          Each country is assigned an archetype based on core score and pillar performance.
+          Thresholds are on the 0–100 scale: <strong>High ≥ {CLASSIFICATION_THRESHOLDS.HIGH}</strong>,{' '}
+          <strong>Medium ≥ {CLASSIFICATION_THRESHOLDS.MED}</strong>. Rules are evaluated in order; the first match applies.
+        </P>
+        <div className="overflow-x-auto border border-gray-200 rounded-xl">
+          <table className="w-full">
+            <thead><tr><TH>Archetype</TH><TH>Trigger criteria</TH><TH>Investment interpretation</TH></tr></thead>
+            <tbody>
+              {ARCHETYPE_DEFS.map(a => (
+                <tr key={a.label}>
+                  <td className="px-3 py-2 border-t border-gray-50">
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold whitespace-nowrap ${a.color} ${a.textColor}`}>
+                      {a.label}
+                    </span>
+                  </td>
+                  <TD mono>{a.criteria}</TD>
+                  <TD>{a.description}</TD>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* 7. Data Source & Limitations */}
+      <section>
+        <SH>Data Source &amp; Limitations</SH>
+
+        <SubH>World Bank Open Data API</SubH>
+        <P>
+          All {VARIABLES.length} indicators are fetched from api.worldbank.org/v2 (no auth required).
+          Data is cached for 1 hour. Annual series; publication typically lags the reference year by 1–2 years.
+        </P>
+
+        <SubH>Peer-relative scoring</SubH>
+        <P>
+          Normalization is cross-sectional. Every score is relative to the current {COUNTRIES.length}-country
+          peer set. A score of 50 means average within this group — not average globally.
+          Adding or removing countries shifts all scores.
+        </P>
+
+        <SubH>Data gaps</SubH>
+        <P>
+          R&amp;D expenditure and tertiary enrollment have significant coverage gaps for lower-income countries.
+          Pillars with less than 40% weight covered are flagged as low confidence.
+        </P>
+
+        <SubH>Not investment advice</SubH>
+        <P>
+          Backward-looking, based on published data. Does not capture geopolitical risk, sanctions, currency
+          risk, or market microstructure. For informational use only.
+        </P>
+      </section>
     </div>
   );
 }
@@ -870,7 +1055,7 @@ export default function CountryHealthPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'rankings' | 'detail'>('rankings');
+  const [activeTab, setActiveTab] = useState<'rankings' | 'detail' | 'methodology'>('rankings');
   const [sensitivityLoaded, setSensitivityLoaded] = useState(false);
 
   const load = useCallback(async (opts?: { sensitivity?: boolean }) => {
@@ -966,7 +1151,7 @@ export default function CountryHealthPage() {
         <>
           {/* Tab switcher */}
           <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
-            {(['rankings', 'detail'] as const).map(tab => (
+            {(['rankings', 'detail', 'methodology'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -974,7 +1159,7 @@ export default function CountryHealthPage() {
                   activeTab === tab ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                {tab === 'rankings' ? '🌍 Rankings' : `🔍 ${selectedEntry?.meta.flag ?? ''} Detail`}
+                {tab === 'rankings' ? '🌍 Rankings' : tab === 'detail' ? `🔍 ${selectedEntry?.meta.flag ?? ''} Detail` : '📄 Methodology'}
               </button>
             ))}
           </div>
@@ -1083,6 +1268,9 @@ export default function CountryHealthPage() {
             </div>
           )}
 
+          {/* Methodology tab */}
+          {activeTab === 'methodology' && <MethodologyTab />}
+
           {data.robustness && <RobustnessPanel robustness={data.robustness} />}
 
           <SensitivityModesPanel
@@ -1093,8 +1281,6 @@ export default function CountryHealthPage() {
             overlayPlus={data.overlayPlus}
             interpretationQuestion={data.interpretationQuestion}
           />
-
-          <MethodologyPanel methodology={data.methodology} />
 
           {/* Disclaimer */}
           <p className="text-[10px] text-gray-300 text-center pb-2">
