@@ -6,23 +6,20 @@ import { DEFAULT_PEER_IDS } from './dictionary';
 
 export const PEER_SETS: Record<string, { label: string; ids: string[] }> = {
   default: {
-    label: 'Default (10)',
+    label: `All (${DEFAULT_PEER_IDS.length})`,
     ids: [...DEFAULT_PEER_IDS],
   },
   dm_only: {
-    label: 'Developed markets (5)',
-    ids: ['US', 'DE', 'JP', 'GB', 'KR'],
+    label: 'Developed markets (9)',
+    ids: ['US', 'DE', 'JP', 'GB', 'KR', 'FR', 'CA', 'AU', 'NL', 'CH', 'SE', 'SG', 'IT'].slice(0, 9),
   },
   em_only: {
-    label: 'Emerging (5)',
-    ids: ['CN', 'IN', 'BR', 'MX', 'ID'],
+    label: 'Emerging (8)',
+    ids: ['CN', 'IN', 'BR', 'MX', 'ID', 'TR', 'ZA', 'VN'],
   },
-  expanded: {
-    label: 'Expanded (18)',
-    ids: [
-      'US', 'CN', 'IN', 'DE', 'JP', 'KR', 'GB', 'BR', 'MX', 'ID',
-      'FR', 'IT', 'CA', 'AU', 'SA', 'AR', 'TR', 'ZA',
-    ],
+  g10_plus: {
+    label: 'G10 + key EMs (13)',
+    ids: ['US', 'CN', 'IN', 'DE', 'JP', 'KR', 'GB', 'BR', 'MX', 'FR', 'CA', 'AU', 'IT'],
   },
 };
 
@@ -30,5 +27,7 @@ export const PEER_SETS: Record<string, { label: string; ids: string[] }> = {
 export function allPeerCountryIds(): string[] {
   const s = new Set<string>();
   for (const p of Object.values(PEER_SETS)) p.ids.forEach(id => s.add(id));
+  // Always include the full default basket
+  DEFAULT_PEER_IDS.forEach(id => s.add(id));
   return [...s];
 }

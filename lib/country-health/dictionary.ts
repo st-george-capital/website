@@ -77,7 +77,7 @@ export const VARIABLES: VariableDef[] = [
     unit: '% YoY',
     direction: 'up_good',
     kind: 'cyclical',
-    useChange: true,
+    useChange: false,
     momentumMode: 'growth_pp',
     why: 'Core measure of whether the economy is expanding in real terms.',
     weight: 3,
@@ -90,7 +90,7 @@ export const VARIABLES: VariableDef[] = [
     unit: '% YoY',
     direction: 'up_good',
     kind: 'structural',
-    useChange: true,
+    useChange: false,
     momentumMode: 'growth_pp',
     why: 'Productivity and standard-of-living improvement; better than raw GDP.',
     weight: 2,
@@ -206,7 +206,7 @@ export const VARIABLES: VariableDef[] = [
     unit: '% YoY',
     direction: 'down_good',
     kind: 'cyclical',
-    useChange: true,
+    useChange: false,
     momentumMode: 'pp_delta',
     why: 'Unstable inflation erodes real returns, real wages, and policy credibility.',
     weight: 3,
@@ -355,11 +355,11 @@ export const VARIABLES: VariableDef[] = [
     pillar: 'innovation',
     code: 'IP.PAT.RESD',
     label: 'Patent Applications (residents)',
-    unit: 'total',
+    unit: 'per million people',
     direction: 'up_good',
     kind: 'structural',
     useChange: false,
-    why: 'Codified inventive output from resident inventors; normalized per capita in scoring.',
+    why: 'Codified inventive output from resident inventors; per-capita normalized in scoring.',
     weight: 2,
   },
   {
@@ -367,7 +367,7 @@ export const VARIABLES: VariableDef[] = [
     pillar: 'innovation',
     code: 'BX.GSR.ROYL.CD',
     label: 'IP Receipts',
-    unit: 'USD',
+    unit: 'USD per capita',
     direction: 'up_good',
     kind: 'structural',
     useChange: false,
@@ -418,7 +418,7 @@ export const VARIABLES: VariableDef[] = [
     pillar: 'overlay',
     code: 'CM.MKT.LDOM.NO',
     label: 'Listed Companies',
-    unit: 'count',
+    unit: 'per million people',
     direction: 'up_good',
     kind: 'structural',
     useChange: false,
@@ -430,7 +430,7 @@ export const VARIABLES: VariableDef[] = [
     pillar: 'overlay',
     code: 'BX.PEF.TOTL.CD.WD',
     label: 'Portfolio Equity Inflows',
-    unit: 'USD',
+    unit: 'USD per capita',
     direction: 'up_good',
     kind: 'cyclical',
     useChange: false,
@@ -445,7 +445,7 @@ export function getVariablesByPillar(pillar: Pillar): VariableDef[] {
   return VARIABLES.filter(v => v.pillar === pillar);
 }
 
-// ─── The 10 countries in scope ────────────────────────────────────────────────
+// ─── Country universe ─────────────────────────────────────────────────────────
 
 export interface CountryDef {
   id: string;         // World Bank ISO2 code
@@ -475,11 +475,17 @@ export const COUNTRIES: CountryDef[] = [
   { id: 'AR', name: 'Argentina',     flag: '🇦🇷', region: 'Latin America' },
   { id: 'TR', name: 'Turkey',        flag: '🇹🇷', region: 'Europe / Asia' },
   { id: 'ZA', name: 'South Africa',  flag: '🇿🇦', region: 'Africa' },
+  { id: 'NL', name: 'Netherlands',   flag: '🇳🇱', region: 'Europe' },
+  { id: 'CH', name: 'Switzerland',   flag: '🇨🇭', region: 'Europe' },
+  { id: 'SE', name: 'Sweden',        flag: '🇸🇪', region: 'Europe' },
+  { id: 'SG', name: 'Singapore',     flag: '🇸🇬', region: 'Asia' },
+  { id: 'PL', name: 'Poland',        flag: '🇵🇱', region: 'Europe' },
+  { id: 'VN', name: 'Vietnam',       flag: '🇻🇳', region: 'Asia' },
 ];
 
 export const COUNTRY_META: Record<string, CountryDef> = Object.fromEntries(
   COUNTRIES.map(c => [c.id, c])
 ) as Record<string, CountryDef>;
 
-/** Primary dashboard / default z-score basket (first 10 in COUNTRIES) */
-export const DEFAULT_PEER_IDS: string[] = COUNTRIES.slice(0, 10).map(c => c.id);
+/** Primary dashboard / default z-score basket — all countries */
+export const DEFAULT_PEER_IDS: string[] = COUNTRIES.map(c => c.id);
