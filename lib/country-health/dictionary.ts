@@ -80,7 +80,7 @@ export const VARIABLES: VariableDef[] = [
     useChange: false,
     momentumMode: 'growth_pp',
     why: 'Core measure of whether the economy is expanding in real terms.',
-    weight: 3,
+    weight: 2,
   },
   {
     id: 'gdp_per_capita_growth',
@@ -309,7 +309,7 @@ export const VARIABLES: VariableDef[] = [
     kind: 'structural',
     useChange: false,
     why: 'Low violence and disruption risk preserves planning horizons for firms.',
-    weight: 1,
+    weight: 0.5,
   },
   {
     id: 'voice_accountability',
@@ -412,18 +412,6 @@ export const VARIABLES: VariableDef[] = [
     useChange: false,
     why: 'Depth of the equity market — determines how much economic value investors can access.',
     weight: 2,
-  },
-  {
-    id: 'listed_companies',
-    pillar: 'overlay',
-    code: 'CM.MKT.LDOM.NO',
-    label: 'Listed Companies',
-    unit: 'per million people',
-    direction: 'up_good',
-    kind: 'structural',
-    useChange: false,
-    why: 'Market breadth — more listed companies means more opportunity for stock selection.',
-    weight: 1,
   },
   {
     id: 'portfolio_inflows',

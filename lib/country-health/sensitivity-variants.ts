@@ -105,6 +105,58 @@ export function innovationVariant3(defs: VariableDef[]): VariableDef[] {
   });
 }
 
+/** Structural core: cut cyclical GDP growth dominance, redistribute to structural vars */
+export function structuralCoreDefs(defs: VariableDef[]): VariableDef[] {
+  const prodIds = ['gross_capital_formation', 'manufacturing_va_per_capita', 'exports_pct_gdp'];
+  const baseStruct = prodIds
+    .map(id => defs.find(v => v.id === id))
+    .filter((v): v is VariableDef => v != null);
+  const structSum = baseStruct.reduce((s, v) => s + v.weight, 0);
+  const gdpGrowthW = defs.find(v => v.id === 'gdp_growth')?.weight ?? 3;
+  const gdpPcGrowthW = defs.find(v => v.id === 'gdp_per_capita_growth')?.weight ?? 2;
+  const freed = (gdpGrowthW - 1) + (gdpPcGrowthW - 1);
+  return defs.map(v => {
+    if (v.pillar !== 'productive_capacity') return v;
+    if (v.id === 'gdp_growth') return { ...v, weight: 1 };
+    if (v.id === 'gdp_per_capita_growth') return { ...v, weight: 1 };
+    if (prodIds.includes(v.id) && structSum > 0) {
+      return { ...v, weight: v.weight + (v.weight / structSum) * freed };
+    }
+    return v;
+  });
+}
+
+/** Institutional: remove PV.EST, redistribute weight proportionally */
+export function instNoPvDefs(defs: VariableDef[]): VariableDef[] {
+  const othersIds = ['rule_of_law', 'govt_effectiveness', 'regulatory_quality', 'control_of_corruption', 'voice_accountability'];
+  const pv = defs.find(v => v.id === 'political_stability');
+  const freed = pv?.weight ?? 1;
+  const others = othersIds.map(id => defs.find(v => v.id === id)).filter((v): v is VariableDef => v != null);
+  const othersSum = others.reduce((s, v) => s + v.weight, 0);
+  return defs.filter(v => v.id !== 'political_stability').map(v => {
+    if (othersIds.includes(v.id) && othersSum > 0) {
+      return { ...v, weight: v.weight + (v.weight / othersSum) * freed };
+    }
+    return v;
+  });
+}
+
+/** Institutional: cut PV weight, boost VA.EST and GE.EST */
+export function instReweightVaGeDefs(defs: VariableDef[]): VariableDef[] {
+  return defs.map(v => {
+    if (v.pillar !== 'institutional') return v;
+    if (v.id === 'political_stability') return { ...v, weight: 0.5 };
+    if (v.id === 'voice_accountability') return { ...v, weight: 3 };
+    if (v.id === 'govt_effectiveness') return { ...v, weight: 3 };
+    return v;
+  });
+}
+
+/** Overlay slim: drop listed companies (CM.MKT.LDOM.NO), keep rest */
+export function overlaySlimDefs(defs: VariableDef[]): VariableDef[] {
+  return dropIds(defs, ['listed_companies']);
+}
+
 /** Overlay + financial depth / services (codes fetched separately) */
 export function overlayPlusDefs(defs: VariableDef[]): VariableDef[] {
   const extra: VariableDef[] = [

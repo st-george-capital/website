@@ -60,7 +60,6 @@ interface CountryEntry {
   classificationColor: string;
   meta: CountryMeta;
   pillarScores: Record<string, PillarScoreUI>;
-  whyRank?: string;
   coreContributions?: {
     topPositive: VariableCoreContributionUI[];
     topNegative: VariableCoreContributionUI[];
@@ -83,10 +82,8 @@ interface Payload {
       avgAbsRankMove: number;
       maxAbsRankMove: number;
       moves: { country: string; rankLatest: number; rankSameYear: number; delta: number }[];
-      interpretation: string;
     };
     peerSensitivity: Record<string, { label: string; order: string[]; ranks: Record<string, number>; scores: Record<string, number | null> }>;
-    notes: string[];
   };
   prunedRobustness?: Record<string, {
     label: string;
@@ -94,13 +91,11 @@ interface Payload {
     avgAbsRankMove: number;
     maxAbsRankMove: number;
     perCountryDeltas: { country: string; baseRank: number; variantRank: number; delta: number }[];
-    interpretation: string;
   }>;
   altProductive?: Record<string, unknown>;
   altHuman?: Record<string, unknown>;
   altInnovation?: Record<string, unknown>;
   overlayPlus?: Record<string, unknown>;
-  interpretationQuestion?: { question: string; view: string };
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -407,7 +402,6 @@ function RobustnessPanel({ robustness }: { robustness: NonNullable<Payload['robu
               Avg. absolute rank move: <span className="font-mono font-semibold text-gray-800">{sy.avgAbsRankMove.toFixed(2)}</span>
               {' · '}Max: <span className="font-mono font-semibold text-gray-800">{sy.maxAbsRankMove}</span>
             </p>
-            <p className="text-[11px] text-gray-500 italic mb-2">{sy.interpretation}</p>
             <div className="overflow-x-auto border border-gray-100 rounded-lg">
               <table className="w-full text-[11px]">
                 <thead>
@@ -444,13 +438,6 @@ function RobustnessPanel({ robustness }: { robustness: NonNullable<Payload['robu
               ))}
             </div>
           </div>
-          {robustness.notes?.length > 0 && (
-            <ul className="list-disc pl-4 text-[11px] text-gray-400 space-y-1">
-              {robustness.notes.map((n, i) => (
-                <li key={i}>{n}</li>
-              ))}
-            </ul>
-          )}
         </div>
       )}
     </div>
@@ -464,15 +451,13 @@ function SensitivityModesPanel({
   altProductive,
   altHuman,
   altInnovation,
-  overlayPlus,
-  interpretationQuestion,
+  overlayPlus
 }: {
   prunedRobustness?: Payload['prunedRobustness'];
   altProductive?: Payload['altProductive'];
   altHuman?: Payload['altHuman'];
   altInnovation?: Payload['altInnovation'];
   overlayPlus?: Payload['overlayPlus'];
-  interpretationQuestion?: Payload['interpretationQuestion'];
 }) {
   const [open, setOpen] = useState(false);
   const hasAny =
@@ -480,8 +465,7 @@ function SensitivityModesPanel({
     altProductive ||
     altHuman ||
     altInnovation ||
-    overlayPlus ||
-    interpretationQuestion;
+    overlayPlus;
   if (!hasAny) return null;
 
   return (
@@ -498,13 +482,6 @@ function SensitivityModesPanel({
       </button>
       {open && (
         <div className="border-t border-indigo-100 px-5 py-4 text-xs text-gray-700 space-y-6">
-          {interpretationQuestion && (
-            <div className="bg-indigo-50/80 border border-indigo-100 rounded-lg p-3">
-              <div className="font-semibold text-indigo-900 mb-1">Interpretation</div>
-              <p className="text-[11px] text-indigo-950 mb-2">{interpretationQuestion.question}</p>
-              <p className="text-[11px] text-gray-600 leading-relaxed">{interpretationQuestion.view}</p>
-            </div>
-          )}
           {prunedRobustness && (
             <div>
               <div className="font-semibold text-gray-800 mb-2">Pruned pairs (vs full model)</div>
@@ -518,7 +495,6 @@ function SensitivityModesPanel({
                       <span>Avg |Δrank|: {v.avgAbsRankMove.toFixed(2)}</span>
                       <span>Max |Δrank|: {v.maxAbsRankMove}</span>
                     </div>
-                    <p className="text-[10px] text-gray-500 mt-2">{v.interpretation}</p>
                   </div>
                 ))}
               </div>
@@ -929,17 +905,6 @@ function CountryDetail({ entry }: { entry: CountryEntry }) {
         </div>
       </div>
 
-      {entry.whyRank && (
-        <div className="bg-slate-50 border border-slate-200 rounded-xl px-5 py-4">
-          <div className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold mb-2">Why this rank</div>
-          <p className="text-sm text-slate-800 leading-relaxed">{entry.whyRank}</p>
-          {entry.defaultBasketRank != null && entry.rank != null && entry.defaultBasketRank !== entry.rank && (
-            <p className="text-[11px] text-slate-500 mt-2">
-              Default leaderboard (10 peers): #{entry.defaultBasketRank} · Extended analysis basket (13 peers): #{entry.rank}
-            </p>
-          )}
-        </div>
-      )}
 
       {entry.coreContributions && (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -1279,7 +1244,6 @@ export default function CountryHealthPage() {
             altHuman={data.altHuman}
             altInnovation={data.altInnovation}
             overlayPlus={data.overlayPlus}
-            interpretationQuestion={data.interpretationQuestion}
           />
 
           {/* Disclaimer */}

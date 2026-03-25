@@ -25,7 +25,6 @@ import {
   type SeriesByCode,
 } from '@/lib/country-health/ingest';
 import { topContributors, variableContributionsToCore } from '@/lib/country-health/contributions';
-import { buildWhyRankSentence } from '@/lib/country-health/narrative';
 import {
   cloneDefs,
   dropIds,
@@ -39,6 +38,10 @@ import {
   innovationVariant2,
   innovationVariant3,
   overlayPlusDefs,
+  structuralCoreDefs,
+  instNoPvDefs,
+  instReweightVaGeDefs,
+  overlaySlimDefs,
   spearmanFromRanks,
   rankStats,
 } from '@/lib/country-health/sensitivity-variants';
@@ -137,17 +140,13 @@ function toRankMap(rk: { country: string; rank: number }[]): Map<string, number>
 function enrichCountry(
   s: CountryScore,
   variableDefs: VariableDef[],
-  rank: number,
-  peerSize: number,
-  countryDisplayName?: string
+  rank: number
 ) {
   const { positive, negative } = topContributors(s, variableDefs, 5);
-  const whyRank = buildWhyRankSentence(s, rank, peerSize, variableDefs, countryDisplayName);
   const allContrib = variableContributionsToCore(s, variableDefs);
   return {
     ...s,
     rank,
-    whyRank,
     coreContributions: { topPositive: positive, topNegative: negative, all: allContrib },
   };
 }
@@ -160,6 +159,10 @@ export async function GET(request: Request) {
     const altHuman = searchParams.get('alt_human') === '1';
     const altInnovation = searchParams.get('alt_innovation') === '1';
     const overlayPlus = searchParams.get('overlay_plus') === '1';
+    const structuralCore = searchParams.get('structural_core') === '1';
+    const instNoPv = searchParams.get('inst_no_pv') === '1';
+    const instReweightVaGe = searchParams.get('inst_reweight_va_ge') === '1';
+    const overlaySlim = searchParams.get('overlay_slim') === '1';
 
     const fetchIds = allPeerCountryIds();
     const codesList = allCodesToFetch();
@@ -226,7 +229,7 @@ export async function GET(request: Request) {
       const meta = COUNTRY_META[r.country] ?? { id: r.country, name: r.country, flag: '🌍', region: 'Unknown' };
       const ld = ranksLatest.find(x => x.country === r.country);
       return {
-        ...enrichCountry(s, VARIABLES, r.rank, ANALYSIS_PEER_IDS.length, meta.name),
+        ...enrichCountry(s, VARIABLES, r.rank),
         meta,
         defaultBasketRank: ld?.rank ?? null,
       };
@@ -237,7 +240,7 @@ export async function GET(request: Request) {
       const hit = countriesAnalysis.find(c => c.country === r.country);
       const meta = COUNTRY_META[s.country] ?? { id: s.country, name: s.country, flag: '🌍', region: 'Unknown' };
       return {
-        ...enrichCountry(s, VARIABLES, r.rank, defaultIds.length, meta.name),
+        ...enrichCountry(s, VARIABLES, r.rank),
         meta,
         analysisRank: hit?.rank ?? null,
         analysisCoreScore: hit?.coreScore ?? null,
@@ -254,16 +257,8 @@ export async function GET(request: Request) {
       robustness: {
         sameYearVsLatest: {
           ...sameYearComparison,
-          interpretation:
-            sameYearComparison.avgAbsRankMove < 1.5
-              ? 'Rankings are fairly stable when aligning on a common anchor year (typical case).'
-              : 'Rankings move materially under same-year alignment — interpret peer-relative scores with care.',
         },
         peerSensitivity,
-        notes: [
-          'All z-scores are cross-sectional within the active peer set.',
-          'countries = default 10 peer basket; countriesAnalysis = default 10 + SG + CH + VN for richer interpretation.',
-        ],
       },
       methodology: {
         normalization: 'cross-sectional z-score → scaled to [0,1], clamped at ±3σ',
@@ -290,6 +285,12 @@ export async function GET(request: Request) {
         dataSource: 'World Bank Open Data API — annual series, ~1–2 year publication lag typical',
         sensitivityModes:
           'Append ?pruned=1, ?alt_productive=1, ?alt_human=1, ?alt_innovation=1, or ?overlay_plus=1 for experimental robustness payloads (does not change default scores).',
+        frameworkNotes: [
+          'This model is a peer-relative structural macro / institutional / innovation score. All ranks are relative to the peer set — they measure standing within the group, not absolute development levels.',
+          'The overlay is a separate, conservative market-access / monetization lens. It reflects how accessible and liquid a country\'s capital markets are. It is not part of the core structural score and should be read independently.',
+          'The model does not fully capture great-power strategic dominance, reserve-currency centrality, geopolitical leverage, or intangible-asset accumulation. Countries like the United States may appear structurally under-ranked relative to their actual global systemic weight for precisely this reason.',
+          'Political Stability (PV.EST) weight is intentionally set below other institutional variables. WB PV.EST captures terrorism/violence/political disruption risk — it is not a direct measure of governance quality and tends to penalize large, diverse democracies more than small authoritarian states. Rule of Law and Government Effectiveness are more discriminating within this peer set.',
+        ],
       },
     };
 
@@ -326,10 +327,6 @@ export async function GET(request: Request) {
           avgAbsRankMove: st.avgAbsRankMove,
           maxAbsRankMove: st.maxAbsRankMove,
           perCountryDeltas: st.deltas,
-          interpretation:
-            st.avgAbsRankMove < 1.2
-              ? 'Rankings are fairly stable when dropping this variable — likely not the sole driver.'
-              : 'Material rank movement — collinearity or substitution effects may matter.',
         };
       }
       payload.prunedRobustness = prunedOut;
@@ -358,10 +355,6 @@ export async function GET(request: Request) {
           rankOrder: rankByCoreScore(sc).map(x => x.country),
           ...st,
           top5Movers: top,
-          interpretation:
-            st.avgAbsRankMove < 1.5
-              ? 'Productive pillar stress-test: ranks fairly stable vs baseline.'
-              : 'Productive pillar stress-test: ranks move — export/manufacturing/openness bias may matter.',
         };
       };
 
@@ -370,10 +363,6 @@ export async function GET(request: Request) {
         variant1_remove_exports: runV(v1d),
         variant2_services_exports_proxy: runV(v2d),
         variant3_broad_capacity: runV(v3d),
-        notes: [
-          'Services export proxy = BX.GSR.NFSV.CD / NY.GDP.MKTP.CD (same-year latest; rough % of GDP).',
-          'Variant 3 adds NY.GDP.PCAP.KD level when exports + manufacturing VA are removed.',
-        ],
       };
     }
 
@@ -407,10 +396,6 @@ export async function GET(request: Request) {
           ...st,
           top5Movers: st.deltas.slice(0, 5),
           focusCountries: focusDeltas,
-          interpretation:
-            st.avgAbsRankMove < 1.2
-              ? 'Human-capital stress-test: enrollment dominance may be overstated only mildly.'
-              : 'Human-capital stress-test: formal enrollment weights materially move ranks.',
         };
       }
       payload.altHuman = out;
@@ -446,10 +431,6 @@ export async function GET(request: Request) {
           ...st,
           top5Movers: st.deltas.slice(0, 5),
           focusCountries: focusDeltas,
-          interpretation:
-            st.avgAbsRankMove < 1.5
-              ? 'Innovation pillar stress-test: manufacturing/high-tech export bias looks moderate.'
-              : 'Innovation pillar stress-test: intangible-heavy economies move materially when reweighting.',
         };
       }
       payload.altInnovation = out;
@@ -474,10 +455,6 @@ export async function GET(request: Request) {
       const st = rankStats(baseOm, plusOm, peer);
       const focus = ['US', 'GB', 'CH', 'SG', 'CA', 'JP'];
       payload.overlayPlus = {
-        notes: [
-          'Adds FS.AST.PRVT.GD.ZS (domestic credit to private sector) and services-export ratio to overlay pillar only.',
-          'CM.MKT.TRAD.GD.ZS (turnover) omitted — sparse / inconsistent across peers in WB.',
-        ],
         overlayRankComparison: st,
         focusCountries: focus
           .map(c => st.deltas.find(d => d.country === c))
@@ -487,13 +464,135 @@ export async function GET(request: Request) {
       };
     }
 
-    // ─── Written summary for key countries (baseline + sensitivities present) ─
-    if (pruned || altProductive || altHuman || altInnovation || overlayPlus) {
-      payload.interpretationQuestion = {
-        question:
-          'Is the model identifying (1) structural compounders, (2) strategic-economic power, or (3) measurable macro + institutional quality within WB data?',
-        view:
-          'Primarily (3): peer-relative WB observables with heavy innovation/institutional content; sensitivity runs show ranks can move when trade openness, enrollment, or high-tech export weights change — so it is not a pure “power” index and not fully stable “compounders” until weights are anchored.',
+    // ─── ?structural_core=1 ──────────────────────────────────────────────────
+    if (structuralCore) {
+      const peer = ANALYSIS_PEER_IDS;
+      const rawB = buildRawRows(seriesByCode, peer, 'latest', VARIABLES);
+      injectPopulation(rawB, populations);
+      const baseRk = toRankMap(rankByCoreScore(scoreCountriesForDefs(rawB, populations, VARIABLES)));
+      const defs = structuralCoreDefs(cloneDefs());
+      const raw = buildRawRows(seriesByCode, peer, 'latest', defs);
+      injectPopulation(raw, populations);
+      const sc = scoreCountriesForDefs(raw, populations, defs);
+      const rk = rankByCoreScore(sc);
+      const vm = toRankMap(rk);
+      const sp = spearmanFromRanks(peer, baseRk, vm);
+      const st = rankStats(baseRk, vm, peer);
+      const focus = ['US', 'CN', 'SG', 'IN', 'DE'];
+      payload.structuralCore = {
+        spearmanVsBaseline: Number.isNaN(sp) ? null : sp,
+        avgAbsRankMove: st.avgAbsRankMove,
+        maxAbsRankMove: st.maxAbsRankMove,
+        top10Movers: st.deltas.slice(0, 10),
+        allDeltas: st.deltas,
+        focusCountries: focus.map(c => st.deltas.find(d => d.country === c)).filter(Boolean),
+        rankOrder: rk.map(x => x.country),
+        weightsApplied: {
+          gdp_growth: 1,
+          gdp_per_capita_growth: 1,
+          gross_capital_formation: defs.find(v => v.id === 'gross_capital_formation')?.weight,
+          manufacturing_va_per_capita: defs.find(v => v.id === 'manufacturing_va_per_capita')?.weight,
+          exports_pct_gdp: defs.find(v => v.id === 'exports_pct_gdp')?.weight,
+        },
+      };
+    }
+
+    // ─── ?inst_no_pv=1 ───────────────────────────────────────────────────────
+    if (instNoPv) {
+      const peer = ANALYSIS_PEER_IDS;
+      const rawB = buildRawRows(seriesByCode, peer, 'latest', VARIABLES);
+      injectPopulation(rawB, populations);
+      const baseRk = toRankMap(rankByCoreScore(scoreCountriesForDefs(rawB, populations, VARIABLES)));
+      const defs = instNoPvDefs(cloneDefs());
+      const raw = buildRawRows(seriesByCode, peer, 'latest', defs);
+      injectPopulation(raw, populations);
+      const sc = scoreCountriesForDefs(raw, populations, defs);
+      const rk = rankByCoreScore(sc);
+      const vm = toRankMap(rk);
+      const sp = spearmanFromRanks(peer, baseRk, vm);
+      const st = rankStats(baseRk, vm, peer);
+      const focus = ['US', 'GB', 'DE', 'KR', 'SG', 'CN'];
+      const focusInstDeltas = focus.map(c => {
+        const base = scoreCountriesForDefs(rawB, populations, VARIABLES).find(x => x.country === c);
+        const variant = sc.find(x => x.country === c);
+        return {
+          country: c,
+          baseInstScore: (base?.pillarScores['institutional']?.score ?? null) !== null ? (base!.pillarScores['institutional'].score! * 100) : null,
+          variantInstScore: (variant?.pillarScores['institutional']?.score ?? null) !== null ? (variant!.pillarScores['institutional'].score! * 100) : null,
+          baseRank: baseRk.get(c) ?? null,
+          variantRank: vm.get(c) ?? null,
+          rankDelta: (vm.get(c) ?? 0) - (baseRk.get(c) ?? 0),
+        };
+      });
+      payload.instNoPv = {
+        spearmanVsBaseline: Number.isNaN(sp) ? null : sp,
+        avgAbsRankMove: st.avgAbsRankMove,
+        maxAbsRankMove: st.maxAbsRankMove,
+        allDeltas: st.deltas,
+        focusCountries: focusInstDeltas,
+      };
+    }
+
+    // ─── ?inst_reweight_va_ge=1 ──────────────────────────────────────────────
+    if (instReweightVaGe) {
+      const peer = ANALYSIS_PEER_IDS;
+      const rawB = buildRawRows(seriesByCode, peer, 'latest', VARIABLES);
+      injectPopulation(rawB, populations);
+      const baseScores = scoreCountriesForDefs(rawB, populations, VARIABLES);
+      const baseRk = toRankMap(rankByCoreScore(baseScores));
+      const defs = instReweightVaGeDefs(cloneDefs());
+      const raw = buildRawRows(seriesByCode, peer, 'latest', defs);
+      injectPopulation(raw, populations);
+      const sc = scoreCountriesForDefs(raw, populations, defs);
+      const rk = rankByCoreScore(sc);
+      const vm = toRankMap(rk);
+      const sp = spearmanFromRanks(peer, baseRk, vm);
+      const st = rankStats(baseRk, vm, peer);
+      const focus = ['US', 'GB', 'DE', 'KR', 'SG', 'CN'];
+      const focusInstDeltas = focus.map(c => {
+        const base = baseScores.find(x => x.country === c);
+        const variant = sc.find(x => x.country === c);
+        return {
+          country: c,
+          baseInstScore: (base?.pillarScores['institutional']?.score ?? null) !== null ? (base!.pillarScores['institutional'].score! * 100) : null,
+          variantInstScore: (variant?.pillarScores['institutional']?.score ?? null) !== null ? (variant!.pillarScores['institutional'].score! * 100) : null,
+          baseRank: baseRk.get(c) ?? null,
+          variantRank: vm.get(c) ?? null,
+          rankDelta: (vm.get(c) ?? 0) - (baseRk.get(c) ?? 0),
+        };
+      });
+      payload.instReweightVaGe = {
+        spearmanVsBaseline: Number.isNaN(sp) ? null : sp,
+        avgAbsRankMove: st.avgAbsRankMove,
+        maxAbsRankMove: st.maxAbsRankMove,
+        allDeltas: st.deltas,
+        focusCountries: focusInstDeltas,
+      };
+    }
+
+    // ─── ?overlay_slim=1 ─────────────────────────────────────────────────────
+    if (overlaySlim) {
+      const peer = ANALYSIS_PEER_IDS;
+      const rawBase = buildRawRows(seriesByCode, peer, 'latest', VARIABLES);
+      injectPopulation(rawBase, populations);
+      const scBase = scoreCountries(rawBase, populations);
+      const overlayBase = rankByOverlayScore(scBase);
+      const defs = overlaySlimDefs(cloneDefs());
+      const raw = buildRawRows(seriesByCode, peer, 'latest', defs);
+      injectPopulation(raw, populations);
+      const sc = scoreCountriesForDefs(raw, populations, defs);
+      const slimRk = rankByOverlayScore(sc);
+      const baseOm = toRankMap(overlayBase.map(r => ({ country: r.country, rank: r.rank })));
+      const slimOm = toRankMap(slimRk.map(r => ({ country: r.country, rank: r.rank })));
+      const sp = spearmanFromRanks(peer, baseOm, slimOm);
+      const st = rankStats(baseOm, slimOm, peer);
+      payload.overlaySlim = {
+        spearmanVsBaselineOverlay: Number.isNaN(sp) ? null : sp,
+        avgAbsRankMove: st.avgAbsRankMove,
+        maxAbsRankMove: st.maxAbsRankMove,
+        allDeltas: st.deltas,
+        rankOrderBaseline: overlayBase.map(x => x.country),
+        rankOrderSlim: slimRk.map(x => x.country),
       };
     }
 
