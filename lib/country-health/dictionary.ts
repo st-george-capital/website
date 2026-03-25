@@ -445,6 +445,10 @@ export function getVariablesByPillar(pillar: Pillar): VariableDef[] {
   return VARIABLES.filter(v => v.pillar === pillar);
 }
 
+export function getVariablesByPillarFrom(defs: VariableDef[], pillar: Pillar): VariableDef[] {
+  return defs.filter(v => v.pillar === pillar);
+}
+
 // ─── The 10 countries in scope ────────────────────────────────────────────────
 
 export interface CountryDef {
@@ -475,6 +479,9 @@ export const COUNTRIES: CountryDef[] = [
   { id: 'AR', name: 'Argentina',     flag: '🇦🇷', region: 'Latin America' },
   { id: 'TR', name: 'Turkey',        flag: '🇹🇷', region: 'Europe / Asia' },
   { id: 'ZA', name: 'South Africa',  flag: '🇿🇦', region: 'Africa' },
+  { id: 'SG', name: 'Singapore',     flag: '🇸🇬', region: 'Asia' },
+  { id: 'CH', name: 'Switzerland',   flag: '🇨🇭', region: 'Europe' },
+  { id: 'VN', name: 'Vietnam',       flag: '🇻🇳', region: 'Asia' },
 ];
 
 export const COUNTRY_META: Record<string, CountryDef> = Object.fromEntries(
@@ -483,3 +490,6 @@ export const COUNTRY_META: Record<string, CountryDef> = Object.fromEntries(
 
 /** Primary dashboard / default z-score basket (first 10 in COUNTRIES) */
 export const DEFAULT_PEER_IDS: string[] = COUNTRIES.slice(0, 10).map(c => c.id);
+
+/** Extended analysis basket: default 10 + Singapore, Switzerland, Vietnam (for contributions / sensitivity) */
+export const ANALYSIS_PEER_IDS: string[] = [...DEFAULT_PEER_IDS, 'SG', 'CH', 'VN'];

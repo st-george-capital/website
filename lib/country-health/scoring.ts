@@ -3,7 +3,7 @@
 // Flow:
 //   raw values → direction-adjust → z-score normalize → momentum blend → pillar avg → core score
 
-import { VARIABLES, PILLAR_WEIGHTS, getVariablesByPillar, type Pillar, type VariableDef } from './dictionary';
+import { VARIABLES, PILLAR_WEIGHTS, getVariablesByPillarFrom, type Pillar, type VariableDef } from './dictionary';
 import { classify } from './classification';
 
 const EPS = 1e-6;
@@ -164,7 +164,8 @@ function pillarConcentration(vars: ScoredVariable[], defs: VariableDef[]): Pilla
 function countryConfidence(
   pillarScores: Record<Pillar, PillarScore>,
   scoredIndex: Map<string, Map<string, ScoredVariable>>,
-  country: string
+  country: string,
+  variableDefs: VariableDef[]
 ): { score: number | null; label: string; yearDispersion: number | null } {
   const corePillars: Pillar[] = ['productive_capacity', 'human_capital', 'macro_sustainability', 'institutional', 'innovation'];
   let wSum = 0;
@@ -177,7 +178,7 @@ function countryConfidence(
   const weightedCompleteness = wSum > 0 ? compSum / wSum : 0;
 
   const years: number[] = [];
-  for (const def of VARIABLES) {
+  for (const def of variableDefs) {
     if (def.pillar === 'overlay') continue;
     const sv = scoredIndex.get(def.id)?.get(country);
     if (sv?.dataYear) {
@@ -197,7 +198,7 @@ function countryConfidence(
     yearScore = 0.9;
   }
 
-  const structDefs = VARIABLES.filter(v => v.pillar !== 'overlay' && v.kind === 'structural');
+  const structDefs = variableDefs.filter(v => v.pillar !== 'overlay' && v.kind === 'structural');
   const structHit = structDefs.filter(d => !scoredIndex.get(d.id)?.get(country)?.missing).length;
   const structRatio = structDefs.length > 0 ? structHit / structDefs.length : 0;
 
@@ -210,9 +211,10 @@ function countryConfidence(
   return { score: conf, label, yearDispersion };
 }
 
-export function scoreCountries(
+export function scoreCountriesForDefs(
   rawRows: RawVariableRow[],
-  populations: Record<string, number>
+  populations: Record<string, number>,
+  variableDefs: VariableDef[]
 ): CountryScore[] {
   const allCountries = [...new Set(rawRows.map(r => r.country))];
 
@@ -224,7 +226,7 @@ export function scoreCountries(
 
   const scoredIndex: Map<string, Map<string, ScoredVariable>> = new Map();
 
-  for (const def of VARIABLES) {
+  for (const def of variableDefs) {
     const varMap = index.get(def.id);
 
     const levels: (number | null)[] = allCountries.map(c => {
@@ -251,6 +253,7 @@ export function scoreCountries(
         const pop = populations[c] ?? row.population;
         if (pop && pop > 0) val = val / pop;
       }
+      // __SVC_EXP_PCT_GDP: ratio precomputed in ingest/route; gdp_per_capita_level: raw constant USD per capita
       return directionAdjust(val, def);
     });
 
@@ -302,7 +305,7 @@ export function scoreCountries(
     const pillarScores: Record<Pillar, PillarScore> = {} as Record<Pillar, PillarScore>;
 
     for (const pillar of pillarList) {
-      const defs = getVariablesByPillar(pillar);
+      const defs = getVariablesByPillarFrom(variableDefs, pillar);
       const vars: ScoredVariable[] = defs.map(def => {
         const map = scoredIndex.get(def.id);
         return map?.get(country) ?? {
@@ -375,7 +378,7 @@ export function scoreCountries(
     const overlayPs = pillarScores['overlay'];
     const overlayScore = overlayPs.score !== null ? overlayPs.score * 100 : null;
 
-    const allVars = VARIABLES.filter(v => v.pillar !== 'overlay');
+    const allVars = variableDefs.filter(v => v.pillar !== 'overlay');
     const presentVars = allVars.filter(v => {
       const m = scoredIndex.get(v.id);
       return m?.get(country)?.missing === false;
@@ -383,7 +386,7 @@ export function scoreCountries(
     const completeness = allVars.length > 0 ? presentVars.length / allVars.length : 0;
 
     const { label, color } = classify(coreScore, overlayScore, pillarScores);
-    const conf = countryConfidence(pillarScores, scoredIndex, country);
+    const conf = countryConfidence(pillarScores, scoredIndex, country, variableDefs);
 
     return {
       country,
@@ -400,6 +403,13 @@ export function scoreCountries(
   });
 }
 
+export function scoreCountries(
+  rawRows: RawVariableRow[],
+  populations: Record<string, number>
+): CountryScore[] {
+  return scoreCountriesForDefs(rawRows, populations, VARIABLES);
+}
+
 /** Rank countries by core score (1 = best). Null scores last. */
 export function rankByCoreScore(scores: CountryScore[]): { country: string; rank: number; coreScore: number | null }[] {
   const sorted = [...scores].sort((a, b) => {
@@ -409,6 +419,16 @@ export function rankByCoreScore(scores: CountryScore[]): { country: string; rank
     return b.coreScore - a.coreScore;
   });
   return sorted.map((s, i) => ({ country: s.country, rank: i + 1, coreScore: s.coreScore }));
+}
+
+export function rankByOverlayScore(scores: CountryScore[]): { country: string; rank: number; overlayScore: number | null }[] {
+  const sorted = [...scores].sort((a, b) => {
+    const av = a.overlayScore ?? -1e9;
+    const bv = b.overlayScore ?? -1e9;
+    if (av === bv) return a.country.localeCompare(b.country);
+    return bv - av;
+  });
+  return sorted.map((s, i) => ({ country: s.country, rank: i + 1, overlayScore: s.overlayScore }));
 }
 
 export function rankComparisonStats(
