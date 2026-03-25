@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Download, Trash2, Users, FileText, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Download, Trash2, Users, FileText, ChevronRight, Briefcase, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
@@ -16,11 +16,13 @@ interface ResumeSubmission {
   id: string;
   name: string;
   email: string;
-  faculty: string;
+  faculty: string | null;
   subfaculty: string | null;
   internshipCount: number;
   internshipFields: string[];
-  resumeFile: string;
+  resumeFile: string | null;
+  source: string;          // "direct" | "job_application"
+  appliedFor: string | null;
   createdAt: string;
 }
 
@@ -63,6 +65,8 @@ export default function ResumeBookPage() {
   const [loading, setLoading] = useState(true);
   const [drillFaculty, setDrillFaculty] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillResult, setBackfillResult] = useState<string | null>(null);
 
   const isAdmin = session?.user?.role === 'admin';
 
@@ -79,6 +83,22 @@ export default function ResumeBookPage() {
     }
   };
 
+  const handleBackfill = async () => {
+    if (!confirm('Copy all existing job applications (with resumes) into the Resume Book? Duplicates (by email) will be skipped.')) return;
+    setBackfilling(true);
+    setBackfillResult(null);
+    try {
+      const res = await fetch('/api/resume-book/backfill', { method: 'POST' });
+      const data = await res.json();
+      setBackfillResult(data.message ?? 'Done');
+      await fetchSubmissions();
+    } catch {
+      setBackfillResult('Backfill failed — check console.');
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this resume submission?')) return;
     try {
@@ -89,21 +109,23 @@ export default function ResumeBookPage() {
     }
   };
 
-  // ── Chart data ──────────────────────────────────────────────────────
+  // ── Chart data — only "direct" submissions have full demographic fields ──
+  const directSubmissions = useMemo(() => submissions.filter(s => s.faculty), [submissions]);
+
   const facultyData = useMemo(() => {
     const counts: Record<string, number> = {};
-    submissions.forEach(s => { counts[s.faculty] = (counts[s.faculty] || 0) + 1; });
+    directSubmissions.forEach(s => { counts[s.faculty!] = (counts[s.faculty!] || 0) + 1; });
     return Object.entries(counts).map(([key, value]) => ({
       name: FACULTY_LABELS[key] || key,
       value,
       key,
     }));
-  }, [submissions]);
+  }, [directSubmissions]);
 
   const subfacultyData = useMemo(() => {
     if (!drillFaculty) return [];
     const counts: Record<string, number> = {};
-    submissions
+    directSubmissions
       .filter(s => s.faculty === drillFaculty)
       .forEach(s => {
         const k = s.subfaculty || 'Unspecified';
@@ -113,27 +135,27 @@ export default function ResumeBookPage() {
       name: SUBFACULTY_LABELS[key] || key,
       value,
     }));
-  }, [submissions, drillFaculty]);
+  }, [directSubmissions, drillFaculty]);
 
   const fieldData = useMemo(() => {
     const counts: Record<string, number> = {};
-    submissions.forEach(s =>
+    directSubmissions.forEach(s =>
       s.internshipFields.forEach(f => { counts[f] = (counts[f] || 0) + 1; })
     );
     return Object.entries(counts).map(([key, value]) => ({
       name: FIELD_LABELS[key] || key,
       value,
     }));
-  }, [submissions]);
+  }, [directSubmissions]);
 
   const internshipCountData = useMemo(() => {
     const counts: Record<string, number> = { '0': 0, '1': 0, '2': 0, '3': 0, '4': 0, '5+': 0 };
-    submissions.forEach(s => {
+    directSubmissions.forEach(s => {
       const k = s.internshipCount >= 5 ? '5+' : String(s.internshipCount);
       counts[k] = (counts[k] || 0) + 1;
     });
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
-  }, [submissions]);
+  }, [directSubmissions]);
 
   // ── Filtered list ────────────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -141,7 +163,8 @@ export default function ResumeBookPage() {
     return submissions.filter(s =>
       s.name.toLowerCase().includes(q) ||
       s.email.toLowerCase().includes(q) ||
-      (FACULTY_LABELS[s.faculty] || s.faculty).toLowerCase().includes(q)
+      (s.faculty ? (FACULTY_LABELS[s.faculty] || s.faculty).toLowerCase().includes(q) : false) ||
+      (s.appliedFor?.toLowerCase().includes(q) ?? false)
     );
   }, [submissions, search]);
 
@@ -157,7 +180,7 @@ export default function ResumeBookPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-4">
           <Link href="/dashboard">
             <Button variant="outline" className="text-gray-700">
@@ -167,10 +190,30 @@ export default function ResumeBookPage() {
           </Link>
           <div>
             <h1 className="text-3xl font-bold">Resume Book</h1>
-            <p className="text-muted-foreground">{submissions.length} submission{submissions.length !== 1 ? 's' : ''}</p>
+            <p className="text-muted-foreground">
+              {submissions.length} total &nbsp;·&nbsp;
+              {submissions.filter(s => s.source === 'direct').length} direct &nbsp;·&nbsp;
+              {submissions.filter(s => s.source === 'job_application').length} via job applications
+            </p>
           </div>
         </div>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            className="text-gray-700 text-sm"
+            onClick={handleBackfill}
+            disabled={backfilling}
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${backfilling ? 'animate-spin' : ''}`} />
+            {backfilling ? 'Backfilling…' : 'Sync Past Applications'}
+          </Button>
+        </div>
       </div>
+      {backfillResult && (
+        <div className="bg-green-50 border border-green-200 text-green-800 text-sm rounded-lg px-4 py-3">
+          {backfillResult}
+        </div>
+      )}
 
       {loading ? (
         <div className="text-center py-20 text-muted-foreground">Loading…</div>
@@ -317,7 +360,7 @@ export default function ResumeBookPage() {
                         ? FACULTY_LABELS[facultyData.reduce((a, b) => a.value > b.value ? a : b).key] || '—'
                         : '—'}
                     </div>
-                    <div className="text-sm text-orange-600 mt-1">Top Faculty</div>
+                    <div className="text-sm text-orange-600 mt-1">Top Faculty (direct)</div>
                   </div>
                 </div>
               </CardContent>
@@ -350,22 +393,35 @@ export default function ResumeBookPage() {
                         <Users className="w-5 h-5 text-blue-600" />
                       </div>
                       <div>
-                        <div className="flex items-center gap-2 mb-0.5">
+                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                           <span className="font-medium">{s.name}</span>
-                          <Badge className="bg-blue-100 text-blue-700 text-xs">
-                            {FACULTY_LABELS[s.faculty] || s.faculty}
-                          </Badge>
-                          {s.subfaculty && (
-                            <Badge className="bg-gray-100 text-gray-600 text-xs">
-                              {SUBFACULTY_LABELS[s.subfaculty] || s.subfaculty}
+                          {s.source === 'job_application' ? (
+                            <Badge className="bg-amber-100 text-amber-700 text-xs flex items-center gap-1">
+                              <Briefcase className="w-3 h-3" />
+                              Via Application{s.appliedFor ? `: ${s.appliedFor}` : ''}
                             </Badge>
+                          ) : (
+                            <>
+                              {s.faculty && (
+                                <Badge className="bg-blue-100 text-blue-700 text-xs">
+                                  {FACULTY_LABELS[s.faculty] || s.faculty}
+                                </Badge>
+                              )}
+                              {s.subfaculty && (
+                                <Badge className="bg-gray-100 text-gray-600 text-xs">
+                                  {SUBFACULTY_LABELS[s.subfaculty] || s.subfaculty}
+                                </Badge>
+                              )}
+                            </>
                           )}
                         </div>
                         <div className="text-sm text-muted-foreground">{s.email}</div>
                         <div className="flex flex-wrap gap-1 mt-1">
-                          <span className="text-xs text-muted-foreground">
-                            {s.internshipCount} internship{s.internshipCount !== 1 ? 's' : ''}
-                          </span>
+                          {s.source !== 'job_application' && (
+                            <span className="text-xs text-muted-foreground">
+                              {s.internshipCount} internship{s.internshipCount !== 1 ? 's' : ''}
+                            </span>
+                          )}
                           {s.internshipFields.map(f => (
                             <span key={f} className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">
                               {FIELD_LABELS[f] || f}
@@ -378,6 +434,7 @@ export default function ResumeBookPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      {s.resumeFile ? (
                       <a
                         href={s.resumeFile}
                         target="_blank"
@@ -387,6 +444,11 @@ export default function ResumeBookPage() {
                       >
                         <Download className="w-4 h-4" />
                       </a>
+                      ) : (
+                        <span className="p-2 text-gray-200" title="No resume file">
+                          <Download className="w-4 h-4" />
+                        </span>
+                      )}
                       <button
                         onClick={() => handleDelete(s.id)}
                         className="p-2 text-muted-foreground hover:text-red-500 transition-colors"

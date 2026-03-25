@@ -227,6 +227,10 @@ model JobApplication {
   jobPostingId  String
   name          String
   email         String
+  faculty       String?
+  subfaculty    String?
+  internshipCount Int      @default(0)
+  internshipFields String[] @default([])
   resumeFile    String?    // Resume file URL
   appliedAt     DateTime   @default(now())
 
@@ -374,11 +378,13 @@ model ResumeSubmission {
   id               String   @id @default(cuid())
   name             String
   email            String
-  faculty          String   // "engineering" | "arts_science" | "rotman"
-  subfaculty       String?  // specific program within faculty
+  faculty          String?  // "engineering" | "arts_science" | "rotman" — null for job applicants
+  subfaculty       String?
   internshipCount  Int      @default(0)
-  internshipFields String[] @default([]) // "finance" | "tech" | "research" | "other"
-  resumeFile       String   // PDF URL (Vercel Blob)
+  internshipFields String[] @default([])
+  resumeFile       String?  // PDF URL — may be null if synced from application without file
+  source           String   @default("direct")  // "direct" | "job_application"
+  appliedFor       String?  // Job posting title (preserved even after posting is deleted)
   createdAt        DateTime @default(now())
 }
 

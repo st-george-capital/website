@@ -100,6 +100,62 @@ export async function DELETE(
       );
     }
 
+    // Preserve applicant resumes before the cascade delete wipes the applications.
+    // Anyone who applied with a resume gets upserted into the Resume Book so the
+    // file is permanently on record even after the posting is gone.
+    const posting = await prisma.jobPosting.findUnique({
+      where: { id: params.id },
+      include: { applications: true },
+    });
+
+    if (posting) {
+      for (const app of posting.applications.filter(a => a.resumeFile)) {
+        try {
+          const existing = await prisma.resumeSubmission.findFirst({
+            where: {
+              OR: [
+                { name: { equals: app.name, mode: 'insensitive' } },
+                { email: app.email },
+              ],
+            },
+            orderBy: { createdAt: 'desc' },
+          });
+          if (!existing) {
+            await prisma.resumeSubmission.create({
+              data: {
+                name: app.name,
+                email: app.email,
+                faculty: app.faculty || null,
+                subfaculty: app.subfaculty || null,
+                internshipCount: app.internshipCount || 0,
+                internshipFields: app.internshipFields || [],
+                resumeFile: app.resumeFile!,
+                source: 'job_application',
+                appliedFor: posting.title,
+              },
+            });
+          } else {
+            await prisma.resumeSubmission.update({
+              where: { id: existing.id },
+              data: {
+                name: app.name,
+                email: app.email,
+                faculty: app.faculty || existing.faculty || null,
+                subfaculty: app.subfaculty || existing.subfaculty || null,
+                internshipCount: app.internshipCount || existing.internshipCount || 0,
+                internshipFields: (app.internshipFields && app.internshipFields.length > 0) ? app.internshipFields : existing.internshipFields,
+                resumeFile: app.resumeFile!,
+                source: 'job_application',
+                appliedFor: posting.title,
+              },
+            });
+          }
+        } catch (syncErr) {
+          console.error('Resume book sync on delete (non-fatal):', syncErr);
+        }
+      }
+    }
+
     await prisma.jobPosting.delete({
       where: { id: params.id },
     });

@@ -41,12 +41,21 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { jobPostingId, name, email, resumeFile } = await req.json();
+    const {
+      jobPostingId,
+      name,
+      email,
+      faculty,
+      subfaculty,
+      internshipCount,
+      internshipFields,
+      resumeFile
+    } = await req.json();
 
     // Validate required fields
-    if (!jobPostingId || !name || !email) {
+    if (!jobPostingId || !name || !email || !faculty) {
       return NextResponse.json(
-        { error: 'Job posting ID, name, and email are required' },
+        { error: 'Job posting ID, name, email, and faculty are required' },
         { status: 400 }
       );
     }
@@ -98,9 +107,63 @@ export async function POST(req: NextRequest) {
         jobPostingId,
         name,
         email,
+        faculty: faculty || null,
+        subfaculty: subfaculty || null,
+        internshipCount: Number(internshipCount) || 0,
+        internshipFields: internshipFields || [],
         resumeFile,
       },
     });
+
+    // Auto-sync applicant into Resume Book (dedup by same name first).
+    // Only syncs if they actually uploaded a resume.
+    if (resumeFile && name) {
+      try {
+        const existing = await prisma.resumeSubmission.findFirst({
+          where: {
+            OR: [
+              { name: { equals: name, mode: 'insensitive' } },
+              { email },
+            ],
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (!existing) {
+          await prisma.resumeSubmission.create({
+            data: {
+              name,
+              email,
+              faculty: faculty || null,
+              subfaculty: subfaculty || null,
+              internshipCount: Number(internshipCount) || 0,
+              internshipFields: internshipFields || [],
+              resumeFile,
+              source: 'job_application',
+              appliedFor: jobPosting.title,
+            },
+          });
+        } else {
+          // Existing same person/name: take newer submission as source of truth
+          await prisma.resumeSubmission.update({
+            where: { id: existing.id },
+            data: {
+              name,
+              email,
+              faculty: faculty || existing.faculty || null,
+              subfaculty: subfaculty || existing.subfaculty || null,
+              internshipCount: Number(internshipCount) || existing.internshipCount || 0,
+              internshipFields: (internshipFields && internshipFields.length > 0) ? internshipFields : existing.internshipFields,
+              resumeFile,
+              source: 'job_application',
+              appliedFor: jobPosting.title,
+            },
+          });
+        }
+      } catch (syncErr) {
+        // Non-fatal — application was already saved successfully
+        console.error('Resume book sync error (non-fatal):', syncErr);
+      }
+    }
 
     return NextResponse.json(application, { status: 201 });
   } catch (error) {
