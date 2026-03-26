@@ -48,7 +48,7 @@ function ZBadge({ z }: { z: number | null }) {
   const cls = abs >= 2
     ? (z > 0 ? 'text-emerald-700 font-bold' : 'text-red-700 font-bold')
     : abs >= 1 ? 'text-gray-500 font-medium' : 'text-gray-300';
-  return <span className={cls}>{abs.toFixed(1)}σ</span>;
+  return <span className={cls}>{z > 0 ? '+' : ''}{z.toFixed(1)}σ</span>;
 }
 
 const REGIME_STYLES = {
@@ -420,13 +420,12 @@ function PairsTable({ pairs }: { pairs: PairRatio[] }) {
           <thead>
             <tr className="border-b-2 border-gray-100 bg-gray-50/50">
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Pair</th>
-              <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide hidden xl:table-cell">↑ Bullish means</th>
               <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">Ratio</th>
               <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">1D</th>
               <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">5D</th>
               <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">1M</th>
-              <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">~5M</th>
-              <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide" title="Z-score of today's ratio move">Z ⓘ</th>
+              <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">~4.5M</th>
+              <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide" title="Z-score of today's ratio move vs 20D history">Z ⓘ</th>
               <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">Signal</th>
             </tr>
           </thead>
@@ -434,7 +433,7 @@ function PairsTable({ pairs }: { pairs: PairRatio[] }) {
             {PAIR_GROUPS.map(g => (
               <>
                 <tr key={`ghdr-${g.label}`} className="bg-gray-50/70">
-                  <td colSpan={9} className="px-4 py-1.5">
+                  <td colSpan={8} className="px-4 py-1.5">
                     <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">{PAIR_GROUP_LABELS[g.label]}</span>
                   </td>
                 </tr>
@@ -446,9 +445,6 @@ function PairsTable({ pairs }: { pairs: PairRatio[] }) {
                       <td className="px-4 py-2">
                         <div className="font-semibold text-gray-900 text-xs">{pair.label}</div>
                         <div className="text-gray-400 text-[10px]">{pair.description}</div>
-                      </td>
-                      <td className="px-3 py-2 text-gray-500 text-xs hidden xl:table-cell max-w-[200px]">
-                        <span className="line-clamp-2">{pair.bullishMeans}</span>
                       </td>
                       <td className="px-3 py-2 text-right font-mono text-gray-600 text-xs">
                         {pair.ratio !== null ? pair.ratio.toFixed(4) : '—'}
@@ -482,6 +478,434 @@ function PairsTable({ pairs }: { pairs: PairRatio[] }) {
   );
 }
 
+// ─── Explanations Tab ─────────────────────────────────────────────────────────
+
+function ExplanationsTab() {
+  const SH = ({ children }: { children: React.ReactNode }) => (
+    <h2 className="text-sm font-bold text-gray-900 mb-3 pb-2 border-b border-gray-200 uppercase tracking-wide">{children}</h2>
+  );
+  const SubH = ({ children }: { children: React.ReactNode }) => (
+    <h3 className="text-xs font-semibold text-gray-800 mt-5 mb-1.5">{children}</h3>
+  );
+  const P = ({ children }: { children: React.ReactNode }) => (
+    <p className="text-xs text-gray-600 leading-relaxed mb-2">{children}</p>
+  );
+  const Tag = ({ up }: { up: boolean }) => (
+    <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${up ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+      {up ? '↑ Rising' : '↓ Falling'}
+    </span>
+  );
+
+  const PAIRS: {
+    label: string;
+    ratio: string;
+    what: string;
+    up: string;
+    down: string;
+    why: string;
+  }[] = [
+    {
+      label: 'Korea vs US', ratio: 'EWY / SPY',
+      what: 'Korean equities relative to the S&P 500.',
+      up: 'Korean stocks are outperforming US. Korea is a pure-play on the global manufacturing cycle and semiconductor demand — rising EWY/SPY means the hardware/export cycle is healthy and institutional Asia longs are working.',
+      down: 'Korea lagging the US. Usually signals softening global demand, semiconductor oversupply, or a risk-off rotation out of EM. Watch Korea as an early-warning for the broader cyclical trade.',
+      why: 'Korea\'s economy is ~80% export-driven with heavy semiconductor concentration (Samsung, SK Hynix). It moves before global PMIs because order books shift faster than published data.',
+    },
+    {
+      label: 'Taiwan vs US', ratio: 'EWT / SPY',
+      what: 'Taiwanese equities relative to the S&P 500.',
+      up: 'Taiwan (primarily TSMC, ~60% of EWT) outperforming. The AI hardware and advanced fab cycle is intact — data center capex is flowing through to chip orders.',
+      down: 'TSMC/hardware trade unwinding. Could mean AI capex slowdown, geopolitical premium rising (China tension), or a rotation away from hardware toward software.',
+      why: 'TSMC makes chips for Apple, Nvidia, AMD, and most AI accelerators. EWT is one of the most concentrated single-stock exposures in a liquid ETF — it is essentially a levered Nvidia/AI-hardware proxy.',
+    },
+    {
+      label: 'China vs US', ratio: 'FXI / SPY',
+      what: 'Chinese H-shares (Hong Kong-listed mainland companies) vs the S&P 500.',
+      up: 'Capital rotating into China. Stimulus narrative gaining traction, RMB stable, or a valuation-driven EM rotation. Often driven by policy announcements from Beijing.',
+      down: 'Capital leaving China equities. Regulatory risk, USD strength (which pressures CNY), weak domestic consumption, or property sector stress weighing on sentiment.',
+      why: 'FXI is the most liquid China equity proxy in US markets. Note: it tracks H-shares (offshore), not onshore A-shares — it reflects foreign investor sentiment toward China more than domestic flows.',
+    },
+    {
+      label: 'Europe vs US', ratio: 'EZU / SPY',
+      what: 'Eurozone equities (banks, industrials, energy) vs the US (tech-heavy).',
+      up: 'Capital rotating from expensive US tech into value-heavy Europe. Common when US tech valuations stretch or when European banks benefit from higher rates.',
+      down: 'US tech dominance reasserting, or European-specific risks: energy price spike, ECB policy tightening, or political risk (elections, fiscal stress in peripheral countries).',
+      why: 'Europe is a "value" market vs the US "growth" market. When the US/EU divergence widens, it usually reflects a shift in global growth expectations or monetary policy divergence.',
+    },
+    {
+      label: 'LatAm vs US', ratio: 'EWZ / SPY',
+      what: 'Latin America (primarily Brazil, ~60% of EWZ) vs the S&P 500.',
+      up: 'Commodity cycle strong, BRL/MXN stable, or EM risk appetite broad. Brazil outperforms when oil, iron ore, and agricultural commodities are rising.',
+      down: 'USD strengthening (expensive dollar = hard for Brazil which borrows in USD), commodity down-cycle, or Brazil-specific fiscal/political concerns.',
+      why: 'Brazil is a commodity supercycle proxy. LatAm as a whole has high sensitivity to the USD — when the dollar rallies strongly, EM debt burdens rise and capital flows out.',
+    },
+    {
+      label: 'Semis vs Software', ratio: 'SOXX / IGV',
+      what: 'Semiconductor ETF vs software ETF — hardware vs software within the tech complex.',
+      up: 'Semis leading software. The AI hardware buildout (chips, servers, networking) is dominating. Korea/Taiwan institutional longs are working — the capex cycle is in the "pick and shovel" phase.',
+      down: 'Software winning. Could mean the AI narrative is shifting from infrastructure to applications (Salesforce, ServiceNow, Adobe) — or semis entering a cyclical down-period after a supply surge.',
+      why: 'Goldman calls this the "AI trade pair." Semis are cyclical — they over-earn during buildouts and crater during oversupply. When this pair falls, Korea/Taiwan longs typically follow within weeks.',
+    },
+    {
+      label: 'Cyclicals vs Defensives', ratio: 'XLY / XLP',
+      what: 'Consumer discretionary (Amazon, Tesla, Homebuilders) vs consumer staples (P&G, Costco, Walmart).',
+      up: 'Risk appetite healthy. Consumers spending on wants (cars, vacations, luxury) not just needs. Institutions expect economic expansion to continue.',
+      down: 'Recession hedging. Investors rotating into "you have to buy it regardless" names. This move tends to front-run economic slowdowns by 3–6 months.',
+      why: 'The oldest risk-on/off rotation in equities. Defensives don\'t generate growth — they generate consistency. When money moves there, it\'s a vote of no-confidence in the cycle.',
+    },
+    {
+      label: 'Financials vs Market', ratio: 'XLF / SPY',
+      what: 'Bank and financial stocks vs the broad S&P 500.',
+      up: 'Banks outperforming. Means: yield curve steepening (banks earn on the spread), credit demand rising, or leverage appetite increasing. A leading indicator for healthy credit conditions.',
+      down: 'Banks lagging. Could mean yield curve flattening/inverting (compresses bank margins), rising loan losses, or regulatory risk. Financials typically lead into and out of recessions.',
+      why: 'Banks are the plumbing of the economy — when they\'re stressed, credit availability tightens for everyone. When they\'re expanding, leverage and growth follow.',
+    },
+    {
+      label: 'Growth vs Value', ratio: 'QQQ / SPY',
+      what: 'NASDAQ-100 (mega-cap tech: Nvidia, Apple, Microsoft, Meta) vs S&P 500 (broader 500 companies).',
+      up: 'Growth premium expanding. Conditions favor long-duration assets: inflation expectations low, real rates not too high, liquidity ample, and mega-cap earnings outlook strong.',
+      down: 'Value rotation. Happens when real rates rise (makes future earnings worth less today), when tech earnings disappoint, or when "boring" sectors (energy, financials) are outperforming.',
+      why: 'The most-tracked relative performance pair in US markets. QQQ/SPY rising = the "multiple expansion" trade; falling = the "multiple compression" trade.',
+    },
+    {
+      label: 'HY vs IG Credit', ratio: 'HYG / LQD',
+      what: 'High-yield (junk) bonds vs investment-grade bonds — risk appetite within fixed income.',
+      up: 'Credit risk appetite healthy. Investors buying riskier bonds over safer ones — spreads tightening. Risk-on signal from the bond market.',
+      down: 'Flight to quality within credit. Investors selling junk and moving to IG. Often precedes equity stress by 1–2 weeks because credit markets price risk faster.',
+      why: 'Institutions feel stress in credit before equities react. HYG/LQD falling has historically been one of the earliest leading indicators of equity drawdowns.',
+    },
+    {
+      label: 'Credit vs Safety', ratio: 'HYG / TLT',
+      what: 'High-yield bonds vs 20+ year US Treasury bonds — crosses asset classes entirely.',
+      up: 'Broad risk-on. Credit preferred over the ultimate safe haven (long-duration Treasuries). Typical of bull market / easing cycle conditions.',
+      down: 'Flight to safety. Investors selling credit risk and buying duration. This is one of the most reliable stress signals — both credit quality AND duration are being bid simultaneously.',
+      why: 'Crosses the equity/bond divide. When both credit and duration are bid (ratio falls), it usually means something systemic: recession fear, financial system stress, or geopolitical shock.',
+    },
+    {
+      label: 'Risk vs Safety', ratio: 'SPY / TLT',
+      what: 'S&P 500 vs 20+ year US Treasuries — the classic risk-on vs risk-off pair.',
+      up: 'Equities outperforming bonds. Growth/risk narrative winning. Typical of early-to-mid expansion phase.',
+      down: 'Flight to bonds. Classic risk-off: recession fears, credit stress, or geopolitical shock causing capital to rotate from equities into the "safest" asset on earth.',
+      why: 'The foundational risk-on/off ratio. Every portfolio manager watches this. When it breaks lower sharply, it triggers systematic de-risking across quant strategies.',
+    },
+    {
+      label: 'Dollar vs Equities', ratio: 'UUP / SPY',
+      what: 'USD strength (UUP = DXY proxy) vs the S&P 500. This pair is INVERTED — rising is bearish.',
+      up: 'USD strengthening vs equities. BEARISH signal. Dollar is a safe haven — when it outperforms equities, institutions are rotating to cash/dollar assets. Particularly bad for EM countries with dollar-denominated debt (Korea, Brazil, Indonesia, Turkey).',
+      down: 'Equities outperforming the dollar. BULLISH signal. Risk appetite healthy, capital deployed in equities rather than held in cash, EM currency tailwind.',
+      why: 'The signal is inverted here because a rising dollar typically compresses risk assets globally: it tightens global financial conditions, increases the real cost of dollar-denominated debt for EM borrowers, and signals risk-off.',
+    },
+  ];
+
+  const ETF_COLUMNS: { col: string; what: string; read: string }[] = [
+    { col: '1D', what: '1-day % return — yesterday\'s close to today\'s close.', read: 'Green = capital flowing in today. Red = selling pressure today. Use for intraday context, not trend.' },
+    { col: '1W (5D)', what: '5 trading day return — approximately 1 calendar week.', read: 'Short-term momentum. Regime signals use 5D. If 1D and 5D are both red, short-term trend is negative.' },
+    { col: '1M (20D)', what: '20 trading day return — approximately 1 calendar month.', read: 'Medium-term trend. If positive here but 1D negative, the trend is intact with a day of weakness.' },
+    { col: '3M (63D)', what: '63 trading day return — approximately 3 calendar months.', read: 'Intermediate trend. Aligns with a typical quarterly earnings cycle.' },
+    { col: '~4.5M (95D)', what: '95 trading day return — approximately 4.5 months. Maximum window from the 100-day compact data pull.', read: 'Longer context within the available data window. Shows whether a trend is multi-month or just recent.' },
+    { col: 'Vol/Avg', what: 'Today\'s volume divided by 20-day average volume for this ETF.', read: '1.0× = normal. >1.5× = elevated (institutions hedging or taking a position). >2× = extreme — a macro event or a forced rebalance is driving the move.' },
+    { col: 'Z', what: 'Z-score of today\'s 1-day % return vs the past 20 days of daily returns.', read: '0σ = completely normal move. ±1σ = mildly unusual. ±2σ = statistically extreme — happens ~5% of the time. Sign matters: +2σ is an unusually strong up day, −2σ is an unusually sharp sell-off.' },
+  ];
+
+  const REGIME_SIGNALS: { name: string; what: string; scoring: string }[] = [
+    {
+      name: 'VIX (VIXY return)',
+      what: 'VIXY is an ETF that tracks short-term VIX futures. We use its 5-day % RETURN, not its price level. VIXY constantly loses value from futures roll costs (contango decay) — its absolute price is meaningless as a stress gauge.',
+      scoring: 'Negative 5D return = vol collapsing → score 0 (risk-on). Slight positive = some hedging → 1. Rising +5–15% = stress building → 2. Surging >15% = macro hedging dominant → 3.',
+    },
+    {
+      name: 'Semis vs Software',
+      what: 'The 5D return of the SOXX/IGV ratio. When semis underperform software, the most crowded institutional trade (long Korea, Taiwan, AI hardware) is unwinding. This pair leads Korea/Taiwan equity performance.',
+      scoring: 'Semis leading significantly (>+1.5% 5D) → score 0. Mixed → 1. Software dominating by >1.5% → 2.',
+    },
+    {
+      name: 'Cyclicals vs Defensives',
+      what: 'The 5D return of XLY/XLP. When defensives take the lead, large institutions are rotating to recession-resistant positions — a vote of no-confidence in the economic cycle.',
+      scoring: 'Cyclicals leading (>+1% 5D) → score 0. Mild edge either way → 1. Defensives dominating (>−1% 5D) → 2.',
+    },
+    {
+      name: 'HYG Credit',
+      what: 'HYG (high-yield bond ETF) 5-day return. Credit markets price stress before equities — institutions feel it in junk spreads 1–2 weeks before it shows in stock prices.',
+      scoring: 'HYG rising (+0.5% 5D) → score 0. Neutral → 1. Spreads widening (−0.5 to −1.5%) → 2. Significant credit stress (< −1.5%) → 3.',
+    },
+    {
+      name: 'ETF Volume Spike',
+      what: 'Average volume ratio across all tracked ETFs (today vs 20-day average), excluding VIXY. Goldman research: ETFs normally represent ~30% of total US tape volume. When that spikes above ~40%, institutions are using ETFs for macro hedging rather than individual stock selection.',
+      scoring: '<1.2× normal → score 0. 1.2–1.5× → 1. 1.5–2× high, macro hedging likely → 2. >2× extreme → 3.',
+    },
+  ];
+
+  const MACRO_ITEMS: { label: string; what: string; up: string; down: string }[] = [
+    {
+      label: 'Fed Funds Rate',
+      what: 'The overnight interest rate set by the US Federal Reserve — the most important price in global finance. It sets the floor for all other interest rates.',
+      up: 'Fed is tightening: borrowing is more expensive, growth assets (tech, long bonds, EM) face headwinds. Higher for longer = multiple compression.',
+      down: 'Fed is easing: cheaper money = easier credit conditions = supports risk assets, especially long-duration (tech) and EM.',
+    },
+    {
+      label: 'US 10-Year Yield',
+      what: 'The yield on 10-year US Treasury bonds — the global risk-free rate and discount rate for virtually every asset on earth.',
+      up: 'Rising 10Y = either growth/inflation expectations rising (good initially, harmful if sustained) OR a flight FROM bonds (scary). At 5%+, it competes directly with equities for capital.',
+      down: 'Falling 10Y = flight to safety (recession/stress fear) OR Fed cutting cycle beginning. Good for long-duration assets (tech, growth), bad if driven by recession fear.',
+    },
+    {
+      label: 'WTI Crude',
+      what: 'West Texas Intermediate oil price — the US benchmark for crude oil. Both an economic activity signal and an inflation input.',
+      up: 'Demand-driven rise = global growth healthy. Supply-driven rise (OPEC cuts, geopolitical disruption) = stagflation risk. Energy-exporting EM (Brazil, Saudi) benefits; energy-importing EM (India, Turkey) suffers.',
+      down: 'Demand-driven fall = global slowdown warning. Supply glut (US shale surge) = disinflationary. Generally negative for EM commodity exporters.',
+    },
+    {
+      label: 'Bitcoin',
+      what: 'The largest cryptocurrency by market cap. Treated here as a risk appetite / liquidity barometer rather than a currency. BTC has shown high correlation with the NASDAQ during risk-off periods.',
+      up: 'Rising BTC = speculative risk appetite healthy, liquidity ample, retail/crypto-native capital active. Sometimes leads risk-on moves in equities by a few days.',
+      down: 'Falling BTC = speculative risk appetite deteriorating. Can also signal institutional de-leveraging or a regulatory event. Watch correlation with QQQ during stress.',
+    },
+  ];
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-10 max-w-5xl">
+
+      {/* Overview */}
+      <section>
+        <SH>How to Use This Dashboard</SH>
+        <P>
+          This dashboard tracks <strong>where institutional capital is moving</strong> across global
+          equity markets in near real-time using ETF price data. It is not a prediction engine — it
+          is a <em>positioning diagnostic</em>: what is happening right now, and what does the pattern
+          of flows historically imply about market conditions?
+        </P>
+        <P>
+          All data comes from Alpha Vantage (TIME_SERIES_DAILY, compact 100-day window). ETFs are
+          proxies — they track the thing, not the thing itself. Cached every 5 minutes. Typically
+          reflects the previous trading day&apos;s close (1-day data delay).
+        </P>
+        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-xs text-blue-800 leading-relaxed">
+          <strong>30-second read:</strong> Start with the Risk Regime score (top of dashboard).
+          Then check Pair Ratios for where capital is rotating. Market Structure tells you whether
+          it&apos;s a macro-driven tape (everything moving together) or a stock-picker&apos;s market
+          (sectors diverging). The ETF Heatmap shows the raw returns behind all of it.
+        </div>
+      </section>
+
+      {/* Macro Bar */}
+      <section>
+        <SH>Macro Context Bar</SH>
+        <P>The four macro anchors that every professional investor checks before reading any flow data.</P>
+        <div className="space-y-3">
+          {MACRO_ITEMS.map(item => (
+            <div key={item.label} className="border border-gray-100 rounded-xl p-4">
+              <div className="text-xs font-semibold text-gray-800 mb-1">{item.label}</div>
+              <P>{item.what}</P>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                <div className="bg-emerald-50 rounded-lg px-3 py-2">
+                  <span className="text-[10px] font-bold text-emerald-700 uppercase">↑ Rising</span>
+                  <p className="text-[11px] text-emerald-800 mt-0.5 leading-relaxed">{item.up}</p>
+                </div>
+                <div className="bg-red-50 rounded-lg px-3 py-2">
+                  <span className="text-[10px] font-bold text-red-700 uppercase">↓ Falling</span>
+                  <p className="text-[11px] text-red-800 mt-0.5 leading-relaxed">{item.down}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Risk Regime */}
+      <section>
+        <SH>Risk Regime</SH>
+        <P>
+          A composite score built from 5 independent stress signals. Each signal scores 0–3
+          (0 = bullish, 3 = maximum stress). They are summed: 0–3 = Risk-on, 4–5 = Neutral,
+          6–8 = Hedging-heavy, 9–15 = Stress. No weighting — each signal has equal vote.
+        </P>
+        <P>
+          The regime is directional context, not a trading signal. A{' '}
+          <span className="text-emerald-700 font-semibold">Risk-on</span> regime doesn&apos;t mean
+          buy everything; it means the macro backdrop is not actively fighting you.{' '}
+          <span className="text-red-700 font-semibold">Stress</span> means multiple signals are
+          simultaneously flashing institutional risk aversion.
+        </P>
+        <div className="space-y-4 mt-3">
+          {REGIME_SIGNALS.map(sig => (
+            <div key={sig.name} className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="px-4 py-2.5 bg-gray-50 text-xs font-semibold text-gray-800">{sig.name}</div>
+              <div className="px-4 py-3 space-y-2">
+                <P>{sig.what}</P>
+                <div className="bg-gray-50 rounded-lg px-3 py-2 text-[11px] text-gray-600">
+                  <strong>Scoring: </strong>{sig.scoring}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Market Structure */}
+      <section>
+        <SH>Market Structure Metrics</SH>
+        <P>
+          These six metrics together answer: <em>Is this a macro tape or a fundamental tape?</em>{' '}
+          When correlations are high and dispersion is low, a single macro headline can move
+          everything simultaneously — individual stock or country selection barely matters.
+          When dispersion is high and correlation is low, fundamentals reassert themselves.
+        </P>
+
+        {[
+          {
+            name: 'Market Breadth',
+            what: '% of tracked ETFs that closed up on the day.',
+            read: [
+              { label: '>65% up', color: 'text-emerald-700', desc: 'Wide participation — the move is broad-based and healthy.' },
+              { label: '50–65% up', color: 'text-green-700', desc: 'Majority rising but not overwhelming.' },
+              { label: '35–50% up', color: 'text-yellow-700', desc: 'Narrow advance — only a few groups leading. Fragile if the index is up.' },
+              { label: '<35% up', color: 'text-red-700', desc: 'Broad sell-off across asset classes.' },
+            ],
+            note: 'If the S&P 500 is up on the day but ETF breadth is below 40%, it means a small number of mega-cap names are carrying the whole index — not a sustainable move.',
+          },
+          {
+            name: 'Sector Dispersion',
+            what: 'Standard deviation of 1-day returns across sector ETFs (XLE, XLV, XLF, XLY, XLP, SOXX, IGV).',
+            read: [
+              { label: '>1.5% σ', color: 'text-emerald-700', desc: 'Sectors diverging sharply — fundamental/earnings-driven. Stock and sector selection matters.' },
+              { label: '0.8–1.5% σ', color: 'text-yellow-700', desc: 'Moderate — mixed macro and idiosyncratic drivers.' },
+              { label: '<0.8% σ', color: 'text-red-700', desc: 'Everything moving together — macro headline or ETF-flow dominated tape.' },
+            ],
+            note: null,
+          },
+          {
+            name: 'Sector Correlation (20D)',
+            what: 'Average pairwise Pearson correlation between all sector ETFs over the past 20 trading days.',
+            read: [
+              { label: '>70%', color: 'text-red-700', desc: 'Macro/ETF dominance — a single rate move or risk event is driving all sectors together.' },
+              { label: '40–70%', color: 'text-yellow-700', desc: 'Mixed — some macro, some sector-specific.' },
+              { label: '<40%', color: 'text-emerald-700', desc: 'Stock-picker\'s market — sector fundamentals driving divergent returns.' },
+            ],
+            note: 'High correlation + low dispersion = the same signal from two angles: macro flows are running the show.',
+          },
+          {
+            name: 'SPY Realized Vol (20D)',
+            what: 'SPY\'s annualized realized volatility calculated from 20 days of log returns. Standard = how much SPY actually moved, not how much the market fears it will move.',
+            read: [
+              { label: '<12%', color: 'text-emerald-700', desc: 'Low-vol regime. Options cheap, carry strategies working.' },
+              { label: '12–18%', color: 'text-yellow-700', desc: 'Normal historical range for SPY.' },
+              { label: '18–25%', color: 'text-orange-700', desc: 'Above normal — some stress in realized moves.' },
+              { label: '>25%', color: 'text-red-700', desc: 'Stress regime. Systematic strategies de-lever, options expensive.' },
+            ],
+            note: 'Compare to VIXY return: if VIXY is surging but realized vol is still low, the market is pricing fear ahead of actual volatility occurring — a possible overreaction.',
+          },
+          {
+            name: 'USD Strength (5D)',
+            what: 'UUP ETF 5-day return — a liquid proxy for the DXY (US Dollar Index).',
+            read: [
+              { label: '>+0.5%', color: 'text-red-700', desc: 'Dollar strengthening — EM headwind. Countries with USD-denominated debt see higher real debt burdens.' },
+              { label: '−0.5 to +0.5%', color: 'text-gray-600', desc: 'Dollar stable — neutral for EM and risk assets.' },
+              { label: '<−0.5%', color: 'text-emerald-700', desc: 'Dollar weakening — EM tailwind, commodity prices supported, global financial conditions loosening.' },
+            ],
+            note: 'The DXY is ~57% EUR. A weak dollar is one of the most consistent tailwinds for EM equity outperformance. Rising dollar = tightening global financial conditions.',
+          },
+          {
+            name: 'IG Credit (5D)',
+            what: 'LQD ETF 5-day return — investment-grade corporate bonds. Paired with HYG to diagnose whether stress is isolated or systemic.',
+            read: [
+              { label: '>+0.3%', color: 'text-emerald-700', desc: 'IG tightening — broad credit health is strong.' },
+              { label: '−0.3 to +0.3%', color: 'text-gray-600', desc: 'IG stable.' },
+              { label: '<−0.3%', color: 'text-red-700', desc: 'IG widening — systemic credit stress. If HYG is also falling, this is a red flag.' },
+            ],
+            note: 'Key diagnostic: HYG down + LQD stable = junk-only stress, probably contained. HYG down + LQD down = systemic credit stress — the entire credit market is repricing risk.',
+          },
+        ].map(m => (
+          <div key={m.name} className="border border-gray-200 rounded-xl overflow-hidden mt-4">
+            <div className="px-4 py-2.5 bg-gray-50 text-xs font-semibold text-gray-800">{m.name}</div>
+            <div className="px-4 py-3">
+              <P>{m.what}</P>
+              <div className="space-y-1 my-2">
+                {m.read.map(r => (
+                  <div key={r.label} className="flex items-start gap-2">
+                    <span className={`text-[10px] font-mono font-bold w-20 flex-shrink-0 ${r.color}`}>{r.label}</span>
+                    <span className="text-[11px] text-gray-600">{r.desc}</span>
+                  </div>
+                ))}
+              </div>
+              {m.note && <p className="text-[10px] text-amber-700 bg-amber-50 rounded px-2 py-1.5 mt-2">{m.note}</p>}
+            </div>
+          </div>
+        ))}
+      </section>
+
+      {/* ETF Table columns */}
+      <section>
+        <SH>ETF Performance Table — Column Guide</SH>
+        <P>
+          The heatmap shows {24} ETFs grouped by geography and asset class. Green = capital flowing
+          in / price rising. Red = capital leaving / price falling. Use multiple time horizons together
+          — a single red day in a green 1M trend is noise; red across all columns is a trend.
+        </P>
+        <div className="overflow-x-auto border border-gray-200 rounded-xl">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-gray-50 text-[10px] text-gray-400 uppercase tracking-wide">
+                <th className="px-3 py-2 text-left font-semibold">Column</th>
+                <th className="px-3 py-2 text-left font-semibold">What it is</th>
+                <th className="px-3 py-2 text-left font-semibold">How to read it</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ETF_COLUMNS.map(c => (
+                <tr key={c.col} className="border-t border-gray-50">
+                  <td className="px-3 py-2 font-mono font-bold text-gray-700 whitespace-nowrap">{c.col}</td>
+                  <td className="px-3 py-2 text-gray-600">{c.what}</td>
+                  <td className="px-3 py-2 text-gray-600">{c.read}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* Pair Ratios */}
+      <section>
+        <SH>Pair Ratios — Full Glossary</SH>
+        <P>
+          Each pair is Numerator ÷ Denominator. When the ratio rises, the numerator is
+          outperforming. Trend columns (1D, 5D, 1M, ~4.5M) show % change in the ratio itself —
+          not either ETF in isolation. The Signal label (bullish/bearish/neutral) is driven by the
+          5D trend and is relative to what that direction means for that specific pair.
+        </P>
+        <P>
+          The Z-score shows how unusual today&apos;s single-day ratio move is vs the past 20 days.
+          A ±2σ move happens roughly 5% of the time — statistically significant, worth noting.
+        </P>
+        <div className="space-y-4 mt-3">
+          {PAIRS.map(pair => (
+            <div key={pair.label} className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="px-4 py-2.5 bg-gray-50 flex items-center justify-between">
+                <span className="text-xs font-semibold text-gray-800">{pair.label}</span>
+                <span className="text-[10px] font-mono text-gray-400">{pair.ratio}</span>
+              </div>
+              <div className="px-4 py-3 space-y-2">
+                <P>{pair.what}</P>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="bg-emerald-50 rounded-lg px-3 py-2">
+                    <Tag up={pair.label !== 'Dollar vs Equities'} />
+                    <p className="text-[11px] text-emerald-900 mt-1 leading-relaxed">{pair.up}</p>
+                  </div>
+                  <div className="bg-red-50 rounded-lg px-3 py-2">
+                    <Tag up={pair.label === 'Dollar vs Equities'} />
+                    <p className="text-[11px] text-red-900 mt-1 leading-relaxed">{pair.down}</p>
+                  </div>
+                </div>
+                <p className="text-[10px] text-gray-400 italic leading-relaxed">{pair.why}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function FlowsDashboard() {
@@ -489,6 +913,7 @@ export default function FlowsDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastFetched, setLastFetched] = useState<Date | null>(null);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'explanations'>('dashboard');
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -536,7 +961,24 @@ export default function FlowsDashboard() {
         </div>
       )}
 
-      {data && (
+      {/* Tab switcher — shown even while loading so user can read explanations */}
+      <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit mb-2">
+        {(['dashboard', 'explanations'] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`text-xs px-4 py-1.5 rounded-md font-medium transition-colors ${
+              activeTab === tab ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {tab === 'dashboard' ? '📊 Dashboard' : '📖 Explanations'}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'explanations' && <ExplanationsTab />}
+
+      {activeTab === 'dashboard' && data && (
         <>
           <MacroBar macro={data.macro} />
           <RegimeBanner regime={data.regime} />
