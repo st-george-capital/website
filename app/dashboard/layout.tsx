@@ -24,8 +24,6 @@ import {
   Target,
   BookMarked,
   Newspaper,
-  GitBranch,
-  Globe,
 } from 'lucide-react';
 
 const navigation: Array<{
@@ -45,8 +43,6 @@ const navigation: Array<{
   { name: 'Postings', href: '/dashboard/postings', icon: Briefcase, adminOnly: true },
   { name: 'Resume Book', href: '/dashboard/resume-book', icon: BookMarked, adminOnly: true },
   { name: 'Newsletter', href: '/dashboard/newsletter', icon: Newspaper, adminOnly: true },
-  { name: 'Capital Flows', href: '/dashboard/flows', icon: GitBranch, userMinRole: 'user' },
-  { name: 'Country Health', href: '/dashboard/country-health', icon: Globe, userMinRole: 'user' },
   { name: 'Tools', href: '/dashboard/tools', icon: Calculator, userMinRole: 'user' },
   { name: 'Users', href: '/dashboard/users', icon: Users, adminOnly: true },
   { name: 'Holdings', href: '/dashboard/holdings', icon: BarChart3, userMinRole: 'user' },

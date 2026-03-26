@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { Calculator, TrendingUp, BarChart3, FileText } from 'lucide-react';
+import { Calculator, BarChart3, FileText, GitBranch, Globe } from 'lucide-react';
 
 const tools = [
   {
     id: 'dcf',
     name: 'DCF Valuation Tool',
     description: 'Interactive Discounted Cash Flow valuation model for equity research and analysis',
+    href: '/dashboard/tools/dcf',
     icon: Calculator,
     features: [
       'Free Cash Flow projections',
@@ -23,6 +24,7 @@ const tools = [
     id: 'equity-research',
     name: 'Equity Research Reports',
     description: 'Create and manage institutional-grade equity research reports linked to DCF models',
+    href: '/dashboard/research',
     icon: FileText,
     features: [
       'Link to saved DCF models',
@@ -31,22 +33,48 @@ const tools = [
       'Publish or hide on website',
     ],
   },
+  {
+    id: 'capital-flows',
+    name: 'Capital Flows & Positioning',
+    description: 'ETF-based proxy for global institutional capital movement, risk regime detection, and macro context',
+    href: '/dashboard/flows',
+    icon: GitBranch,
+    features: [
+      'Risk regime composite signal',
+      'ETF heatmap across 24 instruments',
+      'Pair ratios with z-scores & trends',
+      'Market structure: breadth, dispersion',
+      'Macro bar: Fed rate, yields, crude, BTC',
+    ],
+  },
+  {
+    id: 'country-health',
+    name: 'Country Macro Health Index',
+    description: 'Score countries across five pillars: productive capacity, human capital, macro sustainability, institutions, and innovation',
+    href: '/dashboard/country-health',
+    icon: Globe,
+    features: [
+      '5-pillar scoring framework',
+      'World Bank & governance data',
+      'Market monetization overlay',
+      'Country classification by type',
+      '11 countries tracked',
+    ],
+  },
 ];
 
 export default function ToolsDashboardPage() {
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Research Tools</h1>
           <p className="text-muted-foreground">
-            Professional valuation and analysis tools for equity research
+            Professional valuation, analysis, and macro intelligence tools
           </p>
         </div>
       </div>
 
-      {/* Tools Grid */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {tools.map((tool) => (
           <Card key={tool.id} className="hover:shadow-lg transition-shadow">
@@ -76,7 +104,7 @@ export default function ToolsDashboardPage() {
                     ))}
                   </ul>
                 </div>
-                <Link href={tool.id === 'equity-research' ? '/dashboard/research' : `/dashboard/tools/${tool.id}`}>
+                <Link href={tool.href}>
                   <Button className="w-full">
                     Open {tool.name}
                   </Button>
