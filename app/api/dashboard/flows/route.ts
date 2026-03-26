@@ -7,9 +7,19 @@ const AV_BASE = 'https://www.alphavantage.co/query';
 
 const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-async function sequential<T>(fns: Array<() => Promise<T | null>>, staggerMs = 550) {
+async function sequential<T>(fns: Array<() => Promise<T | null>>, staggerMs = 550, timeoutMs = 8000) {
   const results: Array<T | null> = [];
-  for (const fn of fns) { results.push(await fn()); await delay(staggerMs); }
+  let consecutiveFails = 0;
+  for (const fn of fns) {
+    if (consecutiveFails >= 3) { results.push(null); continue; }
+    const result = await Promise.race([
+      fn(),
+      new Promise<null>(r => setTimeout(() => r(null), timeoutMs)),
+    ]);
+    results.push(result);
+    consecutiveFails = result === null ? consecutiveFails + 1 : 0;
+    await delay(staggerMs);
+  }
   return results;
 }
 
@@ -90,7 +100,7 @@ export interface ETFRow {
   return5D: number | null;
   return20D: number | null;   // ~1 month
   return63D: number | null;   // ~3 months
-  return95D: number | null;   // ~5 months (max from compact 100-day window)
+  return95D: number | null;   // ~4.5 months (max from compact 100-day window)
   volumeRatio: number | null;
   zScore: number | null;
 }
@@ -162,7 +172,6 @@ interface Series {
 async function fetchSeries(ticker: string): Promise<Series | null> {
   try {
     const res = await fetch(
-      // compact gives 100 data points (~5 months of trading days)
       `${AV_BASE}?function=TIME_SERIES_DAILY&symbol=${ticker}&outputsize=compact&apikey=${AV_KEY}`
     );
     const data = await res.json();
@@ -259,6 +268,7 @@ function buildPair(
   bullishMeans: string,
   numSeries: Series | null,
   denSeries: Series | null,
+  invertSignal = false,
 ): PairRatio {
   const empty: PairRatio = { label, description, bullishMeans, ratio: null, trend1D: null, trend5D: null, trend1M: null, trend5M: null, zScore1D: null, signal: 'neutral' };
   if (!numSeries || !denSeries) return empty;
@@ -291,8 +301,10 @@ function buildPair(
 
   let signal: PairRatio['signal'] = 'neutral';
   if (t5D !== null) {
-    if (t5D > 0.5) signal = 'bullish';
-    else if (t5D < -0.5) signal = 'bearish';
+    const up = invertSignal ? 'bearish' : 'bullish';
+    const dn = invertSignal ? 'bullish' : 'bearish';
+    if (t5D > 0.5) signal = up;
+    else if (t5D < -0.5) signal = dn;
   }
 
   return { label, description, bullishMeans, ratio: cur, trend1D: t1D, trend5D: t5D, trend1M: t1M, trend5M: t5M, zScore1D, signal };
@@ -506,7 +518,6 @@ export async function GET() {
     { ticker: 'VIXY', name: 'VIX Proxy (VIXY)',      group: 'volatility' },
   ];
 
-  // 24 ETFs × 550ms ≈ 13s — cached 5 min after first load
   const seriesArray = await sequential(
     UNIVERSE.map(({ ticker }) => () => fetchSeries(ticker)),
     550
@@ -532,12 +543,11 @@ export async function GET() {
     buildPair('HY vs IG Credit',         'HYG / LQD',  'High yield outperforming IG — investors taking credit risk, spreads tight',   seriesMap['HYG'],  seriesMap['LQD']  ),
     buildPair('Credit vs Safety',        'HYG / TLT',  'HY credit beating Treasuries — risk appetite healthy, spreads tightening',    seriesMap['HYG'],  seriesMap['TLT']  ),
     buildPair('Risk vs Safety',          'SPY / TLT',  'Equities outperforming bonds — classic risk-on rotation',                     seriesMap['SPY'],  seriesMap['TLT']  ),
-    buildPair('Dollar vs Equities',      'UUP / SPY',  'USD strengthening vs equities — risk-off or global tightening; bad for EM',  seriesMap['UUP'],  seriesMap['SPY']  ),
+    buildPair('Dollar vs Equities',      'UUP / SPY',  'USD strengthening vs equities — risk-off or global tightening; bad for EM',  seriesMap['UUP'],  seriesMap['SPY'], true ),
   ];
 
   const regime = buildRegime(etfs, pairs);
   const structure = buildStructure(etfs, seriesMap);
-  // Macro context fetches in parallel (different AV endpoints, safe to run simultaneously)
   const macro = await buildMacro();
 
   return NextResponse.json({

@@ -116,7 +116,7 @@ function momentumRaw(row: { level: number | null; prevLevel: number | null }, de
 
 export function crossSectionZScore(values: (number | null)[]): (number | null)[] {
   const valid = values.filter((v): v is number => v !== null);
-  if (valid.length < 2) return values.map(() => null);
+  if (valid.length < 5) return values.map(() => null);
 
   const mean = valid.reduce((a, b) => a + b, 0) / valid.length;
   const variance = valid.reduce((a, b) => a + (b - mean) ** 2, 0) / valid.length;
@@ -189,10 +189,13 @@ function countryConfidence(
   let yearDispersion: number | null = null;
   let yearScore = 0.85;
   if (years.length >= 2) {
-    const mean = years.reduce((a, b) => a + b, 0) / years.length;
-    const varY = years.reduce((s, y) => s + (y - mean) ** 2, 0) / years.length;
+    const meanY = years.reduce((a, b) => a + b, 0) / years.length;
+    const varY = years.reduce((s, y) => s + (y - meanY) ** 2, 0) / years.length;
     yearDispersion = Math.sqrt(varY);
-    yearScore = Math.max(0, Math.min(1, 1 - yearDispersion / 4));
+    const currentYear = new Date().getFullYear();
+    const recencyScore = Math.max(0, 1 - (currentYear - meanY) / 5);
+    const consistencyScore = Math.max(0, 1 - yearDispersion / 4);
+    yearScore = 0.6 * recencyScore + 0.4 * consistencyScore;
   } else if (years.length === 1) {
     yearDispersion = 0;
     yearScore = 0.9;

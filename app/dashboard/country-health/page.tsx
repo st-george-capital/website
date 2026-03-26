@@ -537,6 +537,272 @@ function SensitivityModesPanel({
   );
 }
 
+// ─── Instructions Tab ─────────────────────────────────────────────────────────
+
+function InstructionsTab() {
+  const totalCoreWeight = CORE_PILLARS.reduce((s, p) => s + PILLAR_WEIGHTS[p], 0);
+
+  const SH = ({ children }: { children: React.ReactNode }) => (
+    <h2 className="text-sm font-bold text-gray-900 mb-3 pb-2 border-b border-gray-200 uppercase tracking-wide">{children}</h2>
+  );
+  const SubH = ({ children }: { children: React.ReactNode }) => (
+    <h3 className="text-xs font-semibold text-gray-800 mt-5 mb-1.5">{children}</h3>
+  );
+  const P = ({ children }: { children: React.ReactNode }) => (
+    <p className="text-xs text-gray-600 leading-relaxed mb-2">{children}</p>
+  );
+
+  const PILLAR_DESCRIPTIONS: Record<string, string> = {
+    productive_capacity: 'The economic engine. Measures whether the country actually produces things — industrial output, exports, investment, and energy costs. A high score here means the economy has real throughput, not just financial activity.',
+    human_capital: 'The quality of the workforce. Education attainment, labor force participation, and health outcomes. Countries that invest in their people compound over decades; neglect here is hard to reverse.',
+    macro_sustainability: 'The guardrails. Inflation, government debt, and the current account balance. Strong growth built on unsustainable debt or chronic deficits is fragile. This pillar penalizes economies running hot but hollow.',
+    institutional: 'The rules of the game. Rule of law, control of corruption, and political stability. Institutional quality is the single biggest determinant of whether foreign capital stays — or flees at the first sign of stress.',
+    innovation: 'The edge. R&D spending, patent output, and IP receipts. This separates economies that improve productivity over time from those stuck on the same rung of the value chain.',
+  };
+
+  const OVERLAY_DESCRIPTION = 'Scored separately from core — not blended in. Measures how accessible the economy is to foreign capital: FDI inflows (institutional-grade confidence signal), listed market depth (market cap / GDP), and cross-border portfolio flows. A country can have strong fundamentals but a shallow or restricted market — the overlay captures that.';
+
+  const PILLAR_CAVEATS: Record<string, string> = {
+    productive_capacity: 'Manufacturing value-added is normalized per capita, so large economies don\'t dominate. Export concentration is not captured — a commodity-heavy export mix looks the same as a diversified one.',
+    human_capital: 'Tertiary enrollment has significant gaps for lower-income countries in the World Bank database. Pillar confidence will show as "partial data" for many emerging markets.',
+    macro_sustainability: 'Inflation and debt scores use momentum (year-over-year change) alongside levels, so a country rapidly improving from a bad position can score higher than a stagnant one at a moderate level.',
+    institutional: 'Political stability is given reduced weight (0.5) relative to corruption and rule of law because it is more volatile and subject to short-term noise. World Bank Governance Indicators are updated annually.',
+    innovation: 'IP receipts have a known distortion: Luxembourg, Ireland, and the Netherlands receive large IP royalty flows due to tax treaty routing, not genuine local IP creation. Interpret their Innovation pillar score with this in mind. Patent data similarly favors countries with strong domestic filing cultures (US, Japan, Korea).',
+  };
+
+  const SCORE_GUIDE = [
+    { range: '65–100', label: 'Above average', color: 'text-emerald-700', desc: 'Clear structural strength within this peer set.' },
+    { range: '50–65',  label: 'Solid',          color: 'text-green-600',   desc: 'Above median — no major structural concerns.' },
+    { range: '40–50',  label: 'Average',         color: 'text-yellow-700',  desc: 'In the middle of the pack. Watch for pillar-level gaps.' },
+    { range: '28–40',  label: 'Weak',            color: 'text-orange-600',  desc: 'Below average. Multiple structural weaknesses.' },
+    { range: '0–28',   label: 'Poor',            color: 'text-red-600',     desc: 'Significant systemic weakness across pillars.' },
+  ];
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-10 max-w-5xl">
+
+      {/* 1. What is this tool */}
+      <section>
+        <SH>What This Tool Is</SH>
+        <P>
+          The Country Macro Health Index scores <strong>{COUNTRIES.length} countries</strong> on their structural
+          economic fundamentals — the conditions that drive long-duration capital allocation rather than
+          short-term market moves. Think of it as a quantified first-pass screen: before sizing a
+          country allocation, you want to know whether the fundamentals support it.
+        </P>
+        <P>
+          All data comes from the <strong>World Bank Open Data API</strong> — public, auditable, and updated
+          annually. No black-box indices, no proprietary data. The tradeoff: annual publication with a
+          1–2 year lag. You are seeing structural trends, not current events.
+        </P>
+        <P>
+          Every score is <strong>peer-relative</strong>. A score of 50 means average within this {COUNTRIES.length}-country
+          peer set — not average globally. Adding or removing countries from the basket shifts all scores.
+          The Rankings tab shows the default basket; the Detail tab uses a broader analysis basket for
+          z-score comparisons.
+        </P>
+      </section>
+
+      {/* 2. How to read your scores */}
+      <section>
+        <SH>How to Read Your Scores</SH>
+
+        <SubH>Core Score (0–100)</SubH>
+        <P>Weighted average of the 5 structural pillars × 100. This is the headline number.</P>
+        <div className="overflow-x-auto border border-gray-200 rounded-xl mb-4">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-gray-50 text-[10px] text-gray-400 uppercase tracking-wide">
+                <th className="px-3 py-2 text-left font-semibold">Score range</th>
+                <th className="px-3 py-2 text-left font-semibold">Reading</th>
+                <th className="px-3 py-2 text-left font-semibold">What it means</th>
+              </tr>
+            </thead>
+            <tbody>
+              {SCORE_GUIDE.map(g => (
+                <tr key={g.range} className="border-t border-gray-50">
+                  <td className={`px-3 py-2 font-mono font-semibold ${g.color}`}>{g.range}</td>
+                  <td className={`px-3 py-2 font-medium ${g.color}`}>{g.label}</td>
+                  <td className="px-3 py-2 text-gray-600">{g.desc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <SubH>Market Monetization Overlay (0–100)</SubH>
+        <P>
+          Scored separately — not mixed into the core. Measures how accessible and deep the country&apos;s
+          financial markets are: FDI inflows, market cap relative to GDP, and cross-border portfolio flows.
+          A country can have excellent fundamentals but a shallow or restricted market (see: Vietnam,
+          Saudi Arabia). Look for the combination of high core + high overlay for the strongest conviction.
+        </P>
+
+        <SubH>Evidence Confidence (%)</SubH>
+        <P>
+          How much we trust the score, based on three factors: data completeness (how many variables
+          have actual values), year recency (how recent the underlying data is), and structural variable
+          availability (hardest-to-source indicators). A 90 score with 40% confidence should be
+          treated differently than one with 85% confidence.
+        </P>
+
+        <SubH>Year Spread</SubH>
+        <P>
+          Standard deviation of the observation years across core variables. A spread of 0 means all
+          data is from the same year — internally consistent. A spread of 2+ years means the score
+          is mixing data from different time periods, which can create distortions.
+        </P>
+      </section>
+
+      {/* 3. The 5 pillars */}
+      <section>
+        <SH>The 5 Core Pillars</SH>
+        <P>
+          Each pillar is a weighted average of its variables (only available data contributes).
+          Pillar scores are then combined into the core score using the weights below.
+        </P>
+        <div className="space-y-5 mt-3">
+          {CORE_PILLARS.map(p => {
+            const vars = VARIABLES.filter(v => v.pillar === p);
+            const totalWt = vars.reduce((s, v) => s + v.weight, 0);
+            const pctOfCore = (PILLAR_WEIGHTS[p] / totalCoreWeight * 100).toFixed(0);
+            return (
+              <div key={p} className="border border-gray-200 rounded-xl overflow-hidden">
+                <div className="px-4 py-3 bg-gray-50 flex items-start justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-base">{PILLAR_ICONS[p]}</span>
+                      <span className="font-semibold text-sm text-gray-900">{PILLAR_LABELS[p]}</span>
+                      <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-medium">{pctOfCore}% of core</span>
+                    </div>
+                    <p className="text-xs text-gray-600 leading-relaxed">{PILLAR_DESCRIPTIONS[p]}</p>
+                    {PILLAR_CAVEATS[p] && (
+                      <p className="text-[10px] text-amber-700 bg-amber-50 rounded px-2 py-1 mt-2">
+                        <strong>Note:</strong> {PILLAR_CAVEATS[p]}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="px-4 py-3">
+                  <div className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold mb-2">Variables in this pillar</div>
+                  <div className="space-y-2">
+                    {vars.map(v => (
+                      <div key={v.id} className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-[9px] font-bold text-gray-500 mt-0.5">
+                          {v.weight}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-medium text-gray-800">{v.label}</span>
+                            <span className={`text-[9px] px-1 py-0.5 rounded font-medium ${v.direction === 'up_good' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                              {v.direction === 'up_good' ? '↑ higher = better' : '↓ lower = better'}
+                            </span>
+                            {v.useChange && (
+                              <span className="text-[9px] bg-blue-50 text-blue-700 px-1 py-0.5 rounded">70% level + 30% trend</span>
+                            )}
+                            <span className="text-[9px] text-gray-400 font-mono">{(v.weight / totalWt * 100).toFixed(0)}% of pillar</span>
+                          </div>
+                          <p className="text-[11px] text-gray-500 leading-relaxed mt-0.5">{v.why}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Overlay */}
+        <div className="border border-gray-200 rounded-xl overflow-hidden mt-5">
+          <div className="px-4 py-3 bg-gray-50">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-base">{PILLAR_ICONS['overlay']}</span>
+              <span className="font-semibold text-sm text-gray-900">{PILLAR_LABELS['overlay']}</span>
+              <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium">separate from core</span>
+            </div>
+            <p className="text-xs text-gray-600 leading-relaxed">{OVERLAY_DESCRIPTION}</p>
+          </div>
+          <div className="px-4 py-3">
+            <div className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold mb-2">Overlay variables</div>
+            <div className="space-y-2">
+              {VARIABLES.filter(v => v.pillar === 'overlay').map(v => (
+                <div key={v.id} className="flex items-start gap-3">
+                  <div className="flex-1">
+                    <span className="text-xs font-medium text-gray-800">{v.label}</span>
+                    <p className="text-[11px] text-gray-500 leading-relaxed mt-0.5">{v.why}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. Classification archetypes */}
+      <section>
+        <SH>How to Interpret Archetypes</SH>
+        <P>
+          Each country is assigned an archetype — a shortcut that combines core score with pillar
+          patterns. These are not judgments; they are pattern labels. The same archetype can contain
+          high-opportunity and high-risk countries depending on the specific profile.
+        </P>
+        <div className="space-y-3">
+          {ARCHETYPE_DEFS.map(a => (
+            <div key={a.label} className="flex items-start gap-3 p-3 border border-gray-100 rounded-xl">
+              <span className={`text-[10px] px-2 py-1 rounded-full font-semibold whitespace-nowrap flex-shrink-0 mt-0.5 ${a.color} ${a.textColor}`}>
+                {a.label}
+              </span>
+              <div>
+                <p className="text-xs text-gray-700 leading-relaxed">{a.description}</p>
+                <p className="text-[10px] text-gray-400 font-mono mt-0.5">Triggers when: {a.criteria}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 5. What this doesn't capture */}
+      <section>
+        <SH>Key Limitations</SH>
+        <div className="space-y-3">
+          {[
+            {
+              title: 'Data lag',
+              body: `World Bank data is published 1–2 years after the reference year. The index reflects structural conditions as of roughly ${new Date().getFullYear() - 2}–${new Date().getFullYear() - 1}, not today's macro environment.`,
+            },
+            {
+              title: 'Peer-relative scoring',
+              body: `A score of 50 is average within this ${COUNTRIES.length}-country set. It has no meaning outside this basket. If you add or remove countries, all scores shift.`,
+            },
+            {
+              title: 'What it does not capture',
+              body: 'Geopolitical risk, sanctions exposure, currency regime and convertibility, market microstructure (liquidity, settlement), political transition risk, and sector-level dynamics.',
+            },
+            {
+              title: 'IP Receipts distortion',
+              body: 'Luxembourg, Ireland, and the Netherlands receive outsized IP royalty flows due to tax treaty routing — their Innovation pillar scores will appear elevated relative to genuine domestic IP creation.',
+            },
+            {
+              title: 'Portfolio inflows volatility',
+              body: 'A single exceptional year of inflows or outflows can materially swing a country\'s overlay score. Year-over-year smoothing would improve this; treat single-year extremes with skepticism.',
+            },
+            {
+              title: 'Not investment advice',
+              body: 'Backward-looking, based on published data, peer-relative, and subject to all the caveats above. Use as one input in a broader research process.',
+            },
+          ].map(item => (
+            <div key={item.title} className="border border-gray-100 rounded-xl p-3">
+              <div className="text-xs font-semibold text-gray-800 mb-0.5">{item.title}</div>
+              <p className="text-xs text-gray-600 leading-relaxed">{item.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 // ─── Methodology Panel ────────────────────────────────────────────────────────
 
 // ─── Methodology Tab ──────────────────────────────────────────────────────────
@@ -544,7 +810,7 @@ function SensitivityModesPanel({
 function MethodologyTab() {
   const coreVars = VARIABLES.filter(v => v.pillar !== 'overlay');
   const overlayVars = VARIABLES.filter(v => v.pillar === 'overlay');
-  const perCapitaIds = ['patent_applications', 'ip_receipts', 'listed_companies', 'portfolio_inflows'];
+  const perCapitaIds = ['patent_applications', 'ip_receipts', 'listed_companies', 'portfolio_inflows', 'manufacturing_va_per_capita'];
   const momentumVars = VARIABLES.filter(v => v.useChange);
   const downGoodVars = VARIABLES.filter(v => v.direction === 'down_good');
   const totalCoreWeight = CORE_PILLARS.reduce((s, p) => s + PILLAR_WEIGHTS[p], 0);
@@ -1020,7 +1286,7 @@ export default function CountryHealthPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'rankings' | 'detail' | 'methodology'>('rankings');
+  const [activeTab, setActiveTab] = useState<'rankings' | 'detail' | 'methodology' | 'instructions'>('rankings');
   const [sensitivityLoaded, setSensitivityLoaded] = useState(false);
 
   const load = useCallback(async (opts?: { sensitivity?: boolean }) => {
@@ -1099,7 +1365,7 @@ export default function CountryHealthPage() {
       {loading && (
         <div className="flex flex-col items-center justify-center py-24 gap-3">
           <Loader2 size={32} className="animate-spin text-gray-300" />
-          <p className="text-sm text-gray-400">Fetching World Bank data (18-country union for sensitivity)…</p>
+          <p className="text-sm text-gray-400">Fetching World Bank data ({COUNTRIES.length}-country universe…)</p>
           <p className="text-[10px] text-gray-300">~30 indicators × deep history — may take 25–40 seconds</p>
         </div>
       )}
@@ -1116,7 +1382,7 @@ export default function CountryHealthPage() {
         <>
           {/* Tab switcher */}
           <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
-            {(['rankings', 'detail', 'methodology'] as const).map(tab => (
+            {(['rankings', 'detail', 'methodology', 'instructions'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -1124,7 +1390,10 @@ export default function CountryHealthPage() {
                   activeTab === tab ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                {tab === 'rankings' ? '🌍 Rankings' : tab === 'detail' ? `🔍 ${selectedEntry?.meta.flag ?? ''} Detail` : '📄 Methodology'}
+                {tab === 'rankings' ? '🌍 Rankings'
+                  : tab === 'detail' ? `🔍 ${selectedEntry?.meta.flag ?? ''} Detail`
+                  : tab === 'methodology' ? '📄 Methodology'
+                  : '📖 Instructions'}
               </button>
             ))}
           </div>
@@ -1135,7 +1404,7 @@ export default function CountryHealthPage() {
               <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
                 <BarChart2 size={14} className="text-gray-400" />
                 <span className="text-sm font-semibold text-gray-700">Country Rankings</span>
-                <span className="text-[10px] text-gray-400 ml-1">10-country default basket · click a row to drill down</span>
+                <span className="text-[10px] text-gray-400 ml-1">{COUNTRIES.length} countries · click a row to drill down</span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
@@ -1235,6 +1504,9 @@ export default function CountryHealthPage() {
 
           {/* Methodology tab */}
           {activeTab === 'methodology' && <MethodologyTab />}
+
+          {/* Instructions tab */}
+          {activeTab === 'instructions' && <InstructionsTab />}
 
           {data.robustness && <RobustnessPanel robustness={data.robustness} />}
 

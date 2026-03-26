@@ -72,10 +72,10 @@ export function classify(
   // State-Capacity Powerhouse: strong capacity + innovation, but high institutional risk
   if ((prodScore >= HIGH || innovScore >= HIGH) && instScore < MED) {
     return {
-      label: 'State-Capacity Powerhouse',
+      label: 'Managed-Market Economy',
       color: 'bg-amber-100',
       textColor: 'text-amber-800',
-      description: 'Real economic and innovative strength, but elevated intervention risk limits investor trust.',
+      description: 'Real economic and innovative strength, but elevated state intervention risk limits investor trust.',
     };
   }
 
@@ -150,11 +150,11 @@ export const ARCHETYPE_DEFS: {
     description: 'Strong industrial and productive base. Innovation rising but institutions lag.',
   },
   {
-    label: 'State-Capacity Powerhouse',
+    label: 'Managed-Market Economy',
     color: 'bg-amber-100',
     textColor: 'text-amber-800',
     criteria: `(Productive Capacity ≥ ${HIGH} or Innovation ≥ ${HIGH}), Institutions < ${MED}`,
-    description: 'Real economic and innovative strength, but elevated intervention risk limits investor trust.',
+    description: 'Real economic and innovative strength, but elevated state intervention risk limits investor trust.',
   },
   {
     label: 'Fragile Growth Story',
