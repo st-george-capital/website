@@ -49,13 +49,21 @@ function calcZScore(dailyChanges: number[], window = 20): number | null {
   return (todayChange - mean) / std;
 }
 
+/**
+ * Yahoo Finance v8 chart — daily % change vs prior **session** close.
+ *
+ * Do NOT use `meta.chartPreviousClose` as a fallback for `previousClose`.
+ * `chartPreviousClose` is the anchor for the chart *range* (often ~1 month back),
+ * so (regularMarketPrice - chartPreviousClose) looks like a huge "daily" move and
+ * breaks z-scores vs real daily volatility.
+ */
 async function fetchYahoo(symbol: string) {
   try {
-    const url = `${YF_BASE}/${encodeURIComponent(symbol)}?interval=1d&range=1mo&includePrePost=false`;
+    const url = `${YF_BASE}/${encodeURIComponent(symbol)}?interval=1d&range=3mo&includePrePost=false`;
     const res = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; SGC-Newsletter/1.0)',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
     });
     if (!res.ok) {
@@ -67,29 +75,50 @@ async function fetchYahoo(symbol: string) {
     if (!result) return null;
 
     const meta = result.meta ?? {};
-    const closes: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
-    const validCloses = closes.filter((c): c is number => c !== null && !isNaN(c));
-    if (validCloses.length < 2) return null;
+    const quote = result.indicators?.quote?.[0];
+    const closes: (number | null)[] = quote?.close ?? [];
+    if (!closes.length) return null;
 
-    const latestClose: number = meta.regularMarketPrice ?? validCloses[validCloses.length - 1];
-    const prevClose: number = meta.previousClose ?? meta.chartPreviousClose ?? validCloses[validCloses.length - 2];
+    const validIdx: number[] = [];
+    for (let i = 0; i < closes.length; i++) {
+      const c = closes[i];
+      if (c != null && !isNaN(c)) validIdx.push(i);
+    }
+    if (validIdx.length < 2) return null;
 
-    const change = latestClose - prevClose;
+    const lastI = validIdx[validIdx.length - 1];
+    const prevI = validIdx[validIdx.length - 2];
+    const lastCloseBar = closes[lastI]!;
+    const prevBarClose = closes[prevI]!;
+
+    const live =
+      typeof meta.regularMarketPrice === 'number' && !isNaN(meta.regularMarketPrice)
+        ? meta.regularMarketPrice
+        : lastCloseBar;
+
+    let prevClose: number;
+    if (typeof meta.previousClose === 'number' && !isNaN(meta.previousClose)) {
+      prevClose = meta.previousClose;
+    } else {
+      prevClose = prevBarClose;
+    }
+
+    const price = live;
+    const change = price - prevClose;
     const changePercent = prevClose !== 0 ? (change / prevClose) * 100 : 0;
 
+    // Daily % history: consecutive closes, then today's move = same as display
     const dailyPcts: number[] = [];
-    for (let i = 1; i < validCloses.length; i++) {
-      const p = validCloses[i - 1];
-      const c = validCloses[i];
+    for (let j = 1; j < validIdx.length - 1; j++) {
+      const p = closes[validIdx[j - 1]]!;
+      const c = closes[validIdx[j]]!;
       if (p !== 0) dailyPcts.push(((c - p) / p) * 100);
     }
-    const lastHistorical = validCloses[validCloses.length - 1];
-    const todayPct = lastHistorical !== 0 ? ((latestClose - lastHistorical) / lastHistorical) * 100 : changePercent;
-    dailyPcts.push(todayPct);
+    dailyPcts.push(changePercent);
 
     const zScore = calcZScore(dailyPcts);
 
-    return { price: latestClose, change, changePercent, zScore };
+    return { price, change, changePercent, zScore };
   } catch (e) {
     console.error(`fetchYahoo(${symbol}):`, e);
     return null;
@@ -181,56 +210,53 @@ function spread(q: QuoteData) {
 }
 
 export async function GET() {
-  // Yahoo Finance: actual index values, no API key, run in parallel
   const yfResults = await Promise.allSettled([
-    fetchYahoo('^NDX'),       // NASDAQ 100
-    fetchYahoo('^DJI'),       // Dow Jones Industrial Average
-    fetchYahoo('^STOXX50E'),  // Euro Stoxx 50
-    fetchYahoo('^N225'),      // Nikkei 225
-    fetchYahoo('^HSI'),       // Hang Seng Index
-    fetchYahoo('EURUSD=X'),   // EUR / USD
-    fetchYahoo('GBPUSD=X'),   // GBP / USD
-    fetchYahoo('USDJPY=X'),   // USD / JPY
-    fetchYahoo('USDCAD=X'),   // USD / CAD
-    fetchYahoo('GC=F'),       // Gold futures
-    fetchYahoo('SI=F'),       // Silver futures
-    fetchYahoo('CL=F'),       // WTI Crude Oil futures
-    fetchYahoo('^VIX'),       // CBOE VIX
+    fetchYahoo('^NDX'),
+    fetchYahoo('^DJI'),
+    fetchYahoo('^STOXX50E'),
+    fetchYahoo('^N225'),
+    fetchYahoo('^HSI'),
+    fetchYahoo('EURUSD=X'),
+    fetchYahoo('GBPUSD=X'),
+    fetchYahoo('USDJPY=X'),
+    fetchYahoo('USDCAD=X'),
+    fetchYahoo('GC=F'),
+    fetchYahoo('SI=F'),
+    fetchYahoo('CL=F'),
+    fetchYahoo('^VIX'),
   ]);
 
-  const [ndx, dji, stoxx, nikkei, hsi, eurusd, gbpusd, usdjpy, usdcad,
-         gold, silver, oil, vix] = yfResults.map(r => r.status === 'fulfilled' ? r.value : null);
+  const [ndx, dji, stoxx, nikkei, hsi, eurusd, gbpusd, usdjpy, usdcad, gold, silver, oil, vix] =
+    yfResults.map(r => (r.status === 'fulfilled' ? r.value : null));
 
-  // Alpha Vantage: US treasury yields (dedicated endpoint)
-  const [us2y, us10y] = await sequential([
-    () => fetchTreasuryYield('2year'),
-    () => fetchTreasuryYield('10year'),
-  ], 550);
+  const [us2y, us10y] = await sequential(
+    [() => fetchTreasuryYield('2year'), () => fetchTreasuryYield('10year')],
+    550
+  );
 
-  // FRED: international bond yields
   const [de10y, jp10y] = await Promise.all([
     fetchFredYield('IRLTLT01DEM156N'),
     fetchFredYield('IRLTLT01JPM156N'),
   ]);
 
   const rows: MarketRow[] = [
-    { name: 'NASDAQ 100',     ticker: '^NDX',      ...spread(ndx),    category: 'equity',     group: 'equities' },
-    { name: 'Dow Jones',      ticker: '^DJI',      ...spread(dji),    category: 'equity',     group: 'equities' },
-    { name: 'Euro Stoxx 50',  ticker: '^STOXX50E', ...spread(stoxx),  category: 'equity',     group: 'equities' },
-    { name: 'Nikkei 225',     ticker: '^N225',     ...spread(nikkei), category: 'equity',     group: 'asia' },
-    { name: 'Hang Seng',      ticker: '^HSI',      ...spread(hsi),    category: 'equity',     group: 'asia' },
-    { name: 'EUR / USD',      ticker: 'EURUSD',    ...spread(eurusd), category: 'fx',         group: 'fx' },
-    { name: 'GBP / USD',      ticker: 'GBPUSD',    ...spread(gbpusd), category: 'fx',         group: 'fx' },
-    { name: 'USD / JPY',      ticker: 'USDJPY',    ...spread(usdjpy), category: 'fx',         group: 'fx' },
-    { name: 'USD / CAD',      ticker: 'USDCAD',    ...spread(usdcad), category: 'fx',         group: 'fx' },
-    { name: 'US 2Y Yield',    ticker: 'DGS2',      ...spread(us2y),   category: 'yield',      group: 'rates' },
-    { name: 'US 10Y Yield',   ticker: 'DGS10',     ...spread(us10y),  category: 'yield',      group: 'rates' },
-    { name: 'DE 10Y Bund',    ticker: 'DE10Y',     ...spread(de10y),  category: 'yield',      group: 'rates' },
-    { name: 'JP 10Y JGB',     ticker: 'JP10Y',     ...spread(jp10y),  category: 'yield',      group: 'rates' },
-    { name: 'Gold',           ticker: 'GC=F',      ...spread(gold),   category: 'commodity',  group: 'commodities' },
-    { name: 'Silver',         ticker: 'SI=F',      ...spread(silver), category: 'commodity',  group: 'commodities' },
-    { name: 'WTI Crude Oil',  ticker: 'CL=F',      ...spread(oil),    category: 'commodity',  group: 'commodities' },
-    { name: 'VIX',            ticker: '^VIX',      ...spread(vix),    category: 'volatility', group: 'commodities' },
+    { name: 'NASDAQ 100', ticker: '^NDX', ...spread(ndx), category: 'equity', group: 'equities' },
+    { name: 'Dow Jones', ticker: '^DJI', ...spread(dji), category: 'equity', group: 'equities' },
+    { name: 'Euro Stoxx 50', ticker: '^STOXX50E', ...spread(stoxx), category: 'equity', group: 'equities' },
+    { name: 'Nikkei 225', ticker: '^N225', ...spread(nikkei), category: 'equity', group: 'asia' },
+    { name: 'Hang Seng', ticker: '^HSI', ...spread(hsi), category: 'equity', group: 'asia' },
+    { name: 'EUR / USD', ticker: 'EURUSD', ...spread(eurusd), category: 'fx', group: 'fx' },
+    { name: 'GBP / USD', ticker: 'GBPUSD', ...spread(gbpusd), category: 'fx', group: 'fx' },
+    { name: 'USD / JPY', ticker: 'USDJPY', ...spread(usdjpy), category: 'fx', group: 'fx' },
+    { name: 'USD / CAD', ticker: 'USDCAD', ...spread(usdcad), category: 'fx', group: 'fx' },
+    { name: 'US 2Y Yield', ticker: 'DGS2', ...spread(us2y), category: 'yield', group: 'rates' },
+    { name: 'US 10Y Yield', ticker: 'DGS10', ...spread(us10y), category: 'yield', group: 'rates' },
+    { name: 'DE 10Y Bund', ticker: 'DE10Y', ...spread(de10y), category: 'yield', group: 'rates' },
+    { name: 'JP 10Y JGB', ticker: 'JP10Y', ...spread(jp10y), category: 'yield', group: 'rates' },
+    { name: 'Gold', ticker: 'GC=F', ...spread(gold), category: 'commodity', group: 'commodities' },
+    { name: 'Silver', ticker: 'SI=F', ...spread(silver), category: 'commodity', group: 'commodities' },
+    { name: 'WTI Crude Oil', ticker: 'CL=F', ...spread(oil), category: 'commodity', group: 'commodities' },
+    { name: 'VIX', ticker: '^VIX', ...spread(vix), category: 'volatility', group: 'commodities' },
   ];
 
   return NextResponse.json(rows);
