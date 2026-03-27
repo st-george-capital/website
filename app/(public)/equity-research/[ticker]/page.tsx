@@ -394,12 +394,16 @@ export default async function PublicResearchReportPage({
                   {catalystsNear.map((catalyst: any, index: number) => (
                     <div key={index} className="border rounded-lg p-4 bg-gray-50">
                       <div className="flex items-start justify-between mb-2">
-                        <div className="font-semibold text-gray-900">{catalyst.event}</div>
-                        <span className={`px-2 py-1 rounded text-xs font-semibold uppercase ${getProbabilityBadge(catalyst.probability)}`}>
+                        <div className="font-semibold text-gray-900 prose prose-sm max-w-none [&_p]:inline [&_p]:m-0">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{catalyst.event}</ReactMarkdown>
+                        </div>
+                        <span className={`px-2 py-1 rounded text-xs font-semibold uppercase flex-shrink-0 ml-2 ${getProbabilityBadge(catalyst.probability)}`}>
                           {catalyst.probability}
                         </span>
                       </div>
-                      <div className="text-sm text-gray-700">{catalyst.mechanism}</div>
+                      <div className="text-sm text-gray-700 prose prose-sm max-w-none">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{catalyst.mechanism}</ReactMarkdown>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -413,12 +417,16 @@ export default async function PublicResearchReportPage({
                   {catalystsMedium.map((catalyst: any, index: number) => (
                     <div key={index} className="border rounded-lg p-4 bg-gray-50">
                       <div className="flex items-start justify-between mb-2">
-                        <div className="font-semibold text-gray-900">{catalyst.event}</div>
-                        <span className={`px-2 py-1 rounded text-xs font-semibold uppercase ${getProbabilityBadge(catalyst.probability)}`}>
+                        <div className="font-semibold text-gray-900 prose prose-sm max-w-none [&_p]:inline [&_p]:m-0">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{catalyst.event}</ReactMarkdown>
+                        </div>
+                        <span className={`px-2 py-1 rounded text-xs font-semibold uppercase flex-shrink-0 ml-2 ${getProbabilityBadge(catalyst.probability)}`}>
                           {catalyst.probability}
                         </span>
                       </div>
-                      <div className="text-sm text-gray-700">{catalyst.mechanism}</div>
+                      <div className="text-sm text-gray-700 prose prose-sm max-w-none">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{catalyst.mechanism}</ReactMarkdown>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -496,15 +504,22 @@ export default async function PublicResearchReportPage({
               {risks.map((risk: any, index: number) => (
                 <div key={index} className="border border-red-200 rounded-lg p-4 bg-red-50">
                   <div className="flex items-start justify-between mb-2">
-                    <div className="font-semibold text-gray-900">{risk.title}</div>
-                    <span className={`px-2 py-1 rounded text-xs font-semibold uppercase ${getImpactBadge(risk.impact)}`}>
+                    <div className="font-semibold text-gray-900 prose prose-sm max-w-none [&_p]:inline [&_p]:m-0">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{risk.title}</ReactMarkdown>
+                    </div>
+                    <span className={`px-2 py-1 rounded text-xs font-semibold uppercase flex-shrink-0 ml-2 ${getImpactBadge(risk.impact)}`}>
                       {risk.impact} impact
                     </span>
                   </div>
-                  <div className="text-sm text-gray-700 mb-2">{risk.description}</div>
+                  <div className="text-sm text-gray-700 mb-2 prose prose-sm max-w-none">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{risk.description}</ReactMarkdown>
+                  </div>
                   {risk.mitigation && (
-                    <div className="text-sm text-gray-600 italic">
-                      <span className="font-medium">Mitigation:</span> {risk.mitigation}
+                    <div className="text-sm text-gray-600 prose prose-sm max-w-none">
+                      <span className="font-medium not-prose">Mitigation:</span>{' '}
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ p: ({ children }) => <span>{children}</span> }}>
+                        {risk.mitigation}
+                      </ReactMarkdown>
                     </div>
                   )}
                 </div>
