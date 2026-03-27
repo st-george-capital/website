@@ -222,7 +222,7 @@ export default async function PublicResearchReportPage({
                 </div>
               </div>
             )}
-            {(((report as any).priceHistory && (report as any).priceHistory.length > 0) || ((report.dcfInputs as any)?.priceHistory && (report.dcfInputs as any).priceHistory.length > 0) || (report as any).priceChartImageUrl) && (
+            {(report as any).showPriceChart !== false && (((report as any).priceHistory && (report as any).priceHistory.length > 0) || ((report.dcfInputs as any)?.priceHistory && (report.dcfInputs as any).priceHistory.length > 0) || (report as any).priceChartImageUrl) && (
               <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-5">
                 <h3 className="font-semibold text-lg text-gray-900 mb-3">Price Chart (100 Days)</h3>
                 {(report as any).priceChartImageUrl && !((report as any).priceHistory && (report as any).priceHistory.length > 0) ? (
