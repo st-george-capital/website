@@ -153,7 +153,7 @@ function exportToExcel(inputs: DCFInputs, outputs: DCFOutputs, financialData: Ex
     ['Terminal Value'],
     ['Terminal Growth Rate', (inputs.perpetualGrowth * 100).toFixed(2) + '%'],
     ['Terminal Value', outputs.terminalValue.toFixed(0)],
-    ['PV of Terminal Value', (outputs.terminalValue / Math.pow(1 + outputs.wacc, inputs.forecastYears)).toFixed(0)],
+    ['PV of Terminal Value', outputs.pvOfTerminalValue.toFixed(0)],
     ['Terminal Value % of EV', (outputs.terminalValueContribution * 100).toFixed(1) + '%']
   ];
   const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
@@ -395,7 +395,7 @@ function exportToCSV(inputs: DCFInputs, outputs: DCFOutputs) {
     ['Intrinsic Value per Share', outputs.intrinsicValuePerShare.toFixed(2), inputs.currency],
     ['Upside/Downside', (outputs.upsideDownside * 100).toFixed(1) + '%', ''],
     ['WACC', (outputs.wacc * 100).toFixed(2) + '%', ''],
-    ['Terminal Value (PV)', (outputs.terminalValue / Math.pow(1 + outputs.wacc, inputs.forecastYears)).toFixed(0), inputs.currency],
+    ['Terminal Value (PV)', outputs.pvOfTerminalValue.toFixed(0), inputs.currency],
     ['', '', ''],
     ['Cash Flow Projections', '', ''],
     ['Year', 'Revenue', 'EBIT', 'NOPAT', 'FCFF']
@@ -2767,7 +2767,7 @@ export default function DCFToolPage() {
                     </div>
                     <div className="text-sm text-gray-600 mb-2">Enterprise Value</div>
                     <div className="text-sm text-gray-500">
-                      Terminal: {((scenarioOutputs.terminalValue / scenarioOutputs.enterpriseValue) * 100).toFixed(1)}%
+                      Terminal: {((scenarioOutputs.pvOfTerminalValue / scenarioOutputs.enterpriseValue) * 100).toFixed(1)}%
                     </div>
                   </div>
 
@@ -3567,9 +3567,10 @@ function DCFQualityChecks({ inputs, outputs }: { inputs: DCFInputs; outputs: DCF
     });
   }
 
-  // Check 4: Extreme EV/EBITDA multiple
+  // Check 4: Extreme EV/EBITDA multiple — use terminal-year revenue for D&A approximation
   const lastEBIT = outputs.ebit[outputs.ebit.length - 1];
-  const approxEBITDA = lastEBIT + (inputs.startingRevenue * inputs.depreciationPercentOfRevenue); // Rough estimate
+  const terminalRevenue = outputs.revenues[outputs.revenues.length - 1];
+  const approxEBITDA = lastEBIT + (terminalRevenue * inputs.depreciationPercentOfRevenue);
   const evToEbitda = outputs.enterpriseValue / approxEBITDA;
   if (evToEbitda < 3 || evToEbitda > 25) {
     checks.push({
@@ -4377,7 +4378,7 @@ function SensitivityAnalysis({ inputs, outputs, financialData }: { inputs: DCFIn
                     </div>
                     <div className="text-sm text-gray-600 mb-2">Enterprise Value</div>
                     <div className="text-sm text-gray-500">
-                      Terminal: {((scenarioOutputs.terminalValue / scenarioOutputs.enterpriseValue) * 100).toFixed(1)}%
+                      Terminal: {((scenarioOutputs.pvOfTerminalValue / scenarioOutputs.enterpriseValue) * 100).toFixed(1)}%
                     </div>
                   </div>
 
@@ -4582,8 +4583,6 @@ function SensitivityAnalysis({ inputs, outputs, financialData }: { inputs: DCFIn
 
 // DCF Calculation Logic
 function calculateDCF(inputs: DCFInputs): DCFOutputs {
-  console.log('DCF Calculation Inputs:', inputs);
-
   const revenues: number[] = [];
   const ebit: number[] = [];
   const nopat: number[] = [];
@@ -4591,13 +4590,10 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
 
   // Calculate operating forecasts
   let revenue = inputs.startingRevenue;
-  console.log('Starting revenue:', revenue);
 
   for (let year = 0; year < inputs.forecastYears; year++) {
     revenue *= (1 + inputs.revenueGrowth[year]);
     revenues.push(revenue);
-
-    console.log(`Year ${year + 1} revenue:`, revenue);
 
     // EBIT calculation - use advanced mode if available, otherwise simple mode
     const ebitMargin = inputs.forecastMode === 'advanced' && inputs.ebitMarginAdvanced
@@ -4606,16 +4602,12 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
     const ebitValue = revenue * ebitMargin;
     ebit.push(ebitValue);
 
-    console.log(`Year ${year + 1} EBIT:`, ebitValue, 'margin:', ebitMargin);
-
     // Tax rate - use advanced mode if available, otherwise simple mode
     const taxRate = inputs.forecastMode === 'advanced' && inputs.cashTaxRateByYear
       ? inputs.cashTaxRateByYear[year]
       : inputs.cashTaxRate;
     const nopatValue = ebitValue * (1 - taxRate);
     nopat.push(nopatValue);
-
-    console.log(`Year ${year + 1} NOPAT:`, nopatValue, 'tax rate:', taxRate);
 
     // Working capital changes
     let nwcChange = 0;
@@ -4643,13 +4635,9 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
       ? inputs.capexByYear[year]
       : inputs.capexPercentOfRevenue);
 
-    console.log(`Year ${year + 1} - Dep:`, depreciation, 'Capex:', capex, 'NWC change:', nwcChange);
-
     // FCFF calculation
     const fcff = nopatValue + depreciation - capex - nwcChange;
     freeCashFlow.push(fcff);
-
-    console.log(`Year ${year + 1} FCFF:`, fcff);
   }
 
   // Calculate WACC
@@ -4657,27 +4645,22 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
   const afterTaxCostOfDebt = inputs.costOfDebt * (1 - inputs.taxRate);
   const wacc = costOfEquity * (1 - inputs.targetDebtRatio) + afterTaxCostOfDebt * inputs.targetDebtRatio;
 
-  console.log('WACC calculation:', {
-    costOfEquity,
-    afterTaxCostOfDebt,
-    targetDebtRatio: inputs.targetDebtRatio,
-    wacc
-  });
-
   // Calculate terminal value
   let terminalValue = 0;
   const lastFCFF = freeCashFlow[freeCashFlow.length - 1];
   const lastRevenue = revenues[revenues.length - 1];
   const lastEBIT = ebit[ebit.length - 1];
+  // Use terminal-year D&A rate (respects advanced mode)
+  const terminalDepRate = inputs.forecastMode === 'advanced' && inputs.depreciationByYear
+    ? inputs.depreciationByYear[inputs.depreciationByYear.length - 1]
+    : inputs.depreciationPercentOfRevenue;
 
   if (inputs.terminalMethod === 'perpetual') {
     terminalValue = lastFCFF * (1 + inputs.perpetualGrowth) / (wacc - inputs.perpetualGrowth);
   } else if (inputs.terminalMethod === 'multiple') {
     let exitMetric = 0;
     if (inputs.exitMultipleMetric === 'ebitda') {
-      // Approximate EBITDA as EBIT + Depreciation (rough estimate)
-      const approxDepreciation = lastRevenue * inputs.depreciationPercentOfRevenue;
-      exitMetric = lastEBIT + approxDepreciation;
+      exitMetric = lastEBIT + lastRevenue * terminalDepRate;
     } else if (inputs.exitMultipleMetric === 'ebit') {
       exitMetric = lastEBIT;
     } else {
@@ -4691,8 +4674,7 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
     // Multiple component
     let exitMetric = 0;
     if (inputs.exitMultipleMetric === 'ebitda') {
-      const approxDepreciation = lastRevenue * inputs.depreciationPercentOfRevenue;
-      exitMetric = lastEBIT + approxDepreciation;
+      exitMetric = lastEBIT + lastRevenue * terminalDepRate;
     } else if (inputs.exitMultipleMetric === 'ebit') {
       exitMetric = lastEBIT;
     } else {
@@ -4704,9 +4686,6 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
     terminalValue = (perpetualTV * inputs.terminalWeighting) + (multipleTV * (1 - inputs.terminalWeighting));
   }
 
-  console.log('Terminal value:', terminalValue);
-  console.log('Free cash flows:', freeCashFlow);
-
   // Calculate present values (with mid-year convention if enabled)
   let pvFcff = 0;
   for (let i = 0; i < freeCashFlow.length; i++) {
@@ -4715,8 +4694,6 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
   }
   const pvTerminal = terminalValue / Math.pow(1 + wacc, inputs.forecastYears);
 
-  console.log('Present values - PV FCF:', pvFcff, 'PV Terminal:', pvTerminal);
-
   // Calculate enterprise and equity value
   const enterpriseValue = pvFcff + pvTerminal;
   const netDebt = inputs.totalDebt - inputs.cashEquivalents;
@@ -4724,17 +4701,8 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
   const sharesDiluted = inputs.sharesDiluted || 100000000; // Default if not set
   const intrinsicValuePerShare = equityValue / sharesDiluted;
   const upsideDownside = inputs.currentPrice !== 0 ? (intrinsicValuePerShare - inputs.currentPrice) / inputs.currentPrice : 0;
-  const terminalValueContribution = enterpriseValue > 0 ? terminalValue / enterpriseValue : 0;
-
-  console.log('Final calculations:', {
-    enterpriseValue,
-    equityValue,
-    intrinsicValuePerShare,
-    sharesDiluted,
-    netDebt,
-    upsideDownside,
-    terminalValueContribution
-  });
+  // PV of terminal value as % of EV — the meaningful sensitivity indicator
+  const terminalValueContribution = enterpriseValue > 0 ? pvTerminal / enterpriseValue : 0;
 
   return {
     revenues,
