@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
 // Using native HTML form elements instead of custom UI components
@@ -2662,13 +2662,13 @@ export default function DCFToolPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Revenue Growth Adjustment (bps)</label>
-                  <input
-                    type="number"
-                    value={(customScenarioParams[selectedScenario].revenueGrowthAdj * 10000).toFixed(0)}
-                    onChange={(e) => setCustomScenarioParams(prev => ({
+                  <NumericInput
+                    value={customScenarioParams[selectedScenario].revenueGrowthAdj * 10000}
+                    onChange={(n) => setCustomScenarioParams(prev => ({
                       ...prev,
-                      [selectedScenario]: { ...prev[selectedScenario], revenueGrowthAdj: parseFloat(e.target.value) / 10000 }
+                      [selectedScenario]: { ...prev[selectedScenario], revenueGrowthAdj: n / 10000 }
                     }))}
+                    toDisplay={(n) => n.toFixed(0)}
                     className="w-full px-3 py-2 border rounded"
                   />
                   <div className="text-xs text-gray-500 mt-1">
@@ -2677,13 +2677,13 @@ export default function DCFToolPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Operating Margin Adjustment (bps)</label>
-                  <input
-                    type="number"
-                    value={(customScenarioParams[selectedScenario].marginAdj * 10000).toFixed(0)}
-                    onChange={(e) => setCustomScenarioParams(prev => ({
+                  <NumericInput
+                    value={customScenarioParams[selectedScenario].marginAdj * 10000}
+                    onChange={(n) => setCustomScenarioParams(prev => ({
                       ...prev,
-                      [selectedScenario]: { ...prev[selectedScenario], marginAdj: parseFloat(e.target.value) / 10000 }
+                      [selectedScenario]: { ...prev[selectedScenario], marginAdj: n / 10000 }
                     }))}
+                    toDisplay={(n) => n.toFixed(0)}
                     className="w-full px-3 py-2 border rounded"
                   />
                   <div className="text-xs text-gray-500 mt-1">
@@ -2692,13 +2692,13 @@ export default function DCFToolPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">WACC Adjustment (bps)</label>
-                  <input
-                    type="number"
-                    value={(customScenarioParams[selectedScenario].waccAdj * 10000).toFixed(0)}
-                    onChange={(e) => setCustomScenarioParams(prev => ({
+                  <NumericInput
+                    value={customScenarioParams[selectedScenario].waccAdj * 10000}
+                    onChange={(n) => setCustomScenarioParams(prev => ({
                       ...prev,
-                      [selectedScenario]: { ...prev[selectedScenario], waccAdj: parseFloat(e.target.value) / 10000 }
+                      [selectedScenario]: { ...prev[selectedScenario], waccAdj: n / 10000 }
                     }))}
+                    toDisplay={(n) => n.toFixed(0)}
                     className="w-full px-3 py-2 border rounded"
                   />
                   <div className="text-xs text-gray-500 mt-1">
@@ -2707,13 +2707,13 @@ export default function DCFToolPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Terminal Growth Adjustment (bps)</label>
-                  <input
-                    type="number"
-                    value={(customScenarioParams[selectedScenario].termGrowthAdj * 10000).toFixed(0)}
-                    onChange={(e) => setCustomScenarioParams(prev => ({
+                  <NumericInput
+                    value={customScenarioParams[selectedScenario].termGrowthAdj * 10000}
+                    onChange={(n) => setCustomScenarioParams(prev => ({
                       ...prev,
-                      [selectedScenario]: { ...prev[selectedScenario], termGrowthAdj: parseFloat(e.target.value) / 10000 }
+                      [selectedScenario]: { ...prev[selectedScenario], termGrowthAdj: n / 10000 }
                     }))}
+                    toDisplay={(n) => n.toFixed(0)}
                     className="w-full px-3 py-2 border rounded"
                   />
                   <div className="text-xs text-gray-500 mt-1">
@@ -2987,6 +2987,50 @@ export default function DCFToolPage() {
   );
 }
 
+// Numeric input that keeps a local string while the user is typing and only
+// commits the parsed number to global state on blur. Fixes the React controlled-
+// input problem where parseFloat+re-render eats decimal points mid-keystroke.
+function NumericInput({
+  value,
+  onChange,
+  toDisplay = (n: number) => String(n),
+  fromDisplay = (s: string) => { const n = parseFloat(s.replace(/[^0-9.-]/g, '')); return isNaN(n) ? 0 : n; },
+  className,
+  ...rest
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  toDisplay?: (n: number) => string;
+  fromDisplay?: (s: string) => number;
+  className?: string;
+  [k: string]: any;
+}) {
+  const [local, setLocal] = useState(() => toDisplay(value));
+  const focused = useRef(false);
+
+  useEffect(() => {
+    if (!focused.current) setLocal(toDisplay(value));
+  }, [value]);
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={local}
+      className={className}
+      onChange={(e) => setLocal(e.target.value)}
+      onFocus={(e) => { focused.current = true; e.target.select(); }}
+      onBlur={() => {
+        focused.current = false;
+        const parsed = fromDisplay(local);
+        onChange(parsed);
+        setLocal(toDisplay(parsed));
+      }}
+      {...rest}
+    />
+  );
+}
+
 // Input Forms Component
 function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
   inputs: DCFInputs;
@@ -3033,32 +3077,29 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Current Price ($)</label>
-              <input
-                type="number"
-                step="0.01"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              <NumericInput
                 value={inputs.currentPrice}
-                onChange={(e) => updateInput('currentPrice', parseFloat(e.target.value) || 0)}
+                onChange={(n) => updateInput('currentPrice', n)}
+                toDisplay={(n) => n.toFixed(2)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Shares Outstanding (M)</label>
-              <input
-                type="number"
-                step="0.001"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              <NumericInput
                 value={inputs.sharesOutstanding / 1000000}
-                onChange={(e) => updateInput('sharesOutstanding', (parseFloat(e.target.value) || 0) * 1000000)}
+                onChange={(n) => updateInput('sharesOutstanding', n * 1000000)}
+                toDisplay={(n) => n.toFixed(3)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Shares Diluted (M)</label>
-              <input
-                type="number"
-                step="0.001"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              <NumericInput
                 value={inputs.sharesDiluted / 1000000}
-                onChange={(e) => updateInput('sharesDiluted', (parseFloat(e.target.value) || 0) * 1000000)}
+                onChange={(n) => updateInput('sharesDiluted', n * 1000000)}
+                toDisplay={(n) => n.toFixed(3)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -3127,21 +3168,20 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Starting Revenue ($M)</label>
-              <input
-                type="number"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              <NumericInput
                 value={inputs.startingRevenue / 1000000}
-                onChange={(e) => updateInput('startingRevenue', (parseFloat(e.target.value) || 0) * 1000000)}
+                onChange={(n) => updateInput('startingRevenue', n * 1000000)}
+                toDisplay={(n) => n.toFixed(0)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Terminal Growth (%)</label>
-              <input
-                type="number"
-                step="0.01"
+              <NumericInput
+                value={inputs.perpetualGrowth * 100}
+                onChange={(n) => updateInput('perpetualGrowth', n / 100)}
+                toDisplay={(n) => n.toFixed(2)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={(inputs.perpetualGrowth * 100).toFixed(2)}
-                onChange={(e) => updateInput('perpetualGrowth', (parseFloat(e.target.value) || 0) / 100)}
               />
             </div>
           </div>
@@ -3152,32 +3192,21 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
               Revenue Growth Rate (%) {inputs.forecastMode === 'simple' ? '- Flat Rate' : '- By Year'}
             </label>
             {inputs.forecastMode === 'simple' ? (
-              <input
-                type="text"
-                inputMode="decimal"
+              <NumericInput
+                value={inputs.revenueGrowth[0] * 100}
+                onChange={(n) => updateInput('revenueGrowth', Array(inputs.forecastYears).fill(n / 100))}
+                toDisplay={(n) => n.toFixed(1)}
                 className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={(inputs.revenueGrowth[0] * 100).toFixed(1)}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/[^0-9.-]/g, '');
-                  const rate = (parseFloat(value) || 0) / 100;
-                  updateInput('revenueGrowth', Array(inputs.forecastYears).fill(rate));
-                }}
-                onFocus={(e) => e.target.select()}
               />
             ) : (
               <div className="grid grid-cols-5 gap-3">
                 {(inputs.revenueGrowth || Array(inputs.forecastYears).fill(0.05)).map((growth, index) => (
                   <div key={index} className="text-center">
-                    <input
-                      type="text"
-                      inputMode="decimal"
+                    <NumericInput
+                      value={growth * 100}
+                      onChange={(n) => updateArrayInput('revenueGrowth', index, n / 100)}
+                      toDisplay={(n) => n.toFixed(1)}
                       className="w-full px-3 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center"
-                      value={(growth * 100).toFixed(1)}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/[^0-9.-]/g, '');
-                        updateArrayInput('revenueGrowth', index, (parseFloat(value) || 0) / 100);
-                      }}
-                      onFocus={(e) => e.target.select()}
                     />
                     <div className="text-xs text-gray-500 mt-1 font-medium">Y{index + 1}</div>
                   </div>
@@ -3192,32 +3221,21 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
               EBIT Margin (%) {inputs.forecastMode === 'simple' ? '- Flat Rate' : '- By Year'}
             </label>
             {inputs.forecastMode === 'simple' ? (
-              <input
-                type="text"
-                inputMode="decimal"
+              <NumericInput
+                value={inputs.ebitMargin[0] * 100}
+                onChange={(n) => updateInput('ebitMargin', Array(inputs.forecastYears).fill(n / 100))}
+                toDisplay={(n) => n.toFixed(1)}
                 className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={(inputs.ebitMargin[0] * 100).toFixed(1)}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/[^0-9.-]/g, '');
-                  const margin = (parseFloat(value) || 0) / 100;
-                  updateInput('ebitMargin', Array(inputs.forecastYears).fill(margin));
-                }}
-                onFocus={(e) => e.target.select()}
               />
             ) : (
               <div className="grid grid-cols-5 gap-3">
                 {(inputs.ebitMargin || Array(inputs.forecastYears).fill(0.15)).map((margin, index) => (
                   <div key={index} className="text-center">
-                    <input
-                      type="text"
-                      inputMode="decimal"
+                    <NumericInput
+                      value={margin * 100}
+                      onChange={(n) => updateArrayInput('ebitMargin', index, n / 100)}
+                      toDisplay={(n) => n.toFixed(1)}
                       className="w-full px-3 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center"
-                      value={(margin * 100).toFixed(1)}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/[^0-9.-]/g, '');
-                        updateArrayInput('ebitMargin', index, (parseFloat(value) || 0) / 100);
-                      }}
-                      onFocus={(e) => e.target.select()}
                     />
                     <div className="text-xs text-gray-500 mt-1 font-medium">Y{index + 1}</div>
                   </div>
@@ -3230,22 +3248,20 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Capex (% of Revenue)</label>
-              <input
-                type="number"
-                step="0.1"
+              <NumericInput
+                value={inputs.capexPercentOfRevenue * 100}
+                onChange={(n) => updateInput('capexPercentOfRevenue', n / 100)}
+                toDisplay={(n) => n.toFixed(1)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={(inputs.capexPercentOfRevenue * 100).toFixed(1)}
-                onChange={(e) => updateInput('capexPercentOfRevenue', (parseFloat(e.target.value) || 0) / 100)}
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">D&A (% of Revenue)</label>
-              <input
-                type="number"
-                step="0.1"
+              <NumericInput
+                value={inputs.depreciationPercentOfRevenue * 100}
+                onChange={(n) => updateInput('depreciationPercentOfRevenue', n / 100)}
+                toDisplay={(n) => n.toFixed(1)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={(inputs.depreciationPercentOfRevenue * 100).toFixed(1)}
-                onChange={(e) => updateInput('depreciationPercentOfRevenue', (parseFloat(e.target.value) || 0) / 100)}
               />
             </div>
           </div>
@@ -3261,16 +3277,15 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
                 <div className="grid grid-cols-5 gap-2">
                   {(inputs.depreciationByYear || Array(inputs.forecastYears).fill(inputs.depreciationPercentOfRevenue)).map((dep, index) => (
                     <div key={index} className="text-center">
-                      <input
-                        type="number"
-                        step="0.01"
-                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        value={(dep * 100).toFixed(1)}
-                        onChange={(e) => {
+                      <NumericInput
+                        value={dep * 100}
+                        onChange={(n) => {
                           const newArray = [...(inputs.depreciationByYear || Array(inputs.forecastYears).fill(inputs.depreciationPercentOfRevenue))];
-                          newArray[index] = (parseFloat(e.target.value) || 0) / 100;
+                          newArray[index] = n / 100;
                           updateInput('depreciationByYear', newArray);
                         }}
+                        toDisplay={(n) => n.toFixed(1)}
+                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                       <div className="text-xs text-gray-500 mt-1">Y{index + 1}</div>
                     </div>
@@ -3308,31 +3323,21 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Risk-Free Rate (%)</label>
-              <input
-                type="text"
-                inputMode="decimal"
+              <NumericInput
+                value={inputs.riskFreeRate * 100}
+                onChange={(n) => updateInput('riskFreeRate', n / 100)}
+                toDisplay={(n) => n.toFixed(2)}
                 className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={(inputs.riskFreeRate * 100).toFixed(2)}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/[^0-9.-]/g, '');
-                  updateInput('riskFreeRate', (parseFloat(value) || 0) / 100);
-                }}
-                onFocus={(e) => e.target.select()}
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Equity Risk Premium (%)</label>
               <div className="flex items-center space-x-2">
-                <input
-                  type="text"
-                  inputMode="decimal"
+                <NumericInput
+                  value={inputs.equityRiskPremium * 100}
+                  onChange={(n) => updateInput('equityRiskPremium', n / 100)}
+                  toDisplay={(n) => n.toFixed(2)}
                   className="flex-1 px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={(inputs.equityRiskPremium * 100).toFixed(2)}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/[^0-9.-]/g, '');
-                    updateInput('equityRiskPremium', (parseFloat(value) || 0) / 100);
-                  }}
-                  onFocus={(e) => e.target.select()}
                 />
                 <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
                   Market: 6.0%
@@ -3344,16 +3349,11 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Beta</label>
-              <input
-                type="text"
-                inputMode="decimal"
+              <NumericInput
+                value={inputs.beta}
+                onChange={(n) => updateInput('beta', n)}
+                toDisplay={(n) => n.toFixed(2)}
                 className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={inputs.beta.toFixed(2)}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/[^0-9.-]/g, '');
-                  updateInput('beta', parseFloat(value) || 0);
-                }}
-                onFocus={(e) => e.target.select()}
               />
             </div>
           </div>
@@ -3361,44 +3361,29 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Cost of Debt (%)</label>
-              <input
-                type="text"
-                inputMode="decimal"
+              <NumericInput
+                value={inputs.costOfDebt * 100}
+                onChange={(n) => updateInput('costOfDebt', n / 100)}
+                toDisplay={(n) => n.toFixed(2)}
                 className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={(inputs.costOfDebt * 100).toFixed(2)}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/[^0-9.-]/g, '');
-                  updateInput('costOfDebt', (parseFloat(value) || 0) / 100);
-                }}
-                onFocus={(e) => e.target.select()}
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Tax Rate (%)</label>
-              <input
-                type="text"
-                inputMode="decimal"
+              <NumericInput
+                value={inputs.taxRate * 100}
+                onChange={(n) => updateInput('taxRate', n / 100)}
+                toDisplay={(n) => n.toFixed(2)}
                 className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={(inputs.taxRate * 100).toFixed(2)}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/[^0-9.-]/g, '');
-                  updateInput('taxRate', (parseFloat(value) || 0) / 100);
-                }}
-                onFocus={(e) => e.target.select()}
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Target Debt Ratio (%)</label>
-              <input
-                type="text"
-                inputMode="decimal"
+              <NumericInput
+                value={inputs.targetDebtRatio * 100}
+                onChange={(n) => updateInput('targetDebtRatio', n / 100)}
+                toDisplay={(n) => n.toFixed(2)}
                 className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={(inputs.targetDebtRatio * 100).toFixed(2)}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/[^0-9.-]/g, '');
-                  updateInput('targetDebtRatio', (parseFloat(value) || 0) / 100);
-                }}
-                onFocus={(e) => e.target.select()}
               />
             </div>
           </div>
