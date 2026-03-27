@@ -1027,7 +1027,7 @@ function calculatePricePerformance(priceData: Array<{ date: string; close: numbe
 export default function DCFToolPage() {
   const router = useRouter();
   const [inputs, setInputs] = useState<DCFInputs>(getDefaultInputs());
-  const [activeTab, setActiveTab] = useState<'snapshot' | 'assumptions' | 'valuation' | 'charts' | 'sensitivity' | 'financials'>('snapshot');
+  const [activeTab, setActiveTab] = useState<'snapshot' | 'assumptions' | 'valuation' | 'charts' | 'sensitivity' | 'financials' | 'final'>('snapshot');
   const [financialData, setFinancialData] = useState<ExtractedFinancials | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<CompanyOverview | null>(null);
   const [quote, setQuote] = useState<any>(null);
@@ -2173,6 +2173,7 @@ export default function DCFToolPage() {
               { id: 'charts' as const, label: 'Charts & Analysis' },
               { id: 'sensitivity' as const, label: 'Sensitivity Analysis' },
               { id: 'financials' as const, label: 'Financial Deep Dive' },
+              { id: 'final' as const, label: 'DCF Final' },
             ] as const).map((tab) => (
               <button
                 key={tab.id}
@@ -2508,6 +2509,8 @@ export default function DCFToolPage() {
               {activeTab === 'charts' && <DCFCharts inputs={inputs} outputs={outputs} />}
             </div>
           )}
+
+          {activeTab === 'final' && <DCFFinalPresentation inputs={inputs} outputs={outputs} />}
         </div>
       </div>
 
@@ -4562,6 +4565,428 @@ function SensitivityAnalysis({ inputs, outputs, financialData }: { inputs: DCFIn
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// ── DCF Final Presentation ────────────────────────────────────────────────────
+
+const WACC_DELTAS  = [-0.02, -0.015, -0.01, -0.005, 0, 0.005, 0.01, 0.015, 0.02] as const;
+const GROWTH_DELTAS = [-0.01, -0.0075, -0.005, -0.0025, 0, 0.0025, 0.005, 0.0075, 0.01] as const;
+const MULT_DELTAS   = [-4, -3, -2, -1, 0, 1, 2, 3, 4] as const;
+
+function fmtM(n: number | null | undefined, dec = 0): string {
+  if (n == null || isNaN(n as number)) return '—';
+  const m = (n as number) / 1_000_000;
+  return m.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+
+function fmtPctFinal(n: number | null | undefined, dec = 1): string {
+  if (n == null || isNaN(n as number)) return '—';
+  return ((n as number) * 100).toFixed(dec) + '%';
+}
+
+function heatCell(value: number, base: number): { bg: string; fg: string } {
+  if (!base || isNaN(value)) return { bg: '#F0F0F0', fg: '#888888' };
+  const t = Math.max(-1, Math.min(1, (value - base) / base / 0.3));
+  if (t >= 0) {
+    const r = Math.round(255 - 229 * t), g = Math.round(255 - 184 * t), b = Math.round(255 - 206 * t);
+    return { bg: `rgb(${r},${g},${b})`, fg: t > 0.55 ? '#FFFFFF' : '#1A4731' };
+  }
+  const s = -t;
+  const r = Math.round(255 - 132 * s), g = Math.round(255 - 229 * s), b = Math.round(255 - 208 * s);
+  return { bg: `rgb(${r},${g},${b})`, fg: s > 0.55 ? '#FFFFFF' : '#7B1A2F' };
+}
+
+function DCFFinalPresentation({ inputs, outputs }: { inputs: DCFInputs; outputs: DCFOutputs }) {
+  const NAVY    = '#1F3864';
+  const DKGREEN = '#1A4731';
+  const DKMAROON = '#7B1A2F';
+
+  const years = Array.from({ length: inputs.forecastYears }, (_, i) => i);
+
+  const depRateAt = (i: number) =>
+    inputs.forecastMode === 'advanced' && inputs.depreciationByYear?.[i] != null
+      ? inputs.depreciationByYear![i] : inputs.depreciationPercentOfRevenue;
+  const capRateAt = (i: number) =>
+    inputs.forecastMode === 'advanced' && inputs.capexByYear?.[i] != null
+      ? inputs.capexByYear![i] : inputs.capexPercentOfRevenue;
+
+  const dna    = years.map(i => outputs.revenues[i] * depRateAt(i));
+  const capex  = years.map(i => outputs.revenues[i] * capRateAt(i));
+  const nwcChg = years.map(i => outputs.nopat[i] + dna[i] - capex[i] - outputs.freeCashFlow[i]);
+  const ebitda = years.map(i => outputs.ebit[i] + dna[i]);
+  const taxes  = years.map(i => outputs.ebit[i] - outputs.nopat[i]);
+
+  const discFactor = (i: number) => {
+    const p = inputs.midYearConvention ? i + 0.5 : i + 1;
+    return 1 / Math.pow(1 + outputs.wacc, p);
+  };
+  const pvFcfYear = years.map(i => outputs.freeCashFlow[i] * discFactor(i));
+
+  const lastFCFF   = outputs.freeCashFlow[outputs.freeCashFlow.length - 1];
+  const lastEBITDA = ebitda[ebitda.length - 1];
+  const n          = inputs.forecastYears;
+
+  const tvPerp = outputs.wacc > inputs.perpetualGrowth
+    ? lastFCFF * (1 + inputs.perpetualGrowth) / (outputs.wacc - inputs.perpetualGrowth)
+    : 0;
+  const pvTvPerp = tvPerp / Math.pow(1 + outputs.wacc, n);
+  const tvMult   = lastEBITDA * inputs.exitMultiple;
+  const pvTvMult = tvMult  / Math.pow(1 + outputs.wacc, n);
+  const pvFcfTotal = outputs.pvOfFcff;
+
+  function bridgeEquity(pvTV: number) {
+    const ev = pvFcfTotal + pvTV;
+    return ev - inputs.totalDebt + inputs.cashEquivalents
+      - inputs.preferredEquity - inputs.minorityInterest + inputs.nonOperatingAssets;
+  }
+  const eqPerp    = bridgeEquity(pvTvPerp);
+  const eqMult    = bridgeEquity(pvTvMult);
+  const pricePerp = inputs.sharesDiluted > 0 ? eqPerp / inputs.sharesDiluted : 0;
+  const priceMult = inputs.sharesDiluted > 0 ? eqMult / inputs.sharesDiluted : 0;
+  const premPerp  = inputs.currentPrice > 0 ? pricePerp / inputs.currentPrice - 1 : 0;
+  const premMult  = inputs.currentPrice > 0 ? priceMult / inputs.currentPrice - 1 : 0;
+
+  // Sensitivity grids
+  const sensitivityData = useMemo(() => {
+    const { freeCashFlow: fcfs, wacc } = outputs;
+    const { forecastYears: fy, totalDebt: D, cashEquivalents: C, preferredEquity: P,
+            minorityInterest: M, nonOperatingAssets: NO, sharesDiluted: S,
+            midYearConvention: mid, perpetualGrowth: g0, exitMultiple: em0 } = inputs;
+
+    function price(adjWacc: number, adjTV: number): number {
+      const pv = fcfs.reduce((s, f, i) => s + f / Math.pow(1 + adjWacc, mid ? i + 0.5 : i + 1), 0);
+      const ev = pv + adjTV / Math.pow(1 + adjWacc, fy);
+      return S > 0 ? (ev - D + C - P - M + NO) / S : 0;
+    }
+
+    const perpGrid = WACC_DELTAS.map(wd => GROWTH_DELTAS.map(gd => {
+      const aw = wacc + wd, ag = g0 + gd;
+      return aw > ag ? price(aw, lastFCFF * (1 + ag) / (aw - ag)) : NaN;
+    }));
+    const multGrid = WACC_DELTAS.map(wd => MULT_DELTAS.map(md =>
+      price(wacc + wd, lastEBITDA * (em0 + md))
+    ));
+    return { perpGrid, multGrid };
+  }, [inputs, outputs, lastFCFF, lastEBITDA]);
+
+  const [exporting, setExporting] = useState(false);
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const res = await fetch('/api/dcf-export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inputs, outputs }),
+      });
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${inputs.ticker || 'DCF'}_Analysis_${new Date().toISOString().split('T')[0]}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { alert('Export failed. Please try again.'); }
+    setExporting(false);
+  };
+
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const p2 = (n: number) => n.toFixed(2);
+
+  const bridgeRows: Array<{ label: string; perp: string; mult: string; bold?: boolean; big?: boolean; perpClr?: string; multClr?: string }> = [
+    { label: 'PV of Unlevered FCFs',       perp: fmtM(pvFcfTotal),             mult: fmtM(pvFcfTotal) },
+    { label: '(+) PV of Terminal Value',   perp: fmtM(pvTvPerp),               mult: fmtM(pvTvMult) },
+    { label: '= Enterprise Value',         perp: fmtM(pvFcfTotal + pvTvPerp),  mult: fmtM(pvFcfTotal + pvTvMult), bold: true },
+    { label: '(–) Total Debt',             perp: `(${fmtM(inputs.totalDebt)})`, mult: `(${fmtM(inputs.totalDebt)})` },
+    { label: '(+) Cash & Equivalents',     perp: fmtM(inputs.cashEquivalents), mult: fmtM(inputs.cashEquivalents) },
+    ...(inputs.preferredEquity ? [{ label: '(–) Preferred Equity',    perp: `(${fmtM(inputs.preferredEquity)})`, mult: `(${fmtM(inputs.preferredEquity)})` }] : []),
+    ...(inputs.minorityInterest ? [{ label: '(–) Minority Interest',   perp: `(${fmtM(inputs.minorityInterest)})`, mult: `(${fmtM(inputs.minorityInterest)})` }] : []),
+    ...(inputs.nonOperatingAssets ? [{ label: '(+) Non-Operating Assets', perp: fmtM(inputs.nonOperatingAssets), mult: fmtM(inputs.nonOperatingAssets) }] : []),
+    { label: '= Implied Equity Value',     perp: fmtM(eqPerp),                 mult: fmtM(eqMult), bold: true },
+    { label: '÷ Diluted Shares (M)',       perp: (inputs.sharesDiluted / 1e6).toFixed(1), mult: (inputs.sharesDiluted / 1e6).toFixed(1) },
+    { label: 'Implied Share Price',        perp: `$${p2(pricePerp)}`,          mult: `$${p2(priceMult)}`, bold: true, big: true, perpClr: DKGREEN, multClr: DKMAROON },
+    { label: 'Current Share Price',        perp: inputs.currentPrice > 0 ? `$${p2(inputs.currentPrice)}` : '—', mult: inputs.currentPrice > 0 ? `$${p2(inputs.currentPrice)}` : '—' },
+    { label: 'Premium / (Discount)',       perp: inputs.currentPrice > 0 ? `${premPerp >= 0 ? '+' : ''}${fmtPctFinal(premPerp)}` : '—', mult: inputs.currentPrice > 0 ? `${premMult >= 0 ? '+' : ''}${fmtPctFinal(premMult)}` : '—', bold: true, perpClr: premPerp >= 0 ? DKGREEN : DKMAROON, multClr: premMult >= 0 ? DKGREEN : DKMAROON },
+    { label: 'Terminal Value % of EV',     perp: fmtPctFinal(pvTvPerp / (pvFcfTotal + pvTvPerp)), mult: fmtPctFinal(pvTvMult / (pvFcfTotal + pvTvMult)) },
+  ];
+
+  return (
+    <div className="bg-white border border-gray-300 rounded-lg overflow-hidden text-xs" style={{ fontFamily: '"Calibri", "Segoe UI", Arial, sans-serif' }}>
+
+      {/* Controls */}
+      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+        <span className="text-[11px] text-gray-500 font-medium">Discounted Cash Flow — Investment Bank Format</span>
+        <div className="flex gap-2">
+          <button onClick={() => window.print()} className="text-[11px] px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100 font-medium text-gray-600">Print / PDF</button>
+          <button onClick={handleExport} disabled={exporting} className="text-[11px] px-3 py-1.5 rounded font-semibold text-white disabled:opacity-60" style={{ backgroundColor: NAVY }}>
+            {exporting ? 'Exporting…' : '⬇ Export to Excel'}
+          </button>
+        </div>
+      </div>
+
+      {/* Title */}
+      <div className="px-6 py-5 text-white" style={{ backgroundColor: NAVY }}>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">
+              {inputs.companyName || 'Company'}{inputs.ticker ? ` (${inputs.ticker})` : ''}
+            </h1>
+            <h2 className="text-sm font-semibold text-white/70 mt-0.5">Discounted Cash Flow Analysis</h2>
+          </div>
+          <div className="text-right text-[11px] text-white/50">
+            <div>Amounts in {inputs.currency}M unless noted</div>
+            <div className="mt-0.5">{today}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Assumptions & Output ─────────────────────────────── */}
+      <table className="w-full border-collapse">
+        <tbody>
+          <tr><td colSpan={3} className="text-white text-[11px] font-bold uppercase tracking-wider py-2 px-3" style={{ backgroundColor: NAVY }}>DCF Assumptions &amp; Output</td></tr>
+          <tr className="align-top">
+            {/* Left: WACC Inputs */}
+            <td className="border border-gray-200 p-0 align-top w-[220px]">
+              <table className="w-full border-collapse text-[11px]">
+                <thead>
+                  <tr><td colSpan={2} className="py-1.5 px-3 text-white text-[10px] font-semibold" style={{ backgroundColor: DKGREEN }}>WACC &amp; Key Assumptions</td></tr>
+                </thead>
+                <tbody>
+                  {([
+                    ['Risk-Free Rate',       fmtPctFinal(inputs.riskFreeRate, 2)],
+                    ['Equity Risk Premium',  fmtPctFinal(inputs.equityRiskPremium, 2)],
+                    ['Beta',                 inputs.beta.toFixed(2) + 'x'],
+                    ['Cost of Equity',       fmtPctFinal(outputs.costOfEquity, 2)],
+                    ['Pre-Tax Cost of Debt', fmtPctFinal(inputs.costOfDebt, 2)],
+                    ['Tax Rate',             fmtPctFinal(inputs.taxRate, 1)],
+                    ['After-Tax Cost of Debt', fmtPctFinal(outputs.afterTaxCostOfDebt, 2)],
+                    ['Target Debt Ratio',    fmtPctFinal(inputs.targetDebtRatio, 1)],
+                  ] as [string,string][]).map(([label, val], i) => (
+                    <tr key={label} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="py-1 px-3 text-gray-700 border-b border-gray-100">{label}</td>
+                      <td className="py-1 px-3 text-right font-mono text-gray-800 border-b border-gray-100">{val}</td>
+                    </tr>
+                  ))}
+                  <tr style={{ backgroundColor: '#DBEAFF' }}>
+                    <td className="py-1.5 px-3 font-bold border-b border-gray-300">WACC</td>
+                    <td className="py-1.5 px-3 text-right font-mono font-bold border-b border-gray-300" style={{ color: DKGREEN }}>{fmtPctFinal(outputs.wacc, 2)}</td>
+                  </tr>
+                  <tr className="bg-gray-100">
+                    <td colSpan={2} className="py-1 px-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">Terminal Value</td>
+                  </tr>
+                  {([
+                    ['Perpetuity Growth Rate', fmtPctFinal(inputs.perpetualGrowth, 2)],
+                    ['Exit Multiple', `${inputs.exitMultiple.toFixed(1)}x ${inputs.exitMultipleMetric.toUpperCase()}`],
+                    ['Forecast Horizon', `${inputs.forecastYears} years`],
+                    ['Mid-Year Convention', inputs.midYearConvention ? 'Yes' : 'No'],
+                  ] as [string,string][]).map(([label, val], i) => (
+                    <tr key={label} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="py-1 px-3 text-gray-700 border-b border-gray-100">{label}</td>
+                      <td className="py-1 px-3 text-right font-mono text-gray-800 border-b border-gray-100">{val}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </td>
+
+            {/* Right: Bridge Methods */}
+            <td className="border border-gray-200 p-0 align-top" colSpan={2}>
+              <table className="w-full border-collapse text-[11px]">
+                <thead>
+                  <tr>
+                    <td className="py-1.5 px-3 text-[10px] text-gray-500 border-b border-r border-gray-200 bg-gray-50 w-[40%]">Bridge</td>
+                    <td className="py-1.5 px-3 font-bold text-center border-b border-r border-gray-200 text-white" style={{ backgroundColor: DKGREEN }}>Perpetuity Growth Method</td>
+                    <td className="py-1.5 px-3 font-bold text-center border-b border-gray-200 text-white" style={{ backgroundColor: DKMAROON }}>Exit Multiple Method</td>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bridgeRows.map((row, idx) => (
+                    <tr key={idx} className={row.big ? '' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} style={row.big ? { backgroundColor: '#DBEAFF' } : {}}>
+                      <td className={`py-1 px-3 border-b border-r border-gray-100 text-gray-700 ${row.bold ? 'font-bold' : ''}`}>{row.label}</td>
+                      <td className={`py-1 px-3 text-right font-mono border-b border-r border-gray-100 ${row.bold ? 'font-bold' : ''} ${row.big ? 'text-base' : ''}`} style={{ color: row.perpClr || '' }}>{row.perp}</td>
+                      <td className={`py-1 px-3 text-right font-mono border-b border-gray-100 ${row.bold ? 'font-bold' : ''} ${row.big ? 'text-base' : ''}`} style={{ color: row.multClr || '' }}>{row.mult}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* ── FCF Projections ──────────────────────────────────── */}
+      <div className="overflow-x-auto border-t-2 border-gray-400">
+        <table className="border-collapse" style={{ minWidth: '100%', tableLayout: 'fixed' }}>
+          <colgroup>
+            <col style={{ width: '210px' }} />
+            {years.map(i => <col key={i} style={{ width: `${Math.max(70, Math.min(110, 680 / inputs.forecastYears))}px` }} />)}
+          </colgroup>
+          <thead>
+            <tr>
+              <th colSpan={inputs.forecastYears + 1} className="text-left text-white text-[11px] font-bold uppercase tracking-wider py-2 px-3" style={{ backgroundColor: NAVY }}>
+                Unlevered Free Cash Flow Projections ({inputs.currency}M)
+              </th>
+            </tr>
+            <tr style={{ backgroundColor: NAVY }}>
+              <th className="py-1.5 px-3 text-left text-white/50 text-[10px] font-normal border-r border-white/20">{inputs.currency}M</th>
+              {years.map(i => <th key={i} className="py-1.5 px-2 text-right text-white text-[11px] font-bold border-r border-white/20">FY{i + 1}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {/* Revenue */}
+            <tr><td colSpan={inputs.forecastYears + 1} className="py-1 px-3 text-white text-[10px] font-semibold" style={{ backgroundColor: DKGREEN }}>Revenue</td></tr>
+            <tr className="bg-white">
+              <td className="py-1 px-3 font-semibold text-gray-800 border-b border-r border-gray-100">Revenue</td>
+              {years.map(i => <td key={i} className="py-1 px-2 text-right font-mono text-gray-800 border-b border-r border-gray-100">{fmtM(outputs.revenues[i])}</td>)}
+            </tr>
+            <tr className="bg-gray-50 italic text-gray-400">
+              <td className="py-0.5 px-3 border-b border-r border-gray-100 pl-6">% Growth</td>
+              {years.map(i => { const g = i === 0 ? outputs.revenues[0] / inputs.startingRevenue - 1 : outputs.revenues[i] / outputs.revenues[i-1] - 1; return <td key={i} className="py-0.5 px-2 text-right font-mono border-b border-r border-gray-100">{fmtPctFinal(g)}</td>; })}
+            </tr>
+            {/* EBIT */}
+            <tr><td colSpan={inputs.forecastYears + 1} className="py-1 px-3 text-white text-[10px] font-semibold" style={{ backgroundColor: DKGREEN }}>Earnings Before Interest &amp; Taxes (EBIT)</td></tr>
+            <tr className="bg-white">
+              <td className="py-1 px-3 font-semibold text-gray-800 border-b border-r border-gray-100">EBIT</td>
+              {years.map(i => <td key={i} className="py-1 px-2 text-right font-mono text-gray-800 border-b border-r border-gray-100">{fmtM(outputs.ebit[i])}</td>)}
+            </tr>
+            <tr className="bg-gray-50 italic text-gray-400">
+              <td className="py-0.5 px-3 border-b border-r border-gray-100 pl-6">% EBIT Margin</td>
+              {years.map(i => <td key={i} className="py-0.5 px-2 text-right font-mono border-b border-r border-gray-100">{fmtPctFinal(outputs.ebit[i] / outputs.revenues[i])}</td>)}
+            </tr>
+            <tr className="bg-white text-gray-700">
+              <td className="py-1 px-3 border-b border-r border-gray-100 pl-5">(–) Income Taxes</td>
+              {years.map(i => <td key={i} className="py-1 px-2 text-right font-mono border-b border-r border-gray-100">({fmtM(taxes[i])})</td>)}
+            </tr>
+            <tr style={{ backgroundColor: '#DBEAFF' }}>
+              <td className="py-1.5 px-3 font-bold border-b border-t border-r border-gray-300">= NOPAT</td>
+              {years.map(i => <td key={i} className="py-1.5 px-2 text-right font-mono font-bold border-b border-t border-r border-gray-300">{fmtM(outputs.nopat[i])}</td>)}
+            </tr>
+            {/* D&A */}
+            <tr><td colSpan={inputs.forecastYears + 1} className="py-1 px-3 text-white text-[10px] font-semibold italic" style={{ backgroundColor: DKMAROON }}>Adjustments for Non-Cash Charges</td></tr>
+            <tr className="bg-white text-gray-700">
+              <td className="py-1 px-3 border-b border-r border-gray-100 pl-5">(+) Depreciation &amp; Amortization</td>
+              {years.map(i => <td key={i} className="py-1 px-2 text-right font-mono border-b border-r border-gray-100">{fmtM(dna[i])}</td>)}
+            </tr>
+            <tr className="bg-gray-50 italic text-gray-400">
+              <td className="py-0.5 px-3 border-b border-r border-gray-100 pl-8">% Revenue</td>
+              {years.map(i => <td key={i} className="py-0.5 px-2 text-right font-mono border-b border-r border-gray-100">{fmtPctFinal(dna[i] / outputs.revenues[i])}</td>)}
+            </tr>
+            {/* NWC */}
+            <tr><td colSpan={inputs.forecastYears + 1} className="py-1 px-3 text-white text-[10px] font-semibold italic" style={{ backgroundColor: DKMAROON }}>Changes in Net Working Capital</td></tr>
+            <tr className="bg-white text-gray-700">
+              <td className="py-1 px-3 border-b border-r border-gray-100 pl-5">(–) Increase in Net Working Capital</td>
+              {years.map(i => <td key={i} className="py-1 px-2 text-right font-mono border-b border-r border-gray-100">({fmtM(nwcChg[i])})</td>)}
+            </tr>
+            <tr className="bg-gray-50 italic text-gray-400">
+              <td className="py-0.5 px-3 border-b border-r border-gray-100 pl-8">% Δ Revenue</td>
+              {years.map(i => { const dR = i === 0 ? outputs.revenues[0] - inputs.startingRevenue : outputs.revenues[i] - outputs.revenues[i-1]; return <td key={i} className="py-0.5 px-2 text-right font-mono border-b border-r border-gray-100">{dR ? fmtPctFinal(nwcChg[i] / dR) : '—'}</td>; })}
+            </tr>
+            {/* Capex */}
+            <tr><td colSpan={inputs.forecastYears + 1} className="py-1 px-3 text-white text-[10px] font-semibold italic" style={{ backgroundColor: DKMAROON }}>Capital Expenditures</td></tr>
+            <tr className="bg-white text-gray-700">
+              <td className="py-1 px-3 border-b border-r border-gray-100 pl-5">(–) Capital Expenditures</td>
+              {years.map(i => <td key={i} className="py-1 px-2 text-right font-mono border-b border-r border-gray-100">({fmtM(capex[i])})</td>)}
+            </tr>
+            <tr className="bg-gray-50 italic text-gray-400">
+              <td className="py-0.5 px-3 border-b border-r border-gray-100 pl-8">% Revenue</td>
+              {years.map(i => <td key={i} className="py-0.5 px-2 text-right font-mono border-b border-r border-gray-100">{fmtPctFinal(capex[i] / outputs.revenues[i])}</td>)}
+            </tr>
+            {/* FCFF */}
+            <tr style={{ backgroundColor: NAVY }}>
+              <td className="py-2 px-3 text-white font-bold border-r border-white/20">= Unlevered Free Cash Flow (FCFF)</td>
+              {years.map(i => <td key={i} className="py-2 px-2 text-right font-mono font-bold text-white border-r border-white/20">{fmtM(outputs.freeCashFlow[i])}</td>)}
+            </tr>
+            <tr className="bg-gray-50 italic text-gray-400">
+              <td className="py-0.5 px-3 border-b border-r border-gray-100 pl-6">% Growth</td>
+              {years.map(i => { const g = i === 0 ? null : outputs.freeCashFlow[i] / outputs.freeCashFlow[i-1] - 1; return <td key={i} className="py-0.5 px-2 text-right font-mono border-b border-r border-gray-100">{g != null ? fmtPctFinal(g) : '—'}</td>; })}
+            </tr>
+            {/* Discount rows */}
+            <tr className="bg-white text-gray-600">
+              <td className="py-1 px-3 border-b border-r border-gray-100 pl-5">Period</td>
+              {years.map(i => <td key={i} className="py-1 px-2 text-right font-mono border-b border-r border-gray-100">{inputs.midYearConvention ? (i + 0.5).toFixed(1) : (i + 1)}</td>)}
+            </tr>
+            <tr className="bg-gray-50 text-gray-600">
+              <td className="py-1 px-3 border-b border-r border-gray-100 pl-5">Discount Factor</td>
+              {years.map(i => <td key={i} className="py-1 px-2 text-right font-mono border-b border-r border-gray-100">{discFactor(i).toFixed(4)}</td>)}
+            </tr>
+            <tr style={{ backgroundColor: '#DBEAFF' }}>
+              <td className="py-1.5 px-3 font-bold border-b border-t border-r border-gray-300 pl-5">PV of Unlevered FCF</td>
+              {years.map(i => <td key={i} className="py-1.5 px-2 text-right font-mono font-bold border-b border-t border-r border-gray-300" style={{ color: DKGREEN }}>{fmtM(pvFcfYear[i])}</td>)}
+            </tr>
+            {/* EBITDA */}
+            <tr><td colSpan={inputs.forecastYears + 1} className="py-1 px-3 text-white text-[10px] font-semibold" style={{ backgroundColor: DKGREEN }}>EBITDA</td></tr>
+            <tr className="bg-white">
+              <td className="py-1 px-3 font-semibold text-gray-800 border-b border-r border-gray-100">EBITDA</td>
+              {years.map(i => <td key={i} className="py-1 px-2 text-right font-mono text-gray-800 border-b border-r border-gray-100">{fmtM(ebitda[i])}</td>)}
+            </tr>
+            <tr className="bg-gray-50 italic text-gray-400">
+              <td className="py-0.5 px-3 border-b border-r border-gray-100 pl-6">% EBITDA Margin</td>
+              {years.map(i => <td key={i} className="py-0.5 px-2 text-right font-mono border-b border-r border-gray-100">{fmtPctFinal(ebitda[i] / outputs.revenues[i])}</td>)}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {/* ── Sensitivity Tables ───────────────────────────────── */}
+      <div className="grid grid-cols-2 border-t-2 border-gray-400">
+        {/* Perpetuity Growth */}
+        <div className="border-r border-gray-300 overflow-x-auto">
+          <table className="border-collapse w-full text-[10px]">
+            <thead>
+              <tr><th colSpan={GROWTH_DELTAS.length + 1} className="text-left text-white text-[11px] font-bold py-2 px-3" style={{ backgroundColor: NAVY }}>Sensitivity — Perpetuity Growth Method (Implied Share Price)</th></tr>
+              <tr style={{ backgroundColor: DKGREEN }}>
+                <th className="py-1.5 px-2 text-white font-semibold text-left text-[10px]">WACC \ g</th>
+                {GROWTH_DELTAS.map((gd, j) => <th key={j} className="py-1.5 px-2 text-right text-white font-semibold">{fmtPctFinal(inputs.perpetualGrowth + gd, 2)}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {WACC_DELTAS.map((wd, i) => (
+                <tr key={i}>
+                  <td className="py-1 px-2 font-semibold text-white" style={{ backgroundColor: DKGREEN }}>{fmtPctFinal(outputs.wacc + wd, 2)}</td>
+                  {GROWTH_DELTAS.map((_, j) => {
+                    const v = sensitivityData.perpGrid[i]?.[j] ?? NaN;
+                    const { bg, fg } = heatCell(v, inputs.currentPrice || pricePerp);
+                    const isBase = i === 4 && j === 4;
+                    return <td key={j} className={`py-1 px-2 text-right font-mono ${isBase ? 'outline outline-2 outline-black font-bold' : ''}`} style={{ backgroundColor: bg, color: fg }}>{isNaN(v) ? '—' : `$${v.toFixed(2)}`}</td>;
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {/* Exit Multiple */}
+        <div className="overflow-x-auto">
+          <table className="border-collapse w-full text-[10px]">
+            <thead>
+              <tr><th colSpan={MULT_DELTAS.length + 1} className="text-left text-white text-[11px] font-bold py-2 px-3" style={{ backgroundColor: NAVY }}>Sensitivity — Exit Multiple Method (Implied Share Price)</th></tr>
+              <tr style={{ backgroundColor: DKMAROON }}>
+                <th className="py-1.5 px-2 text-white font-semibold text-left text-[10px]">WACC \ EV/EBITDA</th>
+                {MULT_DELTAS.map((md, j) => <th key={j} className="py-1.5 px-2 text-right text-white font-semibold">{(inputs.exitMultiple + md).toFixed(1)}x</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {WACC_DELTAS.map((wd, i) => (
+                <tr key={i}>
+                  <td className="py-1 px-2 font-semibold text-white" style={{ backgroundColor: DKMAROON }}>{fmtPctFinal(outputs.wacc + wd, 2)}</td>
+                  {MULT_DELTAS.map((_, j) => {
+                    const v = sensitivityData.multGrid[i]?.[j] ?? NaN;
+                    const { bg, fg } = heatCell(v, inputs.currentPrice || priceMult);
+                    const isBase = i === 4 && j === 4;
+                    return <td key={j} className={`py-1 px-2 text-right font-mono ${isBase ? 'outline outline-2 outline-black font-bold' : ''}`} style={{ backgroundColor: bg, color: fg }}>{isNaN(v) ? '—' : `$${v.toFixed(2)}`}</td>;
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Footer disclaimer */}
+      <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 text-[10px] text-gray-400">
+        <strong className="text-gray-500">Disclaimer:</strong> For educational and research purposes only. Not investment advice. Actual results may differ materially.
+      </div>
     </div>
   );
 }
