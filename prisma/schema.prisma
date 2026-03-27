@@ -270,6 +270,7 @@ model EquityResearchReport {
   forwardPEConsensus    Float?   // From API (analyst consensus)
   dividendYield         Float?   // From API (as percentage, e.g. 2.5 for 2.5%)
   priceChartImageUrl    String?  // Custom uploaded chart image URL (fallback if priceHistory unavailable)
+  showPriceChart        Boolean  @default(true) // Whether to include the price chart in the published report
   priceHistory          Json?   // [{ date, close }] for chart (from DCF/API)
   
   // Report Status & Collaboration
