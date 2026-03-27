@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
+import { getApiTicker } from '@/lib/exchange';
 
 // Force dynamic rendering to prevent static generation issues
 export const dynamic = 'force-dynamic';
@@ -45,11 +46,18 @@ export async function POST(request: NextRequest) {
       strategyTag,
       notes,
       visible,
+      exchange,
     } = body;
+
+    const cleanTicker = ticker.toUpperCase().replace(/\.(TRT|TRV|LON)$/, '');
+    const exc = exchange || 'US';
+    const apiTicker = getApiTicker(cleanTicker, exc);
 
     const holding = await prisma.holding.create({
       data: {
-        ticker,
+        ticker: cleanTicker,
+        apiTicker: exc !== 'US' ? apiTicker : null,
+        exchange: exc,
         assetType,
         quantity: parseFloat(quantity),
         costBasis: costBasis ? parseFloat(costBasis) : null,

@@ -29,6 +29,7 @@ NEXTAUTH_SECRET="your-generated-secret-here"
 
 # Market Data (Optional - for real-time pricing)
 POLYGON_API_KEY="your-polygon-api-key"
+ALPHA_VANTAGE_API_KEY=api_key
 ```
 
 ## 3. Set Up Database

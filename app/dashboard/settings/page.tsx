@@ -16,6 +16,9 @@ export default function SettingsPage() {
     foundedYear: '2023',
     memberCount: '80+',
     projectCount: '50+',
+    initialCash: '100000',
+    riskFreeRate: '0.045',
+    benchmarkTicker: 'SPY',
   });
 
   const isAdmin = session?.user?.role === 'admin';
@@ -42,6 +45,9 @@ export default function SettingsPage() {
           foundedYear: data.foundedYear || '2023',
           memberCount: data.memberCount || '80+',
           projectCount: data.projectCount || '50+',
+          initialCash: data.initialCash || '100000',
+          riskFreeRate: data.riskFreeRate || '0.045',
+          benchmarkTicker: data.benchmarkTicker || 'SPY',
         });
       }
     } catch (error) {
@@ -53,28 +59,15 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       // Save each setting
-      await Promise.all([
-        fetch('/api/settings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: 'charityTotal', value: settings.charityTotal }),
-        }),
-        fetch('/api/settings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: 'foundedYear', value: settings.foundedYear }),
-        }),
-        fetch('/api/settings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: 'memberCount', value: settings.memberCount }),
-        }),
-        fetch('/api/settings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: 'projectCount', value: settings.projectCount }),
-        }),
-      ]);
+      await Promise.all(
+        Object.entries(settings).map(([key, value]) =>
+          fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key, value }),
+          })
+        )
+      );
 
       alert('Settings saved successfully!');
     } catch (error) {
@@ -189,6 +182,77 @@ export default function SettingsPage() {
               >
                 <Save className="w-4 h-4 mr-2" />
                 {saving ? 'Saving...' : 'Save Settings'}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Portfolio Configuration */}
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle>Portfolio Configuration</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Initial Cash Balance ($)
+              </label>
+              <input
+                type="number"
+                step="1000"
+                value={settings.initialCash}
+                onChange={(e) => setSettings({ ...settings, initialCash: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="100000"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Starting cash balance for the portfolio simulation (default: $100,000)
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Risk-Free Rate (annual, decimal)
+              </label>
+              <input
+                type="number"
+                step="0.001"
+                value={settings.riskFreeRate}
+                onChange={(e) => setSettings({ ...settings, riskFreeRate: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="0.045"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Used for Sharpe ratio calculation (e.g., 0.045 = 4.5%)
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Benchmark Ticker
+              </label>
+              <input
+                type="text"
+                value={settings.benchmarkTicker}
+                onChange={(e) => setSettings({ ...settings, benchmarkTicker: e.target.value.toUpperCase() })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="SPY"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Benchmark ticker for comparison chart (default: SPY)
+              </p>
+            </div>
+
+            <div className="pt-4">
+              <Button
+                onClick={handleSave}
+                disabled={saving}
+                className="w-full"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                {saving ? 'Saving...' : 'Save All Settings'}
               </Button>
             </div>
           </div>
