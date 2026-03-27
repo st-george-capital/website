@@ -370,6 +370,41 @@ export default async function PublicResearchReportPage({
         {/* Industry Analysis */}
         <div className="bg-white rounded-2xl p-8 space-y-6">
           <h2 className="text-3xl font-bold text-gray-900">Industry & Competitive Landscape</h2>
+
+          {/* Comps table */}
+          {(report.competitivePosition as any)?.rows?.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">Comparable Companies</h3>
+              <div className="overflow-x-auto rounded-xl border border-gray-200">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      {['Company','Mkt Cap','EV/Rev','EV/EBITDA','P/E','Fwd P/E','P/S','Rev Growth','EBITDA Margin','Beta'].map(h => (
+                        <th key={h} className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {((report.competitivePosition as any).rows as any[]).map((row: any, i: number) => (
+                      <tr key={row.ticker} className={`border-b border-gray-100 ${row.isSubject ? 'bg-blue-50 font-semibold text-blue-900' : i % 2 === 0 ? '' : 'bg-gray-50/40'}`}>
+                        <td className="px-3 py-2.5">{row.name}<br/><span className="text-gray-400 font-mono text-[10px]">{row.ticker}</span></td>
+                        <td className="px-3 py-2.5">{row.marketCap != null ? (row.marketCap >= 1000 ? `$${(row.marketCap/1000).toFixed(1)}B` : `$${row.marketCap.toFixed(0)}M`) : '—'}</td>
+                        <td className="px-3 py-2.5">{row.evToRevenue != null ? `${row.evToRevenue.toFixed(1)}x` : '—'}</td>
+                        <td className="px-3 py-2.5">{row.evToEBITDA != null ? `${row.evToEBITDA.toFixed(1)}x` : '—'}</td>
+                        <td className="px-3 py-2.5">{row.peTrailing != null ? `${row.peTrailing.toFixed(1)}x` : '—'}</td>
+                        <td className="px-3 py-2.5">{row.peForward != null ? `${row.peForward.toFixed(1)}x` : '—'}</td>
+                        <td className="px-3 py-2.5">{row.priceToSales != null ? `${row.priceToSales.toFixed(1)}x` : '—'}</td>
+                        <td className="px-3 py-2.5">{row.revenueGrowthYoY != null ? `${(row.revenueGrowthYoY*100).toFixed(1)}%` : '—'}</td>
+                        <td className="px-3 py-2.5">{row.ebitdaMargin != null ? `${(row.ebitdaMargin*100).toFixed(1)}%` : '—'}</td>
+                        <td className="px-3 py-2.5">{row.beta != null ? row.beta.toFixed(2) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           <div className="prose max-w-none text-gray-700
             [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
             [&_th]:bg-gray-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold

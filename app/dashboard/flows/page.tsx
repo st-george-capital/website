@@ -194,12 +194,13 @@ interface StructureMetric {
 }
 
 function interpretBreadth(pct: number | null, total: number): StructureMetric {
-  const label = 'Market Breadth';
-  const tooltip = '% of tracked ETFs closed up 1D. >65% = broad rally. <35% = broad sell-off. Market up but breadth <40% = narrow move, few names carrying — fragile.';
+  const label = 'Equity Breadth';
+  const tooltip = `How many of the ${total} equity ETFs (US, Europe, Asia, LatAm, Sectors) closed positive today. This isn't about whether the market is up or down — it's about whether the move is widespread or isolated. The dangerous case: SPY is up but breadth is low, meaning 2–3 mega-caps (e.g. Nvidia) are carrying the index while everything else quietly falls.`;
   if (pct === null) return { label, value: '—', subtext: 'no data', color: 'text-gray-300', tooltip };
   const color = pct > 65 ? 'text-emerald-600' : pct > 50 ? 'text-emerald-500' : pct > 35 ? 'text-yellow-600' : 'text-red-500';
-  const subtext = pct > 65 ? `Wide participation (${total} ETFs)` : pct > 50 ? `Majority up (${total} ETFs)` : pct > 35 ? `Narrow / weak (${total} ETFs)` : `Broad sell-off (${total} ETFs)`;
-  return { label, value: `${pct.toFixed(0)}% up`, subtext, color, tooltip };
+  const advancing = Math.round((pct / 100) * total);
+  const subtext = pct > 65 ? 'Wide participation — broad rally' : pct > 50 ? 'Majority advancing' : pct > 35 ? 'Narrow / weak advance' : 'Widespread selling across regions & sectors';
+  return { label, value: `${advancing}/${total} equity ETFs ↑`, subtext, color, tooltip };
 }
 
 function interpretDispersion(d: number | null): StructureMetric {
@@ -753,15 +754,15 @@ function ExplanationsTab() {
 
         {[
           {
-            name: 'Market Breadth',
-            what: '% of tracked ETFs that closed up on the day.',
+            name: 'Equity Breadth',
+            what: 'How many equity ETFs (US, Europe, Asia, LatAm, Sectors) closed positive today. Not whether the market is up or down — but whether the move is widespread or isolated.',
             read: [
-              { label: '>65% up', color: 'text-emerald-700', desc: 'Wide participation — the move is broad-based and healthy.' },
-              { label: '50–65% up', color: 'text-green-700', desc: 'Majority rising but not overwhelming.' },
-              { label: '35–50% up', color: 'text-yellow-700', desc: 'Narrow advance — only a few groups leading. Fragile if the index is up.' },
-              { label: '<35% up', color: 'text-red-700', desc: 'Broad sell-off across asset classes.' },
+              { label: '>65% advancing', color: 'text-emerald-700', desc: 'Rally is broad — buying pressure across regions and sectors, healthy.' },
+              { label: '50–65% advancing', color: 'text-green-700', desc: 'Majority rising but not overwhelming.' },
+              { label: '35–50% advancing', color: 'text-yellow-700', desc: 'Narrow advance — only a few groups leading. Fragile if the index is up.' },
+              { label: '<35% advancing', color: 'text-red-700', desc: 'Widespread selling across equity regions and sectors.' },
             ],
-            note: 'If the S&P 500 is up on the day but ETF breadth is below 40%, it means a small number of mega-cap names are carrying the whole index — not a sustainable move.',
+            note: 'The dangerous case: SPY is up but breadth is below 40%. That means 2–3 mega-caps (e.g. Nvidia ripping) are carrying the whole index while everything else quietly falls. That kind of narrow rally tends to unwind fast.',
           },
           {
             name: 'Sector Dispersion',

@@ -1027,7 +1027,9 @@ function calculatePricePerformance(priceData: Array<{ date: string; close: numbe
 export default function DCFToolPage() {
   const router = useRouter();
   const [inputs, setInputs] = useState<DCFInputs>(getDefaultInputs());
-  const [activeTab, setActiveTab] = useState<'snapshot' | 'assumptions' | 'valuation' | 'charts' | 'sensitivity' | 'financials' | 'final'>('snapshot');
+  const [activeTab, setActiveTab] = useState<'snapshot' | 'assumptions' | 'valuation' | 'charts' | 'sensitivity' | 'financials' | 'comps' | 'final'>('snapshot');
+  const [compsData, setCompsData] = useState<CompsRow[]>([]);
+  const [compsIncludeInResearch, setCompsIncludeInResearch] = useState(true);
   const [financialData, setFinancialData] = useState<ExtractedFinancials | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<CompanyOverview | null>(null);
   const [quote, setQuote] = useState<any>(null);
@@ -1211,7 +1213,10 @@ export default function DCFToolPage() {
         body: JSON.stringify({
           ticker: inputs.ticker,
           companyName: inputs.companyName,
-          inputs,
+          inputs: {
+            ...inputs,
+            ...(compsIncludeInResearch && compsData.length > 0 ? { comps: compsData } : {}),
+          },
           outputs: outputsToSave,
           financialData: enrichedFinancialData,
           name: modelName,
@@ -1256,7 +1261,10 @@ export default function DCFToolPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          inputs,
+          inputs: {
+            ...inputs,
+            ...(compsIncludeInResearch && compsData.length > 0 ? { comps: compsData } : {}),
+          },
           outputs: outputsToSave,
           financialData: enrichedFinancialData,
         }),
@@ -2173,6 +2181,7 @@ export default function DCFToolPage() {
               { id: 'charts' as const, label: 'Charts & Analysis' },
               { id: 'sensitivity' as const, label: 'Sensitivity Analysis' },
               { id: 'financials' as const, label: 'Financial Deep Dive' },
+              { id: 'comps' as const, label: 'Comps' },
               { id: 'final' as const, label: 'DCF Final' },
             ] as const).map((tab) => (
               <button
@@ -2508,6 +2517,16 @@ export default function DCFToolPage() {
               {/* Show content based on active tab */}
               {activeTab === 'charts' && <DCFCharts inputs={inputs} outputs={outputs} />}
             </div>
+          )}
+
+          {activeTab === 'comps' && (
+            <DCFComps
+              inputs={inputs}
+              compsData={compsData}
+              setCompsData={setCompsData}
+              includeInResearch={compsIncludeInResearch}
+              setIncludeInResearch={setCompsIncludeInResearch}
+            />
           )}
 
           {activeTab === 'final' && <DCFFinalPresentation inputs={inputs} outputs={outputs} />}
@@ -4596,6 +4615,257 @@ function heatCell(value: number, base: number): { bg: string; fg: string } {
   const s = -t;
   const r = Math.round(255 - 132 * s), g = Math.round(255 - 229 * s), b = Math.round(255 - 208 * s);
   return { bg: `rgb(${r},${g},${b})`, fg: s > 0.55 ? '#FFFFFF' : '#7B1A2F' };
+}
+
+// ─── Comps Table ──────────────────────────────────────────────────────────────
+
+interface CompsRow {
+  ticker: string; name: string; isSubject: boolean;
+  sector: string | null; industry: string | null;
+  marketCap: number | null; evToEBITDA: number | null; evToRevenue: number | null;
+  peTrailing: number | null; peForward: number | null; priceToSales: number | null;
+  priceToBook: number | null; revenueGrowthYoY: number | null;
+  operatingMargin: number | null; ebitdaMargin: number | null;
+  beta: number | null; revenueTTM: number | null; ebitda: number | null;
+}
+
+function compsFmtM(v: number | null): string {
+  if (v === null) return '—';
+  if (Math.abs(v) >= 1000) return `$${(v / 1000).toFixed(1)}B`;
+  return `$${v.toFixed(0)}M`;
+}
+function compsFmtX(v: number | null): string { return v === null ? '—' : `${v.toFixed(1)}x`; }
+function compsFmtPct(v: number | null): string { return v === null ? '—' : `${(v * 100).toFixed(1)}%`; }
+function median(vals: number[]): number | null {
+  const s = vals.filter(v => isFinite(v)).sort((a, b) => a - b);
+  if (!s.length) return null;
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 !== 0 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+function DCFComps({
+  inputs,
+  compsData,
+  setCompsData,
+  includeInResearch,
+  setIncludeInResearch,
+}: {
+  inputs: DCFInputs;
+  compsData: CompsRow[];
+  setCompsData: (rows: CompsRow[]) => void;
+  includeInResearch: boolean;
+  setIncludeInResearch: (v: boolean) => void;
+}) {
+  const [peerInput, setPeerInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<{ message: string; details?: string; isRateLimit?: boolean } | null>(null);
+  const [peersSource, setPeersSource] = useState<string | null>(null);
+  const [hasFetched, setHasFetched] = useState(false);
+
+  const fetchComps = async (manualPeers?: string[]) => {
+    if (!inputs.ticker) { setError({ message: 'Load a company in the DCF tool first.' }); return; }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/tools/comps', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject: inputs.ticker, peers: manualPeers }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError({
+          message: data.error || 'Failed to fetch comps',
+          details: data.details,
+          isRateLimit: res.status === 429,
+        });
+        return;
+      }
+      setCompsData(data.rows || []);
+      setPeersSource(data.peersSource);
+      setHasFetched(true);
+    } catch (e) {
+      setError({ message: 'Network error fetching comps.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddPeers = () => {
+    const tickers = peerInput.split(/[\s,]+/).map(t => t.trim().toUpperCase()).filter(Boolean);
+    if (!tickers.length) return;
+    const existing = compsData.map(r => r.ticker);
+    const newTickers = tickers.filter(t => !existing.includes(t));
+    if (!newTickers.length) return;
+    const existingPeers = compsData.filter(r => !r.isSubject).map(r => r.ticker);
+    fetchComps([...existingPeers, ...newTickers]);
+    setPeerInput('');
+  };
+
+  const handleRemovePeer = (ticker: string) => {
+    const remaining = compsData.filter(r => !r.isSubject && r.ticker !== ticker).map(r => r.ticker);
+    fetchComps(remaining);
+  };
+
+  // Compute medians (exclude subject)
+  const peers = compsData.filter(r => !r.isSubject);
+  const med = {
+    evToEBITDA: median(peers.map(r => r.evToEBITDA).filter((v): v is number => v !== null)),
+    evToRevenue: median(peers.map(r => r.evToRevenue).filter((v): v is number => v !== null)),
+    peTrailing: median(peers.map(r => r.peTrailing).filter((v): v is number => v !== null)),
+    peForward: median(peers.map(r => r.peForward).filter((v): v is number => v !== null)),
+    priceToSales: median(peers.map(r => r.priceToSales).filter((v): v is number => v !== null)),
+    revenueGrowthYoY: median(peers.map(r => r.revenueGrowthYoY).filter((v): v is number => v !== null)),
+    operatingMargin: median(peers.map(r => r.operatingMargin).filter((v): v is number => v !== null)),
+    ebitdaMargin: median(peers.map(r => r.ebitdaMargin).filter((v): v is number => v !== null)),
+    beta: median(peers.map(r => r.beta).filter((v): v is number => v !== null)),
+  };
+
+  const cols = [
+    { key: 'name',            label: 'Company',          fmt: (r: CompsRow) => <span className="font-medium">{r.name}<br/><span className="text-[10px] text-gray-400 font-mono">{r.ticker}</span></span>, medVal: null },
+    { key: 'marketCap',       label: 'Mkt Cap',          fmt: (r: CompsRow) => compsFmtM(r.marketCap), medVal: null },
+    { key: 'revenueTTM',      label: 'Rev TTM',          fmt: (r: CompsRow) => compsFmtM(r.revenueTTM), medVal: null },
+    { key: 'evToRevenue',     label: 'EV/Rev',           fmt: (r: CompsRow) => compsFmtX(r.evToRevenue), medVal: compsFmtX(med.evToRevenue) },
+    { key: 'evToEBITDA',      label: 'EV/EBITDA',        fmt: (r: CompsRow) => compsFmtX(r.evToEBITDA), medVal: compsFmtX(med.evToEBITDA) },
+    { key: 'peTrailing',      label: 'P/E (TTM)',         fmt: (r: CompsRow) => compsFmtX(r.peTrailing), medVal: compsFmtX(med.peTrailing) },
+    { key: 'peForward',       label: 'Fwd P/E',          fmt: (r: CompsRow) => compsFmtX(r.peForward), medVal: compsFmtX(med.peForward) },
+    { key: 'priceToSales',    label: 'P/S',              fmt: (r: CompsRow) => compsFmtX(r.priceToSales), medVal: compsFmtX(med.priceToSales) },
+    { key: 'revenueGrowthYoY',label: 'Rev Growth',       fmt: (r: CompsRow) => compsFmtPct(r.revenueGrowthYoY), medVal: compsFmtPct(med.revenueGrowthYoY) },
+    { key: 'ebitdaMargin',    label: 'EBITDA Margin',    fmt: (r: CompsRow) => compsFmtPct(r.ebitdaMargin), medVal: compsFmtPct(med.ebitdaMargin) },
+    { key: 'operatingMargin', label: 'Op Margin',        fmt: (r: CompsRow) => compsFmtPct(r.operatingMargin), medVal: compsFmtPct(med.operatingMargin) },
+    { key: 'beta',            label: 'Beta',             fmt: (r: CompsRow) => r.beta !== null ? r.beta.toFixed(2) : '—', medVal: med.beta !== null ? med.beta.toFixed(2) : '—' },
+  ];
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Comparable Companies</h2>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Peer multiples benchmarked against {inputs.companyName || inputs.ticker || 'the subject company'}.
+            {peersSource === 'fmp' && <span className="ml-1 text-xs text-blue-500">Peers auto-sourced via FMP</span>}
+            {peersSource === 'manual' && <span className="ml-1 text-xs text-gray-400">Peers entered manually</span>}
+            {peersSource === 'none' && <span className="ml-1 text-xs text-amber-500">No peers found — add them manually below</span>}
+          </p>
+        </div>
+        <label className="flex items-center gap-2 cursor-pointer shrink-0">
+          <input
+            type="checkbox"
+            checked={includeInResearch}
+            onChange={e => setIncludeInResearch(e.target.checked)}
+            className="rounded"
+          />
+          <span className="text-sm font-medium text-gray-700">Include in Research Report</span>
+        </label>
+      </div>
+
+      {/* Controls */}
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          onClick={() => fetchComps()}
+          disabled={loading || !inputs.ticker}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
+        >
+          {loading ? (
+            <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Fetching…</>
+          ) : hasFetched ? 'Refresh' : 'Build Comps Table'}
+        </button>
+        <div className="flex items-center gap-2">
+          <input
+            value={peerInput}
+            onChange={e => setPeerInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleAddPeers()}
+            placeholder="Add peers: MSFT, GOOGL, META"
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm w-56 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={handleAddPeers}
+            disabled={loading || !peerInput.trim()}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
+          >Add</button>
+        </div>
+        {compsData.length > 0 && (
+          <span className="text-xs text-gray-400">{compsData.length} companies · {peers.length} peers</span>
+        )}
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className={`rounded-lg border p-4 ${error.isRateLimit ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'}`}>
+          <p className={`text-sm font-semibold ${error.isRateLimit ? 'text-amber-800' : 'text-red-800'}`}>
+            {error.isRateLimit ? '⏱ API Rate Limit Reached' : '⚠ Error'}
+          </p>
+          <p className={`text-sm mt-1 ${error.isRateLimit ? 'text-amber-700' : 'text-red-700'}`}>{error.message}</p>
+          {error.details && <p className="text-xs mt-1 text-gray-500">{error.details}</p>}
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!hasFetched && !loading && !error && (
+        <div className="rounded-lg border-2 border-dashed border-gray-200 p-10 text-center text-gray-400">
+          <p className="text-sm">Click <strong>Build Comps Table</strong> to auto-fetch peers and multiples for {inputs.ticker || 'your ticker'}.</p>
+          <p className="text-xs mt-1">Or enter peer tickers manually above before fetching.</p>
+        </div>
+      )}
+
+      {/* Table */}
+      {compsData.length > 0 && (
+        <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                {cols.map(c => (
+                  <th key={c.key} className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{c.label}</th>
+                ))}
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {compsData.map((row, i) => (
+                <tr key={row.ticker} className={`border-b border-gray-100 ${row.isSubject ? 'bg-blue-50 font-semibold' : i % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}`}>
+                  {cols.map(c => (
+                    <td key={c.key} className={`px-3 py-2.5 ${row.isSubject ? 'text-blue-900' : 'text-gray-700'}`}>{c.fmt(row)}</td>
+                  ))}
+                  <td className="px-3 py-2.5">
+                    {!row.isSubject && (
+                      <button onClick={() => handleRemovePeer(row.ticker)} className="text-gray-300 hover:text-red-400 text-xs">✕</button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {/* Median row */}
+              {peers.length >= 2 && (
+                <tr className="bg-gray-100 border-t-2 border-gray-300 font-medium">
+                  <td className="px-3 py-2.5 text-xs font-bold text-gray-600 uppercase tracking-wide">Peer Median</td>
+                  <td className="px-3 py-2.5 text-gray-500">—</td>
+                  <td className="px-3 py-2.5 text-gray-500">—</td>
+                  {cols.slice(3).map(c => (
+                    <td key={c.key} className="px-3 py-2.5 text-gray-700">{c.medVal}</td>
+                  ))}
+                  <td />
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Subject vs median callout */}
+      {compsData.length > 0 && (() => {
+        const subj = compsData.find(r => r.isSubject);
+        if (!subj || !med.evToEBITDA || !subj.evToEBITDA) return null;
+        const premium = ((subj.evToEBITDA - med.evToEBITDA) / med.evToEBITDA) * 100;
+        const isDiscount = premium < -5;
+        const isPremium = premium > 5;
+        return (
+          <div className={`rounded-lg p-3 text-sm ${isPremium ? 'bg-amber-50 border border-amber-200 text-amber-800' : isDiscount ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : 'bg-gray-50 border border-gray-200 text-gray-600'}`}>
+            <span className="font-semibold">{subj.name}</span> trades at <span className="font-semibold">{compsFmtX(subj.evToEBITDA)}</span> EV/EBITDA vs peer median of <span className="font-semibold">{compsFmtX(med.evToEBITDA)}</span> — a <span className="font-semibold">{Math.abs(premium).toFixed(0)}% {isPremium ? 'premium' : isDiscount ? 'discount' : 'inline'}</span> to peers.
+          </div>
+        );
+      })()}
+    </div>
+  );
 }
 
 function DCFFinalPresentation({ inputs, outputs }: { inputs: DCFInputs; outputs: DCFOutputs }) {

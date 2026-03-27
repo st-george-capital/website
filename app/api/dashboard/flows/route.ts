@@ -415,7 +415,9 @@ function buildRegime(etfs: ETFRow[], pairs: PairRatio[]): FlowsPayload['regime']
 // ─── Market Structure metrics ─────────────────────────────────────────────────
 
 function buildStructure(etfs: ETFRow[], seriesMap: Record<string, Series | null>): MarketStructure {
-  const withReturn = etfs.filter(e => e.return1D !== null);
+  // Breadth = equity ETFs only (excludes bonds, FX, volatility — they move inversely to equities in risk-off and would distort the reading)
+  const equityGroups: ETFRow['group'][] = ['us', 'europe', 'asia', 'latam', 'sector'];
+  const withReturn = etfs.filter(e => equityGroups.includes(e.group) && e.return1D !== null);
   const breadthPctUp = withReturn.length > 0
     ? (withReturn.filter(e => (e.return1D ?? 0) > 0).length / withReturn.length) * 100
     : null;
