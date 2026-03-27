@@ -44,6 +44,7 @@ interface ResearchReport {
   forwardPEConsensus?: number | null;
   dividendYield?: number | null;
   priceChartImageUrl?: string | null;
+  showPriceChart?: boolean;
   priceHistory?: Array<{ date: string; close: number }> | null;
   dcfInputs?: any;
   dcfOutputs?: any;
@@ -351,7 +352,7 @@ export default function ResearchReportPreviewPage() {
                 </div>
               </div>
             )}
-            {(((report.priceHistory && report.priceHistory.length > 0) || (report.dcfInputs?.priceHistory && report.dcfInputs.priceHistory.length > 0)) || report.priceChartImageUrl) && (
+            {report.showPriceChart !== false && (((report.priceHistory && report.priceHistory.length > 0) || (report.dcfInputs?.priceHistory && report.dcfInputs.priceHistory.length > 0)) || report.priceChartImageUrl) && (
               <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
                 <h4 className="font-semibold mb-3 text-gray-800">Price Chart (100 Days)</h4>
                 {report.priceChartImageUrl && !(report.priceHistory && report.priceHistory.length > 0) ? (

@@ -66,6 +66,7 @@ export default function EditResearchReportPage({ params }: { params: { id: strin
     forwardPEConsensus: null as number | null, // From API
     dividendYield: null as number | null,
     priceChartImageUrl: null as string | null, // Custom uploaded chart image
+    showPriceChart: true as boolean,
     performanceMetrics: null as {
       absYTD?: number; abs1m?: number; abs3m?: number; abs12m?: number;
       relYTD?: number; rel1m?: number; rel3m?: number; rel12m?: number;
@@ -147,6 +148,7 @@ export default function EditResearchReportPage({ params }: { params: { id: strin
           forwardPEConsensus: (report as any).forwardPEConsensus ?? null,
           dividendYield: (report as any).dividendYield ?? null,
           priceChartImageUrl: (report as any).priceChartImageUrl ?? null,
+          showPriceChart: (report as any).showPriceChart ?? true,
           performanceMetrics: report.performanceMetrics ?? null,
         });
 
@@ -1007,8 +1009,23 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
                     />
                   </div>
                   <div className="mt-4">
-                    <label className="block text-sm font-medium mb-2">Price Chart Preview (from DCF)</label>
-                    {dcfData?.inputs?.priceHistory && dcfData.inputs.priceHistory.length > 0 ? (
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium">Price Chart Preview (from DCF)</label>
+                      <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={metadata.showPriceChart}
+                          onChange={(e) => setMetadata(prev => ({ ...prev, showPriceChart: e.target.checked }))}
+                          className="rounded"
+                        />
+                        Include chart in report
+                      </label>
+                    </div>
+                    {!metadata.showPriceChart ? (
+                      <div className="border rounded-md p-3 bg-gray-50 text-sm text-gray-500">
+                        Chart excluded from report. Toggle above to include it.
+                      </div>
+                    ) : dcfData?.inputs?.priceHistory && dcfData.inputs.priceHistory.length > 0 ? (
                       <div className="border rounded-lg p-4 bg-gray-50">
                         <svg viewBox="0 0 800 220" className="w-full h-48" preserveAspectRatio="xMidYMid meet">
                           {(() => {
