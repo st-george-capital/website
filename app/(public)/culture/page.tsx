@@ -4,10 +4,17 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Users, Coffee, Lightbulb, Target } from 'lucide-react';
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+
 export default async function CulturePage() {
-  const logos = await prisma.employerLogo.findMany({
-    orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
-  });
+  let logos: { id: string; name: string; logoUrl: string; order: number }[] = [];
+  try {
+    logos = await prisma.employerLogo.findMany({
+      orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+    });
+  } catch {
+    // table may not exist yet — degrade gracefully
+  }
   const values = [
     {
       icon: Target,

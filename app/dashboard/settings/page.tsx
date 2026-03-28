@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/card';
-import { Save, Trash2, Upload, Building2 } from 'lucide-react';
+import { Save, Trash2, Upload, Building2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface EmployerLogo {
   id: string;
@@ -122,6 +122,24 @@ export default function SettingsPage() {
       await fetchLogos();
     } catch (error) {
       console.error('Error deleting logo:', error);
+    }
+  };
+
+  const handleMoveLogo = async (index: number, direction: 'left' | 'right') => {
+    const newLogos = [...logos];
+    const swapIndex = direction === 'left' ? index - 1 : index + 1;
+    if (swapIndex < 0 || swapIndex >= newLogos.length) return;
+    [newLogos[index], newLogos[swapIndex]] = [newLogos[swapIndex], newLogos[index]];
+    setLogos(newLogos); // optimistic update
+    try {
+      await fetch('/api/employer-logos', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderedIds: newLogos.map((l) => l.id) }),
+      });
+    } catch (error) {
+      console.error('Error reordering logos:', error);
+      await fetchLogos(); // revert on error
     }
   };
 
@@ -302,7 +320,7 @@ export default function SettingsPage() {
               <div>
                 <p className="text-sm font-medium mb-3 text-gray-700">{logos.length} logo{logos.length !== 1 ? 's' : ''} saved</p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                  {logos.map((logo) => (
+                  {logos.map((logo, index) => (
                     <div key={logo.id} className="relative group border border-gray-200 rounded-lg p-3 flex flex-col items-center gap-2 bg-gray-50">
                       <img
                         src={logo.logoUrl}
@@ -310,12 +328,32 @@ export default function SettingsPage() {
                         className="h-10 w-full object-contain"
                       />
                       <p className="text-xs text-gray-600 text-center truncate w-full">{logo.name}</p>
-                      <button
-                        onClick={() => handleDeleteLogo(logo.id)}
-                        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-white rounded-full shadow text-red-500 hover:text-red-700"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
+                      {/* Order controls */}
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => handleMoveLogo(index, 'left')}
+                          disabled={index === 0}
+                          className="p-1 bg-white rounded shadow text-gray-500 hover:text-gray-800 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Move left"
+                        >
+                          <ChevronLeft className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => handleMoveLogo(index, 'right')}
+                          disabled={index === logos.length - 1}
+                          className="p-1 bg-white rounded shadow text-gray-500 hover:text-gray-800 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Move right"
+                        >
+                          <ChevronRight className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteLogo(logo.id)}
+                          className="p-1 bg-white rounded shadow text-red-500 hover:text-red-700"
+                          title="Remove"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
