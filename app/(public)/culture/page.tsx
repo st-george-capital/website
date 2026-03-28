@@ -107,7 +107,7 @@ export default async function CulturePage() {
               Where We Have Worked
             </h3>
             <p className="text-center text-gray-500 mb-12 text-lg">
-              SGC alumni have gone on to work at leading firms across finance and technology.
+              SGC members and alumni have gone on to work at leading firms across finance and technology.
             </p>
             <div className="flex flex-wrap justify-center items-center gap-x-10 gap-y-8">
               {logos.map((logo) => (

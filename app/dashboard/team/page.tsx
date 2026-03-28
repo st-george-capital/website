@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { Users, Linkedin, Plus, UserCheck, Trash2, Edit, Save, X, Upload } from 'lucide-react';
+import { Users, Linkedin, Plus, UserCheck, Trash2, Edit, Save, X, Upload, Archive, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 
 interface User {
@@ -35,6 +35,7 @@ interface TeamMember {
   headshot: string | null;
   linkedin: string | null;
   isExecutive: boolean;
+  isAlumni: boolean;
   order: number;
 }
 
@@ -222,6 +223,39 @@ export default function TeamDashboardPage() {
     }
   };
 
+  const archiveMember = async (id: string) => {
+    if (!confirm('Archive this member? They will move to the Alumni page.')) return;
+    try {
+      const res = await fetch(`/api/team-members/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isAlumni: true, isExecutive: false }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setTeamMembers(teamMembers.map(m => m.id === id ? { ...m, ...updated } : m));
+      }
+    } catch (error) {
+      console.error('Error archiving member:', error);
+    }
+  };
+
+  const restoreMember = async (id: string) => {
+    try {
+      const res = await fetch(`/api/team-members/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isAlumni: false }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setTeamMembers(teamMembers.map(m => m.id === id ? { ...m, ...updated } : m));
+      }
+    } catch (error) {
+      console.error('Error restoring member:', error);
+    }
+  };
+
   const roles = ['all', 'admin', 'user'];
 
   const filteredUsers = selectedRole === 'all'
@@ -236,9 +270,10 @@ export default function TeamDashboardPage() {
   };
 
   const memberStats = {
-    total: teamMembers.length,
-    executives: teamMembers.filter(m => m.isExecutive).length,
-    members: teamMembers.filter(m => !m.isExecutive).length,
+    total: teamMembers.filter(m => !m.isAlumni).length,
+    executives: teamMembers.filter(m => m.isExecutive && !m.isAlumni).length,
+    members: teamMembers.filter(m => !m.isExecutive && !m.isAlumni).length,
+    alumni: teamMembers.filter(m => m.isAlumni).length,
   };
 
   const stats = activeTab === 'users' ? userStats : memberStats;
@@ -348,10 +383,8 @@ export default function TeamDashboardPage() {
             </Card>
             <Card>
               <CardHeader>
-                <CardDescription>Divisions</CardDescription>
-                <CardTitle className="text-3xl text-purple-600">
-                  {new Set(teamMembers.map(m => m.division)).size}
-                </CardTitle>
+                <CardDescription>Alumni</CardDescription>
+                <CardTitle className="text-3xl text-amber-600">{memberStats.alumni}</CardTitle>
               </CardHeader>
             </Card>
           </>
@@ -377,7 +410,7 @@ export default function TeamDashboardPage() {
         </div>
       ) : (
         <div className="flex items-center space-x-4 overflow-x-auto pb-2">
-          {['all', 'executive', 'member'].map((type) => (
+          {['all', 'executive', 'member', 'alumni'].map((type) => (
             <button
               key={type}
               onClick={() => setSelectedRole(type)}
@@ -387,7 +420,7 @@ export default function TeamDashboardPage() {
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              {type === 'all' ? 'All Members' : type === 'executive' ? 'On Website' : 'Internal Only'}
+              {type === 'all' ? 'All Current' : type === 'executive' ? 'On Website' : type === 'member' ? 'Internal Only' : 'Alumni'}
             </button>
           ))}
         </div>
@@ -500,10 +533,11 @@ export default function TeamDashboardPage() {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {teamMembers
             .filter(member => {
-              if (selectedRole === 'all') return true;
-              if (selectedRole === 'executive') return member.isExecutive;
-              if (selectedRole === 'member') return !member.isExecutive;
-              return true;
+              if (selectedRole === 'alumni') return member.isAlumni;
+              if (selectedRole === 'all') return !member.isAlumni;
+              if (selectedRole === 'executive') return member.isExecutive && !member.isAlumni;
+              if (selectedRole === 'member') return !member.isExecutive && !member.isAlumni;
+              return !member.isAlumni;
             })
             .map((member) => (
               <Card key={member.id}>
@@ -526,9 +560,13 @@ export default function TeamDashboardPage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <CardTitle className="text-lg">{member.name}</CardTitle>
-                        {member.isExecutive ? (
+                        {member.isAlumni ? (
+                          <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs rounded">
+                            Alumni
+                          </span>
+                        ) : member.isExecutive ? (
                           <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">
                             On Website
                           </span>
@@ -572,16 +610,36 @@ export default function TeamDashboardPage() {
 
                   {/* Edit Actions */}
                   {isAdmin && (
-                    <div className="flex items-center gap-2 mt-4">
-                      <Link href={`/dashboard/team/${member.id}/edit`}>
+                    <div className="flex items-center gap-2 mt-4 flex-wrap">
+                      {!member.isAlumni && (
+                        <Link href={`/dashboard/team/${member.id}/edit`}>
+                          <Button size="sm" className="bg-gray-900 text-white hover:bg-gray-800">
+                            <Edit className="w-3 h-3 mr-1" />
+                            Edit
+                          </Button>
+                        </Link>
+                      )}
+                      {!member.isAlumni ? (
                         <Button
                           size="sm"
-                          className="bg-gray-900 text-white hover:bg-gray-800"
+                          variant="outline"
+                          onClick={() => archiveMember(member.id)}
+                          className="text-amber-600 border-amber-200 hover:bg-amber-50"
                         >
-                          <Edit className="w-3 h-3 mr-1" />
-                          Edit
+                          <Archive className="w-3 h-3 mr-1" />
+                          Archive
                         </Button>
-                      </Link>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => restoreMember(member.id)}
+                          className="text-green-600 border-green-200 hover:bg-green-50"
+                        >
+                          <RotateCcw className="w-3 h-3 mr-1" />
+                          Restore
+                        </Button>
+                      )}
                     </div>
                   )}
                 </CardHeader>
