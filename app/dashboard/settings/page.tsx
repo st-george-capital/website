@@ -1,11 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/card';
-import { Save } from 'lucide-react';
+import { Save, Trash2, Upload, Building2 } from 'lucide-react';
+
+interface EmployerLogo {
+  id: string;
+  name: string;
+  logoUrl: string;
+  order: number;
+}
 
 export default function SettingsPage() {
   const { data: session, status } = useSession();
@@ -22,6 +29,10 @@ export default function SettingsPage() {
   });
 
   const isAdmin = session?.user?.role === 'admin';
+  const [logos, setLogos] = useState<EmployerLogo[]>([]);
+  const [logoName, setLogoName] = useState('');
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -33,6 +44,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     fetchSettings();
+    fetchLogos();
   }, []);
 
   const fetchSettings = async () => {
@@ -52,6 +64,64 @@ export default function SettingsPage() {
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
+    }
+  };
+
+  const fetchLogos = async () => {
+    try {
+      const res = await fetch('/api/employer-logos');
+      if (res.ok) setLogos(await res.json());
+    } catch (error) {
+      console.error('Error fetching logos:', error);
+    }
+  };
+
+  const handleLogoUpload = async () => {
+    const file = logoFileRef.current?.files?.[0];
+    if (!file || !logoName.trim()) {
+      alert('Please provide a company name and select a logo image.');
+      return;
+    }
+
+    setUploadingLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
+      if (!uploadRes.ok) {
+        const err = await uploadRes.json();
+        throw new Error(err.error || 'Upload failed');
+      }
+      const { url } = await uploadRes.json();
+
+      const createRes = await fetch('/api/employer-logos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: logoName.trim(), logoUrl: url, order: logos.length }),
+      });
+      if (!createRes.ok) throw new Error('Failed to save logo');
+
+      setLogoName('');
+      if (logoFileRef.current) logoFileRef.current.value = '';
+      await fetchLogos();
+    } catch (error: any) {
+      alert(error.message || 'Failed to upload logo');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleDeleteLogo = async (id: string) => {
+    if (!confirm('Remove this logo?')) return;
+    try {
+      await fetch('/api/employer-logos', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      await fetchLogos();
+    } catch (error) {
+      console.error('Error deleting logo:', error);
     }
   };
 
@@ -184,6 +254,80 @@ export default function SettingsPage() {
                 {saving ? 'Saving...' : 'Save Settings'}
               </Button>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Employer Logos */}
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle>Where We Have Worked — Company Logos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            {/* Upload new logo */}
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium mb-2">Company Name</label>
+                <input
+                  type="text"
+                  value={logoName}
+                  onChange={(e) => setLogoName(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="e.g. Goldman Sachs"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Logo Image</label>
+                <input
+                  ref={logoFileRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm"
+                />
+                <p className="text-sm text-gray-500 mt-1">PNG, JPG, WebP, or SVG. Use a transparent-background logo for best results.</p>
+              </div>
+              <Button
+                onClick={handleLogoUpload}
+                disabled={uploadingLogo}
+                className="w-full"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                {uploadingLogo ? 'Uploading...' : 'Add Logo'}
+              </Button>
+            </div>
+
+            {/* Existing logos */}
+            {logos.length > 0 && (
+              <div>
+                <p className="text-sm font-medium mb-3 text-gray-700">{logos.length} logo{logos.length !== 1 ? 's' : ''} saved</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {logos.map((logo) => (
+                    <div key={logo.id} className="relative group border border-gray-200 rounded-lg p-3 flex flex-col items-center gap-2 bg-gray-50">
+                      <img
+                        src={logo.logoUrl}
+                        alt={logo.name}
+                        className="h-10 w-full object-contain"
+                      />
+                      <p className="text-xs text-gray-600 text-center truncate w-full">{logo.name}</p>
+                      <button
+                        onClick={() => handleDeleteLogo(logo.id)}
+                        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-white rounded-full shadow text-red-500 hover:text-red-700"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {logos.length === 0 && (
+              <div className="flex flex-col items-center py-8 text-gray-400 gap-2">
+                <Building2 className="w-8 h-8" />
+                <p className="text-sm">No logos yet. Add the first one above.</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
