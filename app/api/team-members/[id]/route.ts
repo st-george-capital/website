@@ -29,6 +29,7 @@ export async function PATCH(
       linkedin,
       headshot,
       isExecutive,
+      isAlumni,
       order,
     } = await req.json();
 
@@ -44,6 +45,7 @@ export async function PATCH(
     if (linkedin !== undefined) updateData.linkedin = linkedin;
     if (headshot !== undefined) updateData.headshot = headshot;
     if (isExecutive !== undefined) updateData.isExecutive = isExecutive;
+    if (isAlumni !== undefined) updateData.isAlumni = isAlumni;
     if (order !== undefined) updateData.order = order;
 
     if (Object.keys(updateData).length === 0) {

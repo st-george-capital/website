@@ -9,7 +9,6 @@ import { Button } from '@/components/button';
 import { Section, SectionHeader } from '@/components/section';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/card';
 import { ArrowRight, TrendingUp, Users, LineChart, Heart } from 'lucide-react';
-import { PortfolioTicker } from '@/components/portfolio/PortfolioTicker';
 import { useEffect, useRef, useState } from 'react';
 
 function AnimatedCounter({ end, duration = 2000 }: { end: number; duration?: number }) {
@@ -88,7 +87,7 @@ export default function HomePage() {
 
       {/* Stats Bar */}
       <Section dark className="py-16 border-t border-white/10">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 text-center">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-12 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -127,14 +126,6 @@ export default function HomePage() {
             <div className="text-white/60 text-lg">Research Projects</div>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-          >
-            <PortfolioTicker />
-          </motion.div>
         </div>
       </Section>
 

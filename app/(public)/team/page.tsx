@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { Linkedin, ArrowRight } from 'lucide-react';
 import { prisma } from '@/lib/prisma';
 import { TeamMemberCard } from '@/components/team-member-card';
+import { TeamPageTabs } from '@/components/team-page-tabs';
+import { Suspense } from 'react';
 
 // Force dynamic rendering to prevent static generation issues with database calls
 export const dynamic = 'force-dynamic';
@@ -37,16 +39,59 @@ const divisions = [
   },
 ];
 
-async function getTeamMembers() {
-  const members = await prisma.teamMember.findMany({
-    where: { isExecutive: true },
-    orderBy: { order: 'asc' },
-  });
-  return members;
+function AlumniCard({ member }: { member: any }) {
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-xl p-6 flex flex-col gap-4">
+      <div className="flex items-center gap-4">
+        <div className="w-14 h-14 rounded-full overflow-hidden bg-white/10 flex items-center justify-center flex-shrink-0">
+          {member.headshot ? (
+            <img src={member.headshot} alt={member.name} className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-lg font-bold text-white/60">
+              {member.name.split(' ').map((n: string) => n[0]).join('')}
+            </span>
+          )}
+        </div>
+        <div>
+          <p className="font-semibold text-white text-lg">{member.name}</p>
+          <p className="text-sm text-white/60">{member.title || member.role || member.division}</p>
+        </div>
+      </div>
+      {member.linkedin && (
+        <a
+          href={member.linkedin}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center text-sm text-white/50 hover:text-white transition-colors"
+        >
+          <Linkedin className="w-4 h-4 mr-1" />
+          LinkedIn
+        </a>
+      )}
+    </div>
+  );
 }
 
-export default async function TeamPage() {
-  const executiveTeam = await getTeamMembers();
+export default async function TeamPage({
+  searchParams,
+}: {
+  searchParams: { view?: string };
+}) {
+  const isAlumniView = searchParams.view === 'alumni';
+
+  const executiveTeam = isAlumniView
+    ? []
+    : await prisma.teamMember.findMany({
+        where: { isExecutive: true, isAlumni: false },
+        orderBy: { order: 'asc' },
+      });
+
+  const alumniTeam = isAlumniView
+    ? await prisma.teamMember.findMany({
+        where: { isAlumni: true },
+        orderBy: { order: 'asc' },
+      })
+    : [];
 
   return (
     <>
@@ -73,18 +118,41 @@ export default async function TeamPage() {
         </div>
       </Section>
 
-      {/* Executive Team */}
+      {/* Team tabs + grid */}
       <Section dark>
-        <SectionHeader
-          title="Executive Team"
-          subtitle="Leadership guiding our organization's vision and operations"
-        />
+        <Suspense>
+          <TeamPageTabs />
+        </Suspense>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {executiveTeam.map((member, index) => (
-            <TeamMemberCard key={member.id} member={member} index={index} />
-          ))}
-        </div>
+        {!isAlumniView ? (
+          <>
+            <SectionHeader
+              title="Executive Team"
+              subtitle="Leadership guiding our organization's vision and operations"
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {executiveTeam.map((member, index) => (
+                <TeamMemberCard key={member.id} member={member} index={index} />
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <SectionHeader
+              title="Alumni"
+              subtitle="Past members who shaped SGC"
+            />
+            {alumniTeam.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {alumniTeam.map((member, index) => (
+                  <AlumniCard key={member.id} member={member} />
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-white/60 py-12">No alumni records yet.</p>
+            )}
+          </>
+        )}
       </Section>
 
       {/* Divisions Overview */}

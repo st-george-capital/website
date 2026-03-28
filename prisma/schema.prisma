@@ -52,6 +52,7 @@ model TeamMember {
   linkedin    String?
   headshot    String?
   isExecutive Boolean @default(false)
+  isAlumni    Boolean @default(false)
   order       Int     @default(0)
   user        User?
 }
