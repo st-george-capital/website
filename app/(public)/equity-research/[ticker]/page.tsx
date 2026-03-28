@@ -211,68 +211,70 @@ export default async function PublicResearchReportPage({
             {report.dataSource && (
               <p className="text-sm text-gray-500">Source: {report.dataSource}</p>
             )}
-            {report.epsTableMarkdown && (
-              <div>
-                <h3 className="font-semibold text-lg text-gray-900 mb-2">EPS (Recurring)</h3>
-                <div className="prose prose-sm max-w-none text-gray-700
-                  [&_table]:w-full [&_table]:border-collapse [&_th]:border [&_td]:border [&_th]:px-2 [&_td]:px-2 [&_th]:py-1 [&_td]:py-1 [&_th]:bg-gray-50">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-                    {report.epsTableMarkdown}
-                  </ReactMarkdown>
+            {(() => {
+              const hasEPS = !!report.epsTableMarkdown;
+              const hasChart = (report as any).showPriceChart !== false && (
+                ((report as any).priceHistory && (report as any).priceHistory.length > 0) ||
+                ((report.dcfInputs as any)?.priceHistory && (report.dcfInputs as any).priceHistory.length > 0) ||
+                !!(report as any).priceChartImageUrl
+              );
+              const sideBySide = hasEPS && hasChart;
+              return (
+                <div className={sideBySide ? 'grid grid-cols-2 gap-4 items-start' : 'space-y-4'}>
+                  {hasEPS && (
+                    <div>
+                      <h3 className="font-semibold text-lg text-gray-900 mb-2">EPS (Recurring)</h3>
+                      <div className="prose prose-sm max-w-none text-gray-700
+                        [&_table]:w-full [&_table]:border-collapse [&_th]:border [&_td]:border [&_th]:px-2 [&_td]:px-2 [&_th]:py-1 [&_td]:py-1 [&_th]:bg-gray-50">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                          {report.epsTableMarkdown!}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  )}
+                  {hasChart && (
+                    <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4">
+                      <h3 className="font-semibold text-lg text-gray-900 mb-3">Price Chart (100 Days)</h3>
+                      {(report as any).priceChartImageUrl && !((report as any).priceHistory && (report as any).priceHistory.length > 0) ? (
+                        <img src={(report as any).priceChartImageUrl} alt="Price Chart" className="w-full h-auto rounded-lg" />
+                      ) : (
+                        <div className="w-full h-56 relative">
+                          <svg viewBox="0 0 800 220" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+                            {(() => {
+                              const chartData = ((report as any).priceHistory || (report.dcfInputs as any)?.priceHistory || []).slice(0, 100);
+                              if (!chartData.length) return null;
+                              const prices = chartData.map((d: any) => d.close);
+                              const maxPrice = Math.max(...prices);
+                              const topPad = maxPrice * 0.05;
+                              const range = maxPrice + topPad;
+                              const points = chartData.map((d: any, i: number) => {
+                                const x = (chartData.length > 1 ? i / (chartData.length - 1) : 0) * 760 + 20;
+                                const y = 200 - (d.close / range) * 180;
+                                return `${x},${y}`;
+                              }).join(' ');
+                              const areaPoints = `${points} 760,200 20,200`;
+                              return (
+                                <>
+                                  <rect x="20" y="20" width="760" height="180" fill="white" rx="4" />
+                                  <line x1="20" y1="200" x2="780" y2="200" stroke="#e5e7eb" strokeWidth="1" />
+                                  <line x1="20" y1="20" x2="20" y2="200" stroke="#e5e7eb" strokeWidth="1" />
+                                  <polygon points={areaPoints} fill="rgba(59, 130, 246, 0.08)" stroke="none" />
+                                  <polyline points={points} fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                  <text x="20" y="215" fontSize="11" fill="#6b7280">{chartData[chartData.length - 1]?.date}</text>
+                                  <text x="780" y="215" fontSize="11" fill="#6b7280" textAnchor="end">{chartData[0]?.date}</text>
+                                  <text x="20" y="28" fontSize="11" fill="#6b7280" fontWeight="500">${maxPrice.toFixed(2)}</text>
+                                  <text x="20" y="208" fontSize="11" fill="#6b7280" fontWeight="500">$0</text>
+                                </>
+                              );
+                            })()}
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
-            {(report as any).showPriceChart !== false && (((report as any).priceHistory && (report as any).priceHistory.length > 0) || ((report.dcfInputs as any)?.priceHistory && (report.dcfInputs as any).priceHistory.length > 0) || (report as any).priceChartImageUrl) && (
-              <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-5">
-                <h3 className="font-semibold text-lg text-gray-900 mb-3">Price Chart (100 Days)</h3>
-                {(report as any).priceChartImageUrl && !((report as any).priceHistory && (report as any).priceHistory.length > 0) ? (
-                  <div className="w-full">
-                    <img src={(report as any).priceChartImageUrl} alt="Price Chart" className="w-full h-auto rounded-lg" />
-                  </div>
-                ) : (
-                <div className="w-full h-64 relative">
-                  <svg viewBox="0 0 800 220" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
-                    {(() => {
-                      const chartData = ((report as any).priceHistory || (report.dcfInputs as any)?.priceHistory || []).slice(0, 100);
-                      if (!chartData.length) return null;
-                      const prices = chartData.map((d: any) => d.close);
-                      const maxPrice = Math.max(...prices);
-                      const topPad = maxPrice * 0.05;
-                      const range = maxPrice + topPad;
-                      
-                      const points = chartData.map((d: any, i: number) => {
-                        const x = (chartData.length > 1 ? i / (chartData.length - 1) : 0) * 760 + 20;
-                        const y = 200 - (d.close / range) * 180;
-                        return `${x},${y}`;
-                      }).join(' ');
-                      const areaPoints = `${points} 760,200 20,200`;
-                      
-                      return (
-                        <>
-                          <rect x="20" y="20" width="760" height="180" fill="white" rx="4" />
-                          <line x1="20" y1="200" x2="780" y2="200" stroke="#e5e7eb" strokeWidth="1" />
-                          <line x1="20" y1="20" x2="20" y2="200" stroke="#e5e7eb" strokeWidth="1" />
-                          <polygon points={areaPoints} fill="rgba(59, 130, 246, 0.08)" stroke="none" />
-                          <polyline
-                            points={points}
-                            fill="none"
-                            stroke="#2563eb"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          <text x="20" y="215" fontSize="11" fill="#6b7280">{chartData[chartData.length - 1]?.date}</text>
-                          <text x="780" y="215" fontSize="11" fill="#6b7280" textAnchor="end">{chartData[0]?.date}</text>
-                          <text x="20" y="28" fontSize="11" fill="#6b7280" fontWeight="500">${maxPrice.toFixed(2)}</text>
-                          <text x="20" y="208" fontSize="11" fill="#6b7280" fontWeight="500">$0</text>
-                        </>
-                      );
-                    })()}
-                  </svg>
-                </div>
-                )}
-              </div>
-            )}
+              );
+            })()}
           </div>
         )}
 
