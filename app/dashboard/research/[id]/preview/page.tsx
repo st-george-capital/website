@@ -350,7 +350,7 @@ export default function ResearchReportPreviewPage() {
               );
               const sideBySide = hasEPS && hasChart;
               return (
-                <div className={sideBySide ? 'grid grid-cols-2 gap-4 items-start' : 'space-y-4'}>
+                <div className={sideBySide ? 'grid grid-cols-2 gap-4 items-stretch' : 'space-y-4'}>
                   {hasEPS && (
                     <div>
                       <h4 className="font-semibold text-gray-900 mb-3">EPS (Recurring)</h4>
@@ -364,12 +364,12 @@ export default function ResearchReportPreviewPage() {
                     </div>
                   )}
                   {hasChart && (
-                    <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+                    <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 flex flex-col">
                       <h4 className="font-semibold mb-3 text-gray-800">Price Chart (100 Days)</h4>
                       {report.priceChartImageUrl && !(report.priceHistory && report.priceHistory.length > 0) ? (
                         <img src={report.priceChartImageUrl} alt="Price Chart" className="w-full h-auto rounded" />
                       ) : (
-                        <div className="w-full h-56 relative">
+                        <div className="flex-1 min-h-48 relative">
                           <svg viewBox="0 0 800 220" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
                             {(() => {
                               const chartData = (report.priceHistory || report.dcfInputs?.priceHistory || []).slice(0, 100);
