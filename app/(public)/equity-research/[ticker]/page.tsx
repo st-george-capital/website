@@ -220,7 +220,7 @@ export default async function PublicResearchReportPage({
               );
               const sideBySide = hasEPS && hasChart;
               return (
-                <div className={sideBySide ? 'grid grid-cols-2 gap-4 items-start' : 'space-y-4'}>
+                <div className={sideBySide ? 'grid grid-cols-2 gap-4 items-stretch' : 'space-y-4'}>
                   {hasEPS && (
                     <div>
                       <h3 className="font-semibold text-lg text-gray-900 mb-2">EPS (Recurring)</h3>
@@ -233,12 +233,12 @@ export default async function PublicResearchReportPage({
                     </div>
                   )}
                   {hasChart && (
-                    <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4">
+                    <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 flex flex-col">
                       <h3 className="font-semibold text-lg text-gray-900 mb-3">Price Chart (100 Days)</h3>
                       {(report as any).priceChartImageUrl && !((report as any).priceHistory && (report as any).priceHistory.length > 0) ? (
                         <img src={(report as any).priceChartImageUrl} alt="Price Chart" className="w-full h-auto rounded-lg" />
                       ) : (
-                        <div className="w-full h-56 relative">
+                        <div className="flex-1 min-h-48 relative">
                           <svg viewBox="0 0 800 220" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
                             {(() => {
                               const chartData = ((report as any).priceHistory || (report.dcfInputs as any)?.priceHistory || []).slice(0, 100);
