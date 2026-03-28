@@ -583,15 +583,15 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
         body: formDataUpload,
       });
 
+      const data = await response.json();
       if (response.ok) {
-        const data = await response.json();
         setFormData(prev => ({ ...prev, resumeFile: data.url }));
       } else {
-        alert('Failed to upload resume');
+        alert(`Upload failed: ${data.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error uploading resume:', error);
-      alert('Failed to upload resume');
+      alert('Upload failed: could not reach the server. Check your internet connection and try again.');
     } finally {
       setUploading(false);
     }
@@ -600,8 +600,8 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        alert('File size must be less than 2MB');
+      if (file.size > 4 * 1024 * 1024) {
+        alert(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Please keep your resume under 4MB — try exporting as PDF with reduced image quality, or use a PDF compressor like smallpdf.com.`);
         return;
       }
       handleFileUpload(file);
@@ -871,20 +871,20 @@ function ResumeBookSection() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { alert('File must be under 2MB'); return; }
+    if (file.size > 4 * 1024 * 1024) { alert(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Please keep your resume under 4MB — try exporting as PDF with reduced image quality, or use a PDF compressor like smallpdf.com.`); return; }
     setUploading(true);
     try {
       const fd = new FormData();
       fd.append('file', file);
       const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
         setForm(prev => ({ ...prev, resumeFile: data.url }));
       } else {
-        alert('Upload failed – please try again.');
+        alert(`Upload failed: ${data.error || 'Unknown error'}`);
       }
     } catch {
-      alert('Upload failed – please try again.');
+      alert('Upload failed: could not reach the server. Check your internet connection and try again.');
     } finally {
       setUploading(false);
     }

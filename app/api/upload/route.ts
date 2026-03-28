@@ -62,14 +62,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate file size (max 10MB for documents, 5MB for images)
-    const isDocument = file.type === 'application/pdf' || 
+    // Validate file size (max 4MB for resumes/documents, 5MB for images)
+    const isDocument = file.type === 'application/pdf' ||
                        file.type === 'application/msword' ||
                        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-    const maxSize = isDocument ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+    const maxSize = isDocument ? 4 * 1024 * 1024 : 5 * 1024 * 1024;
     if (file.size > maxSize) {
+      const sizeMB = (file.size / 1024 / 1024).toFixed(1);
       return NextResponse.json(
-        { error: `File too large. Maximum size is ${isDocument ? '10MB' : '5MB'}.` },
+        { error: `File too large (${sizeMB}MB). Maximum size is ${isDocument ? '4MB' : '5MB'}. Try compressing your PDF at smallpdf.com or reducing image quality when exporting.` },
         { status: 400 }
       );
     }
