@@ -39,6 +39,31 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// PATCH: reorder — accepts { orderedIds: string[] } and updates order field for each
+export async function PATCH(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== 'admin') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  }
+
+  try {
+    const { orderedIds } = await req.json() as { orderedIds: string[] };
+    if (!Array.isArray(orderedIds)) {
+      return NextResponse.json({ error: 'orderedIds array required' }, { status: 400 });
+    }
+
+    await Promise.all(
+      orderedIds.map((id, index) =>
+        prisma.employerLogo.update({ where: { id }, data: { order: index } })
+      )
+    );
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error reordering logos:', error);
+    return NextResponse.json({ error: 'Failed to reorder logos' }, { status: 500 });
+  }
+}
+
 export async function DELETE(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'admin') {
