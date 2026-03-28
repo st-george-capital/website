@@ -18,29 +18,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check authentication - allow both admin users and public users for resume uploads
+    // Check authentication
     const session = await getServerSession(authOptions);
     const isAdmin = session?.user?.role === 'admin';
-    const isPublicUser = !session; // Public users have no session
+    const isNonAdminUser = !!session && !isAdmin; // logged-in but not admin
+    const isPublicUser = !session;
 
-    // If not admin and not a public user (somehow), deny access
-    if (!isAdmin && !isPublicUser) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    // For public users, restrict to resume file types only
+    // Non-admin logged-in users and public users can only upload resumes
     const resumeTypes = [
       'application/pdf',
-      'application/msword', // .doc
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     ];
-    
-    if (isPublicUser && !resumeTypes.includes(file.type)) {
+
+    if ((isPublicUser || isNonAdminUser) && !resumeTypes.includes(file.type)) {
       return NextResponse.json(
-        { error: 'Public users can only upload resume files (PDF, DOC, DOCX)' },
+        { error: 'Only PDF, DOC, and DOCX resume files are accepted.' },
         { status: 400 }
       );
     }
@@ -79,8 +72,8 @@ export async function POST(req: NextRequest) {
     const timestamp = Date.now();
     let folder = 'research'; // Default for admin image uploads
 
-    if (isPublicUser) {
-      folder = 'resumes'; // Public users upload resumes
+    if (isPublicUser || isNonAdminUser) {
+      folder = 'resumes'; // Public and non-admin users upload resumes
     } else if (isAdmin && isDocument) {
       folder = 'documents'; // Admin document uploads
     }
