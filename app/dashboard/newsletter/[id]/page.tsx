@@ -228,7 +228,11 @@ export default function NewsletterEditionPage() {
     setSending(true);
     setSendResult(null);
 
-    const res = await fetch(`/api/newsletter/editions/${id}/send`, { method: 'POST' });
+    const res = await fetch(`/api/newsletter/editions/${id}/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ marketData }),
+    });
     const data = await res.json();
     setSending(false);
 
@@ -458,7 +462,7 @@ export default function NewsletterEditionPage() {
           {/* Action footer */}
           <div className="flex-none bg-white border-t border-gray-200 px-6 py-4 flex items-center justify-between">
             <p className="text-xs text-gray-400">
-              Live market data will be re-fetched at the moment of sending.
+              Market data shown above will be included exactly as previewed.
             </p>
             <div className="flex items-center gap-3">
               <Button

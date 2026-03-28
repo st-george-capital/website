@@ -61,7 +61,13 @@ export async function POST(
       day: 'numeric',
     });
 
-    const marketData = await fetchMarketSnapshot();
+    // Use market data snapshot from the preview if provided — guarantees the
+    // sent email matches exactly what the admin reviewed before confirming.
+    let body: { marketData?: MarketRow[] } = {};
+    try { body = await req.json(); } catch { /* no body is fine */ }
+    const marketData: MarketRow[] = (Array.isArray(body.marketData) && body.marketData.length > 0)
+      ? body.marketData
+      : await fetchMarketSnapshot();
 
     let sent = 0;
     const failedEmails: string[] = [];
