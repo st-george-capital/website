@@ -2,8 +2,12 @@ import { Hero } from '@/components/hero';
 import { Section, SectionHeader } from '@/components/section';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Users, Coffee, Lightbulb, Target } from 'lucide-react';
+import { prisma } from '@/lib/prisma';
 
-export default function CulturePage() {
+export default async function CulturePage() {
+  const logos = await prisma.employerLogo.findMany({
+    orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+  });
   const values = [
     {
       icon: Target,
@@ -62,7 +66,7 @@ export default function CulturePage() {
           <h3 className="font-serif text-3xl md:text-4xl font-bold mb-8 text-center">
             Life at SGC
           </h3>
-          
+
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="space-y-6">
               <p className="text-lg leading-relaxed">
@@ -75,7 +79,7 @@ export default function CulturePage() {
                 Whether you're interested in quantitative trading, equity research, or macro analysis, SGC provides the resources, mentorship, and community to help you succeed.
               </p>
             </div>
-            
+
             <div className="relative w-full h-[500px] rounded-2xl overflow-hidden shadow-2xl">
               <img
                 src="/images/webphotos/culture.jpeg"
@@ -88,6 +92,31 @@ export default function CulturePage() {
           </div>
         </div>
       </Section>
+
+      {logos.length > 0 && (
+        <Section className="!py-16">
+          <div className="max-w-5xl mx-auto">
+            <h3 className="font-serif text-3xl md:text-4xl font-bold mb-3 text-center">
+              Where We Have Worked
+            </h3>
+            <p className="text-center text-gray-500 mb-12 text-lg">
+              SGC alumni have gone on to work at leading firms across finance and technology.
+            </p>
+            <div className="flex flex-wrap justify-center items-center gap-x-10 gap-y-8">
+              {logos.map((logo) => (
+                <div key={logo.id} className="flex items-center justify-center w-32 h-14">
+                  <img
+                    src={logo.logoUrl}
+                    alt={logo.name}
+                    title={logo.name}
+                    className="max-h-full max-w-full object-contain grayscale hover:grayscale-0 transition-all duration-300 opacity-70 hover:opacity-100"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </Section>
+      )}
     </>
   );
 }

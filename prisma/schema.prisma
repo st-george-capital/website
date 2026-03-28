@@ -420,6 +420,14 @@ model ResumeSubmission {
   createdAt        DateTime @default(now())
 }
 
+model EmployerLogo {
+  id        String   @id @default(cuid())
+  name      String
+  logoUrl   String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
 model NewsletterSubscriber {
   id          String   @id @default(cuid())
   email       String   @unique
