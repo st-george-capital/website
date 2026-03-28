@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
 // Using native HTML form elements instead of custom UI components
@@ -153,7 +153,7 @@ function exportToExcel(inputs: DCFInputs, outputs: DCFOutputs, financialData: Ex
     ['Terminal Value'],
     ['Terminal Growth Rate', (inputs.perpetualGrowth * 100).toFixed(2) + '%'],
     ['Terminal Value', outputs.terminalValue.toFixed(0)],
-    ['PV of Terminal Value', (outputs.terminalValue / Math.pow(1 + outputs.wacc, inputs.forecastYears)).toFixed(0)],
+    ['PV of Terminal Value', outputs.pvOfTerminalValue.toFixed(0)],
     ['Terminal Value % of EV', (outputs.terminalValueContribution * 100).toFixed(1) + '%']
   ];
   const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
@@ -395,7 +395,7 @@ function exportToCSV(inputs: DCFInputs, outputs: DCFOutputs) {
     ['Intrinsic Value per Share', outputs.intrinsicValuePerShare.toFixed(2), inputs.currency],
     ['Upside/Downside', (outputs.upsideDownside * 100).toFixed(1) + '%', ''],
     ['WACC', (outputs.wacc * 100).toFixed(2) + '%', ''],
-    ['Terminal Value (PV)', (outputs.terminalValue / Math.pow(1 + outputs.wacc, inputs.forecastYears)).toFixed(0), inputs.currency],
+    ['Terminal Value (PV)', outputs.pvOfTerminalValue.toFixed(0), inputs.currency],
     ['', '', ''],
     ['Cash Flow Projections', '', ''],
     ['Year', 'Revenue', 'EBIT', 'NOPAT', 'FCFF']
@@ -1027,7 +1027,9 @@ function calculatePricePerformance(priceData: Array<{ date: string; close: numbe
 export default function DCFToolPage() {
   const router = useRouter();
   const [inputs, setInputs] = useState<DCFInputs>(getDefaultInputs());
-  const [activeTab, setActiveTab] = useState<'snapshot' | 'assumptions' | 'valuation' | 'charts' | 'sensitivity' | 'financials'>('snapshot');
+  const [activeTab, setActiveTab] = useState<'snapshot' | 'assumptions' | 'valuation' | 'charts' | 'sensitivity' | 'financials' | 'comps' | 'final'>('snapshot');
+  const [compsData, setCompsData] = useState<CompsRow[]>([]);
+  const [compsIncludeInResearch, setCompsIncludeInResearch] = useState(true);
   const [financialData, setFinancialData] = useState<ExtractedFinancials | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<CompanyOverview | null>(null);
   const [quote, setQuote] = useState<any>(null);
@@ -1211,7 +1213,10 @@ export default function DCFToolPage() {
         body: JSON.stringify({
           ticker: inputs.ticker,
           companyName: inputs.companyName,
-          inputs,
+          inputs: {
+            ...inputs,
+            ...(compsIncludeInResearch && compsData.length > 0 ? { comps: compsData } : {}),
+          },
           outputs: outputsToSave,
           financialData: enrichedFinancialData,
           name: modelName,
@@ -1256,7 +1261,10 @@ export default function DCFToolPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          inputs,
+          inputs: {
+            ...inputs,
+            ...(compsIncludeInResearch && compsData.length > 0 ? { comps: compsData } : {}),
+          },
           outputs: outputsToSave,
           financialData: enrichedFinancialData,
         }),
@@ -2173,6 +2181,8 @@ export default function DCFToolPage() {
               { id: 'charts' as const, label: 'Charts & Analysis' },
               { id: 'sensitivity' as const, label: 'Sensitivity Analysis' },
               { id: 'financials' as const, label: 'Financial Deep Dive' },
+              { id: 'comps' as const, label: 'Comps' },
+              { id: 'final' as const, label: 'DCF Final' },
             ] as const).map((tab) => (
               <button
                 key={tab.id}
@@ -2508,6 +2518,18 @@ export default function DCFToolPage() {
               {activeTab === 'charts' && <DCFCharts inputs={inputs} outputs={outputs} />}
             </div>
           )}
+
+          {activeTab === 'comps' && (
+            <DCFComps
+              inputs={inputs}
+              compsData={compsData}
+              setCompsData={setCompsData}
+              includeInResearch={compsIncludeInResearch}
+              setIncludeInResearch={setCompsIncludeInResearch}
+            />
+          )}
+
+          {activeTab === 'final' && <DCFFinalPresentation inputs={inputs} outputs={outputs} />}
         </div>
       </div>
 
@@ -2662,13 +2684,13 @@ export default function DCFToolPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Revenue Growth Adjustment (bps)</label>
-                  <input
-                    type="number"
-                    value={(customScenarioParams[selectedScenario].revenueGrowthAdj * 10000).toFixed(0)}
-                    onChange={(e) => setCustomScenarioParams(prev => ({
+                  <NumericInput
+                    value={customScenarioParams[selectedScenario].revenueGrowthAdj * 10000}
+                    onChange={(n) => setCustomScenarioParams(prev => ({
                       ...prev,
-                      [selectedScenario]: { ...prev[selectedScenario], revenueGrowthAdj: parseFloat(e.target.value) / 10000 }
+                      [selectedScenario]: { ...prev[selectedScenario], revenueGrowthAdj: n / 10000 }
                     }))}
+                    toDisplay={(n) => n.toFixed(0)}
                     className="w-full px-3 py-2 border rounded"
                   />
                   <div className="text-xs text-gray-500 mt-1">
@@ -2677,13 +2699,13 @@ export default function DCFToolPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Operating Margin Adjustment (bps)</label>
-                  <input
-                    type="number"
-                    value={(customScenarioParams[selectedScenario].marginAdj * 10000).toFixed(0)}
-                    onChange={(e) => setCustomScenarioParams(prev => ({
+                  <NumericInput
+                    value={customScenarioParams[selectedScenario].marginAdj * 10000}
+                    onChange={(n) => setCustomScenarioParams(prev => ({
                       ...prev,
-                      [selectedScenario]: { ...prev[selectedScenario], marginAdj: parseFloat(e.target.value) / 10000 }
+                      [selectedScenario]: { ...prev[selectedScenario], marginAdj: n / 10000 }
                     }))}
+                    toDisplay={(n) => n.toFixed(0)}
                     className="w-full px-3 py-2 border rounded"
                   />
                   <div className="text-xs text-gray-500 mt-1">
@@ -2692,13 +2714,13 @@ export default function DCFToolPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">WACC Adjustment (bps)</label>
-                  <input
-                    type="number"
-                    value={(customScenarioParams[selectedScenario].waccAdj * 10000).toFixed(0)}
-                    onChange={(e) => setCustomScenarioParams(prev => ({
+                  <NumericInput
+                    value={customScenarioParams[selectedScenario].waccAdj * 10000}
+                    onChange={(n) => setCustomScenarioParams(prev => ({
                       ...prev,
-                      [selectedScenario]: { ...prev[selectedScenario], waccAdj: parseFloat(e.target.value) / 10000 }
+                      [selectedScenario]: { ...prev[selectedScenario], waccAdj: n / 10000 }
                     }))}
+                    toDisplay={(n) => n.toFixed(0)}
                     className="w-full px-3 py-2 border rounded"
                   />
                   <div className="text-xs text-gray-500 mt-1">
@@ -2707,13 +2729,13 @@ export default function DCFToolPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Terminal Growth Adjustment (bps)</label>
-                  <input
-                    type="number"
-                    value={(customScenarioParams[selectedScenario].termGrowthAdj * 10000).toFixed(0)}
-                    onChange={(e) => setCustomScenarioParams(prev => ({
+                  <NumericInput
+                    value={customScenarioParams[selectedScenario].termGrowthAdj * 10000}
+                    onChange={(n) => setCustomScenarioParams(prev => ({
                       ...prev,
-                      [selectedScenario]: { ...prev[selectedScenario], termGrowthAdj: parseFloat(e.target.value) / 10000 }
+                      [selectedScenario]: { ...prev[selectedScenario], termGrowthAdj: n / 10000 }
                     }))}
+                    toDisplay={(n) => n.toFixed(0)}
                     className="w-full px-3 py-2 border rounded"
                   />
                   <div className="text-xs text-gray-500 mt-1">
@@ -2767,7 +2789,7 @@ export default function DCFToolPage() {
                     </div>
                     <div className="text-sm text-gray-600 mb-2">Enterprise Value</div>
                     <div className="text-sm text-gray-500">
-                      Terminal: {((scenarioOutputs.terminalValue / scenarioOutputs.enterpriseValue) * 100).toFixed(1)}%
+                      Terminal: {((scenarioOutputs.pvOfTerminalValue / scenarioOutputs.enterpriseValue) * 100).toFixed(1)}%
                     </div>
                   </div>
 
@@ -2987,6 +3009,50 @@ export default function DCFToolPage() {
   );
 }
 
+// Numeric input that keeps a local string while the user is typing and only
+// commits the parsed number to global state on blur. Fixes the React controlled-
+// input problem where parseFloat+re-render eats decimal points mid-keystroke.
+function NumericInput({
+  value,
+  onChange,
+  toDisplay = (n: number) => String(n),
+  fromDisplay = (s: string) => { const n = parseFloat(s.replace(/[^0-9.-]/g, '')); return isNaN(n) ? 0 : n; },
+  className,
+  ...rest
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  toDisplay?: (n: number) => string;
+  fromDisplay?: (s: string) => number;
+  className?: string;
+  [k: string]: any;
+}) {
+  const [local, setLocal] = useState(() => toDisplay(value));
+  const focused = useRef(false);
+
+  useEffect(() => {
+    if (!focused.current) setLocal(toDisplay(value));
+  }, [value]);
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={local}
+      className={className}
+      onChange={(e) => setLocal(e.target.value)}
+      onFocus={(e) => { focused.current = true; e.target.select(); }}
+      onBlur={() => {
+        focused.current = false;
+        const parsed = fromDisplay(local);
+        onChange(parsed);
+        setLocal(toDisplay(parsed));
+      }}
+      {...rest}
+    />
+  );
+}
+
 // Input Forms Component
 function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
   inputs: DCFInputs;
@@ -3033,32 +3099,29 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Current Price ($)</label>
-              <input
-                type="number"
-                step="0.01"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              <NumericInput
                 value={inputs.currentPrice}
-                onChange={(e) => updateInput('currentPrice', parseFloat(e.target.value) || 0)}
+                onChange={(n) => updateInput('currentPrice', n)}
+                toDisplay={(n) => n.toFixed(2)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Shares Outstanding (M)</label>
-              <input
-                type="number"
-                step="0.001"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              <NumericInput
                 value={inputs.sharesOutstanding / 1000000}
-                onChange={(e) => updateInput('sharesOutstanding', (parseFloat(e.target.value) || 0) * 1000000)}
+                onChange={(n) => updateInput('sharesOutstanding', n * 1000000)}
+                toDisplay={(n) => n.toFixed(3)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Shares Diluted (M)</label>
-              <input
-                type="number"
-                step="0.001"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              <NumericInput
                 value={inputs.sharesDiluted / 1000000}
-                onChange={(e) => updateInput('sharesDiluted', (parseFloat(e.target.value) || 0) * 1000000)}
+                onChange={(n) => updateInput('sharesDiluted', n * 1000000)}
+                toDisplay={(n) => n.toFixed(3)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -3127,21 +3190,20 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Starting Revenue ($M)</label>
-              <input
-                type="number"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              <NumericInput
                 value={inputs.startingRevenue / 1000000}
-                onChange={(e) => updateInput('startingRevenue', (parseFloat(e.target.value) || 0) * 1000000)}
+                onChange={(n) => updateInput('startingRevenue', n * 1000000)}
+                toDisplay={(n) => n.toFixed(0)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Terminal Growth (%)</label>
-              <input
-                type="number"
-                step="0.01"
+              <NumericInput
+                value={inputs.perpetualGrowth * 100}
+                onChange={(n) => updateInput('perpetualGrowth', n / 100)}
+                toDisplay={(n) => n.toFixed(2)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={(inputs.perpetualGrowth * 100).toFixed(2)}
-                onChange={(e) => updateInput('perpetualGrowth', (parseFloat(e.target.value) || 0) / 100)}
               />
             </div>
           </div>
@@ -3152,32 +3214,21 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
               Revenue Growth Rate (%) {inputs.forecastMode === 'simple' ? '- Flat Rate' : '- By Year'}
             </label>
             {inputs.forecastMode === 'simple' ? (
-              <input
-                type="text"
-                inputMode="decimal"
+              <NumericInput
+                value={inputs.revenueGrowth[0] * 100}
+                onChange={(n) => updateInput('revenueGrowth', Array(inputs.forecastYears).fill(n / 100))}
+                toDisplay={(n) => n.toFixed(1)}
                 className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={(inputs.revenueGrowth[0] * 100).toFixed(1)}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/[^0-9.-]/g, '');
-                  const rate = (parseFloat(value) || 0) / 100;
-                  updateInput('revenueGrowth', Array(inputs.forecastYears).fill(rate));
-                }}
-                onFocus={(e) => e.target.select()}
               />
             ) : (
               <div className="grid grid-cols-5 gap-3">
                 {(inputs.revenueGrowth || Array(inputs.forecastYears).fill(0.05)).map((growth, index) => (
                   <div key={index} className="text-center">
-                    <input
-                      type="text"
-                      inputMode="decimal"
+                    <NumericInput
+                      value={growth * 100}
+                      onChange={(n) => updateArrayInput('revenueGrowth', index, n / 100)}
+                      toDisplay={(n) => n.toFixed(1)}
                       className="w-full px-3 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center"
-                      value={(growth * 100).toFixed(1)}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/[^0-9.-]/g, '');
-                        updateArrayInput('revenueGrowth', index, (parseFloat(value) || 0) / 100);
-                      }}
-                      onFocus={(e) => e.target.select()}
                     />
                     <div className="text-xs text-gray-500 mt-1 font-medium">Y{index + 1}</div>
                   </div>
@@ -3192,32 +3243,21 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
               EBIT Margin (%) {inputs.forecastMode === 'simple' ? '- Flat Rate' : '- By Year'}
             </label>
             {inputs.forecastMode === 'simple' ? (
-              <input
-                type="text"
-                inputMode="decimal"
+              <NumericInput
+                value={inputs.ebitMargin[0] * 100}
+                onChange={(n) => updateInput('ebitMargin', Array(inputs.forecastYears).fill(n / 100))}
+                toDisplay={(n) => n.toFixed(1)}
                 className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={(inputs.ebitMargin[0] * 100).toFixed(1)}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/[^0-9.-]/g, '');
-                  const margin = (parseFloat(value) || 0) / 100;
-                  updateInput('ebitMargin', Array(inputs.forecastYears).fill(margin));
-                }}
-                onFocus={(e) => e.target.select()}
               />
             ) : (
               <div className="grid grid-cols-5 gap-3">
                 {(inputs.ebitMargin || Array(inputs.forecastYears).fill(0.15)).map((margin, index) => (
                   <div key={index} className="text-center">
-                    <input
-                      type="text"
-                      inputMode="decimal"
+                    <NumericInput
+                      value={margin * 100}
+                      onChange={(n) => updateArrayInput('ebitMargin', index, n / 100)}
+                      toDisplay={(n) => n.toFixed(1)}
                       className="w-full px-3 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center"
-                      value={(margin * 100).toFixed(1)}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/[^0-9.-]/g, '');
-                        updateArrayInput('ebitMargin', index, (parseFloat(value) || 0) / 100);
-                      }}
-                      onFocus={(e) => e.target.select()}
                     />
                     <div className="text-xs text-gray-500 mt-1 font-medium">Y{index + 1}</div>
                   </div>
@@ -3230,22 +3270,20 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Capex (% of Revenue)</label>
-              <input
-                type="number"
-                step="0.1"
+              <NumericInput
+                value={inputs.capexPercentOfRevenue * 100}
+                onChange={(n) => updateInput('capexPercentOfRevenue', n / 100)}
+                toDisplay={(n) => n.toFixed(1)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={(inputs.capexPercentOfRevenue * 100).toFixed(1)}
-                onChange={(e) => updateInput('capexPercentOfRevenue', (parseFloat(e.target.value) || 0) / 100)}
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">D&A (% of Revenue)</label>
-              <input
-                type="number"
-                step="0.1"
+              <NumericInput
+                value={inputs.depreciationPercentOfRevenue * 100}
+                onChange={(n) => updateInput('depreciationPercentOfRevenue', n / 100)}
+                toDisplay={(n) => n.toFixed(1)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={(inputs.depreciationPercentOfRevenue * 100).toFixed(1)}
-                onChange={(e) => updateInput('depreciationPercentOfRevenue', (parseFloat(e.target.value) || 0) / 100)}
               />
             </div>
           </div>
@@ -3261,16 +3299,15 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
                 <div className="grid grid-cols-5 gap-2">
                   {(inputs.depreciationByYear || Array(inputs.forecastYears).fill(inputs.depreciationPercentOfRevenue)).map((dep, index) => (
                     <div key={index} className="text-center">
-                      <input
-                        type="number"
-                        step="0.01"
-                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        value={(dep * 100).toFixed(1)}
-                        onChange={(e) => {
+                      <NumericInput
+                        value={dep * 100}
+                        onChange={(n) => {
                           const newArray = [...(inputs.depreciationByYear || Array(inputs.forecastYears).fill(inputs.depreciationPercentOfRevenue))];
-                          newArray[index] = (parseFloat(e.target.value) || 0) / 100;
+                          newArray[index] = n / 100;
                           updateInput('depreciationByYear', newArray);
                         }}
+                        toDisplay={(n) => n.toFixed(1)}
+                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                       <div className="text-xs text-gray-500 mt-1">Y{index + 1}</div>
                     </div>
@@ -3308,31 +3345,21 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Risk-Free Rate (%)</label>
-              <input
-                type="text"
-                inputMode="decimal"
+              <NumericInput
+                value={inputs.riskFreeRate * 100}
+                onChange={(n) => updateInput('riskFreeRate', n / 100)}
+                toDisplay={(n) => n.toFixed(2)}
                 className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={(inputs.riskFreeRate * 100).toFixed(2)}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/[^0-9.-]/g, '');
-                  updateInput('riskFreeRate', (parseFloat(value) || 0) / 100);
-                }}
-                onFocus={(e) => e.target.select()}
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Equity Risk Premium (%)</label>
               <div className="flex items-center space-x-2">
-                <input
-                  type="text"
-                  inputMode="decimal"
+                <NumericInput
+                  value={inputs.equityRiskPremium * 100}
+                  onChange={(n) => updateInput('equityRiskPremium', n / 100)}
+                  toDisplay={(n) => n.toFixed(2)}
                   className="flex-1 px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={(inputs.equityRiskPremium * 100).toFixed(2)}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/[^0-9.-]/g, '');
-                    updateInput('equityRiskPremium', (parseFloat(value) || 0) / 100);
-                  }}
-                  onFocus={(e) => e.target.select()}
                 />
                 <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
                   Market: 6.0%
@@ -3344,16 +3371,11 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Beta</label>
-              <input
-                type="text"
-                inputMode="decimal"
+              <NumericInput
+                value={inputs.beta}
+                onChange={(n) => updateInput('beta', n)}
+                toDisplay={(n) => n.toFixed(2)}
                 className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={inputs.beta.toFixed(2)}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/[^0-9.-]/g, '');
-                  updateInput('beta', parseFloat(value) || 0);
-                }}
-                onFocus={(e) => e.target.select()}
               />
             </div>
           </div>
@@ -3361,44 +3383,29 @@ function DCFInputsForm({ inputs, updateInput, updateArrayInput }: {
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Cost of Debt (%)</label>
-              <input
-                type="text"
-                inputMode="decimal"
+              <NumericInput
+                value={inputs.costOfDebt * 100}
+                onChange={(n) => updateInput('costOfDebt', n / 100)}
+                toDisplay={(n) => n.toFixed(2)}
                 className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={(inputs.costOfDebt * 100).toFixed(2)}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/[^0-9.-]/g, '');
-                  updateInput('costOfDebt', (parseFloat(value) || 0) / 100);
-                }}
-                onFocus={(e) => e.target.select()}
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Tax Rate (%)</label>
-              <input
-                type="text"
-                inputMode="decimal"
+              <NumericInput
+                value={inputs.taxRate * 100}
+                onChange={(n) => updateInput('taxRate', n / 100)}
+                toDisplay={(n) => n.toFixed(2)}
                 className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={(inputs.taxRate * 100).toFixed(2)}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/[^0-9.-]/g, '');
-                  updateInput('taxRate', (parseFloat(value) || 0) / 100);
-                }}
-                onFocus={(e) => e.target.select()}
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Target Debt Ratio (%)</label>
-              <input
-                type="text"
-                inputMode="decimal"
+              <NumericInput
+                value={inputs.targetDebtRatio * 100}
+                onChange={(n) => updateInput('targetDebtRatio', n / 100)}
+                toDisplay={(n) => n.toFixed(2)}
                 className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={(inputs.targetDebtRatio * 100).toFixed(2)}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/[^0-9.-]/g, '');
-                  updateInput('targetDebtRatio', (parseFloat(value) || 0) / 100);
-                }}
-                onFocus={(e) => e.target.select()}
               />
             </div>
           </div>
@@ -3567,9 +3574,10 @@ function DCFQualityChecks({ inputs, outputs }: { inputs: DCFInputs; outputs: DCF
     });
   }
 
-  // Check 4: Extreme EV/EBITDA multiple
+  // Check 4: Extreme EV/EBITDA multiple — use terminal-year revenue for D&A approximation
   const lastEBIT = outputs.ebit[outputs.ebit.length - 1];
-  const approxEBITDA = lastEBIT + (inputs.startingRevenue * inputs.depreciationPercentOfRevenue); // Rough estimate
+  const terminalRevenue = outputs.revenues[outputs.revenues.length - 1];
+  const approxEBITDA = lastEBIT + (terminalRevenue * inputs.depreciationPercentOfRevenue);
   const evToEbitda = outputs.enterpriseValue / approxEBITDA;
   if (evToEbitda < 3 || evToEbitda > 25) {
     checks.push({
@@ -4377,7 +4385,7 @@ function SensitivityAnalysis({ inputs, outputs, financialData }: { inputs: DCFIn
                     </div>
                     <div className="text-sm text-gray-600 mb-2">Enterprise Value</div>
                     <div className="text-sm text-gray-500">
-                      Terminal: {((scenarioOutputs.terminalValue / scenarioOutputs.enterpriseValue) * 100).toFixed(1)}%
+                      Terminal: {((scenarioOutputs.pvOfTerminalValue / scenarioOutputs.enterpriseValue) * 100).toFixed(1)}%
                     </div>
                   </div>
 
@@ -4580,10 +4588,681 @@ function SensitivityAnalysis({ inputs, outputs, financialData }: { inputs: DCFIn
   );
 }
 
+// ── DCF Final Presentation ────────────────────────────────────────────────────
+
+const WACC_DELTAS  = [-0.02, -0.015, -0.01, -0.005, 0, 0.005, 0.01, 0.015, 0.02] as const;
+const GROWTH_DELTAS = [-0.01, -0.0075, -0.005, -0.0025, 0, 0.0025, 0.005, 0.0075, 0.01] as const;
+const MULT_DELTAS   = [-4, -3, -2, -1, 0, 1, 2, 3, 4] as const;
+
+function fmtM(n: number | null | undefined, dec = 0): string {
+  if (n == null || isNaN(n as number)) return '—';
+  const m = (n as number) / 1_000_000;
+  return m.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+
+function fmtPctFinal(n: number | null | undefined, dec = 1): string {
+  if (n == null || isNaN(n as number)) return '—';
+  return ((n as number) * 100).toFixed(dec) + '%';
+}
+
+function heatCell(value: number, base: number): { bg: string; fg: string } {
+  if (!base || isNaN(value)) return { bg: '#F0F0F0', fg: '#888888' };
+  const t = Math.max(-1, Math.min(1, (value - base) / base / 0.3));
+  if (t >= 0) {
+    const r = Math.round(255 - 229 * t), g = Math.round(255 - 184 * t), b = Math.round(255 - 206 * t);
+    return { bg: `rgb(${r},${g},${b})`, fg: t > 0.55 ? '#FFFFFF' : '#1A4731' };
+  }
+  const s = -t;
+  const r = Math.round(255 - 132 * s), g = Math.round(255 - 229 * s), b = Math.round(255 - 208 * s);
+  return { bg: `rgb(${r},${g},${b})`, fg: s > 0.55 ? '#FFFFFF' : '#7B1A2F' };
+}
+
+// ─── Comps Table ──────────────────────────────────────────────────────────────
+
+interface CompsRow {
+  ticker: string; name: string; isSubject: boolean;
+  sector: string | null; industry: string | null;
+  marketCap: number | null; evToEBITDA: number | null; evToRevenue: number | null;
+  peTrailing: number | null; peForward: number | null; priceToSales: number | null;
+  priceToBook: number | null; revenueGrowthYoY: number | null;
+  operatingMargin: number | null; ebitdaMargin: number | null;
+  beta: number | null; revenueTTM: number | null; ebitda: number | null;
+}
+
+function compsFmtM(v: number | null): string {
+  if (v === null) return '—';
+  if (Math.abs(v) >= 1000) return `$${(v / 1000).toFixed(1)}B`;
+  return `$${v.toFixed(0)}M`;
+}
+function compsFmtX(v: number | null): string { return v === null ? '—' : `${v.toFixed(1)}x`; }
+function compsFmtPct(v: number | null): string { return v === null ? '—' : `${(v * 100).toFixed(1)}%`; }
+function median(vals: number[]): number | null {
+  const s = vals.filter(v => isFinite(v)).sort((a, b) => a - b);
+  if (!s.length) return null;
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 !== 0 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+function DCFComps({
+  inputs,
+  compsData,
+  setCompsData,
+  includeInResearch,
+  setIncludeInResearch,
+}: {
+  inputs: DCFInputs;
+  compsData: CompsRow[];
+  setCompsData: (rows: CompsRow[]) => void;
+  includeInResearch: boolean;
+  setIncludeInResearch: (v: boolean) => void;
+}) {
+  const [peerInput, setPeerInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<{ message: string; details?: string; isRateLimit?: boolean } | null>(null);
+  const [peersSource, setPeersSource] = useState<string | null>(null);
+  const [hasFetched, setHasFetched] = useState(false);
+
+  const fetchComps = async (manualPeers?: string[]) => {
+    if (!inputs.ticker) { setError({ message: 'Load a company in the DCF tool first.' }); return; }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/tools/comps', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject: inputs.ticker, peers: manualPeers }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError({
+          message: data.error || 'Failed to fetch comps',
+          details: data.details,
+          isRateLimit: res.status === 429,
+        });
+        return;
+      }
+      setCompsData(data.rows || []);
+      setPeersSource(data.peersSource);
+      setHasFetched(true);
+    } catch (e) {
+      setError({ message: 'Network error fetching comps.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddPeers = () => {
+    const tickers = peerInput.split(/[\s,]+/).map(t => t.trim().toUpperCase()).filter(Boolean);
+    if (!tickers.length) return;
+    const existing = compsData.map(r => r.ticker);
+    const newTickers = tickers.filter(t => !existing.includes(t));
+    if (!newTickers.length) return;
+    const existingPeers = compsData.filter(r => !r.isSubject).map(r => r.ticker);
+    fetchComps([...existingPeers, ...newTickers]);
+    setPeerInput('');
+  };
+
+  const handleRemovePeer = (ticker: string) => {
+    const remaining = compsData.filter(r => !r.isSubject && r.ticker !== ticker).map(r => r.ticker);
+    fetchComps(remaining);
+  };
+
+  // Compute medians (exclude subject)
+  const peers = compsData.filter(r => !r.isSubject);
+  const med = {
+    evToEBITDA: median(peers.map(r => r.evToEBITDA).filter((v): v is number => v !== null)),
+    evToRevenue: median(peers.map(r => r.evToRevenue).filter((v): v is number => v !== null)),
+    peTrailing: median(peers.map(r => r.peTrailing).filter((v): v is number => v !== null)),
+    peForward: median(peers.map(r => r.peForward).filter((v): v is number => v !== null)),
+    priceToSales: median(peers.map(r => r.priceToSales).filter((v): v is number => v !== null)),
+    revenueGrowthYoY: median(peers.map(r => r.revenueGrowthYoY).filter((v): v is number => v !== null)),
+    operatingMargin: median(peers.map(r => r.operatingMargin).filter((v): v is number => v !== null)),
+    ebitdaMargin: median(peers.map(r => r.ebitdaMargin).filter((v): v is number => v !== null)),
+    beta: median(peers.map(r => r.beta).filter((v): v is number => v !== null)),
+  };
+
+  const cols = [
+    { key: 'name',            label: 'Company',          fmt: (r: CompsRow) => <span className="font-medium">{r.name}<br/><span className="text-[10px] text-gray-400 font-mono">{r.ticker}</span></span>, medVal: null },
+    { key: 'marketCap',       label: 'Mkt Cap',          fmt: (r: CompsRow) => compsFmtM(r.marketCap), medVal: null },
+    { key: 'revenueTTM',      label: 'Rev TTM',          fmt: (r: CompsRow) => compsFmtM(r.revenueTTM), medVal: null },
+    { key: 'evToRevenue',     label: 'EV/Rev',           fmt: (r: CompsRow) => compsFmtX(r.evToRevenue), medVal: compsFmtX(med.evToRevenue) },
+    { key: 'evToEBITDA',      label: 'EV/EBITDA',        fmt: (r: CompsRow) => compsFmtX(r.evToEBITDA), medVal: compsFmtX(med.evToEBITDA) },
+    { key: 'peTrailing',      label: 'P/E (TTM)',         fmt: (r: CompsRow) => compsFmtX(r.peTrailing), medVal: compsFmtX(med.peTrailing) },
+    { key: 'peForward',       label: 'Fwd P/E',          fmt: (r: CompsRow) => compsFmtX(r.peForward), medVal: compsFmtX(med.peForward) },
+    { key: 'priceToSales',    label: 'P/S',              fmt: (r: CompsRow) => compsFmtX(r.priceToSales), medVal: compsFmtX(med.priceToSales) },
+    { key: 'revenueGrowthYoY',label: 'Rev Growth',       fmt: (r: CompsRow) => compsFmtPct(r.revenueGrowthYoY), medVal: compsFmtPct(med.revenueGrowthYoY) },
+    { key: 'ebitdaMargin',    label: 'EBITDA Margin',    fmt: (r: CompsRow) => compsFmtPct(r.ebitdaMargin), medVal: compsFmtPct(med.ebitdaMargin) },
+    { key: 'operatingMargin', label: 'Op Margin',        fmt: (r: CompsRow) => compsFmtPct(r.operatingMargin), medVal: compsFmtPct(med.operatingMargin) },
+    { key: 'beta',            label: 'Beta',             fmt: (r: CompsRow) => r.beta !== null ? r.beta.toFixed(2) : '—', medVal: med.beta !== null ? med.beta.toFixed(2) : '—' },
+  ];
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Comparable Companies</h2>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Peer multiples benchmarked against {inputs.companyName || inputs.ticker || 'the subject company'}.
+            {peersSource === 'fmp' && <span className="ml-1 text-xs text-blue-500">Peers auto-sourced via FMP</span>}
+            {peersSource === 'manual' && <span className="ml-1 text-xs text-gray-400">Peers entered manually</span>}
+            {peersSource === 'none' && <span className="ml-1 text-xs text-amber-500">No peers found — add them manually below</span>}
+          </p>
+        </div>
+        <label className="flex items-center gap-2 cursor-pointer shrink-0">
+          <input
+            type="checkbox"
+            checked={includeInResearch}
+            onChange={e => setIncludeInResearch(e.target.checked)}
+            className="rounded"
+          />
+          <span className="text-sm font-medium text-gray-700">Include in Research Report</span>
+        </label>
+      </div>
+
+      {/* Controls */}
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          onClick={() => fetchComps()}
+          disabled={loading || !inputs.ticker}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
+        >
+          {loading ? (
+            <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Fetching…</>
+          ) : hasFetched ? 'Refresh' : 'Build Comps Table'}
+        </button>
+        <div className="flex items-center gap-2">
+          <input
+            value={peerInput}
+            onChange={e => setPeerInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleAddPeers()}
+            placeholder="Add peers: MSFT, GOOGL, META"
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm w-56 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={handleAddPeers}
+            disabled={loading || !peerInput.trim()}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
+          >Add</button>
+        </div>
+        {compsData.length > 0 && (
+          <span className="text-xs text-gray-400">{compsData.length} companies · {peers.length} peers</span>
+        )}
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className={`rounded-lg border p-4 ${error.isRateLimit ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'}`}>
+          <p className={`text-sm font-semibold ${error.isRateLimit ? 'text-amber-800' : 'text-red-800'}`}>
+            {error.isRateLimit ? '⏱ API Rate Limit Reached' : '⚠ Error'}
+          </p>
+          <p className={`text-sm mt-1 ${error.isRateLimit ? 'text-amber-700' : 'text-red-700'}`}>{error.message}</p>
+          {error.details && <p className="text-xs mt-1 text-gray-500">{error.details}</p>}
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!hasFetched && !loading && !error && (
+        <div className="rounded-lg border-2 border-dashed border-gray-200 p-10 text-center text-gray-400">
+          <p className="text-sm">Click <strong>Build Comps Table</strong> to auto-fetch peers and multiples for {inputs.ticker || 'your ticker'}.</p>
+          <p className="text-xs mt-1">Or enter peer tickers manually above before fetching.</p>
+        </div>
+      )}
+
+      {/* Table */}
+      {compsData.length > 0 && (
+        <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                {cols.map(c => (
+                  <th key={c.key} className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{c.label}</th>
+                ))}
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {compsData.map((row, i) => (
+                <tr key={row.ticker} className={`border-b border-gray-100 ${row.isSubject ? 'bg-blue-50 font-semibold' : i % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}`}>
+                  {cols.map(c => (
+                    <td key={c.key} className={`px-3 py-2.5 ${row.isSubject ? 'text-blue-900' : 'text-gray-700'}`}>{c.fmt(row)}</td>
+                  ))}
+                  <td className="px-3 py-2.5">
+                    {!row.isSubject && (
+                      <button onClick={() => handleRemovePeer(row.ticker)} className="text-gray-300 hover:text-red-400 text-xs">✕</button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {/* Median row */}
+              {peers.length >= 2 && (
+                <tr className="bg-gray-100 border-t-2 border-gray-300 font-medium">
+                  <td className="px-3 py-2.5 text-xs font-bold text-gray-600 uppercase tracking-wide">Peer Median</td>
+                  <td className="px-3 py-2.5 text-gray-500">—</td>
+                  <td className="px-3 py-2.5 text-gray-500">—</td>
+                  {cols.slice(3).map(c => (
+                    <td key={c.key} className="px-3 py-2.5 text-gray-700">{c.medVal}</td>
+                  ))}
+                  <td />
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Subject vs median callout */}
+      {compsData.length > 0 && (() => {
+        const subj = compsData.find(r => r.isSubject);
+        if (!subj || !med.evToEBITDA || !subj.evToEBITDA) return null;
+        const premium = ((subj.evToEBITDA - med.evToEBITDA) / med.evToEBITDA) * 100;
+        const isDiscount = premium < -5;
+        const isPremium = premium > 5;
+        return (
+          <div className={`rounded-lg p-3 text-sm ${isPremium ? 'bg-amber-50 border border-amber-200 text-amber-800' : isDiscount ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : 'bg-gray-50 border border-gray-200 text-gray-600'}`}>
+            <span className="font-semibold">{subj.name}</span> trades at <span className="font-semibold">{compsFmtX(subj.evToEBITDA)}</span> EV/EBITDA vs peer median of <span className="font-semibold">{compsFmtX(med.evToEBITDA)}</span> — a <span className="font-semibold">{Math.abs(premium).toFixed(0)}% {isPremium ? 'premium' : isDiscount ? 'discount' : 'inline'}</span> to peers.
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+function DCFFinalPresentation({ inputs, outputs }: { inputs: DCFInputs; outputs: DCFOutputs }) {
+  const NAVY    = '#1F3864';
+  const DKGREEN = '#1A4731';
+  const DKMAROON = '#7B1A2F';
+
+  const years = Array.from({ length: inputs.forecastYears }, (_, i) => i);
+
+  const depRateAt = (i: number) =>
+    inputs.forecastMode === 'advanced' && inputs.depreciationByYear?.[i] != null
+      ? inputs.depreciationByYear![i] : inputs.depreciationPercentOfRevenue;
+  const capRateAt = (i: number) =>
+    inputs.forecastMode === 'advanced' && inputs.capexByYear?.[i] != null
+      ? inputs.capexByYear![i] : inputs.capexPercentOfRevenue;
+
+  const dna    = years.map(i => outputs.revenues[i] * depRateAt(i));
+  const capex  = years.map(i => outputs.revenues[i] * capRateAt(i));
+  const nwcChg = years.map(i => outputs.nopat[i] + dna[i] - capex[i] - outputs.freeCashFlow[i]);
+  const ebitda = years.map(i => outputs.ebit[i] + dna[i]);
+  const taxes  = years.map(i => outputs.ebit[i] - outputs.nopat[i]);
+
+  const discFactor = (i: number) => {
+    const p = inputs.midYearConvention ? i + 0.5 : i + 1;
+    return 1 / Math.pow(1 + outputs.wacc, p);
+  };
+  const pvFcfYear = years.map(i => outputs.freeCashFlow[i] * discFactor(i));
+
+  const lastFCFF   = outputs.freeCashFlow[outputs.freeCashFlow.length - 1];
+  const lastEBITDA = ebitda[ebitda.length - 1];
+  const n          = inputs.forecastYears;
+
+  const tvPerp = outputs.wacc > inputs.perpetualGrowth
+    ? lastFCFF * (1 + inputs.perpetualGrowth) / (outputs.wacc - inputs.perpetualGrowth)
+    : 0;
+  const pvTvPerp = tvPerp / Math.pow(1 + outputs.wacc, n);
+  const tvMult   = lastEBITDA * inputs.exitMultiple;
+  const pvTvMult = tvMult  / Math.pow(1 + outputs.wacc, n);
+  const pvFcfTotal = outputs.pvOfFcff;
+
+  function bridgeEquity(pvTV: number) {
+    const ev = pvFcfTotal + pvTV;
+    return ev - inputs.totalDebt + inputs.cashEquivalents
+      - inputs.preferredEquity - inputs.minorityInterest + inputs.nonOperatingAssets;
+  }
+  const eqPerp    = bridgeEquity(pvTvPerp);
+  const eqMult    = bridgeEquity(pvTvMult);
+  const pricePerp = inputs.sharesDiluted > 0 ? eqPerp / inputs.sharesDiluted : 0;
+  const priceMult = inputs.sharesDiluted > 0 ? eqMult / inputs.sharesDiluted : 0;
+  const premPerp  = inputs.currentPrice > 0 ? pricePerp / inputs.currentPrice - 1 : 0;
+  const premMult  = inputs.currentPrice > 0 ? priceMult / inputs.currentPrice - 1 : 0;
+
+  // Sensitivity grids
+  const sensitivityData = useMemo(() => {
+    const { freeCashFlow: fcfs, wacc } = outputs;
+    const { forecastYears: fy, totalDebt: D, cashEquivalents: C, preferredEquity: P,
+            minorityInterest: M, nonOperatingAssets: NO, sharesDiluted: S,
+            midYearConvention: mid, perpetualGrowth: g0, exitMultiple: em0 } = inputs;
+
+    function price(adjWacc: number, adjTV: number): number {
+      const pv = fcfs.reduce((s, f, i) => s + f / Math.pow(1 + adjWacc, mid ? i + 0.5 : i + 1), 0);
+      const ev = pv + adjTV / Math.pow(1 + adjWacc, fy);
+      return S > 0 ? (ev - D + C - P - M + NO) / S : 0;
+    }
+
+    const perpGrid = WACC_DELTAS.map(wd => GROWTH_DELTAS.map(gd => {
+      const aw = wacc + wd, ag = g0 + gd;
+      return aw > ag ? price(aw, lastFCFF * (1 + ag) / (aw - ag)) : NaN;
+    }));
+    const multGrid = WACC_DELTAS.map(wd => MULT_DELTAS.map(md =>
+      price(wacc + wd, lastEBITDA * (em0 + md))
+    ));
+    return { perpGrid, multGrid };
+  }, [inputs, outputs, lastFCFF, lastEBITDA]);
+
+  const [exporting, setExporting] = useState(false);
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const res = await fetch('/api/dcf-export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inputs, outputs }),
+      });
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${inputs.ticker || 'DCF'}_Analysis_${new Date().toISOString().split('T')[0]}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { alert('Export failed. Please try again.'); }
+    setExporting(false);
+  };
+
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const p2 = (n: number) => n.toFixed(2);
+
+  const bridgeRows: Array<{ label: string; perp: string; mult: string; bold?: boolean; big?: boolean; perpClr?: string; multClr?: string }> = [
+    { label: 'PV of Unlevered FCFs',       perp: fmtM(pvFcfTotal),             mult: fmtM(pvFcfTotal) },
+    { label: '(+) PV of Terminal Value',   perp: fmtM(pvTvPerp),               mult: fmtM(pvTvMult) },
+    { label: '= Enterprise Value',         perp: fmtM(pvFcfTotal + pvTvPerp),  mult: fmtM(pvFcfTotal + pvTvMult), bold: true },
+    { label: '(–) Total Debt',             perp: `(${fmtM(inputs.totalDebt)})`, mult: `(${fmtM(inputs.totalDebt)})` },
+    { label: '(+) Cash & Equivalents',     perp: fmtM(inputs.cashEquivalents), mult: fmtM(inputs.cashEquivalents) },
+    ...(inputs.preferredEquity ? [{ label: '(–) Preferred Equity',    perp: `(${fmtM(inputs.preferredEquity)})`, mult: `(${fmtM(inputs.preferredEquity)})` }] : []),
+    ...(inputs.minorityInterest ? [{ label: '(–) Minority Interest',   perp: `(${fmtM(inputs.minorityInterest)})`, mult: `(${fmtM(inputs.minorityInterest)})` }] : []),
+    ...(inputs.nonOperatingAssets ? [{ label: '(+) Non-Operating Assets', perp: fmtM(inputs.nonOperatingAssets), mult: fmtM(inputs.nonOperatingAssets) }] : []),
+    { label: '= Implied Equity Value',     perp: fmtM(eqPerp),                 mult: fmtM(eqMult), bold: true },
+    { label: '÷ Diluted Shares (M)',       perp: (inputs.sharesDiluted / 1e6).toFixed(1), mult: (inputs.sharesDiluted / 1e6).toFixed(1) },
+    { label: 'Implied Share Price',        perp: `$${p2(pricePerp)}`,          mult: `$${p2(priceMult)}`, bold: true, big: true, perpClr: DKGREEN, multClr: DKMAROON },
+    { label: 'Current Share Price',        perp: inputs.currentPrice > 0 ? `$${p2(inputs.currentPrice)}` : '—', mult: inputs.currentPrice > 0 ? `$${p2(inputs.currentPrice)}` : '—' },
+    { label: 'Premium / (Discount)',       perp: inputs.currentPrice > 0 ? `${premPerp >= 0 ? '+' : ''}${fmtPctFinal(premPerp)}` : '—', mult: inputs.currentPrice > 0 ? `${premMult >= 0 ? '+' : ''}${fmtPctFinal(premMult)}` : '—', bold: true, perpClr: premPerp >= 0 ? DKGREEN : DKMAROON, multClr: premMult >= 0 ? DKGREEN : DKMAROON },
+    { label: 'Terminal Value % of EV',     perp: fmtPctFinal(pvTvPerp / (pvFcfTotal + pvTvPerp)), mult: fmtPctFinal(pvTvMult / (pvFcfTotal + pvTvMult)) },
+  ];
+
+  return (
+    <div className="bg-white border border-gray-300 rounded-lg overflow-hidden text-xs" style={{ fontFamily: '"Calibri", "Segoe UI", Arial, sans-serif' }}>
+
+      {/* Controls */}
+      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+        <span className="text-[11px] text-gray-500 font-medium">Discounted Cash Flow — Investment Bank Format</span>
+        <div className="flex gap-2">
+          <button onClick={() => window.print()} className="text-[11px] px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100 font-medium text-gray-600">Print / PDF</button>
+          <button onClick={handleExport} disabled={exporting} className="text-[11px] px-3 py-1.5 rounded font-semibold text-white disabled:opacity-60" style={{ backgroundColor: NAVY }}>
+            {exporting ? 'Exporting…' : '⬇ Export to Excel'}
+          </button>
+        </div>
+      </div>
+
+      {/* Title */}
+      <div className="px-6 py-5 text-white" style={{ backgroundColor: NAVY }}>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">
+              {inputs.companyName || 'Company'}{inputs.ticker ? ` (${inputs.ticker})` : ''}
+            </h1>
+            <h2 className="text-sm font-semibold text-white/70 mt-0.5">Discounted Cash Flow Analysis</h2>
+          </div>
+          <div className="text-right text-[11px] text-white/50">
+            <div>Amounts in {inputs.currency}M unless noted</div>
+            <div className="mt-0.5">{today}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Assumptions & Output ─────────────────────────────── */}
+      <table className="w-full border-collapse">
+        <tbody>
+          <tr><td colSpan={3} className="text-white text-[11px] font-bold uppercase tracking-wider py-2 px-3" style={{ backgroundColor: NAVY }}>DCF Assumptions &amp; Output</td></tr>
+          <tr className="align-top">
+            {/* Left: WACC Inputs */}
+            <td className="border border-gray-200 p-0 align-top w-[220px]">
+              <table className="w-full border-collapse text-[11px]">
+                <thead>
+                  <tr><td colSpan={2} className="py-1.5 px-3 text-white text-[10px] font-semibold" style={{ backgroundColor: DKGREEN }}>WACC &amp; Key Assumptions</td></tr>
+                </thead>
+                <tbody>
+                  {([
+                    ['Risk-Free Rate',       fmtPctFinal(inputs.riskFreeRate, 2)],
+                    ['Equity Risk Premium',  fmtPctFinal(inputs.equityRiskPremium, 2)],
+                    ['Beta',                 inputs.beta.toFixed(2) + 'x'],
+                    ['Cost of Equity',       fmtPctFinal(outputs.costOfEquity, 2)],
+                    ['Pre-Tax Cost of Debt', fmtPctFinal(inputs.costOfDebt, 2)],
+                    ['Tax Rate',             fmtPctFinal(inputs.taxRate, 1)],
+                    ['After-Tax Cost of Debt', fmtPctFinal(outputs.afterTaxCostOfDebt, 2)],
+                    ['Target Debt Ratio',    fmtPctFinal(inputs.targetDebtRatio, 1)],
+                  ] as [string,string][]).map(([label, val], i) => (
+                    <tr key={label} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="py-1 px-3 text-gray-700 border-b border-gray-100">{label}</td>
+                      <td className="py-1 px-3 text-right font-mono text-gray-800 border-b border-gray-100">{val}</td>
+                    </tr>
+                  ))}
+                  <tr style={{ backgroundColor: '#DBEAFF' }}>
+                    <td className="py-1.5 px-3 font-bold border-b border-gray-300">WACC</td>
+                    <td className="py-1.5 px-3 text-right font-mono font-bold border-b border-gray-300" style={{ color: DKGREEN }}>{fmtPctFinal(outputs.wacc, 2)}</td>
+                  </tr>
+                  <tr className="bg-gray-100">
+                    <td colSpan={2} className="py-1 px-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">Terminal Value</td>
+                  </tr>
+                  {([
+                    ['Perpetuity Growth Rate', fmtPctFinal(inputs.perpetualGrowth, 2)],
+                    ['Exit Multiple', `${inputs.exitMultiple.toFixed(1)}x ${inputs.exitMultipleMetric.toUpperCase()}`],
+                    ['Forecast Horizon', `${inputs.forecastYears} years`],
+                    ['Mid-Year Convention', inputs.midYearConvention ? 'Yes' : 'No'],
+                  ] as [string,string][]).map(([label, val], i) => (
+                    <tr key={label} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="py-1 px-3 text-gray-700 border-b border-gray-100">{label}</td>
+                      <td className="py-1 px-3 text-right font-mono text-gray-800 border-b border-gray-100">{val}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </td>
+
+            {/* Right: Bridge Methods */}
+            <td className="border border-gray-200 p-0 align-top" colSpan={2}>
+              <table className="w-full border-collapse text-[11px]">
+                <thead>
+                  <tr>
+                    <td className="py-1.5 px-3 text-[10px] text-gray-500 border-b border-r border-gray-200 bg-gray-50 w-[40%]">Bridge</td>
+                    <td className="py-1.5 px-3 font-bold text-center border-b border-r border-gray-200 text-white" style={{ backgroundColor: DKGREEN }}>Perpetuity Growth Method</td>
+                    <td className="py-1.5 px-3 font-bold text-center border-b border-gray-200 text-white" style={{ backgroundColor: DKMAROON }}>Exit Multiple Method</td>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bridgeRows.map((row, idx) => (
+                    <tr key={idx} className={row.big ? '' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} style={row.big ? { backgroundColor: '#DBEAFF' } : {}}>
+                      <td className={`py-1 px-3 border-b border-r border-gray-100 text-gray-700 ${row.bold ? 'font-bold' : ''}`}>{row.label}</td>
+                      <td className={`py-1 px-3 text-right font-mono border-b border-r border-gray-100 ${row.bold ? 'font-bold' : ''} ${row.big ? 'text-base' : ''}`} style={{ color: row.perpClr || '' }}>{row.perp}</td>
+                      <td className={`py-1 px-3 text-right font-mono border-b border-gray-100 ${row.bold ? 'font-bold' : ''} ${row.big ? 'text-base' : ''}`} style={{ color: row.multClr || '' }}>{row.mult}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* ── FCF Projections ──────────────────────────────────── */}
+      <div className="overflow-x-auto border-t-2 border-gray-400">
+        <table className="border-collapse" style={{ minWidth: '100%', tableLayout: 'fixed' }}>
+          <colgroup>
+            <col style={{ width: '210px' }} />
+            {years.map(i => <col key={i} style={{ width: `${Math.max(70, Math.min(110, 680 / inputs.forecastYears))}px` }} />)}
+          </colgroup>
+          <thead>
+            <tr>
+              <th colSpan={inputs.forecastYears + 1} className="text-left text-white text-[11px] font-bold uppercase tracking-wider py-2 px-3" style={{ backgroundColor: NAVY }}>
+                Unlevered Free Cash Flow Projections ({inputs.currency}M)
+              </th>
+            </tr>
+            <tr style={{ backgroundColor: NAVY }}>
+              <th className="py-1.5 px-3 text-left text-white/50 text-[10px] font-normal border-r border-white/20">{inputs.currency}M</th>
+              {years.map(i => <th key={i} className="py-1.5 px-2 text-right text-white text-[11px] font-bold border-r border-white/20">FY{i + 1}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {/* Revenue */}
+            <tr><td colSpan={inputs.forecastYears + 1} className="py-1 px-3 text-white text-[10px] font-semibold" style={{ backgroundColor: DKGREEN }}>Revenue</td></tr>
+            <tr className="bg-white">
+              <td className="py-1 px-3 font-semibold text-gray-800 border-b border-r border-gray-100">Revenue</td>
+              {years.map(i => <td key={i} className="py-1 px-2 text-right font-mono text-gray-800 border-b border-r border-gray-100">{fmtM(outputs.revenues[i])}</td>)}
+            </tr>
+            <tr className="bg-gray-50 italic text-gray-400">
+              <td className="py-0.5 px-3 border-b border-r border-gray-100 pl-6">% Growth</td>
+              {years.map(i => { const g = i === 0 ? outputs.revenues[0] / inputs.startingRevenue - 1 : outputs.revenues[i] / outputs.revenues[i-1] - 1; return <td key={i} className="py-0.5 px-2 text-right font-mono border-b border-r border-gray-100">{fmtPctFinal(g)}</td>; })}
+            </tr>
+            {/* EBIT */}
+            <tr><td colSpan={inputs.forecastYears + 1} className="py-1 px-3 text-white text-[10px] font-semibold" style={{ backgroundColor: DKGREEN }}>Earnings Before Interest &amp; Taxes (EBIT)</td></tr>
+            <tr className="bg-white">
+              <td className="py-1 px-3 font-semibold text-gray-800 border-b border-r border-gray-100">EBIT</td>
+              {years.map(i => <td key={i} className="py-1 px-2 text-right font-mono text-gray-800 border-b border-r border-gray-100">{fmtM(outputs.ebit[i])}</td>)}
+            </tr>
+            <tr className="bg-gray-50 italic text-gray-400">
+              <td className="py-0.5 px-3 border-b border-r border-gray-100 pl-6">% EBIT Margin</td>
+              {years.map(i => <td key={i} className="py-0.5 px-2 text-right font-mono border-b border-r border-gray-100">{fmtPctFinal(outputs.ebit[i] / outputs.revenues[i])}</td>)}
+            </tr>
+            <tr className="bg-white text-gray-700">
+              <td className="py-1 px-3 border-b border-r border-gray-100 pl-5">(–) Income Taxes</td>
+              {years.map(i => <td key={i} className="py-1 px-2 text-right font-mono border-b border-r border-gray-100">({fmtM(taxes[i])})</td>)}
+            </tr>
+            <tr style={{ backgroundColor: '#DBEAFF' }}>
+              <td className="py-1.5 px-3 font-bold border-b border-t border-r border-gray-300">= NOPAT</td>
+              {years.map(i => <td key={i} className="py-1.5 px-2 text-right font-mono font-bold border-b border-t border-r border-gray-300">{fmtM(outputs.nopat[i])}</td>)}
+            </tr>
+            {/* D&A */}
+            <tr><td colSpan={inputs.forecastYears + 1} className="py-1 px-3 text-white text-[10px] font-semibold italic" style={{ backgroundColor: DKMAROON }}>Adjustments for Non-Cash Charges</td></tr>
+            <tr className="bg-white text-gray-700">
+              <td className="py-1 px-3 border-b border-r border-gray-100 pl-5">(+) Depreciation &amp; Amortization</td>
+              {years.map(i => <td key={i} className="py-1 px-2 text-right font-mono border-b border-r border-gray-100">{fmtM(dna[i])}</td>)}
+            </tr>
+            <tr className="bg-gray-50 italic text-gray-400">
+              <td className="py-0.5 px-3 border-b border-r border-gray-100 pl-8">% Revenue</td>
+              {years.map(i => <td key={i} className="py-0.5 px-2 text-right font-mono border-b border-r border-gray-100">{fmtPctFinal(dna[i] / outputs.revenues[i])}</td>)}
+            </tr>
+            {/* NWC */}
+            <tr><td colSpan={inputs.forecastYears + 1} className="py-1 px-3 text-white text-[10px] font-semibold italic" style={{ backgroundColor: DKMAROON }}>Changes in Net Working Capital</td></tr>
+            <tr className="bg-white text-gray-700">
+              <td className="py-1 px-3 border-b border-r border-gray-100 pl-5">(–) Increase in Net Working Capital</td>
+              {years.map(i => <td key={i} className="py-1 px-2 text-right font-mono border-b border-r border-gray-100">({fmtM(nwcChg[i])})</td>)}
+            </tr>
+            <tr className="bg-gray-50 italic text-gray-400">
+              <td className="py-0.5 px-3 border-b border-r border-gray-100 pl-8">% Δ Revenue</td>
+              {years.map(i => { const dR = i === 0 ? outputs.revenues[0] - inputs.startingRevenue : outputs.revenues[i] - outputs.revenues[i-1]; return <td key={i} className="py-0.5 px-2 text-right font-mono border-b border-r border-gray-100">{dR ? fmtPctFinal(nwcChg[i] / dR) : '—'}</td>; })}
+            </tr>
+            {/* Capex */}
+            <tr><td colSpan={inputs.forecastYears + 1} className="py-1 px-3 text-white text-[10px] font-semibold italic" style={{ backgroundColor: DKMAROON }}>Capital Expenditures</td></tr>
+            <tr className="bg-white text-gray-700">
+              <td className="py-1 px-3 border-b border-r border-gray-100 pl-5">(–) Capital Expenditures</td>
+              {years.map(i => <td key={i} className="py-1 px-2 text-right font-mono border-b border-r border-gray-100">({fmtM(capex[i])})</td>)}
+            </tr>
+            <tr className="bg-gray-50 italic text-gray-400">
+              <td className="py-0.5 px-3 border-b border-r border-gray-100 pl-8">% Revenue</td>
+              {years.map(i => <td key={i} className="py-0.5 px-2 text-right font-mono border-b border-r border-gray-100">{fmtPctFinal(capex[i] / outputs.revenues[i])}</td>)}
+            </tr>
+            {/* FCFF */}
+            <tr style={{ backgroundColor: NAVY }}>
+              <td className="py-2 px-3 text-white font-bold border-r border-white/20">= Unlevered Free Cash Flow (FCFF)</td>
+              {years.map(i => <td key={i} className="py-2 px-2 text-right font-mono font-bold text-white border-r border-white/20">{fmtM(outputs.freeCashFlow[i])}</td>)}
+            </tr>
+            <tr className="bg-gray-50 italic text-gray-400">
+              <td className="py-0.5 px-3 border-b border-r border-gray-100 pl-6">% Growth</td>
+              {years.map(i => { const g = i === 0 ? null : outputs.freeCashFlow[i] / outputs.freeCashFlow[i-1] - 1; return <td key={i} className="py-0.5 px-2 text-right font-mono border-b border-r border-gray-100">{g != null ? fmtPctFinal(g) : '—'}</td>; })}
+            </tr>
+            {/* Discount rows */}
+            <tr className="bg-white text-gray-600">
+              <td className="py-1 px-3 border-b border-r border-gray-100 pl-5">Period</td>
+              {years.map(i => <td key={i} className="py-1 px-2 text-right font-mono border-b border-r border-gray-100">{inputs.midYearConvention ? (i + 0.5).toFixed(1) : (i + 1)}</td>)}
+            </tr>
+            <tr className="bg-gray-50 text-gray-600">
+              <td className="py-1 px-3 border-b border-r border-gray-100 pl-5">Discount Factor</td>
+              {years.map(i => <td key={i} className="py-1 px-2 text-right font-mono border-b border-r border-gray-100">{discFactor(i).toFixed(4)}</td>)}
+            </tr>
+            <tr style={{ backgroundColor: '#DBEAFF' }}>
+              <td className="py-1.5 px-3 font-bold border-b border-t border-r border-gray-300 pl-5">PV of Unlevered FCF</td>
+              {years.map(i => <td key={i} className="py-1.5 px-2 text-right font-mono font-bold border-b border-t border-r border-gray-300" style={{ color: DKGREEN }}>{fmtM(pvFcfYear[i])}</td>)}
+            </tr>
+            {/* EBITDA */}
+            <tr><td colSpan={inputs.forecastYears + 1} className="py-1 px-3 text-white text-[10px] font-semibold" style={{ backgroundColor: DKGREEN }}>EBITDA</td></tr>
+            <tr className="bg-white">
+              <td className="py-1 px-3 font-semibold text-gray-800 border-b border-r border-gray-100">EBITDA</td>
+              {years.map(i => <td key={i} className="py-1 px-2 text-right font-mono text-gray-800 border-b border-r border-gray-100">{fmtM(ebitda[i])}</td>)}
+            </tr>
+            <tr className="bg-gray-50 italic text-gray-400">
+              <td className="py-0.5 px-3 border-b border-r border-gray-100 pl-6">% EBITDA Margin</td>
+              {years.map(i => <td key={i} className="py-0.5 px-2 text-right font-mono border-b border-r border-gray-100">{fmtPctFinal(ebitda[i] / outputs.revenues[i])}</td>)}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {/* ── Sensitivity Tables ───────────────────────────────── */}
+      <div className="grid grid-cols-2 border-t-2 border-gray-400">
+        {/* Perpetuity Growth */}
+        <div className="border-r border-gray-300 overflow-x-auto">
+          <table className="border-collapse w-full text-[10px]">
+            <thead>
+              <tr><th colSpan={GROWTH_DELTAS.length + 1} className="text-left text-white text-[11px] font-bold py-2 px-3" style={{ backgroundColor: NAVY }}>Sensitivity — Perpetuity Growth Method (Implied Share Price)</th></tr>
+              <tr style={{ backgroundColor: DKGREEN }}>
+                <th className="py-1.5 px-2 text-white font-semibold text-left text-[10px]">WACC \ g</th>
+                {GROWTH_DELTAS.map((gd, j) => <th key={j} className="py-1.5 px-2 text-right text-white font-semibold">{fmtPctFinal(inputs.perpetualGrowth + gd, 2)}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {WACC_DELTAS.map((wd, i) => (
+                <tr key={i}>
+                  <td className="py-1 px-2 font-semibold text-white" style={{ backgroundColor: DKGREEN }}>{fmtPctFinal(outputs.wacc + wd, 2)}</td>
+                  {GROWTH_DELTAS.map((_, j) => {
+                    const v = sensitivityData.perpGrid[i]?.[j] ?? NaN;
+                    const { bg, fg } = heatCell(v, inputs.currentPrice || pricePerp);
+                    const isBase = i === 4 && j === 4;
+                    return <td key={j} className={`py-1 px-2 text-right font-mono ${isBase ? 'outline outline-2 outline-black font-bold' : ''}`} style={{ backgroundColor: bg, color: fg }}>{isNaN(v) ? '—' : `$${v.toFixed(2)}`}</td>;
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {/* Exit Multiple */}
+        <div className="overflow-x-auto">
+          <table className="border-collapse w-full text-[10px]">
+            <thead>
+              <tr><th colSpan={MULT_DELTAS.length + 1} className="text-left text-white text-[11px] font-bold py-2 px-3" style={{ backgroundColor: NAVY }}>Sensitivity — Exit Multiple Method (Implied Share Price)</th></tr>
+              <tr style={{ backgroundColor: DKMAROON }}>
+                <th className="py-1.5 px-2 text-white font-semibold text-left text-[10px]">WACC \ EV/EBITDA</th>
+                {MULT_DELTAS.map((md, j) => <th key={j} className="py-1.5 px-2 text-right text-white font-semibold">{(inputs.exitMultiple + md).toFixed(1)}x</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {WACC_DELTAS.map((wd, i) => (
+                <tr key={i}>
+                  <td className="py-1 px-2 font-semibold text-white" style={{ backgroundColor: DKMAROON }}>{fmtPctFinal(outputs.wacc + wd, 2)}</td>
+                  {MULT_DELTAS.map((_, j) => {
+                    const v = sensitivityData.multGrid[i]?.[j] ?? NaN;
+                    const { bg, fg } = heatCell(v, inputs.currentPrice || priceMult);
+                    const isBase = i === 4 && j === 4;
+                    return <td key={j} className={`py-1 px-2 text-right font-mono ${isBase ? 'outline outline-2 outline-black font-bold' : ''}`} style={{ backgroundColor: bg, color: fg }}>{isNaN(v) ? '—' : `$${v.toFixed(2)}`}</td>;
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Footer disclaimer */}
+      <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 text-[10px] text-gray-400">
+        <strong className="text-gray-500">Disclaimer:</strong> For educational and research purposes only. Not investment advice. Actual results may differ materially.
+      </div>
+    </div>
+  );
+}
+
 // DCF Calculation Logic
 function calculateDCF(inputs: DCFInputs): DCFOutputs {
-  console.log('DCF Calculation Inputs:', inputs);
-
   const revenues: number[] = [];
   const ebit: number[] = [];
   const nopat: number[] = [];
@@ -4591,13 +5270,10 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
 
   // Calculate operating forecasts
   let revenue = inputs.startingRevenue;
-  console.log('Starting revenue:', revenue);
 
   for (let year = 0; year < inputs.forecastYears; year++) {
     revenue *= (1 + inputs.revenueGrowth[year]);
     revenues.push(revenue);
-
-    console.log(`Year ${year + 1} revenue:`, revenue);
 
     // EBIT calculation - use advanced mode if available, otherwise simple mode
     const ebitMargin = inputs.forecastMode === 'advanced' && inputs.ebitMarginAdvanced
@@ -4606,16 +5282,12 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
     const ebitValue = revenue * ebitMargin;
     ebit.push(ebitValue);
 
-    console.log(`Year ${year + 1} EBIT:`, ebitValue, 'margin:', ebitMargin);
-
     // Tax rate - use advanced mode if available, otherwise simple mode
     const taxRate = inputs.forecastMode === 'advanced' && inputs.cashTaxRateByYear
       ? inputs.cashTaxRateByYear[year]
       : inputs.cashTaxRate;
     const nopatValue = ebitValue * (1 - taxRate);
     nopat.push(nopatValue);
-
-    console.log(`Year ${year + 1} NOPAT:`, nopatValue, 'tax rate:', taxRate);
 
     // Working capital changes
     let nwcChange = 0;
@@ -4643,13 +5315,9 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
       ? inputs.capexByYear[year]
       : inputs.capexPercentOfRevenue);
 
-    console.log(`Year ${year + 1} - Dep:`, depreciation, 'Capex:', capex, 'NWC change:', nwcChange);
-
     // FCFF calculation
     const fcff = nopatValue + depreciation - capex - nwcChange;
     freeCashFlow.push(fcff);
-
-    console.log(`Year ${year + 1} FCFF:`, fcff);
   }
 
   // Calculate WACC
@@ -4657,27 +5325,22 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
   const afterTaxCostOfDebt = inputs.costOfDebt * (1 - inputs.taxRate);
   const wacc = costOfEquity * (1 - inputs.targetDebtRatio) + afterTaxCostOfDebt * inputs.targetDebtRatio;
 
-  console.log('WACC calculation:', {
-    costOfEquity,
-    afterTaxCostOfDebt,
-    targetDebtRatio: inputs.targetDebtRatio,
-    wacc
-  });
-
   // Calculate terminal value
   let terminalValue = 0;
   const lastFCFF = freeCashFlow[freeCashFlow.length - 1];
   const lastRevenue = revenues[revenues.length - 1];
   const lastEBIT = ebit[ebit.length - 1];
+  // Use terminal-year D&A rate (respects advanced mode)
+  const terminalDepRate = inputs.forecastMode === 'advanced' && inputs.depreciationByYear
+    ? inputs.depreciationByYear[inputs.depreciationByYear.length - 1]
+    : inputs.depreciationPercentOfRevenue;
 
   if (inputs.terminalMethod === 'perpetual') {
     terminalValue = lastFCFF * (1 + inputs.perpetualGrowth) / (wacc - inputs.perpetualGrowth);
   } else if (inputs.terminalMethod === 'multiple') {
     let exitMetric = 0;
     if (inputs.exitMultipleMetric === 'ebitda') {
-      // Approximate EBITDA as EBIT + Depreciation (rough estimate)
-      const approxDepreciation = lastRevenue * inputs.depreciationPercentOfRevenue;
-      exitMetric = lastEBIT + approxDepreciation;
+      exitMetric = lastEBIT + lastRevenue * terminalDepRate;
     } else if (inputs.exitMultipleMetric === 'ebit') {
       exitMetric = lastEBIT;
     } else {
@@ -4691,8 +5354,7 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
     // Multiple component
     let exitMetric = 0;
     if (inputs.exitMultipleMetric === 'ebitda') {
-      const approxDepreciation = lastRevenue * inputs.depreciationPercentOfRevenue;
-      exitMetric = lastEBIT + approxDepreciation;
+      exitMetric = lastEBIT + lastRevenue * terminalDepRate;
     } else if (inputs.exitMultipleMetric === 'ebit') {
       exitMetric = lastEBIT;
     } else {
@@ -4704,9 +5366,6 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
     terminalValue = (perpetualTV * inputs.terminalWeighting) + (multipleTV * (1 - inputs.terminalWeighting));
   }
 
-  console.log('Terminal value:', terminalValue);
-  console.log('Free cash flows:', freeCashFlow);
-
   // Calculate present values (with mid-year convention if enabled)
   let pvFcff = 0;
   for (let i = 0; i < freeCashFlow.length; i++) {
@@ -4715,8 +5374,6 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
   }
   const pvTerminal = terminalValue / Math.pow(1 + wacc, inputs.forecastYears);
 
-  console.log('Present values - PV FCF:', pvFcff, 'PV Terminal:', pvTerminal);
-
   // Calculate enterprise and equity value
   const enterpriseValue = pvFcff + pvTerminal;
   const netDebt = inputs.totalDebt - inputs.cashEquivalents;
@@ -4724,17 +5381,8 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
   const sharesDiluted = inputs.sharesDiluted || 100000000; // Default if not set
   const intrinsicValuePerShare = equityValue / sharesDiluted;
   const upsideDownside = inputs.currentPrice !== 0 ? (intrinsicValuePerShare - inputs.currentPrice) / inputs.currentPrice : 0;
-  const terminalValueContribution = enterpriseValue > 0 ? terminalValue / enterpriseValue : 0;
-
-  console.log('Final calculations:', {
-    enterpriseValue,
-    equityValue,
-    intrinsicValuePerShare,
-    sharesDiluted,
-    netDebt,
-    upsideDownside,
-    terminalValueContribution
-  });
+  // PV of terminal value as % of EV — the meaningful sensitivity indicator
+  const terminalValueContribution = enterpriseValue > 0 ? pvTerminal / enterpriseValue : 0;
 
   return {
     revenues,

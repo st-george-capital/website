@@ -44,6 +44,7 @@ interface ResearchReport {
   forwardPEConsensus?: number | null;
   dividendYield?: number | null;
   priceChartImageUrl?: string | null;
+  showPriceChart?: boolean;
   priceHistory?: Array<{ date: string; close: number }> | null;
   dcfInputs?: any;
   dcfOutputs?: any;
@@ -58,6 +59,7 @@ interface ResearchReport {
   unitEconomics?: string;
   economicMoat?: string;
   industryAnalysis: string;
+  competitivePosition?: { source: string; rows: any[]; updatedAt: string } | null;
   catalystsNearTerm: Array<{
     event: string;
     mechanism: string;
@@ -339,69 +341,71 @@ export default function ResearchReportPreviewPage() {
             {report.dataSource && (
               <p className="text-xs text-gray-500">Source: {report.dataSource}</p>
             )}
-            {report.epsTableMarkdown && (
-              <div>
-                <h4 className="font-semibold text-gray-900 mb-3">EPS (Recurring)</h4>
-                <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-                  <div className="prose prose-sm max-w-none [&_table]:w-full [&_table]:border-collapse [&_table]:m-0 [&_th]:bg-gray-50 [&_th]:border-b [&_th]:border-gray-200 [&_th]:px-4 [&_th]:py-3 [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-wider [&_th]:text-gray-600 [&_td]:border-b [&_td]:border-gray-100 [&_td]:px-4 [&_td]:py-3 [&_td]:text-sm [&_td]:text-gray-900 [&_tr:last-child_td]:border-b-0">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-                      {report.epsTableMarkdown}
-                    </ReactMarkdown>
-                  </div>
+            {(() => {
+              const hasEPS = !!report.epsTableMarkdown;
+              const hasChart = report.showPriceChart !== false && (
+                (report.priceHistory && report.priceHistory.length > 0) ||
+                (report.dcfInputs?.priceHistory && report.dcfInputs.priceHistory.length > 0) ||
+                !!report.priceChartImageUrl
+              );
+              const sideBySide = hasEPS && hasChart;
+              return (
+                <div className={sideBySide ? 'grid grid-cols-2 gap-4 items-start' : 'space-y-4'}>
+                  {hasEPS && (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-3">EPS (Recurring)</h4>
+                      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                        <div className="prose prose-sm max-w-none [&_table]:w-full [&_table]:border-collapse [&_table]:m-0 [&_th]:bg-gray-50 [&_th]:border-b [&_th]:border-gray-200 [&_th]:px-4 [&_th]:py-3 [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-wider [&_th]:text-gray-600 [&_td]:border-b [&_td]:border-gray-100 [&_td]:px-4 [&_td]:py-3 [&_td]:text-sm [&_td]:text-gray-900 [&_tr:last-child_td]:border-b-0">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                            {report.epsTableMarkdown!}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {hasChart && (
+                    <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+                      <h4 className="font-semibold mb-3 text-gray-800">Price Chart (100 Days)</h4>
+                      {report.priceChartImageUrl && !(report.priceHistory && report.priceHistory.length > 0) ? (
+                        <img src={report.priceChartImageUrl} alt="Price Chart" className="w-full h-auto rounded" />
+                      ) : (
+                        <div className="w-full h-56 relative">
+                          <svg viewBox="0 0 800 220" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+                            {(() => {
+                              const chartData = (report.priceHistory || report.dcfInputs?.priceHistory || []).slice(0, 100);
+                              if (!chartData.length) return null;
+                              const prices = chartData.map((d: any) => d.close);
+                              const maxPrice = Math.max(...prices);
+                              const topPad = maxPrice * 0.05;
+                              const range = maxPrice + topPad;
+                              const points = chartData.map((d: any, i: number) => {
+                                const x = (chartData.length > 1 ? i / (chartData.length - 1) : 0) * 760 + 20;
+                                const y = 200 - (d.close / range) * 180;
+                                return `${x},${y}`;
+                              }).join(' ');
+                              const areaPoints = `${points} 760,200 20,200`;
+                              return (
+                                <>
+                                  <rect x="20" y="20" width="760" height="180" fill="white" rx="4" />
+                                  <line x1="20" y1="200" x2="780" y2="200" stroke="#e5e7eb" strokeWidth="1" />
+                                  <line x1="20" y1="20" x2="20" y2="200" stroke="#e5e7eb" strokeWidth="1" />
+                                  <polygon points={areaPoints} fill="rgba(59, 130, 246, 0.08)" stroke="none" />
+                                  <polyline points={points} fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                  <text x="20" y="215" fontSize="11" fill="#6b7280">{chartData[chartData.length - 1]?.date}</text>
+                                  <text x="780" y="215" fontSize="11" fill="#6b7280" textAnchor="end">{chartData[0]?.date}</text>
+                                  <text x="20" y="28" fontSize="11" fill="#6b7280" fontWeight="500">${maxPrice.toFixed(2)}</text>
+                                  <text x="20" y="208" fontSize="11" fill="#6b7280" fontWeight="500">$0</text>
+                                </>
+                              );
+                            })()}
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
-            {(((report.priceHistory && report.priceHistory.length > 0) || (report.dcfInputs?.priceHistory && report.dcfInputs.priceHistory.length > 0)) || report.priceChartImageUrl) && (
-              <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
-                <h4 className="font-semibold mb-3 text-gray-800">Price Chart (100 Days)</h4>
-                {report.priceChartImageUrl && !(report.priceHistory && report.priceHistory.length > 0) ? (
-                  <div className="w-full">
-                    <img src={report.priceChartImageUrl} alt="Price Chart" className="w-full h-auto rounded" />
-                  </div>
-                ) : (
-                <div className="w-full h-64 relative">
-                  <svg viewBox="0 0 800 220" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
-                    {(() => {
-                      const chartData = (report.priceHistory || report.dcfInputs?.priceHistory || []).slice(0, 100);
-                      if (!chartData.length) return null;
-                      const prices = chartData.map((d: any) => d.close);
-                      const maxPrice = Math.max(...prices);
-                      const topPad = maxPrice * 0.05;
-                      const range = maxPrice + topPad;
-                      
-                      const points = chartData.map((d: any, i: number) => {
-                        const x = (chartData.length > 1 ? i / (chartData.length - 1) : 0) * 760 + 20;
-                        const y = 200 - (d.close / range) * 180;
-                        return `${x},${y}`;
-                      }).join(' ');
-                      const areaPoints = `${points} 760,200 20,200`;
-                      
-                      return (
-                        <>
-                          <rect x="20" y="20" width="760" height="180" fill="white" rx="4" />
-                          <line x1="20" y1="200" x2="780" y2="200" stroke="#e5e7eb" strokeWidth="1" />
-                          <line x1="20" y1="20" x2="20" y2="200" stroke="#e5e7eb" strokeWidth="1" />
-                          <polygon points={areaPoints} fill="rgba(59, 130, 246, 0.08)" stroke="none" />
-                          <polyline
-                            points={points}
-                            fill="none"
-                            stroke="#2563eb"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          <text x="20" y="215" fontSize="11" fill="#6b7280">{chartData[chartData.length - 1]?.date}</text>
-                          <text x="780" y="215" fontSize="11" fill="#6b7280" textAnchor="end">{chartData[0]?.date}</text>
-                          <text x="20" y="28" fontSize="11" fill="#6b7280" fontWeight="500">${maxPrice.toFixed(2)}</text>
-                          <text x="20" y="208" fontSize="11" fill="#6b7280" fontWeight="500">$0</text>
-                        </>
-                      );
-                    })()}
-                  </svg>
-                </div>
-                )}
-              </div>
-            )}
+              );
+            })()}
           </CardContent>
         </Card>
       )}
@@ -589,7 +593,40 @@ export default function ResearchReportPreviewPage() {
         <CardHeader>
           <CardTitle className="text-2xl">Valuation Analysis</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-8">
+          {/* Comps table */}
+          {report.competitivePosition?.rows && report.competitivePosition.rows.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">Comparable Companies</h3>
+              <div className="overflow-x-auto rounded-lg border border-gray-200">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      {['Company','Mkt Cap','EV/Rev','EV/EBITDA','P/E','Fwd P/E','P/S','Rev Growth','EBITDA Margin','Beta'].map(h => (
+                        <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {report.competitivePosition.rows.map((row: any, i: number) => (
+                      <tr key={row.ticker} className={`border-b border-gray-100 ${row.isSubject ? 'bg-blue-50 font-semibold text-blue-900' : i % 2 === 0 ? '' : 'bg-gray-50/40'}`}>
+                        <td className="px-3 py-2">{row.name}<br/><span className="text-gray-400 font-mono text-[10px]">{row.ticker}</span></td>
+                        <td className="px-3 py-2">{row.marketCap != null ? (row.marketCap >= 1000 ? `$${(row.marketCap/1000).toFixed(1)}B` : `$${row.marketCap.toFixed(0)}M`) : '—'}</td>
+                        <td className="px-3 py-2">{row.evToRevenue != null ? `${row.evToRevenue.toFixed(1)}x` : '—'}</td>
+                        <td className="px-3 py-2">{row.evToEBITDA != null ? `${row.evToEBITDA.toFixed(1)}x` : '—'}</td>
+                        <td className="px-3 py-2">{row.peTrailing != null ? `${row.peTrailing.toFixed(1)}x` : '—'}</td>
+                        <td className="px-3 py-2">{row.peForward != null ? `${row.peForward.toFixed(1)}x` : '—'}</td>
+                        <td className="px-3 py-2">{row.priceToSales != null ? `${row.priceToSales.toFixed(1)}x` : '—'}</td>
+                        <td className="px-3 py-2">{row.revenueGrowthYoY != null ? `${(row.revenueGrowthYoY*100).toFixed(1)}%` : '—'}</td>
+                        <td className="px-3 py-2">{row.ebitdaMargin != null ? `${(row.ebitdaMargin*100).toFixed(1)}%` : '—'}</td>
+                        <td className="px-3 py-2">{row.beta != null ? row.beta.toFixed(2) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
           <InstitutionalValuationSection
             dcfData={report.dcfInputs && report.dcfOutputs ? {
               inputs: report.dcfInputs as any,

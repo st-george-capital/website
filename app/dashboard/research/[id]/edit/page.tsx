@@ -39,6 +39,7 @@ export default function EditResearchReportPage({ params }: { params: { id: strin
   const [selectedDCFModelId, setSelectedDCFModelId] = useState<string>('');
   const [loadingDCFModels, setLoadingDCFModels] = useState(false);
   const [dcfData, setDcfData] = useState<{ inputs: any; outputs: any } | null>(null);
+  const [compsData, setCompsData] = useState<any[] | null>(null);
 
   // Form state
   const [metadata, setMetadata] = useState({
@@ -66,6 +67,7 @@ export default function EditResearchReportPage({ params }: { params: { id: strin
     forwardPEConsensus: null as number | null, // From API
     dividendYield: null as number | null,
     priceChartImageUrl: null as string | null, // Custom uploaded chart image
+    showPriceChart: true as boolean,
     performanceMetrics: null as {
       absYTD?: number; abs1m?: number; abs3m?: number; abs12m?: number;
       relYTD?: number; rel1m?: number; rel3m?: number; rel12m?: number;
@@ -147,6 +149,7 @@ export default function EditResearchReportPage({ params }: { params: { id: strin
           forwardPEConsensus: (report as any).forwardPEConsensus ?? null,
           dividendYield: (report as any).dividendYield ?? null,
           priceChartImageUrl: (report as any).priceChartImageUrl ?? null,
+          showPriceChart: (report as any).showPriceChart ?? true,
           performanceMetrics: report.performanceMetrics ?? null,
         });
 
@@ -172,6 +175,11 @@ export default function EditResearchReportPage({ params }: { params: { id: strin
         setAiStrategies(report.aiStrategies || '');
         setRisks(report.keyRisks || [{ title: '', description: '', impact: 'medium', mitigation: '' }]);
         setEsgFactors(report.esgFactors || '');
+
+        // Load comps if previously saved
+        if (report.competitivePosition && Array.isArray((report.competitivePosition as any)?.rows)) {
+          setCompsData((report.competitivePosition as any).rows);
+        }
 
         // Load DCF data if exists (include priceHistory from report so chart persists)
         if (report.dcfInputs || report.dcfOutputs) {
@@ -234,6 +242,11 @@ export default function EditResearchReportPage({ params }: { params: { id: strin
         },
         outputs: model.outputs
       });
+
+      // Auto-populate comps from DCF if available
+      if (model.inputs?.comps && Array.isArray(model.inputs.comps) && model.inputs.comps.length > 0) {
+        setCompsData(model.inputs.comps);
+      }
       
       // Auto-populate metadata from DCF (including company snapshot data)
       setMetadata(prev => {
@@ -504,6 +517,9 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
         unitEconomics: businessModel.unitEconomics,
         economicMoat: businessModel.economicMoat,
         industryAnalysis,
+        competitivePosition: compsData && compsData.length > 0
+          ? { source: 'dcf_comps', rows: compsData, updatedAt: new Date().toISOString() }
+          : null,
         catalystsNearTerm: catalystsNear,
         catalystsMediumTerm: catalystsMedium,
         valuationAnalysis,
@@ -1007,8 +1023,23 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
                     />
                   </div>
                   <div className="mt-4">
-                    <label className="block text-sm font-medium mb-2">Price Chart Preview (from DCF)</label>
-                    {dcfData?.inputs?.priceHistory && dcfData.inputs.priceHistory.length > 0 ? (
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium">Price Chart Preview (from DCF)</label>
+                      <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={metadata.showPriceChart}
+                          onChange={(e) => setMetadata(prev => ({ ...prev, showPriceChart: e.target.checked }))}
+                          className="rounded"
+                        />
+                        Include chart in report
+                      </label>
+                    </div>
+                    {!metadata.showPriceChart ? (
+                      <div className="border rounded-md p-3 bg-gray-50 text-sm text-gray-500">
+                        Chart excluded from report. Toggle above to include it.
+                      </div>
+                    ) : dcfData?.inputs?.priceHistory && dcfData.inputs.priceHistory.length > 0 ? (
                       <div className="border rounded-lg p-4 bg-gray-50">
                         <svg viewBox="0 0 800 220" className="w-full h-48" preserveAspectRatio="xMidYMid meet">
                           {(() => {
@@ -1347,6 +1378,48 @@ What improves as company scales...
                 <CardDescription>Industry dynamics and competitive positioning</CardDescription>
               </CardHeader>
               <CardContent>
+                {/* Comps table from DCF */}
+                {compsData && compsData.length > 0 && (
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium">Comparable Companies (from DCF Comps tab)</label>
+                      <button
+                        type="button"
+                        onClick={() => setCompsData(null)}
+                        className="text-xs text-gray-400 hover:text-red-500"
+                      >Remove</button>
+                    </div>
+                    <div className="overflow-x-auto rounded-lg border border-gray-200 text-xs">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-200">
+                            {['Company','Mkt Cap','EV/Rev','EV/EBITDA','P/E','Fwd P/E','P/S','Rev Growth','EBITDA Margin','Beta'].map(h => (
+                              <th key={h} className="px-2 py-1.5 text-left font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {compsData.map((row: any, i: number) => (
+                            <tr key={row.ticker} className={`border-b border-gray-100 ${row.isSubject ? 'bg-blue-50 font-semibold text-blue-900' : i % 2 === 0 ? '' : 'bg-gray-50/40'}`}>
+                              <td className="px-2 py-1.5">{row.name}<br/><span className="text-gray-400 font-mono text-[10px]">{row.ticker}</span></td>
+                              <td className="px-2 py-1.5">{row.marketCap != null ? (row.marketCap >= 1000 ? `$${(row.marketCap/1000).toFixed(1)}B` : `$${row.marketCap.toFixed(0)}M`) : '—'}</td>
+                              <td className="px-2 py-1.5">{row.evToRevenue != null ? `${row.evToRevenue.toFixed(1)}x` : '—'}</td>
+                              <td className="px-2 py-1.5">{row.evToEBITDA != null ? `${row.evToEBITDA.toFixed(1)}x` : '—'}</td>
+                              <td className="px-2 py-1.5">{row.peTrailing != null ? `${row.peTrailing.toFixed(1)}x` : '—'}</td>
+                              <td className="px-2 py-1.5">{row.peForward != null ? `${row.peForward.toFixed(1)}x` : '—'}</td>
+                              <td className="px-2 py-1.5">{row.priceToSales != null ? `${row.priceToSales.toFixed(1)}x` : '—'}</td>
+                              <td className="px-2 py-1.5">{row.revenueGrowthYoY != null ? `${(row.revenueGrowthYoY*100).toFixed(1)}%` : '—'}</td>
+                              <td className="px-2 py-1.5">{row.ebitdaMargin != null ? `${(row.ebitdaMargin*100).toFixed(1)}%` : '—'}</td>
+                              <td className="px-2 py-1.5">{row.beta != null ? row.beta.toFixed(2) : '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">This table will appear in the published research report under Industry & Competitive Landscape.</p>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm font-medium mb-2">
                     Industry Analysis

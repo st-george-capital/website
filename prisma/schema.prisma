@@ -59,6 +59,8 @@ model TeamMember {
 model Holding {
   id           String        @id @default(cuid())
   ticker       String        @unique
+  apiTicker    String?       // Ticker with exchange suffix for API calls (e.g., "RY.TRT")
+  exchange     String        @default("US") // "US", "TRT", "TRV", "LON"
   assetType    String
   quantity     Float
   costBasis    Float?
@@ -74,16 +76,45 @@ model Holding {
 }
 
 model Transaction {
-  id        String   @id @default(cuid())
-  holdingId String
-  type      String
-  quantity  Float
-  price     Float
-  fees      Float    @default(0)
-  date      DateTime @default(now())
-  notes     String?
-  createdAt DateTime @default(now())
-  holding   Holding  @relation(fields: [holdingId], references: [id], onDelete: Cascade)
+  id             String   @id @default(cuid())
+  holdingId      String?
+  ticker         String   // Denormalized: preserved even if holding is deleted
+  type           String   // "BUY" or "SELL"
+  quantity       Float
+  price          Float
+  fees           Float    @default(0)
+  exchange       String   @default("US")
+  date           DateTime @default(now())
+  notes          String?
+  positionBefore Float    @default(0)
+  positionAfter  Float    @default(0)
+  cashBefore     Float    @default(0)
+  cashAfter      Float    @default(0)
+  realizedPnL    Float?   // Only populated on SELL trades
+  avgCostAtTrade Float?   // Snapshot of avg cost basis at time of trade
+  createdAt      DateTime @default(now())
+  holding        Holding? @relation(fields: [holdingId], references: [id], onDelete: SetNull)
+}
+
+model PortfolioSnapshot {
+  id             String   @id @default(cuid())
+  date           DateTime @unique
+  portfolioValue Float    // Total = stocks + cash
+  stocksValue    Float
+  cashBalance    Float
+  totalCostBasis Float
+  realizedPnL    Float    @default(0)
+  positionCount  Int      @default(0)
+  createdAt      DateTime @default(now())
+}
+
+model BenchmarkData {
+  id     String   @id @default(cuid())
+  ticker String
+  date   DateTime
+  close  Float
+
+  @@unique([ticker, date])
 }
 
 model ContactSubmission {
@@ -270,6 +301,7 @@ model EquityResearchReport {
   forwardPEConsensus    Float?   // From API (analyst consensus)
   dividendYield         Float?   // From API (as percentage, e.g. 2.5 for 2.5%)
   priceChartImageUrl    String?  // Custom uploaded chart image URL (fallback if priceHistory unavailable)
+  showPriceChart        Boolean  @default(true) // Whether to include the price chart in the published report
   priceHistory          Json?   // [{ date, close }] for chart (from DCF/API)
   
   // Report Status & Collaboration

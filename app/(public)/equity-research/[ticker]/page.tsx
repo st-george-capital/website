@@ -211,68 +211,70 @@ export default async function PublicResearchReportPage({
             {report.dataSource && (
               <p className="text-sm text-gray-500">Source: {report.dataSource}</p>
             )}
-            {report.epsTableMarkdown && (
-              <div>
-                <h3 className="font-semibold text-lg text-gray-900 mb-2">EPS (Recurring)</h3>
-                <div className="prose prose-sm max-w-none text-gray-700
-                  [&_table]:w-full [&_table]:border-collapse [&_th]:border [&_td]:border [&_th]:px-2 [&_td]:px-2 [&_th]:py-1 [&_td]:py-1 [&_th]:bg-gray-50">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-                    {report.epsTableMarkdown}
-                  </ReactMarkdown>
+            {(() => {
+              const hasEPS = !!report.epsTableMarkdown;
+              const hasChart = (report as any).showPriceChart !== false && (
+                ((report as any).priceHistory && (report as any).priceHistory.length > 0) ||
+                ((report.dcfInputs as any)?.priceHistory && (report.dcfInputs as any).priceHistory.length > 0) ||
+                !!(report as any).priceChartImageUrl
+              );
+              const sideBySide = hasEPS && hasChart;
+              return (
+                <div className={sideBySide ? 'grid grid-cols-2 gap-4 items-start' : 'space-y-4'}>
+                  {hasEPS && (
+                    <div>
+                      <h3 className="font-semibold text-lg text-gray-900 mb-2">EPS (Recurring)</h3>
+                      <div className="prose prose-sm max-w-none text-gray-700
+                        [&_table]:w-full [&_table]:border-collapse [&_th]:border [&_td]:border [&_th]:px-2 [&_td]:px-2 [&_th]:py-1 [&_td]:py-1 [&_th]:bg-gray-50">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                          {report.epsTableMarkdown!}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  )}
+                  {hasChart && (
+                    <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4">
+                      <h3 className="font-semibold text-lg text-gray-900 mb-3">Price Chart (100 Days)</h3>
+                      {(report as any).priceChartImageUrl && !((report as any).priceHistory && (report as any).priceHistory.length > 0) ? (
+                        <img src={(report as any).priceChartImageUrl} alt="Price Chart" className="w-full h-auto rounded-lg" />
+                      ) : (
+                        <div className="w-full h-56 relative">
+                          <svg viewBox="0 0 800 220" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+                            {(() => {
+                              const chartData = ((report as any).priceHistory || (report.dcfInputs as any)?.priceHistory || []).slice(0, 100);
+                              if (!chartData.length) return null;
+                              const prices = chartData.map((d: any) => d.close);
+                              const maxPrice = Math.max(...prices);
+                              const topPad = maxPrice * 0.05;
+                              const range = maxPrice + topPad;
+                              const points = chartData.map((d: any, i: number) => {
+                                const x = (chartData.length > 1 ? i / (chartData.length - 1) : 0) * 760 + 20;
+                                const y = 200 - (d.close / range) * 180;
+                                return `${x},${y}`;
+                              }).join(' ');
+                              const areaPoints = `${points} 760,200 20,200`;
+                              return (
+                                <>
+                                  <rect x="20" y="20" width="760" height="180" fill="white" rx="4" />
+                                  <line x1="20" y1="200" x2="780" y2="200" stroke="#e5e7eb" strokeWidth="1" />
+                                  <line x1="20" y1="20" x2="20" y2="200" stroke="#e5e7eb" strokeWidth="1" />
+                                  <polygon points={areaPoints} fill="rgba(59, 130, 246, 0.08)" stroke="none" />
+                                  <polyline points={points} fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                  <text x="20" y="215" fontSize="11" fill="#6b7280">{chartData[chartData.length - 1]?.date}</text>
+                                  <text x="780" y="215" fontSize="11" fill="#6b7280" textAnchor="end">{chartData[0]?.date}</text>
+                                  <text x="20" y="28" fontSize="11" fill="#6b7280" fontWeight="500">${maxPrice.toFixed(2)}</text>
+                                  <text x="20" y="208" fontSize="11" fill="#6b7280" fontWeight="500">$0</text>
+                                </>
+                              );
+                            })()}
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
-            {(((report as any).priceHistory && (report as any).priceHistory.length > 0) || ((report.dcfInputs as any)?.priceHistory && (report.dcfInputs as any).priceHistory.length > 0) || (report as any).priceChartImageUrl) && (
-              <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-5">
-                <h3 className="font-semibold text-lg text-gray-900 mb-3">Price Chart (100 Days)</h3>
-                {(report as any).priceChartImageUrl && !((report as any).priceHistory && (report as any).priceHistory.length > 0) ? (
-                  <div className="w-full">
-                    <img src={(report as any).priceChartImageUrl} alt="Price Chart" className="w-full h-auto rounded-lg" />
-                  </div>
-                ) : (
-                <div className="w-full h-64 relative">
-                  <svg viewBox="0 0 800 220" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
-                    {(() => {
-                      const chartData = ((report as any).priceHistory || (report.dcfInputs as any)?.priceHistory || []).slice(0, 100);
-                      if (!chartData.length) return null;
-                      const prices = chartData.map((d: any) => d.close);
-                      const maxPrice = Math.max(...prices);
-                      const topPad = maxPrice * 0.05;
-                      const range = maxPrice + topPad;
-                      
-                      const points = chartData.map((d: any, i: number) => {
-                        const x = (chartData.length > 1 ? i / (chartData.length - 1) : 0) * 760 + 20;
-                        const y = 200 - (d.close / range) * 180;
-                        return `${x},${y}`;
-                      }).join(' ');
-                      const areaPoints = `${points} 760,200 20,200`;
-                      
-                      return (
-                        <>
-                          <rect x="20" y="20" width="760" height="180" fill="white" rx="4" />
-                          <line x1="20" y1="200" x2="780" y2="200" stroke="#e5e7eb" strokeWidth="1" />
-                          <line x1="20" y1="20" x2="20" y2="200" stroke="#e5e7eb" strokeWidth="1" />
-                          <polygon points={areaPoints} fill="rgba(59, 130, 246, 0.08)" stroke="none" />
-                          <polyline
-                            points={points}
-                            fill="none"
-                            stroke="#2563eb"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          <text x="20" y="215" fontSize="11" fill="#6b7280">{chartData[chartData.length - 1]?.date}</text>
-                          <text x="780" y="215" fontSize="11" fill="#6b7280" textAnchor="end">{chartData[0]?.date}</text>
-                          <text x="20" y="28" fontSize="11" fill="#6b7280" fontWeight="500">${maxPrice.toFixed(2)}</text>
-                          <text x="20" y="208" fontSize="11" fill="#6b7280" fontWeight="500">$0</text>
-                        </>
-                      );
-                    })()}
-                  </svg>
-                </div>
-                )}
-              </div>
-            )}
+              );
+            })()}
           </div>
         )}
 
@@ -370,6 +372,7 @@ export default async function PublicResearchReportPage({
         {/* Industry Analysis */}
         <div className="bg-white rounded-2xl p-8 space-y-6">
           <h2 className="text-3xl font-bold text-gray-900">Industry & Competitive Landscape</h2>
+
           <div className="prose max-w-none text-gray-700
             [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
             [&_th]:bg-gray-50 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
@@ -394,12 +397,16 @@ export default async function PublicResearchReportPage({
                   {catalystsNear.map((catalyst: any, index: number) => (
                     <div key={index} className="border rounded-lg p-4 bg-gray-50">
                       <div className="flex items-start justify-between mb-2">
-                        <div className="font-semibold text-gray-900">{catalyst.event}</div>
-                        <span className={`px-2 py-1 rounded text-xs font-semibold uppercase ${getProbabilityBadge(catalyst.probability)}`}>
+                        <div className="font-semibold text-gray-900 prose prose-sm max-w-none [&_p]:inline [&_p]:m-0">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{catalyst.event}</ReactMarkdown>
+                        </div>
+                        <span className={`px-2 py-1 rounded text-xs font-semibold uppercase flex-shrink-0 ml-2 ${getProbabilityBadge(catalyst.probability)}`}>
                           {catalyst.probability}
                         </span>
                       </div>
-                      <div className="text-sm text-gray-700">{catalyst.mechanism}</div>
+                      <div className="text-sm text-gray-700 prose prose-sm max-w-none">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{catalyst.mechanism}</ReactMarkdown>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -413,12 +420,16 @@ export default async function PublicResearchReportPage({
                   {catalystsMedium.map((catalyst: any, index: number) => (
                     <div key={index} className="border rounded-lg p-4 bg-gray-50">
                       <div className="flex items-start justify-between mb-2">
-                        <div className="font-semibold text-gray-900">{catalyst.event}</div>
-                        <span className={`px-2 py-1 rounded text-xs font-semibold uppercase ${getProbabilityBadge(catalyst.probability)}`}>
+                        <div className="font-semibold text-gray-900 prose prose-sm max-w-none [&_p]:inline [&_p]:m-0">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{catalyst.event}</ReactMarkdown>
+                        </div>
+                        <span className={`px-2 py-1 rounded text-xs font-semibold uppercase flex-shrink-0 ml-2 ${getProbabilityBadge(catalyst.probability)}`}>
                           {catalyst.probability}
                         </span>
                       </div>
-                      <div className="text-sm text-gray-700">{catalyst.mechanism}</div>
+                      <div className="text-sm text-gray-700 prose prose-sm max-w-none">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{catalyst.mechanism}</ReactMarkdown>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -430,6 +441,41 @@ export default async function PublicResearchReportPage({
         {/* Valuation */}
         <div className="bg-white rounded-2xl p-8 space-y-6">
           <h2 className="text-3xl font-bold text-gray-900">Valuation Analysis</h2>
+
+          {/* Comps table */}
+          {(report.competitivePosition as any)?.rows?.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">Comparable Companies</h3>
+              <div className="overflow-x-auto rounded-xl border border-gray-200">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      {['Company','Mkt Cap','EV/Rev','EV/EBITDA','P/E','Fwd P/E','P/S','Rev Growth','EBITDA Margin','Beta'].map(h => (
+                        <th key={h} className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {((report.competitivePosition as any).rows as any[]).map((row: any, i: number) => (
+                      <tr key={row.ticker} className={`border-b border-gray-100 ${row.isSubject ? 'bg-blue-50 font-semibold text-blue-900' : i % 2 === 0 ? '' : 'bg-gray-50/40'}`}>
+                        <td className="px-3 py-2.5">{row.name}<br/><span className="text-gray-400 font-mono text-[10px]">{row.ticker}</span></td>
+                        <td className="px-3 py-2.5">{row.marketCap != null ? (row.marketCap >= 1000 ? `$${(row.marketCap/1000).toFixed(1)}B` : `$${row.marketCap.toFixed(0)}M`) : '—'}</td>
+                        <td className="px-3 py-2.5">{row.evToRevenue != null ? `${row.evToRevenue.toFixed(1)}x` : '—'}</td>
+                        <td className="px-3 py-2.5">{row.evToEBITDA != null ? `${row.evToEBITDA.toFixed(1)}x` : '—'}</td>
+                        <td className="px-3 py-2.5">{row.peTrailing != null ? `${row.peTrailing.toFixed(1)}x` : '—'}</td>
+                        <td className="px-3 py-2.5">{row.peForward != null ? `${row.peForward.toFixed(1)}x` : '—'}</td>
+                        <td className="px-3 py-2.5">{row.priceToSales != null ? `${row.priceToSales.toFixed(1)}x` : '—'}</td>
+                        <td className="px-3 py-2.5">{row.revenueGrowthYoY != null ? `${(row.revenueGrowthYoY*100).toFixed(1)}%` : '—'}</td>
+                        <td className="px-3 py-2.5">{row.ebitdaMargin != null ? `${(row.ebitdaMargin*100).toFixed(1)}%` : '—'}</td>
+                        <td className="px-3 py-2.5">{row.beta != null ? row.beta.toFixed(2) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           <InstitutionalValuationSection
             dcfData={report.dcfInputs && report.dcfOutputs ? {
               inputs: report.dcfInputs as any,
@@ -496,15 +542,22 @@ export default async function PublicResearchReportPage({
               {risks.map((risk: any, index: number) => (
                 <div key={index} className="border border-red-200 rounded-lg p-4 bg-red-50">
                   <div className="flex items-start justify-between mb-2">
-                    <div className="font-semibold text-gray-900">{risk.title}</div>
-                    <span className={`px-2 py-1 rounded text-xs font-semibold uppercase ${getImpactBadge(risk.impact)}`}>
+                    <div className="font-semibold text-gray-900 prose prose-sm max-w-none [&_p]:inline [&_p]:m-0">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{risk.title}</ReactMarkdown>
+                    </div>
+                    <span className={`px-2 py-1 rounded text-xs font-semibold uppercase flex-shrink-0 ml-2 ${getImpactBadge(risk.impact)}`}>
                       {risk.impact} impact
                     </span>
                   </div>
-                  <div className="text-sm text-gray-700 mb-2">{risk.description}</div>
+                  <div className="text-sm text-gray-700 mb-2 prose prose-sm max-w-none">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{risk.description}</ReactMarkdown>
+                  </div>
                   {risk.mitigation && (
-                    <div className="text-sm text-gray-600 italic">
-                      <span className="font-medium">Mitigation:</span> {risk.mitigation}
+                    <div className="text-sm text-gray-600 prose prose-sm max-w-none">
+                      <span className="font-medium not-prose">Mitigation:</span>{' '}
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ p: ({ children }) => <span>{children}</span> }}>
+                        {risk.mitigation}
+                      </ReactMarkdown>
                     </div>
                   )}
                 </div>
