@@ -26,6 +26,12 @@ interface Quote {
   author: string;
 }
 
+interface FinanceTerm {
+  term: string;
+  definition: string;
+  category: string;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getGreeting(name: string) {
@@ -188,6 +194,37 @@ function QuoteCard({ quote, loading }: { quote: Quote | null; loading: boolean }
   );
 }
 
+function FinanceTermCard({ term, loading }: { term: FinanceTerm | null; loading: boolean }) {
+  return (
+    <div className="bg-[#0c1a3a] rounded-2xl p-5 flex flex-col gap-3 relative overflow-hidden">
+      <HeroPattern />
+      <div className="relative z-10 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-[11px] font-semibold text-white/40 uppercase tracking-widest">
+          <BookOpen size={12} />
+          Term of the Day
+        </div>
+        {term && (
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-white/40 uppercase tracking-wide">
+            {term.category}
+          </span>
+        )}
+      </div>
+      {loading ? (
+        <div className="animate-pulse space-y-2 relative z-10">
+          <div className="h-4 bg-white/10 rounded w-2/3" />
+          <div className="h-3 bg-white/10 rounded w-full" />
+          <div className="h-3 bg-white/10 rounded w-4/5" />
+        </div>
+      ) : term ? (
+        <div className="relative z-10 flex-1 flex flex-col gap-2">
+          <p className="text-white font-semibold text-base leading-snug">{term.term}</p>
+          <p className="text-white/60 text-xs leading-relaxed">{term.definition}</p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function ToolsCard() {
   const tools = [
     { label: 'Capital Flows', desc: 'ETF regime · pair ratios · macro', href: '/dashboard/flows', icon: TrendingUp },
@@ -229,6 +266,8 @@ export default function DashboardPage() {
   const [meetingLoading, setMeetingLoading] = useState(true);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(true);
+  const [financeTerm, setFinanceTerm] = useState<FinanceTerm | null>(null);
+  const [financeTermLoading, setFinanceTermLoading] = useState(true);
 
   const firstName = session?.user?.name?.split(' ')[0] ?? 'there';
   const isAdmin = session?.user?.role === 'admin';
@@ -257,6 +296,14 @@ export default function DashboardPage() {
       .then(data => { if (data?.quote) setQuote(data); })
       .catch(() => {})
       .finally(() => setQuoteLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/dashboard/finance-term')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.term) setFinanceTerm(data); })
+      .catch(() => {})
+      .finally(() => setFinanceTermLoading(false));
   }, []);
 
   if (session?.user?.role === 'visitor') {
@@ -299,9 +346,10 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Spotlight row ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <NextMeetingCard event={nextMeeting} loading={meetingLoading} />
         <QuoteCard quote={quote} loading={quoteLoading} />
+        <FinanceTermCard term={financeTerm} loading={financeTermLoading} />
         <ToolsCard />
       </div>
 
