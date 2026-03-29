@@ -26,17 +26,26 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const pitch = await prisma.investmentPitch.findUnique({
-      where: { id: params.id },
-      include: {
-        participants: {
-          orderBy: { userName: 'asc' },
+    let pitch;
+    try {
+      pitch = await prisma.investmentPitch.findUnique({
+        where: { id: params.id },
+        include: {
+          participants: {
+            orderBy: { userName: 'asc' },
+          },
+          feedback: {
+            orderBy: { createdAt: 'desc' },
+          },
         },
-        feedback: {
-          orderBy: { createdAt: 'desc' },
-        },
-      },
-    });
+      });
+    } catch (error) {
+      console.warn('Pitch collaboration tables unavailable while fetching feedback:', error);
+      return NextResponse.json(
+        { error: 'Pitch feedback will appear once the database migration is applied.' },
+        { status: 503 }
+      );
+    }
 
     if (!pitch) {
       return NextResponse.json({ error: 'Pitch not found' }, { status: 404 });
@@ -74,12 +83,21 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const pitch = await prisma.investmentPitch.findUnique({
-      where: { id: params.id },
-      include: {
-        participants: true,
-      },
-    });
+    let pitch;
+    try {
+      pitch = await prisma.investmentPitch.findUnique({
+        where: { id: params.id },
+        include: {
+          participants: true,
+        },
+      });
+    } catch (error) {
+      console.warn('Pitch collaboration tables unavailable while saving feedback:', error);
+      return NextResponse.json(
+        { error: 'Pitch feedback will appear once the database migration is applied.' },
+        { status: 503 }
+      );
+    }
 
     if (!pitch) {
       return NextResponse.json({ error: 'Pitch not found' }, { status: 404 });

@@ -24,6 +24,17 @@ function summarizePitch(pitch: any) {
     ...rest,
     feedbackCount,
     averageScore,
+    collaborationReady: true,
+  };
+}
+
+function fallbackPitch(pitch: any) {
+  return {
+    ...pitch,
+    participants: [],
+    feedbackCount: 0,
+    averageScore: null,
+    collaborationReady: false,
   };
 }
 
@@ -40,24 +51,32 @@ export async function GET(
       );
     }
 
-    const pitch = await prisma.investmentPitch.findUnique({
-      where: { id: params.id },
-      include: {
-        participants: {
-          orderBy: { userName: 'asc' },
-        },
-        feedback: {
-          select: {
-            thesisClarity: true,
-            variantView: true,
-            valuation: true,
-            catalysts: true,
-            risks: true,
-            delivery: true,
+    let pitch: any;
+    try {
+      pitch = await prisma.investmentPitch.findUnique({
+        where: { id: params.id },
+        include: {
+          participants: {
+            orderBy: { userName: 'asc' },
+          },
+          feedback: {
+            select: {
+              thesisClarity: true,
+              variantView: true,
+              valuation: true,
+              catalysts: true,
+              risks: true,
+              delivery: true,
+            },
           },
         },
-      },
-    });
+      });
+    } catch (error) {
+      console.warn('Pitch collaboration tables unavailable, falling back to legacy pitch detail:', error);
+      pitch = await prisma.investmentPitch.findUnique({
+        where: { id: params.id },
+      });
+    }
 
     if (!pitch) {
       return NextResponse.json(
@@ -66,7 +85,7 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(summarizePitch(pitch));
+    return NextResponse.json('feedback' in pitch ? summarizePitch(pitch) : fallbackPitch(pitch));
   } catch (error) {
     console.error('Error fetching investment pitch:', error);
     return NextResponse.json(
@@ -102,24 +121,65 @@ export async function PATCH(
       associatedUserIds = [],
     } = await req.json();
 
-    const participantUsers = associatedUserIds.length > 0
-      ? await prisma.user.findMany({
-          where: {
-            id: { in: associatedUserIds },
-          },
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        })
-      : [];
+    try {
+      const participantUsers = associatedUserIds.length > 0
+        ? await prisma.user.findMany({
+            where: {
+              id: { in: associatedUserIds },
+            },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          })
+        : [];
 
-    const [, pitch] = await prisma.$transaction([
-      prisma.pitchParticipant.deleteMany({
-        where: { pitchId: params.id },
-      }),
-      prisma.investmentPitch.update({
+      const [, pitch] = await prisma.$transaction([
+        prisma.pitchParticipant.deleteMany({
+          where: { pitchId: params.id },
+        }),
+        prisma.investmentPitch.update({
+          where: { id: params.id },
+          data: {
+            title,
+            company,
+            sector,
+            subcategory,
+            pitchDate: new Date(pitchDate),
+            description,
+            documentFile,
+            published,
+            publishDate: publishDate ? new Date(publishDate) : null,
+            participants: {
+              create: participantUsers.map((user) => ({
+                userId: user.id,
+                userName: user.name || user.email,
+              })),
+            },
+          },
+          include: {
+            participants: {
+              orderBy: { userName: 'asc' },
+            },
+            feedback: {
+              select: {
+                thesisClarity: true,
+                variantView: true,
+                valuation: true,
+                catalysts: true,
+                risks: true,
+                delivery: true,
+              },
+            },
+          },
+        }),
+      ]);
+
+      return NextResponse.json(summarizePitch(pitch));
+    } catch (error) {
+      console.warn('Pitch collaboration tables unavailable during update, saving legacy pitch only:', error);
+      const pitch = await prisma.investmentPitch.update({
         where: { id: params.id },
         data: {
           title,
@@ -131,32 +191,11 @@ export async function PATCH(
           documentFile,
           published,
           publishDate: publishDate ? new Date(publishDate) : null,
-          participants: {
-            create: participantUsers.map((user) => ({
-              userId: user.id,
-              userName: user.name || user.email,
-            })),
-          },
         },
-        include: {
-          participants: {
-            orderBy: { userName: 'asc' },
-          },
-          feedback: {
-            select: {
-              thesisClarity: true,
-              variantView: true,
-              valuation: true,
-              catalysts: true,
-              risks: true,
-              delivery: true,
-            },
-          },
-        },
-      }),
-    ]);
+      });
 
-    return NextResponse.json(summarizePitch(pitch));
+      return NextResponse.json(fallbackPitch(pitch));
+    }
   } catch (error) {
     console.error('Error updating investment pitch:', error);
     return NextResponse.json(

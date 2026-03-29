@@ -27,6 +27,7 @@ interface InvestmentPitch {
   participants: PitchParticipant[];
   feedbackCount: number;
   averageScore: number | null;
+  collaborationReady?: boolean;
 }
 
 interface PitchFeedback {
@@ -224,7 +225,7 @@ export default function InvestmentPitchesDashboardPage() {
         <div>
           <h1 className="text-3xl font-bold">Investment Pitches</h1>
           <p className="text-muted-foreground">
-            Manage investment pitch documents, participants, and feedback scorecards
+            Manage investment pitch documents and presentations
           </p>
         </div>
         {isAdmin && (
@@ -360,18 +361,20 @@ export default function InvestmentPitchesDashboardPage() {
                           </p>
                         )}
 
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                          <span className="inline-flex items-center gap-1">
-                            <Users className="w-3 h-3" />
-                            {pitch.participants.length} associated member{pitch.participants.length === 1 ? '' : 's'}
-                          </span>
-                          <span className="inline-flex items-center gap-1">
-                            <MessageSquare className="w-3 h-3" />
-                            {pitch.feedbackCount} feedback submission{pitch.feedbackCount === 1 ? '' : 's'}
-                          </span>
-                        </div>
+                        {pitch.collaborationReady !== false && (
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                            <span className="inline-flex items-center gap-1">
+                              <Users className="w-3 h-3" />
+                              {pitch.participants.length} associated member{pitch.participants.length === 1 ? '' : 's'}
+                            </span>
+                            <span className="inline-flex items-center gap-1">
+                              <MessageSquare className="w-3 h-3" />
+                              {pitch.feedbackCount} feedback submission{pitch.feedbackCount === 1 ? '' : 's'}
+                            </span>
+                          </div>
+                        )}
 
-                        {pitch.participants.length > 0 && (
+                        {pitch.collaborationReady !== false && pitch.participants.length > 0 && (
                           <div className="mt-3 flex flex-wrap gap-2">
                             {pitch.participants.map((participant) => (
                               <span
@@ -398,7 +401,7 @@ export default function InvestmentPitchesDashboardPage() {
                           Document
                         </a>
                       )}
-                      {pitch.published && (
+                      {pitch.published && pitch.collaborationReady !== false && (
                         <button
                           onClick={() => {
                             if (activeFeedbackPitchId === pitch.id) {
