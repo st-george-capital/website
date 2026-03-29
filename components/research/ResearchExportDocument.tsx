@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { TrendingUp, TrendingDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -92,9 +91,9 @@ const PDF_MARKDOWN_CLASSNAME = `
   prose-ol:my-2.5 prose-ol:list-decimal prose-ol:pl-5
   prose-li:my-1
   prose-table:my-4 prose-table:w-full prose-table:table-fixed prose-table:border-collapse
-  prose-thead:border prose-thead:border-slate-300
-  prose-th:border prose-th:border-slate-300 prose-th:bg-slate-100 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:text-[9.5px] prose-th:font-semibold prose-th:uppercase prose-th:text-slate-700
-  prose-td:border prose-td:border-slate-300 prose-td:px-3 prose-td:py-2 prose-td:text-[10.5px]
+  prose-thead:border-y prose-thead:border-slate-300
+  prose-th:border-b prose-th:border-slate-300 prose-th:bg-slate-50 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:text-[9.5px] prose-th:font-semibold prose-th:uppercase prose-th:text-slate-700
+  prose-td:border-b prose-td:border-slate-200 prose-td:px-3 prose-td:py-2 prose-td:text-[10.5px]
   prose-blockquote:border-l-2 prose-blockquote:border-slate-300 prose-blockquote:pl-4 prose-blockquote:text-slate-700
   [&_img]:mx-auto [&_img]:my-4 [&_img]:max-w-full [&_img]:rounded
 `;
@@ -149,11 +148,27 @@ const EXPORT_DOCUMENT_STYLES = `
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   }
 
+  .pdf-doc .report-kicker {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 8.8px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #64748b;
+  }
+
+  .pdf-doc .report-section-title {
+    font-size: 27px;
+    line-height: 1.08;
+    color: #020617;
+  }
+
   .pdf-doc .report-subhead {
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-    font-size: 10px;
+    font-size: 9.5px;
     font-weight: 700;
     text-transform: uppercase;
+    letter-spacing: 0.08em;
     color: #475569;
   }
 
@@ -173,7 +188,7 @@ const EXPORT_DOCUMENT_STYLES = `
   }
 
   .pdf-doc .report-meta-table td {
-    padding: 7px 10px 7px 0;
+    padding: 8px 14px 8px 0;
     vertical-align: top;
     border-bottom: 1px solid #e2e8f0;
   }
@@ -199,6 +214,44 @@ const EXPORT_DOCUMENT_STYLES = `
     color: #0f172a;
   }
 
+  .pdf-doc .report-stat-strip {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 14px;
+    border-top: 1px solid #cbd5e1;
+    border-bottom: 1px solid #cbd5e1;
+    padding: 12px 0;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+
+  .pdf-doc .report-stat {
+    min-width: 0;
+  }
+
+  .pdf-doc .report-stat-label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #64748b;
+  }
+
+  .pdf-doc .report-stat-value {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  .pdf-doc .report-two-col {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 22px;
+    align-items: start;
+  }
+
   .pdf-doc .report-table {
     width: 100%;
     border-collapse: collapse;
@@ -209,9 +262,10 @@ const EXPORT_DOCUMENT_STYLES = `
   }
 
   .pdf-doc .report-table th {
-    border: 1px solid #cbd5e1;
+    border-top: 1px solid #cbd5e1;
+    border-bottom: 1px solid #cbd5e1;
     background: #f8fafc;
-    padding: 8px 10px;
+    padding: 7px 10px;
     text-align: left;
     font-size: 9px;
     font-weight: 700;
@@ -220,8 +274,8 @@ const EXPORT_DOCUMENT_STYLES = `
   }
 
   .pdf-doc .report-table td {
-    border: 1px solid #cbd5e1;
-    padding: 8px 10px;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 7px 10px;
     vertical-align: top;
   }
 
@@ -250,11 +304,16 @@ const EXPORT_DOCUMENT_STYLES = `
     break-inside: avoid;
     page-break-inside: avoid;
   }
+
+  .pdf-doc .report-rule {
+    height: 1px;
+    background: #cbd5e1;
+  }
 `;
 
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <div className="report-sans mb-3 text-[9px] font-semibold uppercase text-slate-500">
+    <div className="report-kicker mb-3">
       {children}
     </div>
   );
@@ -283,6 +342,22 @@ function formatMoney(value: number, digits = 2) {
   return `$${value.toFixed(digits)}`;
 }
 
+function formatChartDate(value?: string) {
+  const parsed = value ? new Date(value) : null;
+  if (!parsed || Number.isNaN(parsed.getTime())) return value ?? '';
+  return parsed.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+}
+
+function parseFiftyTwoWeekRange(range?: string | null) {
+  if (!range) return null;
+  const matches = range.match(/-?\d+(?:\.\d+)?/g);
+  if (!matches || matches.length < 2) return null;
+  const low = Number(matches[0]);
+  const high = Number(matches[1]);
+  if (!Number.isFinite(low) || !Number.isFinite(high)) return null;
+  return { low, high };
+}
+
 function PdfSection({
   number,
   title,
@@ -295,13 +370,14 @@ function PdfSection({
   pageBreak?: boolean;
 }) {
   return (
-    <section className={`${pageBreak ? 'page-break' : ''} report-section border-t-2 border-slate-800 pt-6`}>
-      <div className="mb-5 flex items-end justify-between gap-4">
+    <section className={`${pageBreak ? 'page-break' : ''} report-section pt-6`}>
+      <div className="report-rule mb-5" />
+      <div className="mb-7 flex items-end justify-between gap-4">
         <div>
-          <div className="report-sans text-[9px] font-semibold uppercase text-slate-500">
+          <div className="report-kicker">
             Section {number}
           </div>
-          <h2 className="mt-1 font-serif text-[26px] leading-tight text-slate-950">{title}</h2>
+          <h2 className="report-section-title mt-2 font-serif">{title}</h2>
         </div>
       </div>
       {children}
@@ -347,7 +423,7 @@ function getRecommendationColor(rec: string) {
 
 function getImpactBadge(impact: string) {
   const colors = {
-    low: 'bg-blue-100 text-blue-800',
+    low: 'bg-slate-100 text-slate-700',
     medium: 'bg-orange-100 text-orange-800',
     high: 'bg-red-100 text-red-800',
   };
@@ -373,42 +449,87 @@ export function ResearchExportDocument({
       >
         <header className="min-h-[9.4in] flex flex-col justify-between">
           <div>
-            <div className="flex items-start justify-between gap-8">
-              <div className="flex items-center gap-4">
-                <img
-                  src={logoSrc}
-                  alt="St. George Capital"
-                  width={120}
-                  height={120}
-                  className="h-auto w-[96px]"
-                />
-                <div>
-                  <div className="report-sans text-[10px] font-semibold uppercase text-slate-500">
-                    St. George Capital
+            <div className="-mx-10 border-b border-slate-300 bg-[#0b1f3a] px-10 py-5 text-white">
+              <div className="flex items-center justify-between gap-8">
+                <div className="flex items-center gap-4">
+                  <img
+                    src={logoSrc}
+                    alt="St. George Capital"
+                    width={120}
+                    height={120}
+                    className="h-auto w-[82px]"
+                  />
+                  <div>
+                    <div className="report-sans text-[15px] font-semibold tracking-[0.08em] text-white">
+                      St. George Capital
+                    </div>
+                    <div className="report-sans mt-1 text-[9.5px] uppercase tracking-[0.24em] text-slate-200">
+                      Institutional Investment Research
+                    </div>
                   </div>
-                  <div className="report-sans mt-2 text-[11px] uppercase text-slate-600">
-                    Equity Research
+                </div>
+                <div className="report-sans text-right text-[11px] uppercase tracking-[0.22em] text-slate-200">
+                  Equity Research
+                </div>
+              </div>
+              <div className="mt-4 h-px bg-white/20" />
+            </div>
+
+            <div className="mt-14 grid grid-cols-[1.45fr_0.75fr] gap-10">
+              <div>
+                <div className="report-kicker">Initiation of Coverage</div>
+                <h1 className="mt-5 max-w-4xl font-serif text-[58px] leading-[0.96] text-slate-950">
+                  {report.companyName}
+                </h1>
+                <div className="report-sans mt-5 text-[14px] font-medium uppercase tracking-[0.16em] text-slate-600">
+                  {report.ticker} · {report.exchange}
+                </div>
+                <div className="mt-8 grid grid-cols-2 gap-6 border-t border-slate-300 pt-5">
+                  <div>
+                    <div className="report-subhead">Report Date</div>
+                    <div className="mt-2 text-[11.5px] text-slate-800">
+                      {new Date(report.reportDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="report-subhead">Coverage Status</div>
+                    <div className="mt-2 text-[11.5px] capitalize text-slate-800">{report.coverageStatus}</div>
                   </div>
                 </div>
               </div>
-              <div className="report-sans text-right text-[10px] uppercase text-slate-500">
-                {new Date(report.reportDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+
+              <div className="self-start border border-slate-200 bg-slate-50 px-5 py-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="report-kicker !text-[8px]">Rating Snapshot</div>
+                    <div className={`report-sans mt-3 inline-flex rounded-sm px-3 py-1.5 text-sm font-semibold ${getRecommendationColor(report.recommendation)}`}>
+                      {report.recommendation.toUpperCase()}
+                    </div>
+                  </div>
+                  <div className="report-sans text-right text-[9px] uppercase tracking-[0.14em] text-slate-500">
+                    {report.timeHorizon}
+                  </div>
+                </div>
+                <table className="report-meta-table mt-5">
+                  <tbody>
+                    <tr>
+                      <td><SummaryMetricRow label="Current Price" value={formatMoney(report.currentPrice)} /></td>
+                      <td><SummaryMetricRow label="Target Price" value={formatMoney(report.targetPrice)} /></td>
+                    </tr>
+                    <tr>
+                      <td><SummaryMetricRow label="Upside / Downside" value={<span className={report.impliedUpside >= 0 ? 'text-emerald-700' : 'text-red-700'}>{formatPercent(report.impliedUpside)}</span>} /></td>
+                      <td><SummaryMetricRow label="Sector" value={report.sector} /></td>
+                    </tr>
+                    <tr>
+                      <td><SummaryMetricRow label="Industry" value={report.industry} /></td>
+                      <td><SummaryMetricRow label="Analysts" value={report.analysts.join(', ')} /></td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
 
-            <div className="mt-20 border-t border-slate-300 pt-10">
-              <div className="report-sans text-[10px] font-semibold uppercase text-slate-500">
-                Initiation of Coverage
-              </div>
-              <h1 className="mt-4 max-w-4xl font-serif text-[58px] leading-[0.98] text-slate-950">
-                {report.companyName}
-              </h1>
-              <div className="report-sans mt-5 text-[15px] font-medium uppercase text-slate-600">
-                {report.ticker} • {report.exchange}
-              </div>
-            </div>
-
-            <div className="mt-16 grid grid-cols-[1.2fr_0.8fr] gap-10">
+            <div className="mt-14 grid grid-cols-[1.2fr_0.8fr] gap-10">
               <div>
                 <SectionLabel>Investment Summary</SectionLabel>
                 <div className="mt-4 space-y-4">
@@ -427,26 +548,11 @@ export function ResearchExportDocument({
               </div>
 
               <div>
-                <SectionLabel>Rating Snapshot</SectionLabel>
-                <div className={`report-sans mt-4 inline-flex rounded-sm px-3 py-1.5 text-sm font-semibold ${getRecommendationColor(report.recommendation)}`}>
-                  {report.recommendation.toUpperCase()}
-                </div>
-                <table className="report-meta-table mt-5">
-                  <tbody>
-                    <tr>
-                      <td><SummaryMetricRow label="Current Price" value={formatMoney(report.currentPrice)} /></td>
-                      <td><SummaryMetricRow label="Target Price" value={formatMoney(report.targetPrice)} /></td>
-                    </tr>
-                    <tr>
-                      <td><SummaryMetricRow label="Implied Upside" value={<span className={report.impliedUpside >= 0 ? 'text-emerald-700' : 'text-red-700'}>{formatPercent(report.impliedUpside)}</span>} /></td>
-                      <td><SummaryMetricRow label="Time Horizon" value={report.timeHorizon} /></td>
-                    </tr>
-                    <tr>
-                      <td><SummaryMetricRow label="Sector" value={report.sector} /></td>
-                      <td><SummaryMetricRow label="Industry" value={report.industry} /></td>
-                    </tr>
-                  </tbody>
-                </table>
+                <SectionLabel>Coverage Context</SectionLabel>
+                <p className="mt-4 text-[11.35px] leading-7 text-slate-800">
+                  We initiate coverage with a {report.recommendation.toUpperCase()} recommendation based on our assessment of
+                  intrinsic value, competitive positioning, and the timing of catalysts expected to influence the next {report.timeHorizon}.
+                </p>
               </div>
             </div>
           </div>
@@ -478,20 +584,28 @@ export function ResearchExportDocument({
               </p>
             </div>
 
-            <table className="report-meta-table">
-              <tbody>
-                <tr>
-                  <td><SummaryMetricRow label="Recommendation" value={report.recommendation.toUpperCase()} /></td>
-                  <td><SummaryMetricRow label="Current Price" value={formatMoney(report.currentPrice)} /></td>
-                  <td><SummaryMetricRow label="Target Price" value={formatMoney(report.targetPrice)} /></td>
-                </tr>
-                <tr>
-                  <td><SummaryMetricRow label="Upside / Downside" value={<span className={report.impliedUpside >= 0 ? 'text-emerald-700' : 'text-red-700'}>{formatPercent(report.impliedUpside)}</span>} /></td>
-                  <td><SummaryMetricRow label="Coverage Status" value={report.coverageStatus} /></td>
-                  <td><SummaryMetricRow label="Sector / Industry" value={`${report.sector} / ${report.industry}`} /></td>
-                </tr>
-              </tbody>
-            </table>
+            <div className="report-stat-strip avoid-break">
+              <div className="report-stat">
+                <span className="report-stat-label">Recommendation</span>
+                <span className="report-stat-value">{report.recommendation.toUpperCase()}</span>
+              </div>
+              <div className="report-stat">
+                <span className="report-stat-label">Current Price</span>
+                <span className="report-stat-value">{formatMoney(report.currentPrice)}</span>
+              </div>
+              <div className="report-stat">
+                <span className="report-stat-label">Target Price</span>
+                <span className="report-stat-value">{formatMoney(report.targetPrice)}</span>
+              </div>
+              <div className="report-stat">
+                <span className="report-stat-label">Upside / Downside</span>
+                <span className={`report-stat-value ${report.impliedUpside >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{formatPercent(report.impliedUpside)}</span>
+              </div>
+              <div className="report-stat">
+                <span className="report-stat-label">Horizon</span>
+                <span className="report-stat-value">{report.timeHorizon}</span>
+              </div>
+            </div>
 
             <div className="space-y-7">
               {report.investmentThesis.map((bullet, index) => (
@@ -542,12 +656,12 @@ export function ResearchExportDocument({
           )}
 
           {((report.priceHistory && report.priceHistory.length > 0) || report.priceChartImageUrl || report.epsTableMarkdown) && (
-            <div className="mt-6 grid grid-cols-2 gap-6">
+            <div className="mt-8 report-two-col">
               {report.epsTableMarkdown && (
-                <div className="report-table-wrap">
-                  <SectionLabel>EPS Summary</SectionLabel>
+                <div>
+                  <SectionLabel>Recent Reported EPS Trend</SectionLabel>
                   <PdfMarkdown content={report.epsTableMarkdown} />
-                  <div className="report-caption">Consensus and historical EPS summary as entered in the report source content.</div>
+                  <div className="report-caption">Trailing quarterly earnings progression based on the report inputs.</div>
                 </div>
               )}
               {(report.priceHistory && report.priceHistory.length > 0) || report.priceChartImageUrl ? (
@@ -564,22 +678,51 @@ export function ResearchExportDocument({
                         const maxPrice = Math.max(...prices);
                         const minPrice = Math.min(...prices);
                         const range = Math.max(maxPrice - minPrice, 1);
+                        const parsedRange = parseFiftyTwoWeekRange(report.fiftyTwoWeekRange);
+                        const highMarker = parsedRange?.high ?? maxPrice;
+                        const lowMarker = parsedRange?.low ?? minPrice;
+                        const toY = (price: number) => 188 - ((price - minPrice) / range) * 150;
+                        const startPoint = chartData[0];
+                        const endPoint = chartData[chartData.length - 1];
                         const points = chartData.map((point: any, index: number) => {
                           const x = (chartData.length > 1 ? index / (chartData.length - 1) : 0) * 760 + 20;
-                          const y = 188 - ((point.close - minPrice) / range) * 150;
+                          const y = toY(point.close);
                           return `${x},${y}`;
                         }).join(' ');
                         return (
                           <>
-                            <line x1="20" y1="188" x2="780" y2="188" stroke="#cbd5e1" strokeWidth="1" />
-                            <line x1="20" y1="24" x2="20" y2="188" stroke="#cbd5e1" strokeWidth="1" />
-                            <polyline points={points} fill="none" stroke="#0f172a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            {[highMarker, (highMarker + lowMarker) / 2, lowMarker].map((marker, index) => {
+                              const y = toY(marker);
+                              return (
+                                <g key={index}>
+                                  <line x1="20" y1={y} x2="780" y2={y} stroke="#e2e8f0" strokeWidth="1" strokeDasharray={index === 1 ? '0' : '4 5'} />
+                                  <text x="12" y={y + 4} textAnchor="end" fontSize="10" fill="#64748b" fontFamily="Helvetica, Arial, sans-serif">
+                                    ${marker.toFixed(0)}
+                                  </text>
+                                </g>
+                              );
+                            })}
+                            <polyline points={points} fill="none" stroke="#0f172a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                            <circle cx="20" cy={toY(startPoint.close)} r="3.8" fill="#0f172a" />
+                            <circle cx="780" cy={toY(endPoint.close)} r="3.8" fill="#0f172a" />
+                            <text x="20" y="206" textAnchor="start" fontSize="10" fill="#64748b" fontFamily="Helvetica, Arial, sans-serif">
+                              {formatChartDate(startPoint.date)}
+                            </text>
+                            <text x="780" y="206" textAnchor="end" fontSize="10" fill="#64748b" fontFamily="Helvetica, Arial, sans-serif">
+                              {formatChartDate(endPoint.date)}
+                            </text>
+                            <text x="28" y={toY(startPoint.close) - 8} fontSize="10" fill="#0f172a" fontFamily="Helvetica, Arial, sans-serif">
+                              Start ${startPoint.close.toFixed(2)}
+                            </text>
+                            <text x="772" y={toY(endPoint.close) - 8} textAnchor="end" fontSize="10" fill="#0f172a" fontFamily="Helvetica, Arial, sans-serif">
+                              End ${endPoint.close.toFixed(2)}
+                            </text>
                           </>
                         );
                       })()}
                     </svg>
                   )}
-                  <div className="report-caption">Figure 1. Recent share-price trend based on the 100-day history available in the model inputs.</div>
+                  <div className="report-caption">Figure 1. Recent share-price trend with start and end markers, framed against the available trading range.</div>
                 </div>
               ) : null}
             </div>
@@ -684,8 +827,9 @@ export function ResearchExportDocument({
             <div className="keep-with-next">
               <SectionLabel>Valuation Framework</SectionLabel>
               <p className="report-lead">
-                This section presents the relative valuation context, discounted cash flow outputs, and sensitivity framing using
-                the same assumptions and model inputs already stored in the report.
+                Our valuation framework combines relative market context with a discounted cash flow assessment to anchor target
+                price conviction, frame the key operating assumptions, and test fair value against the core discount-rate and
+                terminal-growth sensitivities.
               </p>
             </div>
 

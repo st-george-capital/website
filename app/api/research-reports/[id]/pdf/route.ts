@@ -82,17 +82,18 @@ export async function GET(
 
     const headerTemplate = `
       <div style="width:100%; padding:0 0.65in; font-family:Helvetica, Arial, sans-serif; font-size:8px; color:#475569;">
-        <div style="display:flex; justify-content:space-between; align-items:flex-end; width:100%; border-bottom:1px solid #cbd5e1; padding-bottom:6px;">
-          <div style="font-weight:600; color:#0f172a;">${escapeHtml(reportMeta.companyName)}${reportMeta.ticker ? ` (${escapeHtml(reportMeta.ticker)})` : ''}</div>
-          <div>${escapeHtml(reportMeta.reportDate)} | St. George Capital Equity Research</div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; width:100%; padding-bottom:6px;">
+          <div style="font-weight:600; color:#0f172a; letter-spacing:0.02em;">${escapeHtml(reportMeta.companyName)}${reportMeta.ticker ? ` (${escapeHtml(reportMeta.ticker)})` : ''}</div>
+          <div style="color:#334155;">${escapeHtml(reportMeta.reportDate)} | St. George Capital Equity Research</div>
         </div>
+        <div style="height:1px; background:#0f2747;"></div>
       </div>
     `;
 
     const footerTemplate = `
       <div style="width:100%; padding:0 0.65in; font-family:Helvetica, Arial, sans-serif; font-size:8px; color:#64748b;">
         <div style="display:flex; justify-content:space-between; align-items:center; width:100%; border-top:1px solid #cbd5e1; padding-top:6px;">
-          <div>Prepared for educational and internal research use.</div>
+          <div>Prepared for educational and internal research use only. Not investment advice.</div>
           <div>Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>
         </div>
       </div>

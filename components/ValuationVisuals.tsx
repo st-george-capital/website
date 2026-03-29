@@ -42,10 +42,14 @@ function DocumentBarFigure({
 
   return (
     <div className="report-figure">
-      <div className="font-sans text-[10px] font-semibold uppercase text-slate-500">{title}</div>
+      <div className="report-subhead">{title}</div>
       <svg viewBox={`0 0 ${width} ${height}`} className="mt-4 w-full h-auto" role="img" aria-label={title}>
         <line x1={leftPad} y1={height - bottomPad} x2={width - rightPad} y2={height - bottomPad} stroke="#cbd5e1" strokeWidth="1" />
         <line x1={leftPad} y1={topPad} x2={leftPad} y2={height - bottomPad} stroke="#cbd5e1" strokeWidth="1" />
+        {Array.from({ length: 3 }).map((_, index) => {
+          const y = topPad + (chartHeight / 2) * index;
+          return <line key={index} x1={leftPad} y1={y} x2={width - rightPad} y2={y} stroke="#e2e8f0" strokeDasharray="3 5" />;
+        })}
         {data.map((item, index) => {
           const x = leftPad + index * (barWidth + gap) + gap;
           const barHeight = (Math.max(0, item.value) / maxValue) * chartHeight;
@@ -103,7 +107,7 @@ function DocumentLineFigure({
 
   return (
     <div className="report-figure">
-      <div className="font-sans text-[10px] font-semibold uppercase text-slate-500">{title}</div>
+      <div className="report-subhead">{title}</div>
       <svg viewBox={`0 0 ${width} ${height}`} className="mt-4 w-full h-auto" role="img" aria-label={title}>
         <line x1={leftPad} y1={height - bottomPad} x2={width - rightPad} y2={height - bottomPad} stroke="#cbd5e1" strokeWidth="1" />
         <line x1={leftPad} y1={topPad} x2={leftPad} y2={height - bottomPad} stroke="#cbd5e1" strokeWidth="1" />
@@ -162,7 +166,7 @@ export function ValuationBridge({ pvForecastFCF, pvTerminalValue, enterpriseValu
   if (variant === 'document') {
     return (
       <div className="report-figure">
-        <div className="font-sans text-[10px] font-semibold uppercase text-slate-500">Valuation Bridge</div>
+        <div className="report-subhead">Valuation Bridge</div>
         <div className="mt-4 space-y-2">
           {data.map((item, index) => (
             <div key={item.name} className="grid grid-cols-[1.6fr_0.7fr_2.1fr] items-center gap-3">
@@ -323,17 +327,17 @@ export function SensitivityTable({ baseWACC, baseTerminalGrowth, baseValue, calc
 
   const getColor = (value: number) => {
     const diff = (value / baseValue - 1) * 100;
-    if (diff > 15) return 'bg-green-100 text-green-900';
-    if (diff > 5) return 'bg-green-50 text-green-800';
-    if (diff < -15) return 'bg-red-100 text-red-900';
-    if (diff < -5) return 'bg-red-50 text-red-800';
-    return 'bg-blue-50 text-blue-900';
+    if (diff > 15) return 'bg-emerald-100 text-emerald-950';
+    if (diff > 5) return 'bg-emerald-50 text-emerald-900';
+    if (diff < -15) return 'bg-rose-100 text-rose-950';
+    if (diff < -5) return 'bg-rose-50 text-rose-900';
+    return 'bg-slate-50 text-slate-900';
   };
 
   if (variant === 'document') {
     return (
-      <div className="report-table-wrap">
-        <div className="font-sans text-[10px] font-semibold uppercase text-slate-500">Sensitivity Analysis</div>
+      <div className="report-figure">
+        <div className="report-subhead">Sensitivity Analysis</div>
         <div className="mt-4 overflow-hidden">
           <table className="w-full table-fixed border-collapse font-sans text-[10px] text-slate-900">
             <colgroup>
@@ -344,9 +348,9 @@ export function SensitivityTable({ baseWACC, baseTerminalGrowth, baseValue, calc
             </colgroup>
             <thead>
               <tr>
-                <th className="border border-slate-300 bg-slate-100 px-2 py-2 text-left text-[9px] font-semibold uppercase text-slate-600">WACC / Growth</th>
+                <th className="border-y border-slate-300 bg-slate-50 px-2 py-2 text-left text-[9px] font-semibold uppercase text-slate-600">WACC / Growth</th>
                 {growthRange.map((g) => (
-                  <th key={g} className="border border-slate-300 bg-slate-50 px-2 py-2 text-center text-[9px] font-semibold uppercase text-slate-600">
+                  <th key={g} className="border-y border-slate-300 bg-slate-50 px-2 py-2 text-center text-[9px] font-semibold uppercase text-slate-600">
                     {((baseTerminalGrowth + g) * 100).toFixed(1)}%
                   </th>
                 ))}
@@ -357,7 +361,7 @@ export function SensitivityTable({ baseWACC, baseTerminalGrowth, baseValue, calc
                 const testWACC = baseWACC + w;
                 return (
                   <tr key={w}>
-                    <td className="border border-slate-300 bg-slate-50 px-2 py-2 text-center font-semibold">
+                    <td className="border-b border-slate-200 bg-slate-50 px-2 py-2 text-center font-semibold">
                       {(testWACC * 100).toFixed(2)}%
                     </td>
                     {growthRange.map((g) => {
@@ -367,8 +371,8 @@ export function SensitivityTable({ baseWACC, baseTerminalGrowth, baseValue, calc
                       return (
                         <td
                           key={g}
-                          className={`border border-slate-300 px-2 py-2 text-center font-medium ${
-                            isBase ? 'bg-slate-900 text-white' : getColor(value)
+                          className={`border-b border-slate-200 px-2 py-2 text-center font-medium ${
+                            isBase ? 'bg-[#0b1f3a] text-white' : getColor(value)
                           }`}
                         >
                           ${value.toFixed(2)}
