@@ -1,6 +1,4 @@
-'use client';
-
-import { useEffect, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import Image from 'next/image';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -175,21 +173,9 @@ function getImpactBadge(impact: string) {
 
 export function ResearchExportDocument({
   report,
-  autoPrint = false,
 }: {
   report: ResearchExportReport;
-  autoPrint?: boolean;
 }) {
-  useEffect(() => {
-    if (!autoPrint) return;
-
-    const timer = window.setTimeout(() => {
-      window.print();
-    }, 700);
-
-    return () => window.clearTimeout(timer);
-  }, [autoPrint]);
-
   return (
     <>
       <style jsx global>{`

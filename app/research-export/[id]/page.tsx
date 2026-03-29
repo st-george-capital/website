@@ -36,5 +36,5 @@ export default async function ResearchExportPage({
     notFound();
   }
 
-  return <ResearchExportDocument report={report as any} autoPrint />;
+  return <ResearchExportDocument report={report as any} />;
 }
