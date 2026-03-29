@@ -132,6 +132,13 @@ const EXPORT_DOCUMENT_STYLES = `
       break-inside: avoid;
       page-break-inside: avoid;
     }
+
+    .pdf-doc h2,
+    .pdf-doc h3,
+    .pdf-doc .keep-with-next {
+      break-after: avoid;
+      page-break-after: avoid;
+    }
   }
 
   .pdf-doc {
@@ -142,14 +149,54 @@ const EXPORT_DOCUMENT_STYLES = `
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   }
 
-  .pdf-doc .report-box {
-    border: 1px solid #cbd5e1;
-    background: #fff;
+  .pdf-doc .report-subhead {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #475569;
   }
 
-  .pdf-doc .report-box-soft {
-    border: 1px solid #dbe3ef;
-    background: #f8fafc;
+  .pdf-doc .report-lead {
+    font-size: 11.6px;
+    line-height: 1.85;
+    color: #1e293b;
+  }
+
+  .pdf-doc .report-meta-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 10.5px;
+    color: #0f172a;
+  }
+
+  .pdf-doc .report-meta-table td {
+    padding: 7px 10px 7px 0;
+    vertical-align: top;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .pdf-doc .report-meta-table td:last-child {
+    padding-right: 0;
+  }
+
+  .pdf-doc .report-meta-label {
+    display: block;
+    margin-bottom: 3px;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #64748b;
+  }
+
+  .pdf-doc .report-meta-value {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: #0f172a;
   }
 
   .pdf-doc .report-table {
@@ -178,6 +225,15 @@ const EXPORT_DOCUMENT_STYLES = `
     vertical-align: top;
   }
 
+  .pdf-doc .report-table thead {
+    display: table-header-group;
+  }
+
+  .pdf-doc .report-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
   .pdf-doc .report-table .num {
     text-align: right;
     white-space: nowrap;
@@ -189,6 +245,11 @@ const EXPORT_DOCUMENT_STYLES = `
     font-size: 9px;
     color: #64748b;
   }
+
+  .pdf-doc .report-figure {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
 `;
 
 function SectionLabel({ children }: { children: ReactNode }) {
@@ -199,20 +260,18 @@ function SectionLabel({ children }: { children: ReactNode }) {
   );
 }
 
-function MetricDefinition({
+function SummaryMetricRow({
   label,
   value,
-  accent = false,
 }: {
   label: string;
   value: ReactNode;
-  accent?: boolean;
 }) {
   return (
-    <div className="border-t border-slate-200 pt-2 first:border-t-0 first:pt-0">
-      <div className="report-sans text-[9px] font-semibold uppercase text-slate-500">{label}</div>
-      <div className={`mt-1 text-[12px] font-semibold ${accent ? 'text-slate-950' : 'text-slate-800'}`}>{value}</div>
-    </div>
+    <>
+      <span className="report-meta-label">{label}</span>
+      <span className="report-meta-value">{value}</span>
+    </>
   );
 }
 
@@ -354,7 +413,7 @@ export function ResearchExportDocument({
                 <SectionLabel>Investment Summary</SectionLabel>
                 <div className="mt-4 space-y-4">
                   {report.investmentThesis.slice(0, 3).map((bullet, index) => (
-                    <div key={index} className="report-box-soft px-4 py-3">
+                    <div key={index}>
                       <div className="report-sans text-[11px] font-semibold uppercase text-slate-500">
                         {bullet.title ? markdownToPlainText(bullet.title) : `Thesis ${index + 1}`}
                       </div>
@@ -367,22 +426,27 @@ export function ResearchExportDocument({
                 </div>
               </div>
 
-              <div className="report-box p-5">
+              <div>
                 <SectionLabel>Rating Snapshot</SectionLabel>
                 <div className={`report-sans mt-4 inline-flex rounded-sm px-3 py-1.5 text-sm font-semibold ${getRecommendationColor(report.recommendation)}`}>
                   {report.recommendation.toUpperCase()}
                 </div>
-                <div className="mt-6 grid grid-cols-2 gap-x-5 gap-y-4">
-                  <MetricDefinition label="Current Price" value={formatMoney(report.currentPrice)} accent />
-                  <MetricDefinition label="Target Price" value={formatMoney(report.targetPrice)} accent />
-                  <MetricDefinition
-                    label="Implied Upside"
-                    value={<span className={report.impliedUpside >= 0 ? 'text-emerald-700' : 'text-red-700'}>{formatPercent(report.impliedUpside)}</span>}
-                  />
-                  <MetricDefinition label="Time Horizon" value={report.timeHorizon} />
-                  <MetricDefinition label="Sector" value={report.sector} />
-                  <MetricDefinition label="Industry" value={report.industry} />
-                </div>
+                <table className="report-meta-table mt-5">
+                  <tbody>
+                    <tr>
+                      <td><SummaryMetricRow label="Current Price" value={formatMoney(report.currentPrice)} /></td>
+                      <td><SummaryMetricRow label="Target Price" value={formatMoney(report.targetPrice)} /></td>
+                    </tr>
+                    <tr>
+                      <td><SummaryMetricRow label="Implied Upside" value={<span className={report.impliedUpside >= 0 ? 'text-emerald-700' : 'text-red-700'}>{formatPercent(report.impliedUpside)}</span>} /></td>
+                      <td><SummaryMetricRow label="Time Horizon" value={report.timeHorizon} /></td>
+                    </tr>
+                    <tr>
+                      <td><SummaryMetricRow label="Sector" value={report.sector} /></td>
+                      <td><SummaryMetricRow label="Industry" value={report.industry} /></td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -402,120 +466,76 @@ export function ResearchExportDocument({
         </header>
 
         <PdfSection number="1" title="Executive Summary" pageBreak>
-          <div className="grid grid-cols-[1.2fr_0.8fr] gap-8">
-            <div>
-              <SectionLabel>Investment Thesis</SectionLabel>
-              <div className="space-y-4">
-                {report.investmentThesis.map((bullet, index) => (
-                  <div key={index} className="avoid-break report-box-soft p-4">
-                    {bullet.title && (
-                      <div className="report-sans mb-2 text-[11px] font-semibold uppercase text-slate-500">
-                        <PdfMarkdown content={bullet.title} />
-                      </div>
-                    )}
-                    <div className="text-[11.5px] leading-6 text-slate-800">
-                      <PdfMarkdown content={bullet.claim} />
-                    </div>
-                    <div className="mt-4 border-t border-slate-200 pt-3">
-                      <div className="report-sans text-[9px] font-semibold uppercase text-slate-500">Primary Driver</div>
-                      <PdfMarkdown content={bullet.driver || '—'} />
-                    </div>
-                    <div className="mt-3">
-                      <div className="report-sans text-[9px] font-semibold uppercase text-slate-500">Market Mispricing</div>
-                      <PdfMarkdown content={bullet.mispricing || '—'} />
-                    </div>
-                  </div>
-                ))}
-              </div>
+          <div className="space-y-8">
+            <div className="keep-with-next">
+              <SectionLabel>Recommendation Overview</SectionLabel>
+              <p className="report-lead">
+                {report.companyName} is rated <span className="font-semibold">{report.recommendation.toUpperCase()}</span> with a
+                target price of <span className="font-semibold">{formatMoney(report.targetPrice)}</span>, implying{' '}
+                <span className="font-semibold">{formatPercent(report.impliedUpside)}</span> relative to the current trading
+                price of <span className="font-semibold">{formatMoney(report.currentPrice)}</span> over a{' '}
+                <span className="font-semibold">{report.timeHorizon}</span> horizon.
+              </p>
             </div>
 
-            <aside className="space-y-4">
-              <div className="report-box p-4">
-                <SectionLabel>Recommendation Snapshot</SectionLabel>
-                <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3">
-                  <MetricDefinition label="Recommendation" value={report.recommendation.toUpperCase()} accent />
-                  <MetricDefinition label="Time Horizon" value={report.timeHorizon} />
-                  <MetricDefinition label="Current Price" value={formatMoney(report.currentPrice)} />
-                  <MetricDefinition label="Target Price" value={formatMoney(report.targetPrice)} />
-                  <MetricDefinition
-                    label="Upside / Downside"
-                    value={<span className={report.impliedUpside >= 0 ? 'text-emerald-700' : 'text-red-700'}>{formatPercent(report.impliedUpside)}</span>}
-                    accent
-                  />
-                  <MetricDefinition label="Coverage Status" value={report.coverageStatus} />
-                </div>
-              </div>
+            <table className="report-meta-table">
+              <tbody>
+                <tr>
+                  <td><SummaryMetricRow label="Recommendation" value={report.recommendation.toUpperCase()} /></td>
+                  <td><SummaryMetricRow label="Current Price" value={formatMoney(report.currentPrice)} /></td>
+                  <td><SummaryMetricRow label="Target Price" value={formatMoney(report.targetPrice)} /></td>
+                </tr>
+                <tr>
+                  <td><SummaryMetricRow label="Upside / Downside" value={<span className={report.impliedUpside >= 0 ? 'text-emerald-700' : 'text-red-700'}>{formatPercent(report.impliedUpside)}</span>} /></td>
+                  <td><SummaryMetricRow label="Coverage Status" value={report.coverageStatus} /></td>
+                  <td><SummaryMetricRow label="Sector / Industry" value={`${report.sector} / ${report.industry}`} /></td>
+                </tr>
+              </tbody>
+            </table>
 
-              <div className="report-box-soft p-4">
-                <SectionLabel>Investment View</SectionLabel>
-                <p className="mt-3 text-[11.5px] leading-6 text-slate-800">
-                  {report.companyName} is rated <span className="font-semibold">{report.recommendation.toUpperCase()}</span> with a
-                  target price of <span className="font-semibold">{formatMoney(report.targetPrice)}</span>, implying{' '}
-                  <span className="font-semibold">{formatPercent(report.impliedUpside)}</span> relative to the current price of{' '}
-                  <span className="font-semibold">{formatMoney(report.currentPrice)}</span>.
-                </p>
-              </div>
-            </aside>
+            <div className="space-y-7">
+              {report.investmentThesis.map((bullet, index) => (
+                <section key={index} className="avoid-break">
+                  <h3 className="keep-with-next font-serif text-[18px] leading-tight text-slate-950">
+                    {bullet.title ? markdownToPlainText(bullet.title) : `Investment Thesis ${index + 1}`}
+                  </h3>
+                  <div className="mt-3 text-[11.5px] leading-7 text-slate-800">
+                    <PdfMarkdown content={bullet.claim} />
+                  </div>
+                  <div className="mt-3 text-[11.4px] leading-7 text-slate-800">
+                    <span className="report-subhead mr-2">Primary Driver:</span>
+                    <span>{markdownToPlainText(bullet.driver || '—')}</span>
+                  </div>
+                  <div className="mt-2 text-[11.4px] leading-7 text-slate-800">
+                    <span className="report-subhead mr-2">Market Mispricing:</span>
+                    <span>{markdownToPlainText(bullet.mispricing || '—')}</span>
+                  </div>
+                </section>
+              ))}
+            </div>
           </div>
         </PdfSection>
 
         <PdfSection number="2" title="Company Snapshot & Price Performance" pageBreak>
-          <div className="report-box grid grid-cols-3 gap-x-6 gap-y-4 p-5 text-[11px]">
-            {report.priceDate && (
-              <div>
-                <div className="report-sans uppercase text-slate-500">Date of Price</div>
-                <div className="mt-1 font-medium text-slate-900">{report.priceDate}</div>
-              </div>
-            )}
-            {report.fiftyTwoWeekRange && (
-              <div>
-                <div className="report-sans uppercase text-slate-500">52-Week Range</div>
-                <div className="mt-1 font-medium text-slate-900">{report.fiftyTwoWeekRange}</div>
-              </div>
-            )}
-            {report.marketCap != null && (
-              <div>
-                <div className="report-sans uppercase text-slate-500">Market Cap</div>
-                <div className="mt-1 font-medium text-slate-900">${report.marketCap.toLocaleString()} mn</div>
-              </div>
-            )}
-            {report.sharesOutstanding != null && (
-              <div>
-                <div className="report-sans uppercase text-slate-500">Shares O/S</div>
-                <div className="mt-1 font-medium text-slate-900">{report.sharesOutstanding.toLocaleString()} mn</div>
-              </div>
-            )}
-            {report.fiscalYearEnd && (
-              <div>
-                <div className="report-sans uppercase text-slate-500">Fiscal Year End</div>
-                <div className="mt-1 font-medium text-slate-900">{report.fiscalYearEnd}</div>
-              </div>
-            )}
-            {report.priceTargetEndDate && (
-              <div>
-                <div className="report-sans uppercase text-slate-500">Price Target End Date</div>
-                <div className="mt-1 font-medium text-slate-900">{report.priceTargetEndDate}</div>
-              </div>
-            )}
-            {(report.peRatio != null || report.dcfInputs?.peRatio != null) && (
-              <div>
-                <div className="report-sans uppercase text-slate-500">P/E</div>
-                <div className="mt-1 font-medium text-slate-900">{(report.peRatio ?? report.dcfInputs?.peRatio).toFixed(2)}x</div>
-              </div>
-            )}
-            {(report.forwardPE != null || report.dcfInputs?.forwardPE != null) && (
-              <div>
-                <div className="report-sans uppercase text-slate-500">Forward P/E</div>
-                <div className="mt-1 font-medium text-slate-900">{(report.forwardPE ?? report.dcfInputs?.forwardPE).toFixed(2)}x</div>
-              </div>
-            )}
-            {report.dividendYield != null && (
-              <div>
-                <div className="report-sans uppercase text-slate-500">Dividend Yield</div>
-                <div className="mt-1 font-medium text-slate-900">{report.dividendYield.toFixed(2)}%</div>
-              </div>
-            )}
-          </div>
+          <table className="report-meta-table">
+            <tbody>
+              <tr>
+                {report.priceDate && <td><SummaryMetricRow label="Date of Price" value={report.priceDate} /></td>}
+                {report.fiftyTwoWeekRange && <td><SummaryMetricRow label="52-Week Range" value={report.fiftyTwoWeekRange} /></td>}
+                {report.marketCap != null && <td><SummaryMetricRow label="Market Cap" value={`$${report.marketCap.toLocaleString()} mn`} /></td>}
+              </tr>
+              <tr>
+                {report.sharesOutstanding != null && <td><SummaryMetricRow label="Shares O/S" value={`${report.sharesOutstanding.toLocaleString()} mn`} /></td>}
+                {report.fiscalYearEnd && <td><SummaryMetricRow label="Fiscal Year End" value={report.fiscalYearEnd} /></td>}
+                {report.priceTargetEndDate && <td><SummaryMetricRow label="Price Target End Date" value={report.priceTargetEndDate} /></td>}
+              </tr>
+              <tr>
+                {(report.peRatio != null || report.dcfInputs?.peRatio != null) && <td><SummaryMetricRow label="P/E" value={`${(report.peRatio ?? report.dcfInputs?.peRatio).toFixed(2)}x`} /></td>}
+                {(report.forwardPE != null || report.dcfInputs?.forwardPE != null) && <td><SummaryMetricRow label="Forward P/E" value={`${(report.forwardPE ?? report.dcfInputs?.forwardPE).toFixed(2)}x`} /></td>}
+                {report.dividendYield != null && <td><SummaryMetricRow label="Dividend Yield" value={`${report.dividendYield.toFixed(2)}%`} /></td>}
+              </tr>
+            </tbody>
+          </table>
 
           {report.dataSource && (
             <div className="mt-3 text-[10px] text-slate-500">Source: {report.dataSource}</div>
@@ -524,48 +544,41 @@ export function ResearchExportDocument({
           {((report.priceHistory && report.priceHistory.length > 0) || report.priceChartImageUrl || report.epsTableMarkdown) && (
             <div className="mt-6 grid grid-cols-2 gap-6">
               {report.epsTableMarkdown && (
-                <div className="avoid-break">
+                <div className="report-table-wrap">
                   <SectionLabel>EPS Summary</SectionLabel>
-                  <div className="report-box p-4">
-                    <PdfMarkdown content={report.epsTableMarkdown} />
-                  </div>
+                  <PdfMarkdown content={report.epsTableMarkdown} />
                   <div className="report-caption">Consensus and historical EPS summary as entered in the report source content.</div>
                 </div>
               )}
               {(report.priceHistory && report.priceHistory.length > 0) || report.priceChartImageUrl ? (
-                <div className="avoid-break">
+                <div className="report-figure">
                   <SectionLabel>Price Performance</SectionLabel>
-                  <div className="report-box p-4">
-                    {report.priceChartImageUrl && !(report.priceHistory && report.priceHistory.length > 0) ? (
-                      <img src={report.priceChartImageUrl} alt="Price Chart" className="w-full h-auto rounded" />
-                    ) : (
-                      <svg viewBox="0 0 800 220" className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
-                        {(() => {
-                          const chartData = (report.priceHistory || report.dcfInputs?.priceHistory || []).slice(0, 100);
-                          if (!chartData.length) return null;
-                          const prices = chartData.map((point: any) => point.close);
-                          const maxPrice = Math.max(...prices);
-                          const topPad = maxPrice * 0.05;
-                          const range = maxPrice + topPad;
-                          const points = chartData.map((point: any, index: number) => {
-                            const x = (chartData.length > 1 ? index / (chartData.length - 1) : 0) * 760 + 20;
-                            const y = 200 - (point.close / range) * 180;
-                            return `${x},${y}`;
-                          }).join(' ');
-                          const areaPoints = `${points} 760,200 20,200`;
-                          return (
-                            <>
-                              <rect x="20" y="20" width="760" height="180" fill="white" rx="4" />
-                              <line x1="20" y1="200" x2="780" y2="200" stroke="#cbd5e1" strokeWidth="1" />
-                              <line x1="20" y1="20" x2="20" y2="200" stroke="#cbd5e1" strokeWidth="1" />
-                              <polygon points={areaPoints} fill="rgba(30, 41, 59, 0.06)" stroke="none" />
-                              <polyline points={points} fill="none" stroke="#0f172a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            </>
-                          );
-                        })()}
-                      </svg>
-                    )}
-                  </div>
+                  {report.priceChartImageUrl && !(report.priceHistory && report.priceHistory.length > 0) ? (
+                    <img src={report.priceChartImageUrl} alt="Price Chart" className="w-full h-auto" />
+                  ) : (
+                    <svg viewBox="0 0 800 220" className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
+                      {(() => {
+                        const chartData = (report.priceHistory || report.dcfInputs?.priceHistory || []).slice(0, 100);
+                        if (!chartData.length) return null;
+                        const prices = chartData.map((point: any) => point.close);
+                        const maxPrice = Math.max(...prices);
+                        const minPrice = Math.min(...prices);
+                        const range = Math.max(maxPrice - minPrice, 1);
+                        const points = chartData.map((point: any, index: number) => {
+                          const x = (chartData.length > 1 ? index / (chartData.length - 1) : 0) * 760 + 20;
+                          const y = 188 - ((point.close - minPrice) / range) * 150;
+                          return `${x},${y}`;
+                        }).join(' ');
+                        return (
+                          <>
+                            <line x1="20" y1="188" x2="780" y2="188" stroke="#cbd5e1" strokeWidth="1" />
+                            <line x1="20" y1="24" x2="20" y2="188" stroke="#cbd5e1" strokeWidth="1" />
+                            <polyline points={points} fill="none" stroke="#0f172a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </>
+                        );
+                      })()}
+                    </svg>
+                  )}
                   <div className="report-caption">Figure 1. Recent share-price trend based on the 100-day history available in the model inputs.</div>
                 </div>
               ) : null}
@@ -575,18 +588,18 @@ export function ResearchExportDocument({
 
         <PdfSection number="3" title="Business Model & Economics">
           <div className="space-y-6">
-            <div className="report-box p-5">
+            <div>
               <SectionLabel>How the Company Makes Money</SectionLabel>
               <PdfMarkdown content={report.businessModel} />
             </div>
             {report.unitEconomics && (
-              <div className="report-box p-5">
+              <div>
                 <SectionLabel>Unit Economics</SectionLabel>
                 <PdfMarkdown content={report.unitEconomics} />
               </div>
             )}
             {report.economicMoat && (
-              <div className="report-box p-5">
+              <div>
                 <SectionLabel>Economic Moat</SectionLabel>
                 <PdfMarkdown content={report.economicMoat} />
               </div>
@@ -595,16 +608,14 @@ export function ResearchExportDocument({
         </PdfSection>
 
         <PdfSection number="4" title="Industry & Competitive Landscape">
-          <div className="report-box p-5">
-            <SectionLabel>Industry Analysis</SectionLabel>
-            <PdfMarkdown content={report.industryAnalysis} />
-          </div>
+          <SectionLabel>Industry Analysis</SectionLabel>
+          <PdfMarkdown content={report.industryAnalysis} />
         </PdfSection>
 
         <PdfSection number="5" title="Catalysts & Timeline">
           <div className="space-y-6">
             {report.catalystsNearTerm.length > 0 && (
-              <div className="avoid-break">
+              <div className="report-table-wrap">
                 <SectionLabel>Near-Term Catalysts</SectionLabel>
                 <table className="report-table">
                   <colgroup>
@@ -635,7 +646,7 @@ export function ResearchExportDocument({
               </div>
             )}
             {report.catalystsMediumTerm.length > 0 && (
-              <div className="avoid-break">
+              <div className="report-table-wrap">
                 <SectionLabel>Medium-Term Catalysts</SectionLabel>
                 <table className="report-table">
                   <colgroup>
@@ -670,10 +681,18 @@ export function ResearchExportDocument({
 
         <PdfSection number="6" title="Valuation Analysis" pageBreak>
           <div className="space-y-6">
+            <div className="keep-with-next">
+              <SectionLabel>Valuation Framework</SectionLabel>
+              <p className="report-lead">
+                This section presents the relative valuation context, discounted cash flow outputs, and sensitivity framing using
+                the same assumptions and model inputs already stored in the report.
+              </p>
+            </div>
+
             {report.competitivePosition?.rows && report.competitivePosition.rows.length > 0 && (
-              <div className="avoid-break">
+              <div className="report-table-wrap">
                 <SectionLabel>Comparable Companies</SectionLabel>
-                <div className="overflow-x-auto border border-slate-300">
+                <div className="overflow-x-auto">
                   <table className="report-table">
                     <colgroup>
                       <col style={{ width: '18%' }} />
@@ -723,7 +742,7 @@ export function ResearchExportDocument({
               </div>
             )}
 
-            <div className="avoid-break">
+            <div>
               <InstitutionalValuationSection
                 dcfData={report.dcfInputs && report.dcfOutputs ? {
                   inputs: report.dcfInputs as any,
@@ -738,20 +757,24 @@ export function ResearchExportDocument({
         </PdfSection>
 
         <PdfSection number="7" title="Scenario Analysis">
-          <div className="grid grid-cols-2 gap-6">
+          <div className="space-y-6">
             {report.bullCase && (
-              <div className="avoid-break border-l-4 border-emerald-600 bg-emerald-50 p-5">
-                <div className="report-sans mb-2 text-[10px] font-semibold uppercase text-emerald-700">Bull Case</div>
-                <PdfMarkdown content={report.bullCase} />
+              <div className="avoid-break">
+                <h3 className="keep-with-next font-serif text-[17px] leading-tight text-slate-950">Bull Case</h3>
+                <div className="mt-3">
+                  <PdfMarkdown content={report.bullCase} />
+                </div>
               </div>
             )}
-            <div className="avoid-break border-l-4 border-red-600 bg-red-50 p-5">
-              <div className="report-sans mb-2 text-[10px] font-semibold uppercase text-red-700">Bear Case</div>
-              <PdfMarkdown content={report.bearCase} />
+            <div className="avoid-break">
+              <h3 className="keep-with-next font-serif text-[17px] leading-tight text-slate-950">Bear Case</h3>
+              <div className="mt-3">
+                <PdfMarkdown content={report.bearCase} />
+              </div>
             </div>
           </div>
           {report.bullBearJustification && (
-            <div className="report-box mt-6 p-5">
+            <div className="mt-6">
               <SectionLabel>Scenario Framing</SectionLabel>
               <PdfMarkdown content={report.bullBearJustification} />
             </div>
@@ -760,51 +783,48 @@ export function ResearchExportDocument({
 
         {report.keyRisks.length > 0 && (
           <PdfSection number="8" title="Key Risks">
-            <div className="space-y-4">
+            <ol className="space-y-5">
               {report.keyRisks.map((risk, index) => (
-                <div key={index} className="avoid-break report-box p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="font-semibold text-slate-950">{risk.title}</div>
+                <li key={index} className="avoid-break list-none">
+                  <div className="flex items-baseline justify-between gap-4">
+                    <h3 className="keep-with-next font-serif text-[17px] leading-tight text-slate-950">
+                      {index + 1}. {risk.title}
+                    </h3>
                     <span className={`report-sans rounded px-2 py-1 text-[10px] font-semibold uppercase ${getImpactBadge(risk.impact)}`}>
                       {risk.impact} impact
                     </span>
                   </div>
-                  <p className="mt-2 text-[11.5px] leading-6 text-slate-800">{risk.description}</p>
+                  <p className="mt-3 text-[11.5px] leading-7 text-slate-800">{risk.description}</p>
                   {risk.mitigation && (
-                    <p className="mt-2 text-[11px] italic text-slate-600">
-                      <span className="font-medium not-italic">Mitigation:</span> {risk.mitigation}
+                    <p className="mt-2 text-[11.4px] leading-7 text-slate-800">
+                      <span className="report-subhead mr-2">Mitigation:</span>
+                      <span>{risk.mitigation}</span>
                     </p>
                   )}
-                </div>
+                </li>
               ))}
-            </div>
+            </ol>
           </PdfSection>
         )}
 
         {report.aiStrategies && (
           <PdfSection number="9" title="AI & Data Strategy">
-            <div className="report-box p-5">
-              <SectionLabel>AI & Data Strategy</SectionLabel>
-              <PdfMarkdown content={report.aiStrategies} />
-            </div>
+            <SectionLabel>AI & Data Strategy</SectionLabel>
+            <PdfMarkdown content={report.aiStrategies} />
           </PdfSection>
         )}
 
         {report.esgFactors && (
           <PdfSection number="10" title="ESG & Governance">
-            <div className="report-box p-5">
-              <SectionLabel>ESG & Governance</SectionLabel>
-              <PdfMarkdown content={report.esgFactors} />
-            </div>
+            <SectionLabel>ESG & Governance</SectionLabel>
+            <PdfMarkdown content={report.esgFactors} />
           </PdfSection>
         )}
 
         {report.concludingSection && (
           <PdfSection number="11" title="Conclusion">
-            <div className="report-box p-5">
-              <SectionLabel>Conclusion</SectionLabel>
-              <PdfMarkdown content={report.concludingSection} />
-            </div>
+            <SectionLabel>Conclusion</SectionLabel>
+            <PdfMarkdown content={report.concludingSection} />
           </PdfSection>
         )}
 

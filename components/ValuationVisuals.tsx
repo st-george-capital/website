@@ -41,9 +41,8 @@ function DocumentBarFigure({
   const gap = 14;
 
   return (
-    <div className="border border-slate-300 bg-white p-4">
+    <div className="report-figure">
       <div className="font-sans text-[10px] font-semibold uppercase text-slate-500">{title}</div>
-      <div className="mt-1 text-[11px] text-slate-600">{subtitle}</div>
       <svg viewBox={`0 0 ${width} ${height}`} className="mt-4 w-full h-auto" role="img" aria-label={title}>
         <line x1={leftPad} y1={height - bottomPad} x2={width - rightPad} y2={height - bottomPad} stroke="#cbd5e1" strokeWidth="1" />
         <line x1={leftPad} y1={topPad} x2={leftPad} y2={height - bottomPad} stroke="#cbd5e1" strokeWidth="1" />
@@ -64,6 +63,7 @@ function DocumentBarFigure({
           );
         })}
       </svg>
+      <div className="report-caption">{subtitle}</div>
     </div>
   );
 }
@@ -102,9 +102,8 @@ function DocumentLineFigure({
   const secondaryPoints = data.map((item, index) => item.secondary == null ? null : toPoint(item.secondary, index));
 
   return (
-    <div className="border border-slate-300 bg-white p-4">
+    <div className="report-figure">
       <div className="font-sans text-[10px] font-semibold uppercase text-slate-500">{title}</div>
-      <div className="mt-1 text-[11px] text-slate-600">{subtitle}</div>
       <svg viewBox={`0 0 ${width} ${height}`} className="mt-4 w-full h-auto" role="img" aria-label={title}>
         <line x1={leftPad} y1={height - bottomPad} x2={width - rightPad} y2={height - bottomPad} stroke="#cbd5e1" strokeWidth="1" />
         <line x1={leftPad} y1={topPad} x2={leftPad} y2={height - bottomPad} stroke="#cbd5e1" strokeWidth="1" />
@@ -144,6 +143,7 @@ function DocumentLineFigure({
           </g>
         ))}
       </svg>
+      <div className="report-caption">{subtitle}</div>
     </div>
   );
 }
@@ -161,9 +161,8 @@ export function ValuationBridge({ pvForecastFCF, pvTerminalValue, enterpriseValu
 
   if (variant === 'document') {
     return (
-      <div className="avoid-break border border-slate-300 bg-white p-5">
+      <div className="report-figure">
         <div className="font-sans text-[10px] font-semibold uppercase text-slate-500">Valuation Bridge</div>
-        <div className="mt-1 text-[11px] text-slate-600">Figure 2. Bridge from forecast free cash flow to equity value.</div>
         <div className="mt-4 space-y-2">
           {data.map((item, index) => (
             <div key={item.name} className="grid grid-cols-[1.6fr_0.7fr_2.1fr] items-center gap-3">
@@ -183,6 +182,7 @@ export function ValuationBridge({ pvForecastFCF, pvTerminalValue, enterpriseValu
             </div>
           ))}
         </div>
+        <div className="report-caption">Figure 2. Bridge from forecast free cash flow to equity value.</div>
       </div>
     );
   }
@@ -332,12 +332,9 @@ export function SensitivityTable({ baseWACC, baseTerminalGrowth, baseValue, calc
 
   if (variant === 'document') {
     return (
-      <div className="avoid-break border border-slate-300 bg-white p-5">
+      <div className="report-table-wrap">
         <div className="font-sans text-[10px] font-semibold uppercase text-slate-500">Sensitivity Analysis</div>
-        <p className="mt-1 text-[11px] text-slate-600">
-          Figure 5. Equity value per share across WACC and terminal growth assumptions (base case: ${baseValue.toFixed(2)}).
-        </p>
-        <div className="mt-4 overflow-hidden border border-slate-300">
+        <div className="mt-4 overflow-hidden">
           <table className="w-full table-fixed border-collapse font-sans text-[10px] text-slate-900">
             <colgroup>
               <col style={{ width: '18%' }} />
@@ -384,9 +381,7 @@ export function SensitivityTable({ baseWACC, baseTerminalGrowth, baseValue, calc
             </tbody>
           </table>
         </div>
-        <p className="mt-3 text-[9px] text-slate-500">
-          The shaded center cell marks the base case. Adjacent cells frame reasonable upside and downside from discount-rate and terminal-growth changes.
-        </p>
+        <p className="report-caption">Figure 5. Equity value per share across WACC and terminal growth assumptions (base case: ${baseValue.toFixed(2)}). The shaded center cell marks the base case.</p>
       </div>
     );
   }

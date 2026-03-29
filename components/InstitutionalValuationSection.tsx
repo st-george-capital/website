@@ -78,6 +78,181 @@ export function InstitutionalValuationSection({ dcfData, valuationText, variant 
     return equity / inputs.sharesDiluted;
   };
 
+  if (isDocument) {
+    return (
+      <div className="space-y-7">
+        {valuationText && (
+          <div className="report-lead">
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+              {valuationText}
+            </ReactMarkdown>
+          </div>
+        )}
+
+        <table className="report-meta-table">
+          <tbody>
+            <tr>
+              <td>
+                <span className="report-meta-label">Intrinsic Value</span>
+                <span className="report-meta-value">${outputs.intrinsicValuePerShare.toFixed(2)}</span>
+              </td>
+              <td>
+                <span className="report-meta-label">Current Price</span>
+                <span className="report-meta-value">${inputs.currentPrice.toFixed(2)}</span>
+              </td>
+              <td>
+                <span className="report-meta-label">Upside / Downside</span>
+                <span className={`report-meta-value ${outputs.upsideDownside >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                  {(outputs.upsideDownside * 100).toFixed(1)}%
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <span className="report-meta-label">WACC</span>
+                <span className="report-meta-value">{(outputs.wacc * 100).toFixed(2)}%</span>
+              </td>
+              <td>
+                <span className="report-meta-label">Terminal Growth</span>
+                <span className="report-meta-value">{(inputs.perpetualGrowth * 100).toFixed(2)}%</span>
+              </td>
+              <td>
+                <span className="report-meta-label">Terminal Value Contribution</span>
+                <span className="report-meta-value">{(outputs.terminalValueContribution * 100).toFixed(1)}%</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <ValuationBridge
+          pvForecastFCF={pvForecastFCF}
+          pvTerminalValue={outputs.pvOfTerminalValue}
+          enterpriseValue={outputs.enterpriseValue}
+          netDebt={netDebt}
+          equityValue={outputs.equityValue}
+          variant={variant}
+        />
+
+        <div className="grid grid-cols-2 gap-6">
+          <RevenueGrowthChart
+            years={Array.from({ length: inputs.forecastYears }, (_, i) => i + 1)}
+            growthRates={inputs.revenueGrowth}
+            terminalGrowth={inputs.perpetualGrowth}
+            variant={variant}
+          />
+          <EBITMarginChart
+            years={Array.from({ length: inputs.forecastYears }, (_, i) => i + 1)}
+            margins={inputs.ebitMargin}
+            variant={variant}
+          />
+        </div>
+
+        <div className="report-table-wrap">
+          <div className="report-sans mb-3 text-[10px] font-semibold uppercase text-slate-500">DCF Summary</div>
+          <table className="report-table">
+            <colgroup>
+              <col style={{ width: '34%' }} />
+              <col style={{ width: '16%' }} />
+              <col style={{ width: '34%' }} />
+              <col style={{ width: '16%' }} />
+            </colgroup>
+            <tbody>
+              <tr>
+                <td>Enterprise Value</td>
+                <td className="num">${(outputs.enterpriseValue / 1e9).toFixed(1)}B</td>
+                <td>Equity Value</td>
+                <td className="num">${(outputs.equityValue / 1e9).toFixed(1)}B</td>
+              </tr>
+              <tr>
+                <td>PV of Terminal Value</td>
+                <td className="num">${(outputs.pvOfTerminalValue / 1e9).toFixed(1)}B</td>
+                <td>Net Debt</td>
+                <td className="num">${(netDebt / 1e9).toFixed(1)}B</td>
+              </tr>
+              <tr>
+                <td>Cost of Equity</td>
+                <td className="num">{(outputs.costOfEquity * 100).toFixed(2)}%</td>
+                <td>After-Tax Cost of Debt</td>
+                <td className="num">{(outputs.afterTaxCostOfDebt * 100).toFixed(2)}%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div className="grid grid-cols-2 gap-6">
+          <div className="report-table-wrap">
+            <div className="report-sans mb-3 text-[10px] font-semibold uppercase text-slate-500">Key Operating Assumptions</div>
+            <table className="report-table">
+              <tbody>
+                <tr>
+                  <td>Capex as % of Revenue</td>
+                  <td className="num">{(inputs.capexPercentOfRevenue * 100).toFixed(1)}%</td>
+                </tr>
+                <tr>
+                  <td>D&amp;A as % of Revenue</td>
+                  <td className="num">{(inputs.depreciationPercentOfRevenue * 100).toFixed(1)}%</td>
+                </tr>
+                <tr>
+                  <td>NWC Change as % of Revenue Delta</td>
+                  <td className="num">{(inputs.nwcChangePercentOfRevenueChange * 100).toFixed(1)}%</td>
+                </tr>
+                <tr>
+                  <td>Cash Tax Rate</td>
+                  <td className="num">{(inputs.cashTaxRate * 100).toFixed(1)}%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="report-table-wrap">
+            <div className="report-sans mb-3 text-[10px] font-semibold uppercase text-slate-500">Terminal Value</div>
+            <table className="report-table">
+              <tbody>
+                <tr>
+                  <td>Perpetual Growth Rate</td>
+                  <td className="num">{(inputs.perpetualGrowth * 100).toFixed(2)}%</td>
+                </tr>
+                <tr>
+                  <td>Terminal Value</td>
+                  <td className="num">${(outputs.terminalValue / 1e9).toFixed(1)}B</td>
+                </tr>
+                <tr>
+                  <td>% of Enterprise Value</td>
+                  <td className="num">{(outputs.terminalValueContribution * 100).toFixed(1)}%</td>
+                </tr>
+              </tbody>
+            </table>
+            <p className="report-caption">
+              Terminal value assumes {(inputs.perpetualGrowth * 100).toFixed(2)}% perpetual growth, in line with long-term GDP expectations.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="report-sans text-[10px] font-semibold uppercase text-slate-500">Valuation Methodology</div>
+          <p className="text-[11.5px] leading-7 text-slate-800">
+            The discounted cash flow uses a free cash flow to the firm approach, projecting operating performance across a
+            {` ${inputs.forecastYears}-year `} explicit forecast period and discounting those cash flows at a
+            {` ${(outputs.wacc * 100).toFixed(2)}% `} weighted average cost of capital.
+          </p>
+          <ol className="ml-5 list-decimal space-y-2 text-[11.5px] leading-7 text-slate-800">
+            <li>Revenue growth and EBIT margin assumptions are taken directly from the stored model inputs and charted above.</li>
+            <li>Terminal value is estimated with a {(inputs.perpetualGrowth * 100).toFixed(2)}% perpetual growth rate and accounts for {(outputs.terminalValueContribution * 100).toFixed(1)}% of enterprise value.</li>
+            <li>Enterprise value is bridged to equity value by adjusting for net debt of ${(netDebt / 1e9).toFixed(1)}B and dividing by diluted shares outstanding.</li>
+          </ol>
+        </div>
+
+        <SensitivityTable
+          baseWACC={outputs.wacc}
+          baseTerminalGrowth={inputs.perpetualGrowth}
+          baseValue={outputs.intrinsicValuePerShare}
+          calculateValue={calculateValue}
+          variant={variant}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className={isDocument ? 'space-y-6' : 'space-y-8'}>
       {/* Valuation Summary Box */}
