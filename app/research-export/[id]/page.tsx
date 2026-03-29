@@ -1,8 +1,8 @@
 import { notFound, redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
 import { ResearchExportDocument } from '@/components/research/ResearchExportDocument';
+import { getResearchExportReport } from '@/lib/research-export/get-report';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,20 +17,7 @@ export default async function ResearchExportPage({
     redirect('/login');
   }
 
-  const report = await prisma.equityResearchReport.findUnique({
-    where: { id: params.id },
-    include: {
-      dcfModel: true,
-      versions: {
-        orderBy: { createdAt: 'desc' },
-        take: 10,
-      },
-      comments: {
-        where: { resolved: false },
-        orderBy: { createdAt: 'desc' },
-      },
-    },
-  });
+  const report = await getResearchExportReport(params.id);
 
   if (!report) {
     notFound();

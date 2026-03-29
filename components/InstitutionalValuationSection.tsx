@@ -124,6 +124,7 @@ export function InstitutionalValuationSection({ dcfData, valuationText, variant 
         enterpriseValue={outputs.enterpriseValue}
         netDebt={netDebt}
         equityValue={outputs.equityValue}
+        variant={variant}
       />
 
       {/* Growth and Margins Charts */}
@@ -132,10 +133,12 @@ export function InstitutionalValuationSection({ dcfData, valuationText, variant 
           years={Array.from({ length: inputs.forecastYears }, (_, i) => i + 1)}
           growthRates={inputs.revenueGrowth}
           terminalGrowth={inputs.perpetualGrowth}
+          variant={variant}
         />
         <EBITMarginChart
           years={Array.from({ length: inputs.forecastYears }, (_, i) => i + 1)}
           margins={inputs.ebitMargin}
+          variant={variant}
         />
       </div>
 
@@ -201,6 +204,7 @@ export function InstitutionalValuationSection({ dcfData, valuationText, variant 
         baseTerminalGrowth={inputs.perpetualGrowth}
         baseValue={outputs.intrinsicValuePerShare}
         calculateValue={calculateValue}
+        variant={variant}
       />
 
       {/* Methodology */}

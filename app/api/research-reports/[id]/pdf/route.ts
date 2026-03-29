@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
 import { launchPdfBrowser } from '@/lib/pdf/browser';
 import type { Browser } from 'puppeteer-core';
 
@@ -34,20 +33,6 @@ export async function GET(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const report = await prisma.equityResearchReport.findUnique({
-    where: { id: params.id },
-    select: {
-      id: true,
-      companyName: true,
-      ticker: true,
-      reportDate: true,
-    },
-  });
-
-  if (!report) {
-    return NextResponse.json({ error: 'Report not found' }, { status: 404 });
-  }
-
   const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
   const protocol = request.headers.get('x-forwarded-proto') ?? 'http';
 
@@ -58,29 +43,6 @@ export async function GET(
   const origin = `${protocol}://${host}`;
   const exportUrl = new URL(`/research-export/${params.id}`, origin);
   const cookieHeader = request.headers.get('cookie') ?? '';
-  const formattedDate = new Date(report.reportDate).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-
-  const headerTemplate = `
-    <div style="width:100%; padding:0 0.65in; font-family:Helvetica, Arial, sans-serif; font-size:8px; color:#475569;">
-      <div style="display:flex; justify-content:space-between; align-items:flex-end; width:100%; border-bottom:1px solid #cbd5e1; padding-bottom:6px;">
-        <div style="font-weight:600; color:#0f172a;">${escapeHtml(report.companyName)} (${escapeHtml(report.ticker)})</div>
-        <div>${escapeHtml(formattedDate)} | St. George Capital Equity Research</div>
-      </div>
-    </div>
-  `;
-
-  const footerTemplate = `
-    <div style="width:100%; padding:0 0.65in; font-family:Helvetica, Arial, sans-serif; font-size:8px; color:#64748b;">
-      <div style="display:flex; justify-content:space-between; align-items:center; width:100%; border-top:1px solid #cbd5e1; padding-top:6px;">
-        <div>Prepared for educational and internal research use.</div>
-        <div>Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>
-      </div>
-    </div>
-  `;
 
   let browser: Browser | null = null;
 
@@ -107,11 +69,34 @@ export async function GET(
 
     await page.emulateMediaType('print');
     await page.waitForSelector('.pdf-doc', { timeout: 30000 });
+    const reportMeta = await page.$eval('.pdf-doc', (element) => ({
+      companyName: element.getAttribute('data-company-name') ?? 'Equity Research Report',
+      ticker: element.getAttribute('data-ticker') ?? '',
+      reportDate: element.getAttribute('data-report-date') ?? '',
+    }));
     await page.evaluate(async () => {
       // Wait for fonts and image assets before locking the PDF.
       // @ts-ignore
       if (document.fonts?.ready) await document.fonts.ready;
     });
+
+    const headerTemplate = `
+      <div style="width:100%; padding:0 0.65in; font-family:Helvetica, Arial, sans-serif; font-size:8px; color:#475569;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; width:100%; border-bottom:1px solid #cbd5e1; padding-bottom:6px;">
+          <div style="font-weight:600; color:#0f172a;">${escapeHtml(reportMeta.companyName)}${reportMeta.ticker ? ` (${escapeHtml(reportMeta.ticker)})` : ''}</div>
+          <div>${escapeHtml(reportMeta.reportDate)} | St. George Capital Equity Research</div>
+        </div>
+      </div>
+    `;
+
+    const footerTemplate = `
+      <div style="width:100%; padding:0 0.65in; font-family:Helvetica, Arial, sans-serif; font-size:8px; color:#64748b;">
+        <div style="display:flex; justify-content:space-between; align-items:center; width:100%; border-top:1px solid #cbd5e1; padding-top:6px;">
+          <div>Prepared for educational and internal research use.</div>
+          <div>Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>
+        </div>
+      </div>
+    `;
 
     const pdfBuffer = await page.pdf({
       format: 'Letter',
@@ -128,7 +113,7 @@ export async function GET(
       preferCSSPageSize: false,
     });
 
-    const fileName = `${sanitizeFileName(report.companyName)}-${sanitizeFileName(report.ticker)}-equity-research-report.pdf`;
+    const fileName = `${sanitizeFileName(reportMeta.companyName)}${reportMeta.ticker ? `-${sanitizeFileName(reportMeta.ticker)}` : ''}-equity-research-report.pdf`;
 
     return new NextResponse(Buffer.from(pdfBuffer), {
       status: 200,

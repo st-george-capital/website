@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import Image from 'next/image';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -298,25 +297,31 @@ function getImpactBadge(impact: string) {
 
 export function ResearchExportDocument({
   report,
+  logoSrc = sgcLogo.src,
 }: {
   report: ResearchExportReport;
+  logoSrc?: string;
 }) {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: EXPORT_DOCUMENT_STYLES }} />
 
-      <div className="pdf-doc mx-auto max-w-[8.15in] bg-white px-10 py-8 text-slate-900">
+      <div
+        className="pdf-doc mx-auto max-w-[8.15in] bg-white px-10 py-8 text-slate-900"
+        data-company-name={report.companyName}
+        data-ticker={report.ticker}
+        data-report-date={new Date(report.reportDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+      >
         <header className="min-h-[9.4in] flex flex-col justify-between">
           <div>
             <div className="flex items-start justify-between gap-8">
               <div className="flex items-center gap-4">
-                <Image
-                  src={sgcLogo}
+                <img
+                  src={logoSrc}
                   alt="St. George Capital"
                   width={120}
                   height={120}
                   className="h-auto w-[96px]"
-                  priority
                 />
                 <div>
                   <div className="report-sans text-[10px] font-semibold uppercase text-slate-500">
