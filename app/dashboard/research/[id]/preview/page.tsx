@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { ArrowLeft, Download, Edit, Eye, TrendingUp, TrendingDown, Printer } from 'lucide-react';
+import { ArrowLeft, Download, Edit, TrendingUp, TrendingDown, Printer } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -90,15 +90,26 @@ interface ResearchReport {
 
 export default function ResearchReportPreviewPage() {
   const params = useParams();
-  const router = useRouter();
+  const searchParams = useSearchParams();
   const [report, setReport] = useState<ResearchReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const isPdfMode = searchParams.get('export') === 'pdf';
 
   useEffect(() => {
     if (params.id) {
       fetchReport(params.id as string);
     }
   }, [params.id]);
+
+  useEffect(() => {
+    if (!isPdfMode || !report) return;
+
+    const timer = window.setTimeout(() => {
+      window.print();
+    }, 700);
+
+    return () => window.clearTimeout(timer);
+  }, [isPdfMode, report]);
 
   const fetchReport = async (id: string) => {
     try {
@@ -146,24 +157,12 @@ export default function ResearchReportPreviewPage() {
   };
 
   const handleExportPDF = () => {
-    // Add print styles
-    const style = document.createElement('style');
-    style.textContent = `
-      @media print {
-        @page { margin: 0.5in; size: letter; }
-        body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-        .no-print { display: none !important; }
-        .page-break { page-break-before: always; }
-        nav, button { display: none !important; }
-      }
-    `;
-    document.head.appendChild(style);
-    
-    // Trigger print dialog (user can save as PDF)
+    if (!report) return;
+    window.open(`/dashboard/research/${report.id}/preview?export=pdf`, '_blank', 'noopener,noreferrer');
+  };
+
+  const handlePrintReport = () => {
     window.print();
-    
-    // Clean up
-    setTimeout(() => document.head.removeChild(style), 1000);
   };
 
   if (loading) {
@@ -189,41 +188,96 @@ export default function ResearchReportPreviewPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-12">
-      {/* Header Actions */}
-      <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow sticky top-0 z-10">
-        <Link href="/dashboard/research">
-          <Button variant="outline" className="text-gray-700">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Reports
-          </Button>
-        </Link>
-        <div className="flex gap-2">
-          <Link href={`/dashboard/research/${report.id}/edit`}>
-            <Button className="bg-blue-600 text-white hover:bg-blue-700">
-              <Edit className="w-4 h-4 mr-2" />
-              Edit Report
-            </Button>
-          </Link>
-          <Button 
-            onClick={handleExportPDF}
-            className="bg-purple-600 text-white hover:bg-purple-700"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export to PDF
-          </Button>
-          <Button 
-            onClick={handleExportPDF}
-            className="bg-gray-600 text-white hover:bg-gray-700"
-          >
-            <Printer className="w-4 h-4 mr-2" />
-            Print Report
-          </Button>
-        </div>
-      </div>
+    <>
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: letter;
+            margin: 0.55in;
+          }
+
+          body {
+            background: #ffffff !important;
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+          }
+
+          nav,
+          button {
+            display: none !important;
+          }
+
+          .pdf-export-root {
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          .pdf-export-root .page-break {
+            break-before: page;
+            page-break-before: always;
+          }
+
+          .pdf-export-root .print-card {
+            box-shadow: none !important;
+            border-color: #d1d5db !important;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+        }
+      `}</style>
+
+      <div className={`${isPdfMode ? 'pdf-export-root max-w-[8.5in] mx-auto space-y-5 pb-10' : 'max-w-5xl mx-auto space-y-6 pb-12'}`}>
+        {!isPdfMode && (
+          <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow sticky top-0 z-10">
+            <Link href="/dashboard/research">
+              <Button variant="outline" className="text-gray-700">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Reports
+              </Button>
+            </Link>
+            <div className="flex gap-2">
+              <Link href={`/dashboard/research/${report.id}/edit`}>
+                <Button className="bg-blue-600 text-white hover:bg-blue-700">
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit Report
+                </Button>
+              </Link>
+              <Button
+                onClick={handleExportPDF}
+                className="bg-purple-600 text-white hover:bg-purple-700"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export to PDF
+              </Button>
+              <Button
+                onClick={handlePrintReport}
+                className="bg-gray-600 text-white hover:bg-gray-700"
+              >
+                <Printer className="w-4 h-4 mr-2" />
+                Print Report
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {isPdfMode && (
+          <div className="rounded-lg border border-slate-200 bg-white px-6 py-4 print-card">
+            <div className="flex items-center justify-between gap-4 text-sm text-slate-600">
+              <div>
+                <div className="font-semibold text-slate-900">St. George Capital Research Export</div>
+                <div>Prepared from dashboard report content for clean PDF output</div>
+              </div>
+              <div className="text-right">
+                <div>{new Date(report.reportDate).toLocaleDateString()}</div>
+                <div>{report.analysts.join(', ')}</div>
+              </div>
+            </div>
+          </div>
+        )}
 
       {/* Cover Page */}
-      <Card className="bg-gradient-to-br from-blue-900 to-blue-700 text-white">
+      <Card className="print-card bg-gradient-to-br from-blue-900 to-blue-700 text-white">
         <CardContent className="p-12">
           <div className="text-center space-y-6">
             <div className="text-sm uppercase tracking-wide opacity-80">
@@ -800,6 +854,7 @@ export default function ResearchReportPreviewPage() {
           </div>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </>
   );
 }

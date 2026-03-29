@@ -16,6 +16,8 @@ import {
   Wallet,
   Award,
   AlertTriangle,
+  MessageSquare,
+  Users,
 } from 'lucide-react';
 import { formatCurrency, formatPercent } from '@/lib/utils';
 import { TradeModal } from '@/components/portfolio/TradeModal';
@@ -62,6 +64,37 @@ interface PortfolioSummary {
   lastUpdated: string;
 }
 
+interface CommitteeVote {
+  id: string;
+  userId: string;
+  userName: string;
+  vote: string;
+  conviction: number;
+  comment: string | null;
+  objections: string | null;
+  createdAt: string;
+}
+
+interface CommitteeDecision {
+  id: string;
+  meetingDate: string;
+  finalDecision: string;
+  averageConviction: number | null;
+  keyObjections: string | null;
+  summary: string | null;
+  votes: CommitteeVote[];
+}
+
+interface CommitteeData {
+  holding: {
+    id: string;
+    ticker: string;
+    assetType: string;
+    strategyTag: string | null;
+  };
+  decisions: CommitteeDecision[];
+}
+
 export default function HoldingsPage() {
   const { data: session } = useSession();
   const [holdings, setHoldings] = useState<EnrichedHolding[]>([]);
@@ -70,6 +103,27 @@ export default function HoldingsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [showTradeModal, setShowTradeModal] = useState(false);
   const [tradeRefreshKey, setTradeRefreshKey] = useState(0);
+  const [selectedHoldingId, setSelectedHoldingId] = useState<string>('');
+  const [committeeData, setCommitteeData] = useState<CommitteeData | null>(null);
+  const [committeeLoading, setCommitteeLoading] = useState(false);
+  const [committeeSaving, setCommitteeSaving] = useState(false);
+  const [newDecisionForm, setNewDecisionForm] = useState({
+    meetingDate: new Date().toISOString().split('T')[0],
+    finalDecision: 'pending',
+    summary: '',
+    keyObjections: '',
+  });
+  const [voteForm, setVoteForm] = useState({
+    vote: 'approve',
+    conviction: 7,
+    comment: '',
+    objections: '',
+  });
+  const [finalizeForm, setFinalizeForm] = useState({
+    finalDecision: 'approve',
+    summary: '',
+    keyObjections: '',
+  });
 
   const isAdmin = session?.user?.role === 'admin';
 
@@ -96,6 +150,61 @@ export default function HoldingsPage() {
     return () => clearInterval(interval);
   }, [fetchPortfolio]);
 
+  useEffect(() => {
+    if (!selectedHoldingId && holdings.length > 0) {
+      setSelectedHoldingId(holdings[0].id);
+    }
+  }, [holdings, selectedHoldingId]);
+
+  useEffect(() => {
+    if (!selectedHoldingId) return;
+    fetchCommittee(selectedHoldingId);
+  }, [selectedHoldingId]);
+
+  useEffect(() => {
+    if (committeeData) {
+      hydrateCommitteeForms(committeeData);
+    }
+  }, [committeeData, session?.user?.id]);
+
+  const hydrateCommitteeForms = (data: CommitteeData) => {
+    const latestDecision = data.decisions[0];
+    const existingVote = latestDecision?.votes.find((vote) => vote.userId === session?.user?.id);
+
+    setVoteForm({
+      vote: existingVote?.vote || 'approve',
+      conviction: existingVote?.conviction || 7,
+      comment: existingVote?.comment || '',
+      objections: existingVote?.objections || '',
+    });
+
+    setFinalizeForm({
+      finalDecision: latestDecision?.finalDecision || 'approve',
+      summary: latestDecision?.summary || '',
+      keyObjections: latestDecision?.keyObjections || '',
+    });
+  };
+
+  const fetchCommittee = async (holdingId: string) => {
+    setCommitteeLoading(true);
+    try {
+      const response = await fetch(`/api/holdings/${holdingId}/committee`);
+      if (!response.ok) {
+        setCommitteeData(null);
+        return;
+      }
+
+      const data: CommitteeData = await response.json();
+      setCommitteeData(data);
+      hydrateCommitteeForms(data);
+    } catch (error) {
+      console.error('Failed to fetch committee data:', error);
+      setCommitteeData(null);
+    } finally {
+      setCommitteeLoading(false);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this holding?')) return;
 
@@ -120,6 +229,109 @@ export default function HoldingsPage() {
     fetchPortfolio();
     setTradeRefreshKey((k) => k + 1);
   };
+
+  const handleCreateDecision = async () => {
+    if (!selectedHoldingId) return;
+
+    setCommitteeSaving(true);
+    try {
+      const response = await fetch(`/api/holdings/${selectedHoldingId}/committee`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'createDecision',
+          ...newDecisionForm,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.error || 'Failed to create committee review');
+        return;
+      }
+
+      setNewDecisionForm({
+        meetingDate: new Date().toISOString().split('T')[0],
+        finalDecision: 'pending',
+        summary: '',
+        keyObjections: '',
+      });
+      await fetchCommittee(selectedHoldingId);
+    } catch (error) {
+      console.error('Failed to create committee review:', error);
+      alert('Failed to create committee review');
+    } finally {
+      setCommitteeSaving(false);
+    }
+  };
+
+  const handleSaveVote = async () => {
+    if (!selectedHoldingId || !committeeData?.decisions[0]) return;
+
+    setCommitteeSaving(true);
+    try {
+      const response = await fetch(`/api/holdings/${selectedHoldingId}/committee`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'saveVote',
+          decisionId: committeeData.decisions[0].id,
+          ...voteForm,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.error || 'Failed to save your vote');
+        return;
+      }
+
+      await fetchCommittee(selectedHoldingId);
+    } catch (error) {
+      console.error('Failed to save vote:', error);
+      alert('Failed to save your vote');
+    } finally {
+      setCommitteeSaving(false);
+    }
+  };
+
+  const handleFinalizeDecision = async () => {
+    if (!selectedHoldingId || !committeeData?.decisions[0]) return;
+
+    setCommitteeSaving(true);
+    try {
+      const response = await fetch(`/api/holdings/${selectedHoldingId}/committee`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'finalizeDecision',
+          decisionId: committeeData.decisions[0].id,
+          ...finalizeForm,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.error || 'Failed to finalize decision');
+        return;
+      }
+
+      await fetchCommittee(selectedHoldingId);
+    } catch (error) {
+      console.error('Failed to finalize decision:', error);
+      alert('Failed to finalize decision');
+    } finally {
+      setCommitteeSaving(false);
+    }
+  };
+
+  const latestDecision = committeeData?.decisions[0] || null;
 
   if (loading) {
     return (
@@ -461,6 +673,345 @@ export default function HoldingsPage() {
                   </tbody>
                 </table>
               </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card hover={false}>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                <Users className="w-5 h-5 text-amber-700" />
+              </div>
+              <div>
+                <CardTitle>Investment Committee</CardTitle>
+                <CardDescription>
+                  Formal vote tracking, conviction scoring, objections, and final decisions for each holding
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {holdings.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Add holdings to start tracking committee reviews.
+              </p>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4 items-end">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Selected Holding</label>
+                    <select
+                      value={selectedHoldingId}
+                      onChange={(e) => setSelectedHoldingId(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-primary focus:outline-none"
+                    >
+                      {holdings.map((holding) => (
+                        <option key={holding.id} value={holding.id}>
+                          {holding.ticker} • {holding.assetType}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => selectedHoldingId && fetchCommittee(selectedHoldingId)}
+                    disabled={committeeLoading || !selectedHoldingId}
+                    className="border-gray-300 text-gray-700 hover:bg-gray-100"
+                  >
+                    Refresh Committee
+                  </Button>
+                </div>
+
+                {committeeLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading committee history...</p>
+                ) : (
+                  <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+                    <div className="space-y-4">
+                      <div className="rounded-lg border border-gray-200 bg-slate-50/70 p-4">
+                        <div className="flex items-center justify-between gap-4 mb-3">
+                          <div>
+                            <h3 className="font-semibold text-lg">
+                              {committeeData?.holding.ticker || 'Selected holding'}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              {committeeData?.holding.assetType}
+                              {committeeData?.holding.strategyTag && ` • ${committeeData.holding.strategyTag}`}
+                            </p>
+                          </div>
+                          {latestDecision && (
+                            <span className="px-3 py-1 text-xs rounded-full bg-white border border-gray-200 text-gray-700 capitalize">
+                              {latestDecision.finalDecision}
+                            </span>
+                          )}
+                        </div>
+
+                        {!latestDecision ? (
+                          <p className="text-sm text-muted-foreground">
+                            No committee review has been started for this holding yet.
+                          </p>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div className="rounded-lg bg-white border border-gray-200 p-3">
+                              <div className="text-xs text-muted-foreground mb-1">Latest Meeting</div>
+                              <div className="font-semibold">
+                                {new Date(latestDecision.meetingDate).toLocaleDateString()}
+                              </div>
+                            </div>
+                            <div className="rounded-lg bg-white border border-gray-200 p-3">
+                              <div className="text-xs text-muted-foreground mb-1">Votes Cast</div>
+                              <div className="font-semibold">{latestDecision.votes.length}</div>
+                            </div>
+                            <div className="rounded-lg bg-white border border-gray-200 p-3">
+                              <div className="text-xs text-muted-foreground mb-1">Avg Conviction</div>
+                              <div className="font-semibold">
+                                {latestDecision.averageConviction ? latestDecision.averageConviction.toFixed(1) : '--'}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {latestDecision && (
+                        <div className="rounded-lg border border-gray-200 p-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <MessageSquare className="w-4 h-4 text-primary" />
+                            <h3 className="font-semibold">Current Review</h3>
+                          </div>
+                          {latestDecision.summary && (
+                            <p className="text-sm mb-3">{latestDecision.summary}</p>
+                          )}
+                          {latestDecision.keyObjections && (
+                            <p className="text-sm mb-4">
+                              <span className="font-medium">Key objections:</span> {latestDecision.keyObjections}
+                            </p>
+                          )}
+                          <div className="space-y-3">
+                            {latestDecision.votes.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">No votes submitted yet.</p>
+                            ) : (
+                              latestDecision.votes.map((vote) => (
+                                <div key={vote.id} className="rounded-lg border border-gray-200 bg-slate-50 px-4 py-3">
+                                  <div className="flex items-center justify-between gap-3 mb-2">
+                                    <div className="font-medium">{vote.userName}</div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="px-2 py-1 text-xs rounded-full bg-white border border-gray-200 capitalize">
+                                        {vote.vote}
+                                      </span>
+                                      <span className="px-2 py-1 text-xs rounded-full bg-white border border-gray-200">
+                                        Conviction {vote.conviction}/10
+                                      </span>
+                                    </div>
+                                  </div>
+                                  {vote.comment && (
+                                    <p className="text-sm mb-2">
+                                      <span className="font-medium">Comment:</span> {vote.comment}
+                                    </p>
+                                  )}
+                                  {vote.objections && (
+                                    <p className="text-sm">
+                                      <span className="font-medium">Objections:</span> {vote.objections}
+                                    </p>
+                                  )}
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {committeeData?.decisions && committeeData.decisions.length > 1 && (
+                        <div className="rounded-lg border border-gray-200 p-4">
+                          <h3 className="font-semibold mb-3">Past Committee Decisions</h3>
+                          <div className="space-y-3">
+                            {committeeData.decisions.slice(1).map((decision) => (
+                              <div key={decision.id} className="rounded-lg border border-gray-200 px-4 py-3">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div>
+                                    <div className="font-medium">
+                                      {new Date(decision.meetingDate).toLocaleDateString()}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      {decision.votes.length} vote{decision.votes.length === 1 ? '' : 's'}
+                                      {decision.averageConviction ? ` • ${decision.averageConviction.toFixed(1)} avg conviction` : ''}
+                                    </div>
+                                  </div>
+                                  <span className="px-2 py-1 text-xs rounded-full bg-slate-100 text-slate-700 capitalize">
+                                    {decision.finalDecision}
+                                  </span>
+                                </div>
+                                {decision.summary && (
+                                  <p className="text-sm mt-2">{decision.summary}</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-4">
+                      {isAdmin && (
+                        <div className="rounded-lg border border-gray-200 p-4">
+                          <h3 className="font-semibold mb-3">Start New Review</h3>
+                          <div className="space-y-3">
+                            <div>
+                              <label className="block text-sm font-medium mb-2">Meeting Date</label>
+                              <input
+                                type="date"
+                                value={newDecisionForm.meetingDate}
+                                onChange={(e) => setNewDecisionForm((prev) => ({ ...prev, meetingDate: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-primary focus:outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium mb-2">Initial Decision Status</label>
+                              <select
+                                value={newDecisionForm.finalDecision}
+                                onChange={(e) => setNewDecisionForm((prev) => ({ ...prev, finalDecision: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-primary focus:outline-none"
+                              >
+                                <option value="pending">Pending</option>
+                                <option value="approve">Approve</option>
+                                <option value="watchlist">Watchlist</option>
+                                <option value="pass">Pass</option>
+                                <option value="reject">Reject</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium mb-2">Summary</label>
+                              <textarea
+                                value={newDecisionForm.summary}
+                                onChange={(e) => setNewDecisionForm((prev) => ({ ...prev, summary: e.target.value }))}
+                                rows={3}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-primary focus:outline-none"
+                                placeholder="Capture the agenda or framing for this review."
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium mb-2">Key Objections</label>
+                              <textarea
+                                value={newDecisionForm.keyObjections}
+                                onChange={(e) => setNewDecisionForm((prev) => ({ ...prev, keyObjections: e.target.value }))}
+                                rows={3}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-primary focus:outline-none"
+                                placeholder="List the biggest open objections before voting begins."
+                              />
+                            </div>
+                            <Button onClick={handleCreateDecision} disabled={committeeSaving || !selectedHoldingId}>
+                              {committeeSaving ? 'Saving...' : 'Create Committee Review'}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="rounded-lg border border-gray-200 p-4">
+                        <h3 className="font-semibold mb-3">Cast Your Vote</h3>
+                        {!latestDecision ? (
+                          <p className="text-sm text-muted-foreground">
+                            Wait for an admin to create a committee review for this holding.
+                          </p>
+                        ) : (
+                          <div className="space-y-3">
+                            <div>
+                              <label className="block text-sm font-medium mb-2">Vote</label>
+                              <select
+                                value={voteForm.vote}
+                                onChange={(e) => setVoteForm((prev) => ({ ...prev, vote: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-primary focus:outline-none"
+                              >
+                                <option value="approve">Approve</option>
+                                <option value="watchlist">Watchlist</option>
+                                <option value="pass">Pass</option>
+                                <option value="reject">Reject</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium mb-2">Conviction ({voteForm.conviction}/10)</label>
+                              <input
+                                type="range"
+                                min={1}
+                                max={10}
+                                value={voteForm.conviction}
+                                onChange={(e) => setVoteForm((prev) => ({ ...prev, conviction: Number(e.target.value) }))}
+                                className="w-full"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium mb-2">Comment</label>
+                              <textarea
+                                value={voteForm.comment}
+                                onChange={(e) => setVoteForm((prev) => ({ ...prev, comment: e.target.value }))}
+                                rows={3}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-primary focus:outline-none"
+                                placeholder="Summarize why you landed on this vote."
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium mb-2">Objections</label>
+                              <textarea
+                                value={voteForm.objections}
+                                onChange={(e) => setVoteForm((prev) => ({ ...prev, objections: e.target.value }))}
+                                rows={3}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-primary focus:outline-none"
+                                placeholder="Call out the risks or missing work that keep you from higher conviction."
+                              />
+                            </div>
+                            <Button onClick={handleSaveVote} disabled={committeeSaving}>
+                              {committeeSaving ? 'Saving...' : 'Save My Vote'}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+
+                      {isAdmin && latestDecision && (
+                        <div className="rounded-lg border border-gray-200 p-4">
+                          <h3 className="font-semibold mb-3">Finalize Decision</h3>
+                          <div className="space-y-3">
+                            <div>
+                              <label className="block text-sm font-medium mb-2">Final Decision</label>
+                              <select
+                                value={finalizeForm.finalDecision}
+                                onChange={(e) => setFinalizeForm((prev) => ({ ...prev, finalDecision: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-primary focus:outline-none"
+                              >
+                                <option value="pending">Pending</option>
+                                <option value="approve">Approve</option>
+                                <option value="watchlist">Watchlist</option>
+                                <option value="pass">Pass</option>
+                                <option value="reject">Reject</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium mb-2">Decision Record</label>
+                              <textarea
+                                value={finalizeForm.summary}
+                                onChange={(e) => setFinalizeForm((prev) => ({ ...prev, summary: e.target.value }))}
+                                rows={3}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-primary focus:outline-none"
+                                placeholder="Document why the committee landed where it did."
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium mb-2">Key Objections</label>
+                              <textarea
+                                value={finalizeForm.keyObjections}
+                                onChange={(e) => setFinalizeForm((prev) => ({ ...prev, keyObjections: e.target.value }))}
+                                rows={3}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-primary focus:outline-none"
+                                placeholder="Summarize the main objections that shaped the final decision."
+                              />
+                            </div>
+                            <Button onClick={handleFinalizeDecision} disabled={committeeSaving}>
+                              {committeeSaving ? 'Saving...' : 'Finalize Committee Decision'}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

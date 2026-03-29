@@ -74,6 +74,7 @@ model Holding {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   transactions Transaction[]
+  committeeDecisions HoldingCommitteeDecision[]
 }
 
 model Transaction {
@@ -226,18 +227,92 @@ model WeeklyContent {
 }
 
 model InvestmentPitch {
-  id          String   @id @default(cuid())
+  id          String             @id @default(cuid())
   title       String
   company     String?
-  sector      String   // "macro", "equity"
-  subcategory String?  // For macro/equity subsectors
+  sector      String             // "macro", "equity"
+  subcategory String?            // For macro/equity subsectors
   pitchDate   DateTime
   description String?
-  documentFile String? // PDF file URL
-  published   Boolean  @default(false)
-  publishDate DateTime? // When to publish
+  documentFile String?           // PDF file URL
+  published   Boolean            @default(false)
+  publishDate DateTime?          // When to publish
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  participants PitchParticipant[]
+  feedback     PitchFeedback[]
+}
+
+model HoldingCommitteeDecision {
+  id               String   @id @default(cuid())
+  holdingId        String
+  meetingDate      DateTime @default(now())
+  finalDecision    String   @default("pending") // "pending" | "approve" | "pass" | "reject" | "watchlist"
+  averageConviction Float?
+  keyObjections    String?  @db.Text
+  summary          String?  @db.Text
+  createdBy        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  holding          Holding  @relation(fields: [holdingId], references: [id], onDelete: Cascade)
+  votes            HoldingCommitteeVote[]
+
+  @@index([holdingId, meetingDate])
+}
+
+model HoldingCommitteeVote {
+  id          String   @id @default(cuid())
+  decisionId  String
+  userId      String
+  userName    String
+  vote        String   // "approve" | "pass" | "reject" | "watchlist"
+  conviction  Int
+  comment     String?  @db.Text
+  objections  String?  @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  decision    HoldingCommitteeDecision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+
+  @@unique([decisionId, userId])
+  @@index([decisionId])
+}
+
+model PitchParticipant {
+  id         String   @id @default(cuid())
+  pitchId     String
+  userId      String
+  userName    String
+  createdAt   DateTime @default(now())
+
+  pitch       InvestmentPitch @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+
+  @@unique([pitchId, userId])
+  @@index([pitchId])
+}
+
+model PitchFeedback {
+  id             String   @id @default(cuid())
+  pitchId         String
+  submittedBy     String
+  submittedByName String
+  thesisClarity   Int
+  variantView     Int
+  valuation       Int
+  catalysts       Int
+  risks           Int
+  delivery        Int
+  strengths       String?  @db.Text
+  improvements    String?  @db.Text
+  overallComment  String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  pitch           InvestmentPitch @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+
+  @@unique([pitchId, submittedBy])
+  @@index([pitchId])
 }
 
 model JobPosting {

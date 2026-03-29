@@ -1,18 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { ArrowLeft, Upload, FileText } from 'lucide-react';
+import { ArrowLeft, FileText } from 'lucide-react';
+
+interface UserOption {
+  id: string;
+  name?: string;
+  email: string;
+  role: string;
+}
 
 export default function NewInvestmentPitchPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [users, setUsers] = useState<UserOption[]>([]);
   const [formData, setFormData] = useState({
     title: '',
     company: '',
@@ -23,9 +31,27 @@ export default function NewInvestmentPitchPage() {
     documentFile: '',
     published: false,
     publishDate: '',
+    associatedUserIds: [] as string[],
   });
 
   const isAdmin = session?.user?.role === 'admin';
+
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch('/api/users');
+        if (!response.ok) return;
+        const data = await response.json();
+        setUsers(data);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      }
+    };
+
+    fetchUsers();
+  }, [isAdmin]);
 
   if (!isAdmin) {
     return (
@@ -109,6 +135,15 @@ export default function NewInvestmentPitchPage() {
       return ['financials', 'consumer', 'energy', 'healthcare', 'technology'];
     }
     return [];
+  };
+
+  const toggleAssociatedUser = (userId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      associatedUserIds: prev.associatedUserIds.includes(userId)
+        ? prev.associatedUserIds.filter((id) => id !== userId)
+        : [...prev.associatedUserIds, userId],
+    }));
   };
 
   return (
@@ -207,6 +242,38 @@ export default function NewInvestmentPitchPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-primary focus:outline-none"
                 placeholder="Optional description..."
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Associated Members</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 rounded-lg border border-gray-200 p-4 max-h-64 overflow-y-auto">
+                {users.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No users available yet.</p>
+                ) : (
+                  users.map((user) => (
+                    <label
+                      key={user.id}
+                      className="flex items-start gap-3 rounded-lg border border-gray-200 px-3 py-2 hover:bg-gray-50"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.associatedUserIds.includes(user.id)}
+                        onChange={() => toggleAssociatedUser(user.id)}
+                        className="mt-1 rounded"
+                      />
+                      <div>
+                        <div className="font-medium text-sm">{user.name || user.email}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {user.email} • {user.role}
+                        </div>
+                      </div>
+                    </label>
+                  ))
+                )}
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Tagged members can see private feedback submitted on this pitch.
+              </p>
             </div>
 
             {/* File Upload */}
