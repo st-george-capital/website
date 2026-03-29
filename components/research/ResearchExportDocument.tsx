@@ -100,6 +100,98 @@ const PDF_MARKDOWN_CLASSNAME = `
   [&_img]:mx-auto [&_img]:my-4 [&_img]:max-w-full [&_img]:rounded
 `;
 
+const EXPORT_DOCUMENT_STYLES = `
+  @media print {
+    @page {
+      size: letter;
+      margin: 0.75in 0.75in 0.85in;
+    }
+
+    body {
+      background: #ffffff !important;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+
+    nav,
+    button {
+      display: none !important;
+    }
+
+    .pdf-doc {
+      max-width: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    .pdf-doc .page-break {
+      break-before: page;
+      page-break-before: always;
+    }
+
+    .pdf-doc .avoid-break {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+  }
+
+  .pdf-doc {
+    font-family: Georgia, "Times New Roman", serif;
+  }
+
+  .pdf-doc .report-sans {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+
+  .pdf-doc .report-box {
+    border: 1px solid #cbd5e1;
+    background: #fff;
+  }
+
+  .pdf-doc .report-box-soft {
+    border: 1px solid #dbe3ef;
+    background: #f8fafc;
+  }
+
+  .pdf-doc .report-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 10.5px;
+    color: #0f172a;
+  }
+
+  .pdf-doc .report-table th {
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    padding: 8px 10px;
+    text-align: left;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #475569;
+  }
+
+  .pdf-doc .report-table td {
+    border: 1px solid #cbd5e1;
+    padding: 8px 10px;
+    vertical-align: top;
+  }
+
+  .pdf-doc .report-table .num {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .pdf-doc .report-caption {
+    margin-top: 8px;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 9px;
+    color: #64748b;
+  }
+`;
+
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
     <div className="report-sans mb-3 text-[9px] font-semibold uppercase text-slate-500">
@@ -211,97 +303,7 @@ export function ResearchExportDocument({
 }) {
   return (
     <>
-      <style jsx global>{`
-        @media print {
-          @page {
-            size: letter;
-            margin: 0.75in 0.75in 0.85in;
-          }
-
-          body {
-            background: #ffffff !important;
-            print-color-adjust: exact;
-            -webkit-print-color-adjust: exact;
-          }
-
-          nav,
-          button {
-            display: none !important;
-          }
-
-          .pdf-doc {
-            max-width: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
-          }
-
-          .pdf-doc .page-break {
-            break-before: page;
-            page-break-before: always;
-          }
-
-          .pdf-doc .avoid-break {
-            break-inside: avoid;
-            page-break-inside: avoid;
-          }
-        }
-
-        .pdf-doc {
-          font-family: Georgia, "Times New Roman", serif;
-        }
-
-        .pdf-doc .report-sans {
-          font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-        }
-
-        .pdf-doc .report-box {
-          border: 1px solid #cbd5e1;
-          background: #fff;
-        }
-
-        .pdf-doc .report-box-soft {
-          border: 1px solid #dbe3ef;
-          background: #f8fafc;
-        }
-
-        .pdf-doc .report-table {
-          width: 100%;
-          border-collapse: collapse;
-          table-layout: fixed;
-          font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-          font-size: 10.5px;
-          color: #0f172a;
-        }
-
-        .pdf-doc .report-table th {
-          border: 1px solid #cbd5e1;
-          background: #f8fafc;
-          padding: 8px 10px;
-          text-align: left;
-          font-size: 9px;
-          font-weight: 700;
-          text-transform: uppercase;
-          color: #475569;
-        }
-
-        .pdf-doc .report-table td {
-          border: 1px solid #cbd5e1;
-          padding: 8px 10px;
-          vertical-align: top;
-        }
-
-        .pdf-doc .report-table .num {
-          text-align: right;
-          white-space: nowrap;
-        }
-
-        .pdf-doc .report-caption {
-          margin-top: 8px;
-          font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-          font-size: 9px;
-          color: #64748b;
-        }
-      `}</style>
+      <style dangerouslySetInnerHTML={{ __html: EXPORT_DOCUMENT_STYLES }} />
 
       <div className="pdf-doc mx-auto max-w-[8.15in] bg-white px-10 py-8 text-slate-900">
         <header className="min-h-[9.4in] flex flex-col justify-between">

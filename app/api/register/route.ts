@@ -4,9 +4,15 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 const ADMIN_CODE = process.env.ADMIN_CODE || 'stgeorge2025';
+
+function getResendClient() {
+  if (!process.env.RESEND_API_KEY) {
+    return null;
+  }
+
+  return new Resend(process.env.RESEND_API_KEY);
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -76,26 +82,31 @@ export async function POST(request: NextRequest) {
 
     // Send verification email
     try {
-      await resend.emails.send({
-        from: 'SGC <noreply@stgeorgecapital.ca>',
-        to: email,
-        subject: 'Verify your SGC account',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h1 style="color: #030116;">Welcome to St. George Capital</h1>
-            <p>Hi ${name},</p>
-            <p>Thank you for registering for a St. George Capital account. Please verify your email address by clicking the link below:</p>
-            <a href="${process.env.NEXTAUTH_URL}/verify-email?token=${emailToken}"
-               style="background-color: #030116; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; margin: 16px 0;">
-              Verify Email
-            </a>
-            <p>This link will expire in 24 hours.</p>
-            <p>If you didn't create this account, please ignore this email.</p>
-            <br>
-            <p>Best regards,<br>The St. George Capital Team</p>
-          </div>
-        `,
-      });
+      const resend = getResendClient();
+      if (resend) {
+        await resend.emails.send({
+          from: 'SGC <noreply@stgeorgecapital.ca>',
+          to: email,
+          subject: 'Verify your SGC account',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h1 style="color: #030116;">Welcome to St. George Capital</h1>
+              <p>Hi ${name},</p>
+              <p>Thank you for registering for a St. George Capital account. Please verify your email address by clicking the link below:</p>
+              <a href="${process.env.NEXTAUTH_URL}/verify-email?token=${emailToken}"
+                 style="background-color: #030116; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; margin: 16px 0;">
+                Verify Email
+              </a>
+              <p>This link will expire in 24 hours.</p>
+              <p>If you didn't create this account, please ignore this email.</p>
+              <br>
+              <p>Best regards,<br>The St. George Capital Team</p>
+            </div>
+          `,
+        });
+      } else {
+        console.warn('Skipping verification email because RESEND_API_KEY is not configured.');
+      }
     } catch (emailError) {
       console.error('Failed to send verification email:', emailError);
       // Don't fail registration if email fails, but log it
