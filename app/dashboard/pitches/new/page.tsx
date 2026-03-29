@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
+import { AssociatedUsersPicker } from '@/components/pitches/AssociatedUsersPicker';
 import { ArrowLeft, FileText } from 'lucide-react';
 
 interface UserOption {
@@ -244,37 +245,11 @@ export default function NewInvestmentPitchPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2">Associated Members</label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 rounded-lg border border-gray-200 p-4 max-h-64 overflow-y-auto">
-                {users.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No users available yet.</p>
-                ) : (
-                  users.map((user) => (
-                    <label
-                      key={user.id}
-                      className="flex items-start gap-3 rounded-lg border border-gray-200 px-3 py-2 hover:bg-gray-50"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.associatedUserIds.includes(user.id)}
-                        onChange={() => toggleAssociatedUser(user.id)}
-                        className="mt-1 rounded"
-                      />
-                      <div>
-                        <div className="font-medium text-sm">{user.name || user.email}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {user.email} • {user.role}
-                        </div>
-                      </div>
-                    </label>
-                  ))
-                )}
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Tagged members can see private feedback submitted on this pitch.
-              </p>
-            </div>
+            <AssociatedUsersPicker
+              users={users}
+              selectedUserIds={formData.associatedUserIds}
+              onToggle={toggleAssociatedUser}
+            />
 
             {/* File Upload */}
             <div>
