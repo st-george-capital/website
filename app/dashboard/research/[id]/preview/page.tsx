@@ -3,6 +3,7 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
 import { ArrowLeft, Download, Edit, TrendingUp, TrendingDown, Printer } from 'lucide-react';
@@ -10,6 +11,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { InstitutionalValuationSection } from '@/components/InstitutionalValuationSection';
+import sgcLogo from '@/images/exec team/logo/sgc_logo.png';
 
 interface ResearchReport {
   id: string;
@@ -142,6 +144,16 @@ function PdfMarkdown({ content }: { content?: string | null }) {
       </ReactMarkdown>
     </div>
   );
+}
+
+function markdownToPlainText(content?: string | null) {
+  if (!content) return '';
+  return content
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+    .replace(/\[[^\]]*\]\(([^)]*)\)/g, '$1')
+    .replace(/[#>*_`~-]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 export default function ResearchReportPreviewPage() {
@@ -283,76 +295,118 @@ export default function ResearchReportPreviewPage() {
         `}</style>
 
         <div className="pdf-doc mx-auto max-w-[8.15in] bg-white px-10 py-8 text-slate-900">
-          <header className="border-b border-slate-300 pb-8">
-            <div className="flex items-start justify-between gap-8">
-              <div>
-                <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                  St. George Capital
-                </div>
-                <div className="mt-2 font-serif text-5xl leading-none text-slate-950">
-                  {report.companyName}
-                </div>
-                <div className="mt-3 text-sm font-medium uppercase tracking-[0.18em] text-slate-600">
-                  {report.ticker} • {report.exchange}
-                </div>
-                <div className="mt-6 max-w-xl text-[13px] leading-6 text-slate-700">
-                  Institutional-format equity research export built from the dashboard report content.
-                </div>
-              </div>
-              <div className="w-64 shrink-0 rounded-sm border border-slate-300 bg-slate-50 p-4">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Rating Snapshot
-                </div>
-                <div className={`mt-3 inline-flex rounded-sm px-3 py-1.5 text-sm font-semibold ${getRecommendationColor(report.recommendation)}`}>
-                  {report.recommendation.toUpperCase()}
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+          <header className="min-h-[9.4in] flex flex-col justify-between">
+            <div>
+              <div className="flex items-start justify-between gap-8">
+                <div className="flex items-center gap-4">
+                  <Image
+                    src={sgcLogo}
+                    alt="St. George Capital"
+                    width={120}
+                    height={120}
+                    className="h-auto w-[96px]"
+                    priority
+                  />
                   <div>
-                    <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Current</div>
-                    <div className="mt-1 font-semibold">${report.currentPrice.toFixed(2)}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Target</div>
-                    <div className="mt-1 font-semibold">${report.targetPrice.toFixed(2)}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Upside</div>
-                    <div className={`mt-1 font-semibold ${report.impliedUpside >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
-                      {(report.impliedUpside * 100).toFixed(1)}%
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+                      St. George Capital
+                    </div>
+                    <div className="mt-2 text-[11px] uppercase tracking-[0.18em] text-slate-600">
+                      Equity Research
                     </div>
                   </div>
-                  <div>
-                    <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Horizon</div>
-                    <div className="mt-1 font-semibold">{report.timeHorizon}</div>
-                  </div>
                 </div>
-              </div>
-            </div>
-
-            <div className="mt-8 grid grid-cols-4 gap-4 border-t border-slate-200 pt-5 text-[11px]">
-              <div>
-                <div className="uppercase tracking-[0.16em] text-slate-500">Sector</div>
-                <div className="mt-1 font-medium text-slate-900">{report.sector}</div>
-              </div>
-              <div>
-                <div className="uppercase tracking-[0.16em] text-slate-500">Industry</div>
-                <div className="mt-1 font-medium text-slate-900">{report.industry}</div>
-              </div>
-              <div>
-                <div className="uppercase tracking-[0.16em] text-slate-500">Coverage</div>
-                <div className="mt-1 font-medium capitalize text-slate-900">{report.coverageStatus}</div>
-              </div>
-              <div>
-                <div className="uppercase tracking-[0.16em] text-slate-500">Report Date</div>
-                <div className="mt-1 font-medium text-slate-900">
+                <div className="text-right text-[10px] uppercase tracking-[0.18em] text-slate-500">
                   {new Date(report.reportDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                 </div>
               </div>
+
+              <div className="mt-20 border-t border-slate-300 pt-10">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.26em] text-slate-500">
+                  Initiation of Coverage
+                </div>
+                <h1 className="mt-4 max-w-4xl font-serif text-[66px] leading-[0.95] text-slate-950">
+                  {report.companyName}
+                </h1>
+                <div className="mt-6 text-[16px] font-medium uppercase tracking-[0.18em] text-slate-600">
+                  {report.ticker} • {report.exchange}
+                </div>
+              </div>
+
+              <div className="mt-16 grid grid-cols-[1.2fr_0.8fr] gap-10">
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                    Investment Summary
+                  </div>
+                  <div className="mt-4 space-y-4">
+                    {report.investmentThesis.slice(0, 3).map((bullet, index) => (
+                      <div key={index} className="border-l-2 border-slate-300 pl-4">
+                        <div className="text-[12px] font-semibold text-slate-950">
+                          {bullet.title ? markdownToPlainText(bullet.title) : `Thesis ${index + 1}`}
+                        </div>
+                        <p className="mt-2 text-[11.5px] leading-6 text-slate-700">
+                          {markdownToPlainText(bullet.claim).slice(0, 210)}
+                          {markdownToPlainText(bullet.claim).length > 210 ? '...' : ''}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border border-slate-300 p-5">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                    Rating Snapshot
+                  </div>
+                  <div className={`mt-4 inline-flex rounded-sm px-3 py-1.5 text-sm font-semibold ${getRecommendationColor(report.recommendation)}`}>
+                    {report.recommendation.toUpperCase()}
+                  </div>
+                  <div className="mt-6 grid grid-cols-2 gap-x-5 gap-y-4 text-[11px]">
+                    <div>
+                      <div className="uppercase tracking-[0.16em] text-slate-500">Current</div>
+                      <div className="mt-1 font-semibold text-slate-950">${report.currentPrice.toFixed(2)}</div>
+                    </div>
+                    <div>
+                      <div className="uppercase tracking-[0.16em] text-slate-500">Target</div>
+                      <div className="mt-1 font-semibold text-slate-950">${report.targetPrice.toFixed(2)}</div>
+                    </div>
+                    <div>
+                      <div className="uppercase tracking-[0.16em] text-slate-500">Upside</div>
+                      <div className={`mt-1 font-semibold ${report.impliedUpside >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                        {(report.impliedUpside * 100).toFixed(1)}%
+                      </div>
+                    </div>
+                    <div>
+                      <div className="uppercase tracking-[0.16em] text-slate-500">Horizon</div>
+                      <div className="mt-1 font-semibold text-slate-950">{report.timeHorizon}</div>
+                    </div>
+                    <div>
+                      <div className="uppercase tracking-[0.16em] text-slate-500">Sector</div>
+                      <div className="mt-1 font-semibold text-slate-950">{report.sector}</div>
+                    </div>
+                    <div>
+                      <div className="uppercase tracking-[0.16em] text-slate-500">Industry</div>
+                      <div className="mt-1 font-semibold text-slate-950">{report.industry}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="mt-4 text-[11px] text-slate-600">Analysts: {report.analysts.join(', ')}</div>
+
+            <div className="border-t border-slate-300 pt-5">
+              <div className="grid grid-cols-2 gap-6 text-[11px]">
+                <div>
+                  <div className="uppercase tracking-[0.16em] text-slate-500">Analysts</div>
+                  <div className="mt-1 font-medium text-slate-900">{report.analysts.join(', ')}</div>
+                </div>
+                <div className="text-right">
+                  <div className="uppercase tracking-[0.16em] text-slate-500">Coverage</div>
+                  <div className="mt-1 font-medium capitalize text-slate-900">{report.coverageStatus}</div>
+                </div>
+              </div>
+            </div>
           </header>
 
-          <PdfSection number="1" title="Executive Summary">
+          <PdfSection number="1" title="Executive Summary" pageBreak>
             <div className="grid grid-cols-[1.2fr_0.8fr] gap-8">
               <div>
                 <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
