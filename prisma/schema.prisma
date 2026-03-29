@@ -429,6 +429,32 @@ model EmployerLogo {
   createdAt DateTime @default(now())
 }
 
+model CommunityInterviewQuestion {
+  id            String    @id @default(cuid())
+  seedKey       String?   @unique
+  question      String    @db.Text
+  answer        String?   @db.Text
+  notes         String?   @db.Text
+  role          String    // "sales_trading" | "investment_banking" | "buyside" | "consulting" | "general_finance" | "behavioural"
+  subcategory   String?   // e.g. "quant_trading", "technical", "case_interview"
+  questionType  String    @default("technical") // "technical" | "market" | "fit" | "case" | "brainteaser" | "product"
+  difficulty    String    @default("medium") // "easy" | "medium" | "hard"
+  company       String?
+  firmType      String?
+  topicTags     String[]  @default([])
+  sourceType    String?
+  sourceTitle   String?
+  sourceUrl     String?
+  attachmentUrl String?
+  submitterName String?
+  submittedBy   String?   // User ID
+  approved      Boolean   @default(false)
+  reviewedAt    DateTime?
+  reviewedBy    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
 model NewsletterSubscriber {
   id          String   @id @default(cuid())
   email       String   @unique
