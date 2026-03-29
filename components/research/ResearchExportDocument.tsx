@@ -85,20 +85,53 @@ export interface ResearchExportReport {
 }
 
 const PDF_MARKDOWN_CLASSNAME = `
-  prose max-w-none text-[11.5px] leading-6 text-slate-800
+  prose max-w-none text-[11.15px] leading-[1.8] text-slate-800
   prose-headings:font-semibold prose-headings:text-slate-950
-  prose-p:my-3 prose-p:text-slate-800
+  prose-p:my-2.5 prose-p:text-slate-800
   prose-strong:text-slate-950
-  prose-ul:my-3 prose-ul:list-disc prose-ul:pl-5
-  prose-ol:my-3 prose-ol:list-decimal prose-ol:pl-5
+  prose-ul:my-2.5 prose-ul:list-disc prose-ul:pl-5
+  prose-ol:my-2.5 prose-ol:list-decimal prose-ol:pl-5
   prose-li:my-1
-  prose-table:my-4 prose-table:w-full prose-table:border-collapse
+  prose-table:my-4 prose-table:w-full prose-table:table-fixed prose-table:border-collapse
   prose-thead:border prose-thead:border-slate-300
-  prose-th:border prose-th:border-slate-300 prose-th:bg-slate-100 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:text-[10px] prose-th:font-semibold prose-th:uppercase prose-th:tracking-[0.16em]
-  prose-td:border prose-td:border-slate-300 prose-td:px-3 prose-td:py-2 prose-td:text-[11px]
+  prose-th:border prose-th:border-slate-300 prose-th:bg-slate-100 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:text-[9.5px] prose-th:font-semibold prose-th:uppercase prose-th:text-slate-700
+  prose-td:border prose-td:border-slate-300 prose-td:px-3 prose-td:py-2 prose-td:text-[10.5px]
   prose-blockquote:border-l-2 prose-blockquote:border-slate-300 prose-blockquote:pl-4 prose-blockquote:text-slate-700
   [&_img]:mx-auto [&_img]:my-4 [&_img]:max-w-full [&_img]:rounded
 `;
+
+function SectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <div className="report-sans mb-3 text-[9px] font-semibold uppercase text-slate-500">
+      {children}
+    </div>
+  );
+}
+
+function MetricDefinition({
+  label,
+  value,
+  accent = false,
+}: {
+  label: string;
+  value: ReactNode;
+  accent?: boolean;
+}) {
+  return (
+    <div className="border-t border-slate-200 pt-2 first:border-t-0 first:pt-0">
+      <div className="report-sans text-[9px] font-semibold uppercase text-slate-500">{label}</div>
+      <div className={`mt-1 text-[12px] font-semibold ${accent ? 'text-slate-950' : 'text-slate-800'}`}>{value}</div>
+    </div>
+  );
+}
+
+function formatPercent(value: number, digits = 1) {
+  return `${(value * 100).toFixed(digits)}%`;
+}
+
+function formatMoney(value: number, digits = 2) {
+  return `$${value.toFixed(digits)}`;
+}
 
 function PdfSection({
   number,
@@ -112,13 +145,13 @@ function PdfSection({
   pageBreak?: boolean;
 }) {
   return (
-    <section className={`${pageBreak ? 'page-break' : ''} border-t border-slate-300 pt-6`}>
+    <section className={`${pageBreak ? 'page-break' : ''} report-section border-t-2 border-slate-800 pt-6`}>
       <div className="mb-5 flex items-end justify-between gap-4">
         <div>
-          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+          <div className="report-sans text-[9px] font-semibold uppercase text-slate-500">
             Section {number}
           </div>
-          <h2 className="mt-2 font-serif text-[28px] leading-none text-slate-950">{title}</h2>
+          <h2 className="mt-1 font-serif text-[26px] leading-tight text-slate-950">{title}</h2>
         </div>
       </div>
       {children}
@@ -212,6 +245,62 @@ export function ResearchExportDocument({
             page-break-inside: avoid;
           }
         }
+
+        .pdf-doc {
+          font-family: Georgia, "Times New Roman", serif;
+        }
+
+        .pdf-doc .report-sans {
+          font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        }
+
+        .pdf-doc .report-box {
+          border: 1px solid #cbd5e1;
+          background: #fff;
+        }
+
+        .pdf-doc .report-box-soft {
+          border: 1px solid #dbe3ef;
+          background: #f8fafc;
+        }
+
+        .pdf-doc .report-table {
+          width: 100%;
+          border-collapse: collapse;
+          table-layout: fixed;
+          font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+          font-size: 10.5px;
+          color: #0f172a;
+        }
+
+        .pdf-doc .report-table th {
+          border: 1px solid #cbd5e1;
+          background: #f8fafc;
+          padding: 8px 10px;
+          text-align: left;
+          font-size: 9px;
+          font-weight: 700;
+          text-transform: uppercase;
+          color: #475569;
+        }
+
+        .pdf-doc .report-table td {
+          border: 1px solid #cbd5e1;
+          padding: 8px 10px;
+          vertical-align: top;
+        }
+
+        .pdf-doc .report-table .num {
+          text-align: right;
+          white-space: nowrap;
+        }
+
+        .pdf-doc .report-caption {
+          margin-top: 8px;
+          font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+          font-size: 9px;
+          color: #64748b;
+        }
       `}</style>
 
       <div className="pdf-doc mx-auto max-w-[8.15in] bg-white px-10 py-8 text-slate-900">
@@ -228,43 +317,41 @@ export function ResearchExportDocument({
                   priority
                 />
                 <div>
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                  <div className="report-sans text-[10px] font-semibold uppercase text-slate-500">
                     St. George Capital
                   </div>
-                  <div className="mt-2 text-[11px] uppercase tracking-[0.14em] text-slate-600">
+                  <div className="report-sans mt-2 text-[11px] uppercase text-slate-600">
                     Equity Research
                   </div>
                 </div>
               </div>
-              <div className="text-right text-[10px] uppercase tracking-[0.14em] text-slate-500">
+              <div className="report-sans text-right text-[10px] uppercase text-slate-500">
                 {new Date(report.reportDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
               </div>
             </div>
 
             <div className="mt-20 border-t border-slate-300 pt-10">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+              <div className="report-sans text-[10px] font-semibold uppercase text-slate-500">
                 Initiation of Coverage
               </div>
-              <h1 className="mt-4 max-w-4xl font-serif text-[66px] leading-[0.95] text-slate-950">
+              <h1 className="mt-4 max-w-4xl font-serif text-[58px] leading-[0.98] text-slate-950">
                 {report.companyName}
               </h1>
-              <div className="mt-6 text-[16px] font-medium uppercase tracking-[0.12em] text-slate-600">
+              <div className="report-sans mt-5 text-[15px] font-medium uppercase text-slate-600">
                 {report.ticker} • {report.exchange}
               </div>
             </div>
 
             <div className="mt-16 grid grid-cols-[1.2fr_0.8fr] gap-10">
               <div>
-                <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Investment Summary
-                </div>
+                <SectionLabel>Investment Summary</SectionLabel>
                 <div className="mt-4 space-y-4">
                   {report.investmentThesis.slice(0, 3).map((bullet, index) => (
-                    <div key={index} className="border-l-2 border-slate-300 pl-4">
-                      <div className="text-[12px] font-semibold text-slate-950">
+                    <div key={index} className="report-box-soft px-4 py-3">
+                      <div className="report-sans text-[11px] font-semibold uppercase text-slate-500">
                         {bullet.title ? markdownToPlainText(bullet.title) : `Thesis ${index + 1}`}
                       </div>
-                      <p className="mt-2 text-[11.5px] leading-6 text-slate-700">
+                      <p className="mt-2 text-[11.25px] leading-6 text-slate-700">
                         {markdownToPlainText(bullet.claim).slice(0, 210)}
                         {markdownToPlainText(bullet.claim).length > 210 ? '...' : ''}
                       </p>
@@ -273,40 +360,21 @@ export function ResearchExportDocument({
                 </div>
               </div>
 
-              <div className="border border-slate-300 p-5">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Rating Snapshot
-                </div>
-                <div className={`mt-4 inline-flex rounded-sm px-3 py-1.5 text-sm font-semibold ${getRecommendationColor(report.recommendation)}`}>
+              <div className="report-box p-5">
+                <SectionLabel>Rating Snapshot</SectionLabel>
+                <div className={`report-sans mt-4 inline-flex rounded-sm px-3 py-1.5 text-sm font-semibold ${getRecommendationColor(report.recommendation)}`}>
                   {report.recommendation.toUpperCase()}
                 </div>
-                <div className="mt-6 grid grid-cols-2 gap-x-5 gap-y-4 text-[11px]">
-                  <div>
-                    <div className="uppercase tracking-[0.12em] text-slate-500">Current</div>
-                    <div className="mt-1 font-semibold text-slate-950">${report.currentPrice.toFixed(2)}</div>
-                  </div>
-                  <div>
-                    <div className="uppercase tracking-[0.12em] text-slate-500">Target</div>
-                    <div className="mt-1 font-semibold text-slate-950">${report.targetPrice.toFixed(2)}</div>
-                  </div>
-                  <div>
-                    <div className="uppercase tracking-[0.12em] text-slate-500">Upside</div>
-                    <div className={`mt-1 font-semibold ${report.impliedUpside >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
-                      {(report.impliedUpside * 100).toFixed(1)}%
-                    </div>
-                  </div>
-                  <div>
-                    <div className="uppercase tracking-[0.12em] text-slate-500">Horizon</div>
-                    <div className="mt-1 font-semibold text-slate-950">{report.timeHorizon}</div>
-                  </div>
-                  <div>
-                    <div className="uppercase tracking-[0.12em] text-slate-500">Sector</div>
-                    <div className="mt-1 font-semibold text-slate-950">{report.sector}</div>
-                  </div>
-                  <div>
-                    <div className="uppercase tracking-[0.12em] text-slate-500">Industry</div>
-                    <div className="mt-1 font-semibold text-slate-950">{report.industry}</div>
-                  </div>
+                <div className="mt-6 grid grid-cols-2 gap-x-5 gap-y-4">
+                  <MetricDefinition label="Current Price" value={formatMoney(report.currentPrice)} accent />
+                  <MetricDefinition label="Target Price" value={formatMoney(report.targetPrice)} accent />
+                  <MetricDefinition
+                    label="Implied Upside"
+                    value={<span className={report.impliedUpside >= 0 ? 'text-emerald-700' : 'text-red-700'}>{formatPercent(report.impliedUpside)}</span>}
+                  />
+                  <MetricDefinition label="Time Horizon" value={report.timeHorizon} />
+                  <MetricDefinition label="Sector" value={report.sector} />
+                  <MetricDefinition label="Industry" value={report.industry} />
                 </div>
               </div>
             </div>
@@ -315,11 +383,11 @@ export function ResearchExportDocument({
           <div className="border-t border-slate-300 pt-5">
             <div className="grid grid-cols-2 gap-6 text-[11px]">
               <div>
-                <div className="uppercase tracking-[0.12em] text-slate-500">Analysts</div>
+                <div className="report-sans uppercase text-slate-500">Analysts</div>
                 <div className="mt-1 font-medium text-slate-900">{report.analysts.join(', ')}</div>
               </div>
               <div className="text-right">
-                <div className="uppercase tracking-[0.12em] text-slate-500">Coverage</div>
+                <div className="report-sans uppercase text-slate-500">Coverage</div>
                 <div className="mt-1 font-medium capitalize text-slate-900">{report.coverageStatus}</div>
               </div>
             </div>
@@ -329,26 +397,24 @@ export function ResearchExportDocument({
         <PdfSection number="1" title="Executive Summary" pageBreak>
           <div className="grid grid-cols-[1.2fr_0.8fr] gap-8">
             <div>
-              <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                Investment Thesis
-              </h3>
+              <SectionLabel>Investment Thesis</SectionLabel>
               <div className="space-y-4">
                 {report.investmentThesis.map((bullet, index) => (
-                  <div key={index} className="avoid-break border-l-2 border-slate-300 pl-4">
+                  <div key={index} className="avoid-break report-box-soft p-4">
                     {bullet.title && (
-                      <div className="mb-2 font-semibold text-slate-950">
+                      <div className="report-sans mb-2 text-[11px] font-semibold uppercase text-slate-500">
                         <PdfMarkdown content={bullet.title} />
                       </div>
                     )}
                     <div className="text-[11.5px] leading-6 text-slate-800">
                       <PdfMarkdown content={bullet.claim} />
                     </div>
-                    <div className="mt-3">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Driver</div>
+                    <div className="mt-4 border-t border-slate-200 pt-3">
+                      <div className="report-sans text-[9px] font-semibold uppercase text-slate-500">Primary Driver</div>
                       <PdfMarkdown content={bullet.driver || '—'} />
                     </div>
                     <div className="mt-3">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Market Mispricing</div>
+                      <div className="report-sans text-[9px] font-semibold uppercase text-slate-500">Market Mispricing</div>
                       <PdfMarkdown content={bullet.mispricing || '—'} />
                     </div>
                   </div>
@@ -357,36 +423,29 @@ export function ResearchExportDocument({
             </div>
 
             <aside className="space-y-4">
-              <div className="border border-slate-300 p-4">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Key Metrics</div>
-                <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-[11px]">
-                  <div>
-                    <div className="text-slate-500">Current Price</div>
-                    <div className="mt-1 font-semibold">${report.currentPrice.toFixed(2)}</div>
-                  </div>
-                  <div>
-                    <div className="text-slate-500">Target Price</div>
-                    <div className="mt-1 font-semibold">${report.targetPrice.toFixed(2)}</div>
-                  </div>
-                  <div>
-                    <div className="text-slate-500">Implied Upside</div>
-                    <div className={`mt-1 font-semibold ${report.impliedUpside >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
-                      {(report.impliedUpside * 100).toFixed(1)}%
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-slate-500">Time Horizon</div>
-                    <div className="mt-1 font-semibold">{report.timeHorizon}</div>
-                  </div>
+              <div className="report-box p-4">
+                <SectionLabel>Recommendation Snapshot</SectionLabel>
+                <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3">
+                  <MetricDefinition label="Recommendation" value={report.recommendation.toUpperCase()} accent />
+                  <MetricDefinition label="Time Horizon" value={report.timeHorizon} />
+                  <MetricDefinition label="Current Price" value={formatMoney(report.currentPrice)} />
+                  <MetricDefinition label="Target Price" value={formatMoney(report.targetPrice)} />
+                  <MetricDefinition
+                    label="Upside / Downside"
+                    value={<span className={report.impliedUpside >= 0 ? 'text-emerald-700' : 'text-red-700'}>{formatPercent(report.impliedUpside)}</span>}
+                    accent
+                  />
+                  <MetricDefinition label="Coverage Status" value={report.coverageStatus} />
                 </div>
               </div>
 
-              <div className="border border-slate-300 p-4">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Coverage Note</div>
+              <div className="report-box-soft p-4">
+                <SectionLabel>Investment View</SectionLabel>
                 <p className="mt-3 text-[11.5px] leading-6 text-slate-800">
                   {report.companyName} is rated <span className="font-semibold">{report.recommendation.toUpperCase()}</span> with a
-                  target price of <span className="font-semibold">${report.targetPrice.toFixed(2)}</span>, implying{' '}
-                  <span className="font-semibold">{(report.impliedUpside * 100).toFixed(1)}%</span> upside to the current price.
+                  target price of <span className="font-semibold">{formatMoney(report.targetPrice)}</span>, implying{' '}
+                  <span className="font-semibold">{formatPercent(report.impliedUpside)}</span> relative to the current price of{' '}
+                  <span className="font-semibold">{formatMoney(report.currentPrice)}</span>.
                 </p>
               </div>
             </aside>
@@ -394,58 +453,58 @@ export function ResearchExportDocument({
         </PdfSection>
 
         <PdfSection number="2" title="Company Snapshot & Price Performance" pageBreak>
-          <div className="grid grid-cols-3 gap-x-6 gap-y-4 border border-slate-300 p-5 text-[11px]">
+          <div className="report-box grid grid-cols-3 gap-x-6 gap-y-4 p-5 text-[11px]">
             {report.priceDate && (
               <div>
-                <div className="uppercase tracking-[0.12em] text-slate-500">Date of Price</div>
+                <div className="report-sans uppercase text-slate-500">Date of Price</div>
                 <div className="mt-1 font-medium text-slate-900">{report.priceDate}</div>
               </div>
             )}
             {report.fiftyTwoWeekRange && (
               <div>
-                <div className="uppercase tracking-[0.12em] text-slate-500">52-Week Range</div>
+                <div className="report-sans uppercase text-slate-500">52-Week Range</div>
                 <div className="mt-1 font-medium text-slate-900">{report.fiftyTwoWeekRange}</div>
               </div>
             )}
             {report.marketCap != null && (
               <div>
-                <div className="uppercase tracking-[0.12em] text-slate-500">Market Cap</div>
+                <div className="report-sans uppercase text-slate-500">Market Cap</div>
                 <div className="mt-1 font-medium text-slate-900">${report.marketCap.toLocaleString()} mn</div>
               </div>
             )}
             {report.sharesOutstanding != null && (
               <div>
-                <div className="uppercase tracking-[0.12em] text-slate-500">Shares O/S</div>
+                <div className="report-sans uppercase text-slate-500">Shares O/S</div>
                 <div className="mt-1 font-medium text-slate-900">{report.sharesOutstanding.toLocaleString()} mn</div>
               </div>
             )}
             {report.fiscalYearEnd && (
               <div>
-                <div className="uppercase tracking-[0.12em] text-slate-500">Fiscal Year End</div>
+                <div className="report-sans uppercase text-slate-500">Fiscal Year End</div>
                 <div className="mt-1 font-medium text-slate-900">{report.fiscalYearEnd}</div>
               </div>
             )}
             {report.priceTargetEndDate && (
               <div>
-                <div className="uppercase tracking-[0.12em] text-slate-500">Price Target End Date</div>
+                <div className="report-sans uppercase text-slate-500">Price Target End Date</div>
                 <div className="mt-1 font-medium text-slate-900">{report.priceTargetEndDate}</div>
               </div>
             )}
             {(report.peRatio != null || report.dcfInputs?.peRatio != null) && (
               <div>
-                <div className="uppercase tracking-[0.12em] text-slate-500">P/E</div>
+                <div className="report-sans uppercase text-slate-500">P/E</div>
                 <div className="mt-1 font-medium text-slate-900">{(report.peRatio ?? report.dcfInputs?.peRatio).toFixed(2)}x</div>
               </div>
             )}
             {(report.forwardPE != null || report.dcfInputs?.forwardPE != null) && (
               <div>
-                <div className="uppercase tracking-[0.12em] text-slate-500">Forward P/E</div>
+                <div className="report-sans uppercase text-slate-500">Forward P/E</div>
                 <div className="mt-1 font-medium text-slate-900">{(report.forwardPE ?? report.dcfInputs?.forwardPE).toFixed(2)}x</div>
               </div>
             )}
             {report.dividendYield != null && (
               <div>
-                <div className="uppercase tracking-[0.12em] text-slate-500">Dividend Yield</div>
+                <div className="report-sans uppercase text-slate-500">Dividend Yield</div>
                 <div className="mt-1 font-medium text-slate-900">{report.dividendYield.toFixed(2)}%</div>
               </div>
             )}
@@ -459,16 +518,17 @@ export function ResearchExportDocument({
             <div className="mt-6 grid grid-cols-2 gap-6">
               {report.epsTableMarkdown && (
                 <div className="avoid-break">
-                  <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">EPS Table</div>
-                  <div className="border border-slate-300 p-4">
+                  <SectionLabel>EPS Summary</SectionLabel>
+                  <div className="report-box p-4">
                     <PdfMarkdown content={report.epsTableMarkdown} />
                   </div>
+                  <div className="report-caption">Consensus and historical EPS summary as entered in the report source content.</div>
                 </div>
               )}
               {(report.priceHistory && report.priceHistory.length > 0) || report.priceChartImageUrl ? (
                 <div className="avoid-break">
-                  <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Price Chart</div>
-                  <div className="border border-slate-300 p-4">
+                  <SectionLabel>Price Performance</SectionLabel>
+                  <div className="report-box p-4">
                     {report.priceChartImageUrl && !(report.priceHistory && report.priceHistory.length > 0) ? (
                       <img src={report.priceChartImageUrl} alt="Price Chart" className="w-full h-auto rounded" />
                     ) : (
@@ -499,6 +559,7 @@ export function ResearchExportDocument({
                       </svg>
                     )}
                   </div>
+                  <div className="report-caption">Figure 1. Recent share-price trend based on the 100-day history available in the model inputs.</div>
                 </div>
               ) : null}
             </div>
@@ -507,19 +568,19 @@ export function ResearchExportDocument({
 
         <PdfSection number="3" title="Business Model & Economics">
           <div className="space-y-6">
-            <div>
-              <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">How the Company Makes Money</div>
+            <div className="report-box p-5">
+              <SectionLabel>How the Company Makes Money</SectionLabel>
               <PdfMarkdown content={report.businessModel} />
             </div>
             {report.unitEconomics && (
-              <div>
-                <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Unit Economics</div>
+              <div className="report-box p-5">
+                <SectionLabel>Unit Economics</SectionLabel>
                 <PdfMarkdown content={report.unitEconomics} />
               </div>
             )}
             {report.economicMoat && (
-              <div>
-                <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Economic Moat</div>
+              <div className="report-box p-5">
+                <SectionLabel>Economic Moat</SectionLabel>
                 <PdfMarkdown content={report.economicMoat} />
               </div>
             )}
@@ -527,30 +588,39 @@ export function ResearchExportDocument({
         </PdfSection>
 
         <PdfSection number="4" title="Industry & Competitive Landscape">
-          <PdfMarkdown content={report.industryAnalysis} />
+          <div className="report-box p-5">
+            <SectionLabel>Industry Analysis</SectionLabel>
+            <PdfMarkdown content={report.industryAnalysis} />
+          </div>
         </PdfSection>
 
         <PdfSection number="5" title="Catalysts & Timeline">
           <div className="space-y-6">
             {report.catalystsNearTerm.length > 0 && (
               <div className="avoid-break">
-                <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Near-Term Catalysts</div>
-                <table className="w-full border-collapse text-[11px]">
+                <SectionLabel>Near-Term Catalysts</SectionLabel>
+                <table className="report-table">
+                  <colgroup>
+                    <col style={{ width: '22%' }} />
+                    <col style={{ width: '16%' }} />
+                    <col style={{ width: '13%' }} />
+                    <col style={{ width: '49%' }} />
+                  </colgroup>
                   <thead>
                     <tr>
-                      <th className="border border-slate-300 bg-slate-100 px-3 py-2 text-left text-[10px] uppercase tracking-[0.12em]">Event</th>
-                      <th className="border border-slate-300 bg-slate-100 px-3 py-2 text-left text-[10px] uppercase tracking-[0.12em]">Timeframe</th>
-                      <th className="border border-slate-300 bg-slate-100 px-3 py-2 text-left text-[10px] uppercase tracking-[0.12em]">Probability</th>
-                      <th className="border border-slate-300 bg-slate-100 px-3 py-2 text-left text-[10px] uppercase tracking-[0.12em]">Mechanism</th>
+                      <th>Event</th>
+                      <th>Timeframe</th>
+                      <th>Probability</th>
+                      <th>Mechanism</th>
                     </tr>
                   </thead>
                   <tbody>
                     {report.catalystsNearTerm.map((catalyst, index) => (
                       <tr key={index}>
-                        <td className="border border-slate-300 px-3 py-2 font-medium">{catalyst.event}</td>
-                        <td className="border border-slate-300 px-3 py-2">{catalyst.timeframe || '—'}</td>
-                        <td className="border border-slate-300 px-3 py-2 capitalize">{catalyst.probability}</td>
-                        <td className="border border-slate-300 px-3 py-2">{catalyst.mechanism}</td>
+                        <td className="font-medium">{catalyst.event}</td>
+                        <td>{catalyst.timeframe || '—'}</td>
+                        <td className="capitalize">{catalyst.probability}</td>
+                        <td>{catalyst.mechanism}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -559,23 +629,29 @@ export function ResearchExportDocument({
             )}
             {report.catalystsMediumTerm.length > 0 && (
               <div className="avoid-break">
-                <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Medium-Term Catalysts</div>
-                <table className="w-full border-collapse text-[11px]">
+                <SectionLabel>Medium-Term Catalysts</SectionLabel>
+                <table className="report-table">
+                  <colgroup>
+                    <col style={{ width: '22%' }} />
+                    <col style={{ width: '16%' }} />
+                    <col style={{ width: '13%' }} />
+                    <col style={{ width: '49%' }} />
+                  </colgroup>
                   <thead>
                     <tr>
-                      <th className="border border-slate-300 bg-slate-100 px-3 py-2 text-left text-[10px] uppercase tracking-[0.12em]">Event</th>
-                      <th className="border border-slate-300 bg-slate-100 px-3 py-2 text-left text-[10px] uppercase tracking-[0.12em]">Timeframe</th>
-                      <th className="border border-slate-300 bg-slate-100 px-3 py-2 text-left text-[10px] uppercase tracking-[0.12em]">Probability</th>
-                      <th className="border border-slate-300 bg-slate-100 px-3 py-2 text-left text-[10px] uppercase tracking-[0.12em]">Mechanism</th>
+                      <th>Event</th>
+                      <th>Timeframe</th>
+                      <th>Probability</th>
+                      <th>Mechanism</th>
                     </tr>
                   </thead>
                   <tbody>
                     {report.catalystsMediumTerm.map((catalyst, index) => (
                       <tr key={index}>
-                        <td className="border border-slate-300 px-3 py-2 font-medium">{catalyst.event}</td>
-                        <td className="border border-slate-300 px-3 py-2">{catalyst.timeframe || '—'}</td>
-                        <td className="border border-slate-300 px-3 py-2 capitalize">{catalyst.probability}</td>
-                        <td className="border border-slate-300 px-3 py-2">{catalyst.mechanism}</td>
+                        <td className="font-medium">{catalyst.event}</td>
+                        <td>{catalyst.timeframe || '—'}</td>
+                        <td className="capitalize">{catalyst.probability}</td>
+                        <td>{catalyst.mechanism}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -589,13 +665,25 @@ export function ResearchExportDocument({
           <div className="space-y-6">
             {report.competitivePosition?.rows && report.competitivePosition.rows.length > 0 && (
               <div className="avoid-break">
-                <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Comparable Companies</div>
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse text-[10.5px]">
+                <SectionLabel>Comparable Companies</SectionLabel>
+                <div className="overflow-x-auto border border-slate-300">
+                  <table className="report-table">
+                    <colgroup>
+                      <col style={{ width: '18%' }} />
+                      <col style={{ width: '9%' }} />
+                      <col style={{ width: '8%' }} />
+                      <col style={{ width: '9%' }} />
+                      <col style={{ width: '7%' }} />
+                      <col style={{ width: '8%' }} />
+                      <col style={{ width: '7%' }} />
+                      <col style={{ width: '11%' }} />
+                      <col style={{ width: '12%' }} />
+                      <col style={{ width: '11%' }} />
+                    </colgroup>
                     <thead>
                       <tr>
                         {['Company','Mkt Cap','EV/Rev','EV/EBITDA','P/E','Fwd P/E','P/S','Rev Growth','EBITDA Margin','Beta'].map((heading) => (
-                          <th key={heading} className="border border-slate-300 bg-slate-100 px-2 py-2 text-left text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-600">
+                          <th key={heading} className={heading === 'Company' ? '' : 'num'}>
                             {heading}
                           </th>
                         ))}
@@ -604,24 +692,27 @@ export function ResearchExportDocument({
                     <tbody>
                       {report.competitivePosition.rows.map((row: any, index: number) => (
                         <tr key={`${row.ticker}-${index}`} className={row.isSubject ? 'bg-slate-100' : ''}>
-                          <td className="border border-slate-300 px-2 py-2">
+                          <td>
                             <div className="font-medium">{row.name}</div>
                             <div className="text-[9px] text-slate-500">{row.ticker}</div>
                           </td>
-                          <td className="border border-slate-300 px-2 py-2">{row.marketCap != null ? (row.marketCap >= 1000 ? `$${(row.marketCap / 1000).toFixed(1)}B` : `$${row.marketCap.toFixed(0)}M`) : '—'}</td>
-                          <td className="border border-slate-300 px-2 py-2">{row.evToRevenue != null ? `${row.evToRevenue.toFixed(1)}x` : '—'}</td>
-                          <td className="border border-slate-300 px-2 py-2">{row.evToEBITDA != null ? `${row.evToEBITDA.toFixed(1)}x` : '—'}</td>
-                          <td className="border border-slate-300 px-2 py-2">{row.peTrailing != null ? `${row.peTrailing.toFixed(1)}x` : '—'}</td>
-                          <td className="border border-slate-300 px-2 py-2">{row.peForward != null ? `${row.peForward.toFixed(1)}x` : '—'}</td>
-                          <td className="border border-slate-300 px-2 py-2">{row.priceToSales != null ? `${row.priceToSales.toFixed(1)}x` : '—'}</td>
-                          <td className="border border-slate-300 px-2 py-2">{row.revenueGrowthYoY != null ? `${(row.revenueGrowthYoY * 100).toFixed(1)}%` : '—'}</td>
-                          <td className="border border-slate-300 px-2 py-2">{row.ebitdaMargin != null ? `${(row.ebitdaMargin * 100).toFixed(1)}%` : '—'}</td>
-                          <td className="border border-slate-300 px-2 py-2">{row.beta != null ? row.beta.toFixed(2) : '—'}</td>
+                          <td className="num">{row.marketCap != null ? (row.marketCap >= 1000 ? `$${(row.marketCap / 1000).toFixed(1)}B` : `$${row.marketCap.toFixed(0)}M`) : '—'}</td>
+                          <td className="num">{row.evToRevenue != null ? `${row.evToRevenue.toFixed(1)}x` : '—'}</td>
+                          <td className="num">{row.evToEBITDA != null ? `${row.evToEBITDA.toFixed(1)}x` : '—'}</td>
+                          <td className="num">{row.peTrailing != null ? `${row.peTrailing.toFixed(1)}x` : '—'}</td>
+                          <td className="num">{row.peForward != null ? `${row.peForward.toFixed(1)}x` : '—'}</td>
+                          <td className="num">{row.priceToSales != null ? `${row.priceToSales.toFixed(1)}x` : '—'}</td>
+                          <td className="num">{row.revenueGrowthYoY != null ? `${(row.revenueGrowthYoY * 100).toFixed(1)}%` : '—'}</td>
+                          <td className="num">{row.ebitdaMargin != null ? `${(row.ebitdaMargin * 100).toFixed(1)}%` : '—'}</td>
+                          <td className="num">{row.beta != null ? row.beta.toFixed(2) : '—'}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+                {report.competitivePosition.source && (
+                  <div className="report-caption">Source: {report.competitivePosition.source}</div>
+                )}
               </div>
             )}
 
@@ -633,6 +724,7 @@ export function ResearchExportDocument({
                   companyName: report.companyName,
                 } : null}
                 valuationText={report.valuationAnalysis || 'Not provided'}
+                variant="document"
               />
             </div>
           </div>
@@ -641,19 +733,19 @@ export function ResearchExportDocument({
         <PdfSection number="7" title="Scenario Analysis">
           <div className="grid grid-cols-2 gap-6">
             {report.bullCase && (
-              <div className="avoid-break border border-emerald-300 bg-emerald-50 p-4">
-                <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700">Bull Case</div>
+              <div className="avoid-break border-l-4 border-emerald-600 bg-emerald-50 p-5">
+                <div className="report-sans mb-2 text-[10px] font-semibold uppercase text-emerald-700">Bull Case</div>
                 <PdfMarkdown content={report.bullCase} />
               </div>
             )}
-            <div className="avoid-break border border-red-300 bg-red-50 p-4">
-              <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-red-700">Bear Case</div>
+            <div className="avoid-break border-l-4 border-red-600 bg-red-50 p-5">
+              <div className="report-sans mb-2 text-[10px] font-semibold uppercase text-red-700">Bear Case</div>
               <PdfMarkdown content={report.bearCase} />
             </div>
           </div>
           {report.bullBearJustification && (
-            <div className="mt-6">
-              <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Justification</div>
+            <div className="report-box mt-6 p-5">
+              <SectionLabel>Scenario Framing</SectionLabel>
               <PdfMarkdown content={report.bullBearJustification} />
             </div>
           )}
@@ -663,10 +755,10 @@ export function ResearchExportDocument({
           <PdfSection number="8" title="Key Risks">
             <div className="space-y-4">
               {report.keyRisks.map((risk, index) => (
-                <div key={index} className="avoid-break border border-slate-300 p-4">
+                <div key={index} className="avoid-break report-box p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="font-semibold text-slate-950">{risk.title}</div>
-                    <span className={`rounded px-2 py-1 text-[10px] font-semibold uppercase ${getImpactBadge(risk.impact)}`}>
+                    <span className={`report-sans rounded px-2 py-1 text-[10px] font-semibold uppercase ${getImpactBadge(risk.impact)}`}>
                       {risk.impact} impact
                     </span>
                   </div>
@@ -684,24 +776,33 @@ export function ResearchExportDocument({
 
         {report.aiStrategies && (
           <PdfSection number="9" title="AI & Data Strategy">
-            <PdfMarkdown content={report.aiStrategies} />
+            <div className="report-box p-5">
+              <SectionLabel>AI & Data Strategy</SectionLabel>
+              <PdfMarkdown content={report.aiStrategies} />
+            </div>
           </PdfSection>
         )}
 
         {report.esgFactors && (
           <PdfSection number="10" title="ESG & Governance">
-            <PdfMarkdown content={report.esgFactors} />
+            <div className="report-box p-5">
+              <SectionLabel>ESG & Governance</SectionLabel>
+              <PdfMarkdown content={report.esgFactors} />
+            </div>
           </PdfSection>
         )}
 
         {report.concludingSection && (
           <PdfSection number="11" title="Conclusion">
-            <PdfMarkdown content={report.concludingSection} />
+            <div className="report-box p-5">
+              <SectionLabel>Conclusion</SectionLabel>
+              <PdfMarkdown content={report.concludingSection} />
+            </div>
           </PdfSection>
         )}
 
         <section className="mt-10 border-t border-slate-300 pt-4">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Important Disclosures</div>
+          <div className="report-sans text-[10px] font-semibold uppercase text-slate-500">Important Disclosures</div>
           <p className="mt-3 text-[10.5px] leading-5 text-slate-600">
             This report has been prepared by St. George Capital for educational purposes only. It does not constitute
             investment advice or a solicitation to buy or sell securities. St. George Capital and its members may hold

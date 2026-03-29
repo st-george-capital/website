@@ -45,13 +45,16 @@ interface DCFData {
 interface Props {
   dcfData: DCFData | null;
   valuationText: string;
+  variant?: 'default' | 'document';
 }
 
-export function InstitutionalValuationSection({ dcfData, valuationText }: Props) {
+export function InstitutionalValuationSection({ dcfData, valuationText, variant = 'default' }: Props) {
+  const isDocument = variant === 'document';
+
   if (!dcfData) {
     // Fallback to text-only if no DCF data
     return (
-      <div className="prose prose-lg max-w-none text-gray-700 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
+      <div className={`prose max-w-none [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full ${isDocument ? 'text-slate-700 prose-headings:text-slate-950 prose-p:leading-7' : 'prose-lg text-gray-700'}`}>
         <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
           {valuationText}
         </ReactMarkdown>
@@ -76,35 +79,35 @@ export function InstitutionalValuationSection({ dcfData, valuationText }: Props)
   };
 
   return (
-    <div className="space-y-8">
+    <div className={isDocument ? 'space-y-6' : 'space-y-8'}>
       {/* Valuation Summary Box */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-8">
+      <div className={isDocument ? 'border border-slate-300 bg-slate-50 p-6' : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-8'}>
         <div className="grid md:grid-cols-4 gap-6">
           <div className="text-center">
-            <div className="text-sm text-gray-600 mb-1 uppercase tracking-wide">Intrinsic Value</div>
-            <div className="text-4xl font-bold text-blue-900">${outputs.intrinsicValuePerShare.toFixed(2)}</div>
+            <div className={isDocument ? 'font-sans text-[9px] font-semibold uppercase text-slate-500 mb-1' : 'text-sm text-gray-600 mb-1 uppercase tracking-wide'}>Intrinsic Value</div>
+            <div className={isDocument ? 'text-[32px] font-bold text-slate-950' : 'text-4xl font-bold text-blue-900'}>${outputs.intrinsicValuePerShare.toFixed(2)}</div>
             <div className="text-xs text-gray-500 mt-1">per share</div>
           </div>
           <div className="text-center">
-            <div className="text-sm text-gray-600 mb-1 uppercase tracking-wide">Current Price</div>
-            <div className="text-4xl font-bold text-gray-700">${inputs.currentPrice.toFixed(2)}</div>
+            <div className={isDocument ? 'font-sans text-[9px] font-semibold uppercase text-slate-500 mb-1' : 'text-sm text-gray-600 mb-1 uppercase tracking-wide'}>Current Price</div>
+            <div className={isDocument ? 'text-[32px] font-bold text-slate-700' : 'text-4xl font-bold text-gray-700'}>${inputs.currentPrice.toFixed(2)}</div>
             <div className="text-xs text-gray-500 mt-1">market quote</div>
           </div>
           <div className="text-center">
-            <div className="text-sm text-gray-600 mb-1 uppercase tracking-wide">Upside/(Downside)</div>
-            <div className={`text-4xl font-bold ${outputs.upsideDownside >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={isDocument ? 'font-sans text-[9px] font-semibold uppercase text-slate-500 mb-1' : 'text-sm text-gray-600 mb-1 uppercase tracking-wide'}>Upside/(Downside)</div>
+            <div className={`${isDocument ? 'text-[32px] font-bold' : 'text-4xl font-bold'} ${outputs.upsideDownside >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {(outputs.upsideDownside * 100).toFixed(1)}%
             </div>
             <div className="text-xs text-gray-500 mt-1">to target</div>
           </div>
           <div className="text-center">
-            <div className="text-sm text-gray-600 mb-1 uppercase tracking-wide">Valuation Method</div>
-            <div className="text-2xl font-bold text-gray-800">DCF</div>
+            <div className={isDocument ? 'font-sans text-[9px] font-semibold uppercase text-slate-500 mb-1' : 'text-sm text-gray-600 mb-1 uppercase tracking-wide'}>Valuation Method</div>
+            <div className={isDocument ? 'text-[26px] font-bold text-slate-900' : 'text-2xl font-bold text-gray-800'}>DCF</div>
             <div className="text-xs text-gray-500 mt-1">{inputs.forecastYears}yr + Terminal</div>
           </div>
         </div>
         
-        <div className="mt-6 pt-6 border-t border-blue-200">
+        <div className={`mt-6 pt-6 ${isDocument ? 'border-t border-slate-300' : 'border-t border-blue-200'}`}>
           <p className="text-sm text-gray-700 text-center">
             Our DCF model values <strong>{companyName}</strong> at <strong>${outputs.intrinsicValuePerShare.toFixed(2)} per share</strong>, 
             representing a <strong className={outputs.upsideDownside >= 0 ? 'text-green-700' : 'text-red-700'}>
@@ -137,8 +140,8 @@ export function InstitutionalValuationSection({ dcfData, valuationText }: Props)
       </div>
 
       {/* Operating Assumptions */}
-      <div className="bg-white p-6 rounded-lg border">
-        <h3 className="font-bold text-xl mb-4 text-gray-900">Key Operating Assumptions</h3>
+      <div className={isDocument ? 'border border-slate-300 bg-white p-5' : 'bg-white p-6 rounded-lg border'}>
+        <h3 className={isDocument ? 'font-sans text-sm font-semibold uppercase text-slate-500 mb-4' : 'font-bold text-xl mb-4 text-gray-900'}>Key Operating Assumptions</h3>
         <div className="grid md:grid-cols-2 gap-6">
           <table className="text-sm border-collapse">
             <thead>
@@ -168,7 +171,7 @@ export function InstitutionalValuationSection({ dcfData, valuationText }: Props)
           </table>
           
           <div>
-            <h4 className="font-semibold mb-2 text-gray-900">Terminal Value</h4>
+            <h4 className={isDocument ? 'font-sans text-[11px] font-semibold uppercase text-slate-500 mb-2' : 'font-semibold mb-2 text-gray-900'}>Terminal Value</h4>
             <table className="text-sm border-collapse w-full">
               <tbody>
                 <tr>
@@ -201,8 +204,8 @@ export function InstitutionalValuationSection({ dcfData, valuationText }: Props)
       />
 
       {/* Methodology */}
-      <div className="bg-gray-50 p-6 rounded-lg border">
-        <h3 className="font-bold text-xl mb-4 text-gray-900">Valuation Methodology</h3>
+      <div className={isDocument ? 'border border-slate-300 bg-slate-50 p-5' : 'bg-gray-50 p-6 rounded-lg border'}>
+        <h3 className={isDocument ? 'font-sans text-sm font-semibold uppercase text-slate-500 mb-4' : 'font-bold text-xl mb-4 text-gray-900'}>Valuation Methodology</h3>
         <div className="prose max-w-none text-gray-700">
           <p>
             The DCF model employs a Free Cash Flow to the Firm (FCFF) approach, valuing {companyName} based on 
