@@ -15,10 +15,11 @@ export async function POST() {
     }
 
     const seeds = buildInterviewSeedQuestions();
+    const seedKeys = seeds.map((seed) => seed.seedKey);
     const existing = await prisma.communityInterviewQuestion.findMany({
       where: {
         seedKey: {
-          in: seeds.map((seed) => seed.seedKey),
+          in: seedKeys,
         },
       },
       select: {
@@ -60,6 +61,16 @@ export async function POST() {
         },
       });
     }
+
+    await prisma.communityInterviewQuestion.deleteMany({
+      where: {
+        submitterName: 'SGC Editorial',
+        submittedBy: null,
+        seedKey: {
+          notIn: seedKeys,
+        },
+      },
+    });
 
     const createdCount = seeds.filter((seed) => !existingSeedKeys.has(seed.seedKey)).length;
     const updatedCount = seeds.length - createdCount;
