@@ -603,10 +603,65 @@ function normalizeStructuredSectionMarkdown(content?: string | null) {
   return output.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
+function normalizeLooseMarkdownTables(content: string) {
+  const lines = content.split('\n');
+  const output: string[] = [];
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index];
+    const trimmed = line.trim();
+
+    if (!/^\|.*\|$/.test(trimmed)) {
+      output.push(line);
+      index += 1;
+      continue;
+    }
+
+    const block: string[] = [];
+    while (index < lines.length && /^\|.*\|$/.test(lines[index].trim())) {
+      block.push(lines[index].trim());
+      index += 1;
+    }
+
+    const hasMarkdownDivider = block.some((row) => /\|\s*:?-{3,}:?\s*\|/.test(row));
+    if (hasMarkdownDivider) {
+      output.push(...block);
+      continue;
+    }
+
+    const parsedRows = block.map((row) =>
+      row
+        .split('|')
+        .map((cell) => cell.trim())
+        .filter(Boolean)
+    );
+
+    const isTwoColumnMetricTable =
+      parsedRows.length > 0 &&
+      parsedRows.every((row) => row.length === 2);
+
+    if (!isTwoColumnMetricTable) {
+      output.push(...block);
+      continue;
+    }
+
+    output.push('<table>');
+    output.push('<tbody>');
+    parsedRows.forEach((row) => {
+      output.push(`<tr><td>${row[0]}</td><td>${row[1]}</td></tr>`);
+    });
+    output.push('</tbody>');
+    output.push('</table>');
+  }
+
+  return output.join('\n');
+}
+
 function normalizeScenarioMarkdown(content?: string | null, label?: 'Bull Case' | 'Bear Case') {
   if (!content) return '';
 
-  return normalizeStructuredSectionMarkdown(content)
+  return normalizeLooseMarkdownTables(normalizeStructuredSectionMarkdown(content))
     .split('\n')
     .filter((line) => {
       const trimmed = line.trim();
