@@ -459,6 +459,30 @@ function normalizeStructuredSectionMarkdown(content?: string | null) {
     .join('\n');
 }
 
+function parseEpsMarkdownTable(content?: string | null) {
+  if (!content) return [];
+
+  const lines = content
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const dataLines = lines.filter((line) => line.startsWith('|'));
+  if (dataLines.length < 3) return [];
+
+  const rows = dataLines
+    .slice(2)
+    .map((line) => line.split('|').map((cell) => cell.trim()).filter(Boolean))
+    .filter((cells) => cells.length >= 2)
+    .map((cells) => ({
+      quarter: cells[0],
+      eps: cells[1],
+    }))
+    .filter((row) => row.quarter && row.eps);
+
+  return rows;
+}
+
 function markdownToPlainText(content?: string | null) {
   if (!content) return '';
   return content
@@ -767,7 +791,50 @@ export function ResearchExportDocument({
               {report.epsTableMarkdown && (
                 <div>
                   <SectionLabel>Recent Reported EPS Trend</SectionLabel>
-                  <PdfMarkdown content={report.epsTableMarkdown} />
+                  {(() => {
+                    const epsRows = parseEpsMarkdownTable(report.epsTableMarkdown);
+                    if (!epsRows.length) {
+                      return <PdfMarkdown content={report.epsTableMarkdown} />;
+                    }
+
+                    const midpoint = Math.ceil(epsRows.length / 2);
+                    const leftRows = epsRows.slice(0, midpoint);
+                    const rightRows = epsRows.slice(midpoint);
+                    const rowCount = Math.max(leftRows.length, rightRows.length);
+
+                    return (
+                      <table className="report-table">
+                        <colgroup>
+                          <col style={{ width: '28%' }} />
+                          <col style={{ width: '22%' }} />
+                          <col style={{ width: '28%' }} />
+                          <col style={{ width: '22%' }} />
+                        </colgroup>
+                        <thead>
+                          <tr>
+                            <th>Quarter</th>
+                            <th className="num">EPS</th>
+                            <th>Quarter</th>
+                            <th className="num">EPS</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Array.from({ length: rowCount }).map((_, index) => {
+                            const left = leftRows[index];
+                            const right = rightRows[index];
+                            return (
+                              <tr key={index}>
+                                <td>{left?.quarter ?? ''}</td>
+                                <td className="num">{left?.eps ?? ''}</td>
+                                <td>{right?.quarter ?? ''}</td>
+                                <td className="num">{right?.eps ?? ''}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    );
+                  })()}
                   <div className="report-caption">Trailing quarterly earnings progression based on the report inputs.</div>
                 </div>
               )}
