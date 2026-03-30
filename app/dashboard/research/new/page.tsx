@@ -413,7 +413,7 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
 | Enterprise Value | $${(model.outputs.bull.enterpriseValue / 1e9).toFixed(2)}B |
 | WACC | ${(model.outputs.bull.wacc * 100).toFixed(2)}% |
 
-*Assumptions: Higher revenue growth, margin expansion, lower discount rate. Adjust narrative and add justification below.*`);
+*Assumptions: Higher revenue growth, margin expansion, lower discount rate.*`);
         setBearCase(`## Bear Case (from DCF model)
 
 **Target:** $${model.outputs.bear.intrinsicValuePerShare.toFixed(2)} per share (**${bearUpside.toFixed(1)}%** vs current $${model.inputs.currentPrice.toFixed(2)})
@@ -424,7 +424,7 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
 | Enterprise Value | $${(model.outputs.bear.enterpriseValue / 1e9).toFixed(2)}B |
 | WACC | ${(model.outputs.bear.wacc * 100).toFixed(2)}% |
 
-*Assumptions: Lower growth, margin pressure, higher discount rate. Adjust narrative and add justification below.*`);
+*Assumptions: Lower growth, margin pressure, higher discount rate.*`);
       }
 
       alert('DCF model loaded successfully! Full valuation analysis with tables and sensitivity analysis has been generated.' + (model.outputs.bull && model.outputs.bear ? ' Bull and bear cases pre-filled from DCF scenarios.' : ''));
