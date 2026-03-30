@@ -92,7 +92,7 @@ const PDF_MARKDOWN_CLASSNAME = `
   prose-strong:text-slate-950
   prose-ul:my-2.5 prose-ul:list-disc prose-ul:pl-5
   prose-ol:my-2.5 prose-ol:list-decimal prose-ol:pl-5
-  prose-li:my-1
+  prose-li:my-1.5
   prose-table:my-4 prose-table:w-full prose-table:table-fixed prose-table:border-collapse
   prose-thead:border-y prose-thead:border-slate-300
   prose-th:border-b prose-th:border-slate-300 prose-th:bg-slate-50 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:text-[9.5px] prose-th:font-semibold prose-th:uppercase prose-th:text-slate-700
@@ -429,35 +429,59 @@ function normalizeStructuredSectionMarkdown(content?: string | null) {
 
   const lines = cleanedContent.split('\n');
   let inCodeFence = false;
+  const output: string[] = [];
 
-  return lines
-    .map((line, index) => {
-      const trimmed = line.trim();
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const trimmed = line.trim();
 
-      if (trimmed.startsWith('```')) {
-        inCodeFence = !inCodeFence;
-        return line;
+    if (trimmed.startsWith('```')) {
+      inCodeFence = !inCodeFence;
+      output.push(line);
+      continue;
+    }
+
+    if (!trimmed || inCodeFence) {
+      output.push(line);
+      continue;
+    }
+
+    const normalizedListLine = trimmed
+      .replace(/^[•●◦▪▪‣]\s*/, '- ')
+      .replace(/^(\d+)\)\s+/, '$1. ');
+
+    if (/^(#{1,6}\s|\* |- |\d+\. |\| |>)/.test(normalizedListLine)) {
+      const prevOutput = output[output.length - 1]?.trim() ?? '';
+      if (prevOutput && !/^(#{1,6}\s|\* |- |\d+\. |\| |>)/.test(prevOutput)) {
+        output.push('');
       }
+      output.push(normalizedListLine);
+      continue;
+    }
 
-      if (!trimmed || inCodeFence) return line;
-      if (/^(#{1,6}\s|\* |- |\d+\. |\| |>)/.test(trimmed)) return line;
-      if (trimmed.endsWith(':')) return line;
+    if (trimmed.endsWith(':')) {
+      output.push(line);
+      continue;
+    }
 
-      const prev = lines[index - 1]?.trim() ?? '';
-      const next = lines[index + 1]?.trim() ?? '';
-      const wordCount = trimmed.split(/\s+/).length;
-      const looksLikeSectionLabel =
-        wordCount <= 5 &&
-        trimmed.length <= 48 &&
-        /^[A-Z0-9][A-Za-z0-9/&,\-() ]+$/.test(trimmed) &&
-        !/[.!?]$/.test(trimmed);
+    const prev = lines[index - 1]?.trim() ?? '';
+    const next = lines[index + 1]?.trim() ?? '';
+    const wordCount = trimmed.split(/\s+/).length;
+    const looksLikeSectionLabel =
+      wordCount <= 5 &&
+      trimmed.length <= 48 &&
+      /^[A-Z0-9][A-Za-z0-9/&,\-() ]+$/.test(trimmed) &&
+      !/[.!?]$/.test(trimmed);
 
-      if (!looksLikeSectionLabel) return line;
-      if (!prev && !next) return line;
+    if (!looksLikeSectionLabel || (!prev && !next)) {
+      output.push(line);
+      continue;
+    }
 
-      return `### ${trimmed}`;
-    })
-    .join('\n');
+    output.push(`### ${trimmed}`);
+  }
+
+  return output.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
 function normalizeScenarioMarkdown(content?: string | null, label?: 'Bull Case' | 'Bear Case') {
@@ -1021,23 +1045,24 @@ export function ResearchExportDocument({
 
         {report.keyRisks.length > 0 && (
           <PdfSection number="8" title="Key Risks">
-            <ol className="space-y-6">
+            <ol className="space-y-4">
               {report.keyRisks.map((risk, index) => (
-                <li key={index} className="avoid-break list-none border-b border-slate-200 pb-5 last:border-b-0 last:pb-0">
+                <li key={index} className="avoid-break list-none border-b border-slate-200 pb-4 last:border-b-0 last:pb-0">
                   <div className="flex items-baseline justify-between gap-4">
-                    <h3 className="report-subsection-title keep-with-next font-serif !mb-0">
+                    <h3 className="report-subsection-title keep-with-next font-serif !mb-1">
                       {index + 1}. {risk.title}
                     </h3>
                     <span className={`report-sans rounded px-2 py-1 text-[10px] font-semibold uppercase ${getImpactBadge(risk.impact)}`}>
                       {risk.impact} impact
                     </span>
                   </div>
-                  <p className="mt-3 text-[11.5px] leading-7 text-slate-800">{risk.description}</p>
+                  <div className="mt-2">
+                    <PdfMarkdown content={risk.description} />
+                  </div>
                   {risk.mitigation && (
-                    <p className="mt-2 text-[11.4px] leading-7 text-slate-800">
-                      <span className="report-subhead mr-2">Mitigation:</span>
-                      <span>{risk.mitigation}</span>
-                    </p>
+                    <div className="mt-2">
+                      <PdfMarkdown content={`**Mitigation:** ${risk.mitigation}`} />
+                    </div>
                   )}
                 </li>
               ))}
