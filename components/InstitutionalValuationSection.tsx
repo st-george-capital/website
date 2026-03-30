@@ -132,19 +132,19 @@ export function InstitutionalValuationSection({
             {comparables?.rows?.length ? (
               <div className="report-table-wrap">
                 <div className="report-subhead mb-3">Comparable Companies</div>
-                <table className="report-table">
+                <table className="report-table text-[9.6px]">
                   <colgroup>
-                    <col style={{ width: '26%' }} />
+                    <col style={{ width: '31%' }} />
+                    <col style={{ width: '10%' }} />
                     <col style={{ width: '11%' }} />
-                    <col style={{ width: '11%' }} />
-                    <col style={{ width: '11%' }} />
-                    <col style={{ width: '11%' }} />
-                    <col style={{ width: '14%' }} />
+                    <col style={{ width: '10%' }} />
+                    <col style={{ width: '10%' }} />
+                    <col style={{ width: '12%' }} />
                     <col style={{ width: '16%' }} />
                   </colgroup>
                   <thead>
                     <tr>
-                      {['Company', 'EV/Rev', 'EV/EBITDA', 'Fwd P/E', 'P/S', 'Rev Growth', 'EBITDA Margin'].map((heading) => (
+                      {['Company', 'EV/Rev', 'EV/EBITDA', 'Fwd P/E', 'P/S', 'Rev. Gr.', 'EBITDA Mgn.'].map((heading) => (
                         <th key={heading} className={heading === 'Company' ? '' : 'num'}>
                           {heading}
                         </th>
@@ -285,15 +285,15 @@ export function InstitutionalValuationSection({
               </table>
             </div>
 
-            <div>
-              <div className="report-subhead mb-3">Methodology & Takeaway</div>
-              <p className="text-[11.2px] leading-6 text-slate-800">
-                We apply a free cash flow to the firm framework across a {inputs.forecastYears}-year forecast period and discount
-                value at {(outputs.wacc * 100).toFixed(2)}%. The base case supports fair value of <strong>${outputs.intrinsicValuePerShare.toFixed(2)}</strong>
-                per share, implying <strong className={outputs.upsideDownside >= 0 ? 'text-emerald-700' : 'text-red-700'}>
-                  {(outputs.upsideDownside * 100).toFixed(1)}% {outputs.upsideDownside >= 0 ? 'upside' : 'downside'}
-                </strong> versus the prevailing market price. The principal drivers remain terminal growth, discount rate,
-                and delivery against the forecast margin profile.
+              <div>
+                <div className="report-subhead mb-3">Methodology & Takeaway</div>
+                <p className="text-[11.2px] leading-6 text-slate-800">
+                  We apply a free cash flow to the firm framework across a {inputs.forecastYears}-year forecast period and discount
+                  value at {(outputs.wacc * 100).toFixed(2)}%. The base case supports fair value of <strong>${outputs.intrinsicValuePerShare.toFixed(2)}</strong>{' '}
+                  per share, implying <strong className={outputs.upsideDownside >= 0 ? 'text-emerald-700' : 'text-red-700'}>
+                    {(outputs.upsideDownside * 100).toFixed(1)}% {outputs.upsideDownside >= 0 ? 'upside' : 'downside'}
+                  </strong> versus the prevailing market price. The principal drivers remain terminal growth, discount rate,
+                  and delivery against the forecast margin profile.
               </p>
             </div>
           </div>

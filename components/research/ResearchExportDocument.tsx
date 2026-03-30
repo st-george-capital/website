@@ -85,10 +85,10 @@ export interface ResearchExportReport {
 const PDF_MARKDOWN_CLASSNAME = `
   prose max-w-none text-[11.15px] leading-[1.8] text-slate-800
   prose-headings:font-semibold prose-headings:text-slate-950
-  prose-h2:mt-7 prose-h2:mb-3 prose-h2:font-serif prose-h2:text-[18px] prose-h2:leading-tight
-  prose-h3:mt-6 prose-h3:mb-3 prose-h3:font-serif prose-h3:text-[16px] prose-h3:leading-tight
+  prose-h2:mt-7 prose-h2:mb-3 prose-h2:font-serif prose-h2:text-[20px] prose-h2:leading-tight
+  prose-h3:mt-6 prose-h3:mb-3 prose-h3:font-serif prose-h3:text-[17px] prose-h3:leading-tight
   prose-h4:mt-5 prose-h4:mb-2 prose-h4:font-sans prose-h4:text-[10px] prose-h4:font-semibold prose-h4:uppercase prose-h4:tracking-[0.08em] prose-h4:text-slate-600
-  prose-p:my-2.5 prose-p:text-slate-800
+  prose-p:my-2.5 prose-p:pl-1.5 prose-p:text-slate-800
   prose-strong:text-slate-950
   prose-ul:my-2.5 prose-ul:list-disc prose-ul:pl-5
   prose-ol:my-2.5 prose-ol:list-decimal prose-ol:pl-5
@@ -398,10 +398,7 @@ function PdfSection({
       <div className="report-rule mb-5" />
       <div className="mb-7 flex items-end justify-between gap-4">
         <div>
-          <div className="report-kicker">
-            Section {number}
-          </div>
-          <h2 className="report-section-title mt-2 font-serif">{title}</h2>
+          <h2 className="report-section-title font-serif">{title}</h2>
         </div>
       </div>
       {children}
@@ -426,7 +423,11 @@ function PdfMarkdown({ content }: { content?: string | null }) {
 function normalizeStructuredSectionMarkdown(content?: string | null) {
   if (!content) return '';
 
-  const lines = content.split('\n');
+  const cleanedContent = content
+    .replace(/Adjust narrative and add justification below\.?/gi, '')
+    .replace(/\n{3,}/g, '\n\n');
+
+  const lines = cleanedContent.split('\n');
   let inCodeFence = false;
 
   return lines
@@ -457,6 +458,22 @@ function normalizeStructuredSectionMarkdown(content?: string | null) {
       return `### ${trimmed}`;
     })
     .join('\n');
+}
+
+function normalizeScenarioMarkdown(content?: string | null, label?: 'Bull Case' | 'Bear Case') {
+  if (!content) return '';
+
+  return normalizeStructuredSectionMarkdown(content)
+    .split('\n')
+    .filter((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return true;
+      if (!label) return true;
+      return !new RegExp(`^#{1,6}\\s*${label}(\\s*\\(|\\b)`, 'i').test(trimmed);
+    })
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 function parseEpsMarkdownTable(content?: string | null) {
@@ -738,20 +755,20 @@ export function ResearchExportDocument({
               </div>
             </div>
 
-            <div className="space-y-7">
+            <div className="space-y-4">
               {report.investmentThesis.map((bullet, index) => (
-                <section key={index} className="avoid-break">
+                <section key={index}>
                   <h3 className="report-subsection-title keep-with-next font-serif">
                     {bullet.title ? markdownToPlainText(bullet.title) : `Investment Thesis ${index + 1}`}
                   </h3>
-                  <div className="mt-3 text-[11.5px] leading-7 text-slate-800">
+                  <div className="mt-2 text-[11.5px] leading-7 text-slate-800">
                     <PdfMarkdown content={bullet.claim} />
                   </div>
-                  <div className="mt-3 text-[11.4px] leading-7 text-slate-800">
+                  <div className="mt-2 text-[11.4px] leading-7 text-slate-800">
                     <span className="report-subhead mr-2">Primary Driver:</span>
                     <span>{markdownToPlainText(bullet.driver || '—')}</span>
                   </div>
-                  <div className="mt-2 text-[11.4px] leading-7 text-slate-800">
+                  <div className="mt-1 text-[11.4px] leading-7 text-slate-800">
                     <span className="report-subhead mr-2">Market Mispricing:</span>
                     <span>{markdownToPlainText(bullet.mispricing || '—')}</span>
                   </div>
@@ -981,8 +998,8 @@ export function ResearchExportDocument({
               </thead>
               <tbody>
                 <tr>
-                  <td><PdfMarkdown content={report.bullCase} /></td>
-                  <td><PdfMarkdown content={report.bearCase} /></td>
+                  <td><PdfMarkdown content={normalizeScenarioMarkdown(report.bullCase, 'Bull Case')} /></td>
+                  <td><PdfMarkdown content={normalizeScenarioMarkdown(report.bearCase, 'Bear Case')} /></td>
                 </tr>
               </tbody>
             </table>
@@ -990,7 +1007,7 @@ export function ResearchExportDocument({
             <div className="avoid-break">
               <h3 className="report-subsection-title keep-with-next font-serif">Bear Case</h3>
               <div>
-                <PdfMarkdown content={report.bearCase} />
+                <PdfMarkdown content={normalizeScenarioMarkdown(report.bearCase, 'Bear Case')} />
               </div>
             </div>
           )}
