@@ -1,7 +1,7 @@
 'use client';
 
 import { ValuationBridge, RevenueGrowthChart, EBITMarginChart, SensitivityTable } from './ValuationVisuals';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 
@@ -53,6 +53,72 @@ function formatBillions(value: number) {
   return `$${(value / 1e9).toFixed(1)}B`;
 }
 
+const valuationMarkdownComponents: Components = {
+  h2: ({ children }) => (
+    <h2 className="mt-6 mb-3 text-lg font-bold text-slate-900">{children}</h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="mt-5 mb-2 text-base font-semibold text-slate-900">{children}</h3>
+  ),
+  h4: ({ children }) => (
+    <h4 className="mt-4 mb-2 text-sm font-semibold uppercase tracking-wide text-slate-700">{children}</h4>
+  ),
+  p: ({ children }) => (
+    <p className="my-3 leading-7 text-gray-700">{children}</p>
+  ),
+  ul: ({ children }) => (
+    <ul className="my-3 ml-6 list-disc space-y-2 text-gray-700">{children}</ul>
+  ),
+  ol: ({ children }) => (
+    <ol className="my-3 ml-6 list-decimal space-y-2 text-gray-700">{children}</ol>
+  ),
+  li: ({ children }) => (
+    <li className="pl-1 leading-7">{children}</li>
+  ),
+  table: ({ children }) => (
+    <div className="my-4 overflow-x-auto rounded-lg border border-slate-200">
+      <table className="min-w-full border-collapse text-sm">{children}</table>
+    </div>
+  ),
+  thead: ({ children }) => (
+    <thead className="bg-slate-50">{children}</thead>
+  ),
+  th: ({ children }) => (
+    <th className="border-b border-slate-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700">
+      {children}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td className="border-b border-slate-100 px-3 py-2 align-top text-sm text-gray-700">{children}</td>
+  ),
+  blockquote: ({ children }) => (
+    <blockquote className="my-4 border-l-4 border-slate-300 pl-4 italic text-slate-700">{children}</blockquote>
+  ),
+  a: ({ href, children }) => (
+    <a href={href} className="text-blue-700 underline underline-offset-2">{children}</a>
+  ),
+  strong: ({ children }) => (
+    <strong className="font-semibold text-slate-900">{children}</strong>
+  ),
+  img: ({ src, alt }) => (
+    <img src={src ?? ''} alt={alt ?? ''} className="my-4 block max-w-full rounded-lg" />
+  ),
+};
+
+function ValuationMarkdown({ content, compact = false }: { content: string; compact?: boolean }) {
+  return (
+    <div className={compact ? 'text-[15px]' : 'text-base'}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw]}
+        components={valuationMarkdownComponents}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+}
+
 export function InstitutionalValuationSection({
   dcfData,
   comparables,
@@ -63,10 +129,8 @@ export function InstitutionalValuationSection({
 
   if (!dcfData) {
     return (
-      <div className={`prose max-w-none [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full ${isDocument ? 'text-slate-700 prose-headings:text-slate-950 prose-p:leading-7' : 'prose-lg text-gray-700'}`}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-          {valuationText}
-        </ReactMarkdown>
+      <div className={isDocument ? 'text-slate-700' : 'text-gray-700'}>
+        <ValuationMarkdown content={valuationText} compact={isDocument} />
       </div>
     );
   }
