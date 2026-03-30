@@ -85,6 +85,9 @@ export interface ResearchExportReport {
 const PDF_MARKDOWN_CLASSNAME = `
   prose max-w-none text-[11.15px] leading-[1.8] text-slate-800
   prose-headings:font-semibold prose-headings:text-slate-950
+  prose-h2:mt-7 prose-h2:mb-3 prose-h2:font-serif prose-h2:text-[18px] prose-h2:leading-tight
+  prose-h3:mt-6 prose-h3:mb-3 prose-h3:font-serif prose-h3:text-[16px] prose-h3:leading-tight
+  prose-h4:mt-5 prose-h4:mb-2 prose-h4:font-sans prose-h4:text-[10px] prose-h4:font-semibold prose-h4:uppercase prose-h4:tracking-[0.08em] prose-h4:text-slate-600
   prose-p:my-2.5 prose-p:text-slate-800
   prose-strong:text-slate-950
   prose-ul:my-2.5 prose-ul:list-disc prose-ul:pl-5
@@ -418,6 +421,46 @@ function PdfMarkdown({ content }: { content?: string | null }) {
       </ReactMarkdown>
     </div>
   );
+}
+
+function normalizeStructuredSectionMarkdown(content?: string | null) {
+  if (!content) return '';
+
+  const lines = content.split('\n');
+  let inCodeFence = false;
+
+  return lines
+    .map((line, index) => {
+      const trimmed = line.trim();
+
+      if (trimmed.startsWith('```')) {
+        inCodeFence = !inCodeFence;
+        return line;
+      }
+
+      if (!trimmed || inCodeFence) return line;
+      if (/^(#{1,6}\s|\* |- |\d+\. |\| |>)/.test(trimmed)) return line;
+      if (trimmed.endsWith(':')) return line;
+
+      const prev = lines[index - 1]?.trim() ?? '';
+      const next = lines[index + 1]?.trim() ?? '';
+      const wordCount = trimmed.split(/\s+/).length;
+      const looksLikeSectionLabel =
+        wordCount <= 5 &&
+        trimmed.length <= 48 &&
+        /^[A-Z0-9][A-Za-z0-9/&,\-() ]+$/.test(trimmed) &&
+        !/[.!?]$/.test(trimmed);
+
+      if (!looksLikeSectionLabel) return line;
+      if (!prev && !next) return line;
+
+      return `### ${trimmed}`;
+    })
+    .join('\n');
+}
+
+function StructuredPdfMarkdown({ content }: { content?: string | null }) {
+  return <PdfMarkdown content={normalizeStructuredSectionMarkdown(content)} />;
 }
 
 function markdownToPlainText(content?: string | null) {
@@ -925,7 +968,7 @@ export function ResearchExportDocument({
         {report.aiStrategies && (
           <PdfSection number="9" title="AI & Data Strategy">
             <SectionLabel>AI & Data Strategy</SectionLabel>
-            <PdfMarkdown content={report.aiStrategies} />
+            <StructuredPdfMarkdown content={report.aiStrategies} />
           </PdfSection>
         )}
 
