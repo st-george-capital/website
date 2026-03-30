@@ -92,13 +92,15 @@ export function InstitutionalValuationSection({
   if (isDocument) {
     return (
       <div className="space-y-7">
-        {valuationText && (
-          <div className="report-lead">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-              {valuationText}
-            </ReactMarkdown>
-          </div>
-        )}
+        <p className="report-lead">
+          Our valuation framework blends relative market context with a discounted cash flow assessment to anchor fair value at{' '}
+          <strong>${outputs.intrinsicValuePerShare.toFixed(2)}</strong> per share. The current base case implies{' '}
+          <strong className={outputs.upsideDownside >= 0 ? 'text-emerald-700' : 'text-red-700'}>
+            {(outputs.upsideDownside * 100).toFixed(1)}% {outputs.upsideDownside >= 0 ? 'upside' : 'downside'}
+          </strong>{' '}
+          versus the prevailing share price, with sensitivity primarily driven by discount rate, terminal growth, and execution
+          against the forecast margin profile.
+        </p>
 
         <div className="report-stat-strip avoid-break">
           <div className="report-stat">
