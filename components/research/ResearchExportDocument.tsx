@@ -823,15 +823,12 @@ export function ResearchExportDocument({
             <div className="mt-14 grid grid-cols-[1.2fr_0.8fr] gap-10">
               <div>
                 <SectionLabel>Top Thesis Themes</SectionLabel>
-                <div className="mt-4 space-y-4">
+                <div className="mt-4 space-y-3">
                   {report.investmentThesis.slice(0, 3).map((bullet, index) => (
-                    <div key={index}>
-                      <div className="report-sans text-[11px] font-semibold uppercase tracking-[0.03em] text-[#0b1f3a]">
+                    <div key={index} className="border-b border-slate-200 pb-3 last:border-b-0 last:pb-0">
+                      <div className="report-sans text-[11.25px] font-semibold uppercase tracking-[0.04em] text-[#0b1f3a]">
                         {bullet.title ? markdownToPlainText(bullet.title) : `Thesis ${index + 1}`}
                       </div>
-                      <p className="mt-1.5 text-[11.1px] leading-6 text-slate-700">
-                        {markdownToPlainText(bullet.driver || bullet.mispricing || bullet.claim || 'Core thesis driver not provided.')}
-                      </p>
                     </div>
                   ))}
                 </div>
