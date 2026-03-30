@@ -144,9 +144,24 @@ const EXPORT_DOCUMENT_STYLES = `
   }
 
   .pdf-doc .report-section-title {
-    font-size: 27px;
-    line-height: 1.08;
-    color: #020617;
+    margin-bottom: 14px;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.35;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #0b1f3a;
+  }
+
+  .pdf-doc .report-section-label {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.35;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #0b1f3a;
   }
 
   .pdf-doc .report-subhead {
@@ -161,9 +176,13 @@ const EXPORT_DOCUMENT_STYLES = `
   .pdf-doc .report-subsection-title {
     display: block;
     margin-bottom: 12px;
-    font-size: 17px;
-    line-height: 1.3;
-    color: #0f172a;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.35;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #0b1f3a;
   }
 
   .pdf-doc .report-lead {
@@ -320,33 +339,33 @@ const EXPORT_DOCUMENT_STYLES = `
   .pdf-doc .report-markdown h2,
   .pdf-doc .report-markdown h3,
   .pdf-doc .report-markdown h4 {
-    color: #020617;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: #0b1f3a;
     break-after: avoid;
     page-break-after: avoid;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
   }
 
   .pdf-doc .report-markdown h2 {
-    margin: 28px 0 12px;
-    font-size: 20px;
-    line-height: 1.15;
-    font-weight: 600;
+    margin: 24px 0 12px;
+    font-size: 13px;
+    line-height: 1.35;
+    font-weight: 700;
   }
 
   .pdf-doc .report-markdown h3 {
-    margin: 24px 0 12px;
-    font-size: 17px;
-    line-height: 1.25;
-    font-weight: 600;
+    margin: 22px 0 11px;
+    font-size: 13px;
+    line-height: 1.35;
+    font-weight: 700;
   }
 
   .pdf-doc .report-markdown h4 {
-    margin: 20px 0 10px;
-    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-    font-size: 10px;
+    margin: 18px 0 10px;
+    font-size: 11px;
     font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #475569;
+    color: #0b1f3a;
   }
 
   .pdf-doc .report-markdown p {
@@ -431,7 +450,7 @@ const EXPORT_DOCUMENT_STYLES = `
 
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <div className="report-kicker mb-3">
+    <div className="report-section-label mb-3">
       {children}
     </div>
   );
@@ -803,16 +822,15 @@ export function ResearchExportDocument({
 
             <div className="mt-14 grid grid-cols-[1.2fr_0.8fr] gap-10">
               <div>
-                <SectionLabel>Investment Summary</SectionLabel>
+                <SectionLabel>Top Thesis Themes</SectionLabel>
                 <div className="mt-4 space-y-4">
                   {report.investmentThesis.slice(0, 3).map((bullet, index) => (
                     <div key={index}>
-                      <div className="report-sans text-[11px] font-semibold uppercase text-slate-500">
+                      <div className="report-sans text-[11px] font-semibold uppercase tracking-[0.03em] text-[#0b1f3a]">
                         {bullet.title ? markdownToPlainText(bullet.title) : `Thesis ${index + 1}`}
                       </div>
-                      <p className="mt-2 text-[11.25px] leading-6 text-slate-700">
-                        {markdownToPlainText(bullet.claim).slice(0, 210)}
-                        {markdownToPlainText(bullet.claim).length > 210 ? '...' : ''}
+                      <p className="mt-1.5 text-[11.1px] leading-6 text-slate-700">
+                        {markdownToPlainText(bullet.driver || bullet.mispricing || bullet.claim || 'Core thesis driver not provided.')}
                       </p>
                     </div>
                   ))}
@@ -1066,7 +1084,6 @@ export function ResearchExportDocument({
         </PdfSection>
 
         <PdfSection number="4" title="Industry & Competitive Landscape">
-          <SectionLabel>Industry Analysis</SectionLabel>
           <PdfMarkdown content={report.industryAnalysis} />
         </PdfSection>
 
@@ -1172,21 +1189,18 @@ export function ResearchExportDocument({
 
         {report.aiStrategies && (
           <PdfSection number="9" title="AI & Data Strategy">
-            <SectionLabel>AI & Data Strategy</SectionLabel>
             <PdfMarkdown content={report.aiStrategies} />
           </PdfSection>
         )}
 
         {report.esgFactors && (
           <PdfSection number="10" title="ESG & Governance">
-            <SectionLabel>ESG & Governance</SectionLabel>
             <PdfMarkdown content={report.esgFactors} />
           </PdfSection>
         )}
 
         {report.concludingSection && (
           <PdfSection number="11" title="Conclusion">
-            <SectionLabel>Conclusion</SectionLabel>
             <PdfMarkdown content={report.concludingSection} />
           </PdfSection>
         )}
