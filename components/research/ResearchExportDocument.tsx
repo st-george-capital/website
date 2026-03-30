@@ -82,24 +82,7 @@ export interface ResearchExportReport {
   status: string;
 }
 
-const PDF_MARKDOWN_CLASSNAME = `
-  prose max-w-none text-[11.15px] leading-[1.8] text-slate-800
-  prose-headings:font-semibold prose-headings:text-slate-950
-  prose-h2:mt-7 prose-h2:mb-3 prose-h2:font-serif prose-h2:text-[20px] prose-h2:leading-tight
-  prose-h3:mt-6 prose-h3:mb-3 prose-h3:font-serif prose-h3:text-[17px] prose-h3:leading-tight
-  prose-h4:mt-5 prose-h4:mb-2 prose-h4:font-sans prose-h4:text-[10px] prose-h4:font-semibold prose-h4:uppercase prose-h4:tracking-[0.08em] prose-h4:text-slate-600
-  prose-p:my-2.5 prose-p:pl-1.5 prose-p:text-slate-800
-  prose-strong:text-slate-950
-  prose-ul:my-2.5 prose-ul:list-disc prose-ul:pl-5
-  prose-ol:my-2.5 prose-ol:list-decimal prose-ol:pl-5
-  prose-li:my-1.5
-  prose-table:my-4 prose-table:w-full prose-table:table-fixed prose-table:border-collapse
-  prose-thead:border-y prose-thead:border-slate-300
-  prose-th:border-b prose-th:border-slate-300 prose-th:bg-slate-50 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:text-[9.5px] prose-th:font-semibold prose-th:uppercase prose-th:text-slate-700
-  prose-td:border-b prose-td:border-slate-200 prose-td:px-3 prose-td:py-2 prose-td:text-[10.5px]
-  prose-blockquote:border-l-2 prose-blockquote:border-slate-300 prose-blockquote:pl-4 prose-blockquote:text-slate-700
-  [&_img]:mx-auto [&_img]:my-4 [&_img]:max-w-full [&_img]:rounded
-`;
+const PDF_MARKDOWN_CLASSNAME = 'report-markdown';
 
 const EXPORT_DOCUMENT_STYLES = `
   @media print {
@@ -326,6 +309,123 @@ const EXPORT_DOCUMENT_STYLES = `
   .pdf-doc .report-rule {
     height: 1px;
     background: #cbd5e1;
+  }
+
+  .pdf-doc .report-markdown {
+    font-size: 11.15px;
+    line-height: 1.8;
+    color: #1f2937;
+  }
+
+  .pdf-doc .report-markdown h2,
+  .pdf-doc .report-markdown h3,
+  .pdf-doc .report-markdown h4 {
+    color: #020617;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .pdf-doc .report-markdown h2 {
+    margin: 28px 0 12px;
+    font-size: 20px;
+    line-height: 1.15;
+    font-weight: 600;
+  }
+
+  .pdf-doc .report-markdown h3 {
+    margin: 24px 0 12px;
+    font-size: 17px;
+    line-height: 1.25;
+    font-weight: 600;
+  }
+
+  .pdf-doc .report-markdown h4 {
+    margin: 20px 0 10px;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #475569;
+  }
+
+  .pdf-doc .report-markdown p {
+    margin: 10px 0;
+    padding-left: 6px;
+    color: #1f2937;
+  }
+
+  .pdf-doc .report-markdown strong {
+    color: #020617;
+  }
+
+  .pdf-doc .report-markdown ul,
+  .pdf-doc .report-markdown ol {
+    margin: 10px 0 10px 22px;
+    padding-left: 0;
+  }
+
+  .pdf-doc .report-markdown ul {
+    list-style: disc;
+  }
+
+  .pdf-doc .report-markdown ol {
+    list-style: decimal;
+  }
+
+  .pdf-doc .report-markdown li {
+    margin: 6px 0;
+    padding-left: 2px;
+  }
+
+  .pdf-doc .report-markdown li::marker {
+    color: #334155;
+  }
+
+  .pdf-doc .report-markdown table {
+    width: 100%;
+    margin: 16px 0;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 10.5px;
+    color: #0f172a;
+  }
+
+  .pdf-doc .report-markdown thead {
+    border-top: 1px solid #cbd5e1;
+    border-bottom: 1px solid #cbd5e1;
+  }
+
+  .pdf-doc .report-markdown th {
+    border-bottom: 1px solid #cbd5e1;
+    background: #f8fafc;
+    padding: 8px 10px;
+    text-align: left;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #475569;
+  }
+
+  .pdf-doc .report-markdown td {
+    border-bottom: 1px solid #e2e8f0;
+    padding: 8px 10px;
+    vertical-align: top;
+  }
+
+  .pdf-doc .report-markdown blockquote {
+    margin: 14px 0;
+    border-left: 2px solid #cbd5e1;
+    padding-left: 14px;
+    color: #475569;
+  }
+
+  .pdf-doc .report-markdown img {
+    display: block;
+    max-width: 100%;
+    margin: 16px auto;
+    border-radius: 4px;
   }
 `;
 
