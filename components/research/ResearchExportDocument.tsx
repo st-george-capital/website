@@ -172,6 +172,14 @@ const EXPORT_DOCUMENT_STYLES = `
     color: #475569;
   }
 
+  .pdf-doc .report-subsection-title {
+    display: block;
+    margin-bottom: 12px;
+    font-size: 17px;
+    line-height: 1.3;
+    color: #0f172a;
+  }
+
   .pdf-doc .report-lead {
     font-size: 11.6px;
     line-height: 1.85;
@@ -248,6 +256,13 @@ const EXPORT_DOCUMENT_STYLES = `
   .pdf-doc .report-two-col {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 22px;
+    align-items: start;
+  }
+
+  .pdf-doc .report-valuation-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.28fr) minmax(0, 0.92fr);
     gap: 22px;
     align-items: start;
   }
@@ -342,6 +357,12 @@ function formatMoney(value: number, digits = 2) {
   return `$${value.toFixed(digits)}`;
 }
 
+function hasAnyTimeframe(
+  catalysts: Array<{ timeframe?: string | null }>
+) {
+  return catalysts.some((catalyst) => Boolean(catalyst.timeframe?.trim()));
+}
+
 function formatChartDate(value?: string) {
   const parsed = value ? new Date(value) : null;
   if (!parsed || Number.isNaN(parsed.getTime())) return value ?? '';
@@ -430,6 +451,53 @@ function getImpactBadge(impact: string) {
   return colors[impact as keyof typeof colors] || 'bg-gray-100 text-gray-800';
 }
 
+function CatalystTable({
+  label,
+  catalysts,
+}: {
+  label: string;
+  catalysts: Array<{
+    event: string;
+    mechanism: string;
+    probability: string;
+    timeframe: string;
+  }>;
+}) {
+  const showTimeframe = hasAnyTimeframe(catalysts);
+
+  return (
+    <div className="report-table-wrap">
+      <SectionLabel>{label}</SectionLabel>
+      <table className="report-table">
+        <colgroup>
+          <col style={{ width: showTimeframe ? '24%' : '28%' }} />
+          {showTimeframe && <col style={{ width: '16%' }} />}
+          <col style={{ width: '14%' }} />
+          <col style={{ width: showTimeframe ? '46%' : '58%' }} />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Event</th>
+            {showTimeframe && <th>Timeframe</th>}
+            <th>Probability</th>
+            <th>Mechanism</th>
+          </tr>
+        </thead>
+        <tbody>
+          {catalysts.map((catalyst, index) => (
+            <tr key={index}>
+              <td className="font-medium">{catalyst.event}</td>
+              {showTimeframe && <td>{catalyst.timeframe || '—'}</td>}
+              <td className="capitalize">{catalyst.probability}</td>
+              <td>{catalyst.mechanism}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function ResearchExportDocument({
   report,
   logoSrc = sgcLogo.src,
@@ -464,7 +532,7 @@ export function ResearchExportDocument({
                       St. George Capital
                     </div>
                     <div className="report-sans mt-1 text-[9.5px] uppercase tracking-[0.24em] text-slate-200">
-                      Institutional Investment Research
+                      Canada's Premier Investment Research Student Group
                     </div>
                   </div>
                 </div>
@@ -610,7 +678,7 @@ export function ResearchExportDocument({
             <div className="space-y-7">
               {report.investmentThesis.map((bullet, index) => (
                 <section key={index} className="avoid-break">
-                  <h3 className="keep-with-next font-serif text-[18px] leading-tight text-slate-950">
+                  <h3 className="report-subsection-title keep-with-next font-serif">
                     {bullet.title ? markdownToPlainText(bullet.title) : `Investment Thesis ${index + 1}`}
                   </h3>
                   <div className="mt-3 text-[11.5px] leading-7 text-slate-800">
@@ -758,66 +826,10 @@ export function ResearchExportDocument({
         <PdfSection number="5" title="Catalysts & Timeline">
           <div className="space-y-6">
             {report.catalystsNearTerm.length > 0 && (
-              <div className="report-table-wrap">
-                <SectionLabel>Near-Term Catalysts</SectionLabel>
-                <table className="report-table">
-                  <colgroup>
-                    <col style={{ width: '22%' }} />
-                    <col style={{ width: '16%' }} />
-                    <col style={{ width: '13%' }} />
-                    <col style={{ width: '49%' }} />
-                  </colgroup>
-                  <thead>
-                    <tr>
-                      <th>Event</th>
-                      <th>Timeframe</th>
-                      <th>Probability</th>
-                      <th>Mechanism</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {report.catalystsNearTerm.map((catalyst, index) => (
-                      <tr key={index}>
-                        <td className="font-medium">{catalyst.event}</td>
-                        <td>{catalyst.timeframe || '—'}</td>
-                        <td className="capitalize">{catalyst.probability}</td>
-                        <td>{catalyst.mechanism}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <CatalystTable label="Near-Term Catalysts" catalysts={report.catalystsNearTerm} />
             )}
             {report.catalystsMediumTerm.length > 0 && (
-              <div className="report-table-wrap">
-                <SectionLabel>Medium-Term Catalysts</SectionLabel>
-                <table className="report-table">
-                  <colgroup>
-                    <col style={{ width: '22%' }} />
-                    <col style={{ width: '16%' }} />
-                    <col style={{ width: '13%' }} />
-                    <col style={{ width: '49%' }} />
-                  </colgroup>
-                  <thead>
-                    <tr>
-                      <th>Event</th>
-                      <th>Timeframe</th>
-                      <th>Probability</th>
-                      <th>Mechanism</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {report.catalystsMediumTerm.map((catalyst, index) => (
-                      <tr key={index}>
-                        <td className="font-medium">{catalyst.event}</td>
-                        <td>{catalyst.timeframe || '—'}</td>
-                        <td className="capitalize">{catalyst.probability}</td>
-                        <td>{catalyst.mechanism}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <CatalystTable label="Medium-Term Catalysts" catalysts={report.catalystsMediumTerm} />
             )}
           </div>
         </PdfSection>
@@ -833,59 +845,6 @@ export function ResearchExportDocument({
               </p>
             </div>
 
-            {report.competitivePosition?.rows && report.competitivePosition.rows.length > 0 && (
-              <div className="report-table-wrap">
-                <SectionLabel>Comparable Companies</SectionLabel>
-                <div className="overflow-x-auto">
-                  <table className="report-table">
-                    <colgroup>
-                      <col style={{ width: '18%' }} />
-                      <col style={{ width: '9%' }} />
-                      <col style={{ width: '8%' }} />
-                      <col style={{ width: '9%' }} />
-                      <col style={{ width: '7%' }} />
-                      <col style={{ width: '8%' }} />
-                      <col style={{ width: '7%' }} />
-                      <col style={{ width: '11%' }} />
-                      <col style={{ width: '12%' }} />
-                      <col style={{ width: '11%' }} />
-                    </colgroup>
-                    <thead>
-                      <tr>
-                        {['Company','Mkt Cap','EV/Rev','EV/EBITDA','P/E','Fwd P/E','P/S','Rev Growth','EBITDA Margin','Beta'].map((heading) => (
-                          <th key={heading} className={heading === 'Company' ? '' : 'num'}>
-                            {heading}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {report.competitivePosition.rows.map((row: any, index: number) => (
-                        <tr key={`${row.ticker}-${index}`} className={row.isSubject ? 'bg-slate-100' : ''}>
-                          <td>
-                            <div className="font-medium">{row.name}</div>
-                            <div className="text-[9px] text-slate-500">{row.ticker}</div>
-                          </td>
-                          <td className="num">{row.marketCap != null ? (row.marketCap >= 1000 ? `$${(row.marketCap / 1000).toFixed(1)}B` : `$${row.marketCap.toFixed(0)}M`) : '—'}</td>
-                          <td className="num">{row.evToRevenue != null ? `${row.evToRevenue.toFixed(1)}x` : '—'}</td>
-                          <td className="num">{row.evToEBITDA != null ? `${row.evToEBITDA.toFixed(1)}x` : '—'}</td>
-                          <td className="num">{row.peTrailing != null ? `${row.peTrailing.toFixed(1)}x` : '—'}</td>
-                          <td className="num">{row.peForward != null ? `${row.peForward.toFixed(1)}x` : '—'}</td>
-                          <td className="num">{row.priceToSales != null ? `${row.priceToSales.toFixed(1)}x` : '—'}</td>
-                          <td className="num">{row.revenueGrowthYoY != null ? `${(row.revenueGrowthYoY * 100).toFixed(1)}%` : '—'}</td>
-                          <td className="num">{row.ebitdaMargin != null ? `${(row.ebitdaMargin * 100).toFixed(1)}%` : '—'}</td>
-                          <td className="num">{row.beta != null ? row.beta.toFixed(2) : '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {report.competitivePosition.source && (
-                  <div className="report-caption">Source: {report.competitivePosition.source}</div>
-                )}
-              </div>
-            )}
-
             <div>
               <InstitutionalValuationSection
                 dcfData={report.dcfInputs && report.dcfOutputs ? {
@@ -893,6 +852,7 @@ export function ResearchExportDocument({
                   outputs: report.dcfOutputs as any,
                   companyName: report.companyName,
                 } : null}
+                comparables={report.competitivePosition ?? null}
                 valuationText={report.valuationAnalysis || 'Not provided'}
                 variant="document"
               />
@@ -901,22 +861,33 @@ export function ResearchExportDocument({
         </PdfSection>
 
         <PdfSection number="7" title="Scenario Analysis">
-          <div className="space-y-6">
-            {report.bullCase && (
-              <div className="avoid-break">
-                <h3 className="keep-with-next font-serif text-[17px] leading-tight text-slate-950">Bull Case</h3>
-                <div className="mt-3">
-                  <PdfMarkdown content={report.bullCase} />
-                </div>
-              </div>
-            )}
+          {report.bullCase ? (
+            <table className="report-table avoid-break">
+              <colgroup>
+                <col style={{ width: '50%' }} />
+                <col style={{ width: '50%' }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Bull Case</th>
+                  <th>Bear Case</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><PdfMarkdown content={report.bullCase} /></td>
+                  <td><PdfMarkdown content={report.bearCase} /></td>
+                </tr>
+              </tbody>
+            </table>
+          ) : (
             <div className="avoid-break">
-              <h3 className="keep-with-next font-serif text-[17px] leading-tight text-slate-950">Bear Case</h3>
-              <div className="mt-3">
+              <h3 className="report-subsection-title keep-with-next font-serif">Bear Case</h3>
+              <div>
                 <PdfMarkdown content={report.bearCase} />
               </div>
             </div>
-          </div>
+          )}
           {report.bullBearJustification && (
             <div className="mt-6">
               <SectionLabel>Scenario Framing</SectionLabel>
@@ -927,11 +898,11 @@ export function ResearchExportDocument({
 
         {report.keyRisks.length > 0 && (
           <PdfSection number="8" title="Key Risks">
-            <ol className="space-y-5">
+            <ol className="space-y-6">
               {report.keyRisks.map((risk, index) => (
-                <li key={index} className="avoid-break list-none">
+                <li key={index} className="avoid-break list-none border-b border-slate-200 pb-5 last:border-b-0 last:pb-0">
                   <div className="flex items-baseline justify-between gap-4">
-                    <h3 className="keep-with-next font-serif text-[17px] leading-tight text-slate-950">
+                    <h3 className="report-subsection-title keep-with-next font-serif !mb-0">
                       {index + 1}. {risk.title}
                     </h3>
                     <span className={`report-sans rounded px-2 py-1 text-[10px] font-semibold uppercase ${getImpactBadge(risk.impact)}`}>
