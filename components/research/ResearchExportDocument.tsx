@@ -417,7 +417,7 @@ function PdfMarkdown({ content }: { content?: string | null }) {
   return (
     <div className={PDF_MARKDOWN_CLASSNAME}>
       <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-        {content}
+        {normalizeStructuredSectionMarkdown(content)}
       </ReactMarkdown>
     </div>
   );
@@ -457,10 +457,6 @@ function normalizeStructuredSectionMarkdown(content?: string | null) {
       return `### ${trimmed}`;
     })
     .join('\n');
-}
-
-function StructuredPdfMarkdown({ content }: { content?: string | null }) {
-  return <PdfMarkdown content={normalizeStructuredSectionMarkdown(content)} />;
 }
 
 function markdownToPlainText(content?: string | null) {
@@ -968,7 +964,7 @@ export function ResearchExportDocument({
         {report.aiStrategies && (
           <PdfSection number="9" title="AI & Data Strategy">
             <SectionLabel>AI & Data Strategy</SectionLabel>
-            <StructuredPdfMarkdown content={report.aiStrategies} />
+            <PdfMarkdown content={report.aiStrategies} />
           </PdfSection>
         )}
 
