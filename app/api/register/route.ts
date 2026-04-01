@@ -4,14 +4,28 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { Resend } from 'resend';
 
-const ADMIN_CODE = process.env.ADMIN_CODE || 'stgeorge2025';
-
 function getResendClient() {
   if (!process.env.RESEND_API_KEY) {
     return null;
   }
 
   return new Resend(process.env.RESEND_API_KEY);
+}
+
+function getAdminCode() {
+  const adminCode = process.env.ADMIN_CODE?.trim();
+  return adminCode && adminCode.length > 0 ? adminCode : null;
+}
+
+function isValidAdminCode(submittedCode: string, expectedCode: string) {
+  const submitted = Buffer.from(submittedCode);
+  const expected = Buffer.from(expectedCode);
+
+  if (submitted.length !== expected.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(submitted, expected);
 }
 
 export async function POST(request: NextRequest) {
@@ -35,11 +49,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Check admin code if role is admin
-    if (role === 'admin' && adminCode !== ADMIN_CODE) {
-      return NextResponse.json(
-        { error: 'Invalid admin code' },
-        { status: 400 }
-      );
+    if (role === 'admin') {
+      const configuredAdminCode = getAdminCode();
+
+      if (!configuredAdminCode) {
+        console.error('ADMIN_CODE is not configured. Admin registration is disabled.');
+        return NextResponse.json(
+          { error: 'Admin registration is not configured' },
+          { status: 503 }
+        );
+      }
+
+      if (!adminCode || !isValidAdminCode(adminCode, configuredAdminCode)) {
+        return NextResponse.json(
+          { error: 'Invalid admin code' },
+          { status: 400 }
+        );
+      }
     }
 
     // Check if user already exists

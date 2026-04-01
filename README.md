@@ -70,6 +70,7 @@ Required variables:
 DATABASE_URL="postgresql://user:password@localhost:5432/sgc?schema=public"
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="your-secret-key"  # Generate with: openssl rand -base64 32
+ADMIN_CODE="set-a-private-admin-code"
 ```
 
 Optional (for market data):
@@ -278,4 +279,3 @@ For questions or issues:
 - [ ] Member portal
 - [ ] Event management system
 - [ ] Newsletter integration
-

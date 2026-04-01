@@ -228,6 +228,7 @@ Or run these in Vercel's terminal (see Step 8).
 3. Add to Vercel env vars:
    ```
    RESEND_API_KEY=re_xxxxx
+   ADMIN_CODE=your-private-admin-code
    ```
 4. Update `/app/api/send-email/route.ts` (uncomment Resend code)
 
@@ -363,4 +364,3 @@ Next time you make changes:
 1. `git push`
 2. Vercel auto-deploys
 3. Live in 2 minutes! 🚀
-
