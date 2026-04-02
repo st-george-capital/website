@@ -76,6 +76,7 @@ ADMIN_CODE="set-a-private-admin-code"
 Optional (for market data):
 ```env
 POLYGON_API_KEY="your-polygon-api-key"
+ALPHA_VANTAGE_API_KEY="your-alpha-vantage-api-key"
 ```
 
 4. **Set up the database**

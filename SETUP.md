@@ -30,7 +30,7 @@ ADMIN_CODE="set-a-private-admin-code"
 
 # Market Data (Optional - for real-time pricing)
 POLYGON_API_KEY="your-polygon-api-key"
-ALPHA_VANTAGE_API_KEY=api_key
+ALPHA_VANTAGE_API_KEY="your-alpha-vantage-api-key"
 ```
 
 ## 3. Set Up Database
