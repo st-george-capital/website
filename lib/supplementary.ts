@@ -1,4 +1,4 @@
-export type SupplementaryTab = 'transcript' | 'insider' | 'estimates' | 'calendar';
+export type SupplementaryTab = 'transcript' | 'insider' | 'estimates' | 'calendar' | 'holdings';
 
 export interface SupplementaryEntity {
   query: string | null;
@@ -81,6 +81,28 @@ export interface SupplementaryCalendarData {
   entries: SupplementaryCalendarEntry[];
 }
 
+export interface SupplementaryInstitutionalHolding {
+  holderName: string;
+  sharesHeld: number | null;
+  sharesChanged: number | null;
+  sharesChangedPercentage: number | null;
+  changeType: 'increased' | 'decreased' | 'unchanged' | 'other';
+  lastReported: string | null;
+}
+
+export interface SupplementaryInstitutionalHoldingsData {
+  totalInstitutionalHolders: number | null;
+  totalInstitutionalShares: number | null;
+  totalInstitutionalOwnershipPercentage: number | null;
+  holdersWithIncreasedHoldings: number | null;
+  holdersWithDecreasedHoldings: number | null;
+  holdersWithUnchangedHoldings: number | null;
+  largestHolders: SupplementaryInstitutionalHolding[];
+  biggestIncreases: SupplementaryInstitutionalHolding[];
+  biggestReductions: SupplementaryInstitutionalHolding[];
+  concentrationSummary: string;
+}
+
 export interface SupplementaryResponsePayload {
   tab: SupplementaryTab;
   entity: SupplementaryEntity;
@@ -89,4 +111,5 @@ export interface SupplementaryResponsePayload {
   insider: SupplementaryInsiderData | null;
   estimates: SupplementaryEstimatesData | null;
   calendar: SupplementaryCalendarData | null;
+  holdings: SupplementaryInstitutionalHoldingsData | null;
 }

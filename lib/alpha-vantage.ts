@@ -132,6 +132,45 @@ export interface AlphaVantageEarningsCalendarEntry {
   currency: string | null;
 }
 
+export interface AlphaVantageInstitutionalHoldingEntry {
+  holderName: string;
+  sharesHeld: number | null;
+  sharesChanged: number | null;
+  sharesChangedPercentage: number | null;
+  changeType: string | null;
+  lastReported: string | null;
+}
+
+export interface AlphaVantageInstitutionalHoldingsResponse {
+  symbol: string;
+  totalInstitutionalHolders: number | null;
+  totalInstitutionalShares: number | null;
+  holdersWithIncreasedHoldings: number | null;
+  sharesWithIncreasedHoldings: number | null;
+  holdersWithDecreasedHoldings: number | null;
+  sharesWithDecreasedHoldings: number | null;
+  holdersWithUnchangedHoldings: number | null;
+  sharesWithUnchangedHoldings: number | null;
+  totalInstitutionalOwnershipPercentage: number | null;
+  holdings: AlphaVantageInstitutionalHoldingEntry[];
+}
+
+export interface AlphaVantageMoverEntry {
+  ticker: string;
+  price: number | null;
+  changeAmount: number | null;
+  changePercentage: number | null;
+  volume: number | null;
+}
+
+export interface AlphaVantageTopMoversResponse {
+  metadata: string | null;
+  lastUpdated: string | null;
+  topGainers: AlphaVantageMoverEntry[];
+  topLosers: AlphaVantageMoverEntry[];
+  mostActivelyTraded: AlphaVantageMoverEntry[];
+}
+
 interface AlphaVantageRequestParams {
   [key: string]: string | number | undefined | null;
 }
@@ -440,4 +479,63 @@ export async function fetchAlphaVantageEarningsCalendar(
     estimate: parseFloatOrNull(row.estimate || row.epsEstimate || row.eps_estimate),
     currency: row.currency || row.Currency || null,
   }));
+}
+
+export async function fetchAlphaVantageInstitutionalHoldings(
+  ticker: string
+): Promise<AlphaVantageInstitutionalHoldingsResponse> {
+  const data = await fetchAlphaVantage({
+    function: 'INSTITUTIONAL_HOLDINGS',
+    symbol: ticker,
+  });
+
+  return {
+    symbol: data.symbol || ticker,
+    totalInstitutionalHolders: parseFloatOrNull(data.total_institutional_holders),
+    totalInstitutionalShares: parseFloatOrNull(data.total_institutional_shares),
+    holdersWithIncreasedHoldings: parseFloatOrNull(data.holders_with_increased_holdings),
+    sharesWithIncreasedHoldings: parseFloatOrNull(data.shares_with_increased_holdings),
+    holdersWithDecreasedHoldings: parseFloatOrNull(data.holders_with_decreased_holdings),
+    sharesWithDecreasedHoldings: parseFloatOrNull(data.shares_with_decreased_holdings),
+    holdersWithUnchangedHoldings: parseFloatOrNull(data.holders_with_unchanged_holdings),
+    sharesWithUnchangedHoldings: parseFloatOrNull(data.shares_with_unchanged_holdings),
+    totalInstitutionalOwnershipPercentage: parseFloatOrNull(
+      String(data.total_institutional_ownership_percentage || '').replace('%', '')
+    ),
+    holdings: Array.isArray(data.holdings)
+      ? data.holdings.map((holding: Record<string, string>) => ({
+          holderName: holding.holder_name || '',
+          sharesHeld: parseFloatOrNull(holding.shares_held),
+          sharesChanged: parseFloatOrNull(holding.shares_changed),
+          sharesChangedPercentage: parseFloatOrNull(String(holding.shares_changed_percentage || '').replace('%', '')),
+          changeType: holding.change_type || null,
+          lastReported: holding.last_reported || null,
+        }))
+      : [],
+  };
+}
+
+export async function fetchAlphaVantageTopGainersLosers(): Promise<AlphaVantageTopMoversResponse> {
+  const data = await fetchAlphaVantage({
+    function: 'TOP_GAINERS_LOSERS',
+  });
+
+  const mapEntries = (entries: unknown) =>
+    Array.isArray(entries)
+      ? entries.map((entry: Record<string, string>) => ({
+          ticker: entry.ticker || '',
+          price: parseFloatOrNull(entry.price),
+          changeAmount: parseFloatOrNull(entry.change_amount),
+          changePercentage: parseFloatOrNull(String(entry.change_percentage || '').replace('%', '')),
+          volume: parseFloatOrNull(entry.volume),
+        }))
+      : [];
+
+  return {
+    metadata: data.metadata || null,
+    lastUpdated: data.last_updated || null,
+    topGainers: mapEntries(data.top_gainers),
+    topLosers: mapEntries(data.top_losers),
+    mostActivelyTraded: mapEntries(data.most_actively_traded),
+  };
 }

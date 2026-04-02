@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import {
+  Building2,
   AlertTriangle,
   ArrowLeft,
   CalendarClock,
@@ -53,6 +54,12 @@ const tabs: Array<{
     label: 'Calendar',
     icon: CalendarClock,
     description: 'Upcoming earnings events across the next reporting window.',
+  },
+  {
+    id: 'holdings',
+    label: 'Holdings',
+    icon: Building2,
+    description: 'Institutional ownership concentration, biggest adds, and biggest trims.',
   },
 ];
 
@@ -384,6 +391,8 @@ export default function SupplementaryToolsPage() {
                   ? `${currentResult.insider?.summary.transactionCount || 0} records`
                   : activeTab === 'estimates'
                     ? `${(currentResult.estimates?.quarterly.length || 0) + (currentResult.estimates?.annual.length || 0)} estimate rows`
+                    : activeTab === 'holdings'
+                      ? `${currentResult.holdings?.largestHolders.length || 0} top holders`
                     : activeTab === 'calendar'
                       ? `${currentResult.calendar?.entries.length || 0} events`
                       : `${currentResult.transcript?.sections.reduce((count, section) => count + section.paragraphs.length, 0) || 0} transcript blocks`
@@ -634,6 +643,128 @@ export default function SupplementaryToolsPage() {
             </table>
           </CardContent>
         </Card>
+      )}
+
+      {activeTab === 'holdings' && currentResult?.holdings && (
+        <div className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <StatCard
+              label="Institutional holders"
+              value={currentResult.holdings.totalInstitutionalHolders != null ? formatNumber(Math.round(currentResult.holdings.totalInstitutionalHolders)) : '—'}
+            />
+            <StatCard
+              label="Ownership"
+              value={
+                currentResult.holdings.totalInstitutionalOwnershipPercentage != null
+                  ? `${currentResult.holdings.totalInstitutionalOwnershipPercentage.toFixed(1)}%`
+                  : '—'
+              }
+            />
+            <StatCard
+              label="Holders increasing"
+              value={currentResult.holdings.holdersWithIncreasedHoldings != null ? formatNumber(Math.round(currentResult.holdings.holdersWithIncreasedHoldings)) : '—'}
+            />
+            <StatCard
+              label="Holders decreasing"
+              value={currentResult.holdings.holdersWithDecreasedHoldings != null ? formatNumber(Math.round(currentResult.holdings.holdersWithDecreasedHoldings)) : '—'}
+            />
+            <StatCard
+              label="Institutional shares"
+              value={currentResult.holdings.totalInstitutionalShares != null ? formatNumber(Math.round(currentResult.holdings.totalInstitutionalShares)) : '—'}
+            />
+          </div>
+
+          <Card hover={false}>
+            <CardHeader>
+              <CardTitle className="text-xl">Ownership Read</CardTitle>
+              <CardDescription>{currentResult.holdings.concentrationSummary}</CardDescription>
+            </CardHeader>
+          </Card>
+
+          <div className="grid gap-6 xl:grid-cols-3">
+            <Card hover={false}>
+              <CardHeader>
+                <CardTitle className="text-xl">Largest Holders</CardTitle>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                <table className="min-w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+                      <th className="py-3 pr-4">Holder</th>
+                      <th className="py-3 pr-4 text-right">Shares</th>
+                      <th className="py-3 text-right">Last Reported</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentResult.holdings.largestHolders.map((holding) => (
+                      <tr key={`${holding.holderName}-${holding.lastReported}`} className="border-b border-slate-100 text-slate-700">
+                        <td className="py-3 pr-4 font-medium text-slate-900">{holding.holderName}</td>
+                        <td className="py-3 pr-4 text-right">{holding.sharesHeld != null ? formatNumber(Math.round(holding.sharesHeld)) : '—'}</td>
+                        <td className="py-3 text-right">{formatOptionalDate(holding.lastReported)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+
+            <Card hover={false}>
+              <CardHeader>
+                <CardTitle className="text-xl">Biggest Increases</CardTitle>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                <table className="min-w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+                      <th className="py-3 pr-4">Holder</th>
+                      <th className="py-3 pr-4 text-right">Change</th>
+                      <th className="py-3 text-right">% Change</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentResult.holdings.biggestIncreases.map((holding) => (
+                      <tr key={`${holding.holderName}-${holding.sharesChanged}`} className="border-b border-slate-100 text-slate-700">
+                        <td className="py-3 pr-4 font-medium text-slate-900">{holding.holderName}</td>
+                        <td className="py-3 pr-4 text-right">{holding.sharesChanged != null ? formatNumber(Math.round(holding.sharesChanged)) : '—'}</td>
+                        <td className="py-3 text-right">
+                          {holding.sharesChangedPercentage != null ? `${holding.sharesChangedPercentage > 0 ? '+' : ''}${holding.sharesChangedPercentage.toFixed(1)}%` : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+
+            <Card hover={false}>
+              <CardHeader>
+                <CardTitle className="text-xl">Biggest Reductions</CardTitle>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                <table className="min-w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+                      <th className="py-3 pr-4">Holder</th>
+                      <th className="py-3 pr-4 text-right">Change</th>
+                      <th className="py-3 text-right">% Change</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentResult.holdings.biggestReductions.map((holding) => (
+                      <tr key={`${holding.holderName}-${holding.sharesChanged}`} className="border-b border-slate-100 text-slate-700">
+                        <td className="py-3 pr-4 font-medium text-slate-900">{holding.holderName}</td>
+                        <td className="py-3 pr-4 text-right">{holding.sharesChanged != null ? formatNumber(Math.round(holding.sharesChanged)) : '—'}</td>
+                        <td className="py-3 text-right">
+                          {holding.sharesChangedPercentage != null ? `${holding.sharesChangedPercentage > 0 ? '+' : ''}${holding.sharesChangedPercentage.toFixed(1)}%` : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       )}
     </div>
   );

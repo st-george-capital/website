@@ -6,6 +6,7 @@ import {
   fetchAlphaVantageEarningsCalendar,
   fetchAlphaVantageEarningsEstimates,
   fetchAlphaVantageEarningsHistory,
+  fetchAlphaVantageInstitutionalHoldings,
   fetchAlphaVantageInsiderTransactions,
   fetchAlphaVantageSymbolSearch,
   type AlphaVantageSymbolMatch,
@@ -14,6 +15,8 @@ import type {
   SupplementaryCalendarData,
   SupplementaryEstimateRow,
   SupplementaryEstimatesData,
+  SupplementaryInstitutionalHolding,
+  SupplementaryInstitutionalHoldingsData,
   SupplementaryInsiderData,
   SupplementaryInsiderSummary,
   SupplementaryInsiderTransaction,
@@ -73,7 +76,7 @@ async function resolveEntity(rawSymbol: string | null, rawQuery: string | null) 
 }
 
 function normalizeTab(raw: string | null): SupplementaryTab {
-  if (raw === 'insider' || raw === 'estimates' || raw === 'calendar') return raw;
+  if (raw === 'insider' || raw === 'estimates' || raw === 'calendar' || raw === 'holdings') return raw;
   return 'transcript';
 }
 
@@ -502,6 +505,68 @@ function normalizeCalendarData(
   } satisfies SupplementaryCalendarData;
 }
 
+function normalizeInstitutionalChangeType(raw: string | null | undefined) {
+  const value = String(raw || '').toLowerCase();
+  if (value === 'increased') return 'increased' as const;
+  if (value === 'decreased') return 'decreased' as const;
+  if (value === 'unchanged') return 'unchanged' as const;
+  return 'other' as const;
+}
+
+function normalizeInstitutionalHoldingsData(
+  raw: Awaited<ReturnType<typeof fetchAlphaVantageInstitutionalHoldings>>
+) {
+  if (!raw.holdings.length) {
+    return null;
+  }
+
+  const holdings: SupplementaryInstitutionalHolding[] = raw.holdings.map((holding) => ({
+    holderName: holding.holderName,
+    sharesHeld: holding.sharesHeld,
+    sharesChanged: holding.sharesChanged,
+    sharesChangedPercentage: holding.sharesChangedPercentage,
+    changeType: normalizeInstitutionalChangeType(holding.changeType),
+    lastReported: holding.lastReported,
+  }));
+
+  const largestHolders = [...holdings]
+    .sort((left, right) => (right.sharesHeld || 0) - (left.sharesHeld || 0))
+    .slice(0, 10);
+  const biggestIncreases = holdings
+    .filter((holding) => holding.changeType === 'increased')
+    .sort((left, right) => (right.sharesChanged || 0) - (left.sharesChanged || 0))
+    .slice(0, 8);
+  const biggestReductions = holdings
+    .filter((holding) => holding.changeType === 'decreased')
+    .sort((left, right) => (right.sharesChanged || 0) - (left.sharesChanged || 0))
+    .slice(0, 8);
+
+  const increaseCount = raw.holdersWithIncreasedHoldings || 0;
+  const decreaseCount = raw.holdersWithDecreasedHoldings || 0;
+  const unchangedCount = raw.holdersWithUnchangedHoldings || 0;
+  const concentrationSummary =
+    increaseCount > decreaseCount
+      ? 'More reporting institutions increased than reduced their positions in the latest filing window.'
+      : decreaseCount > increaseCount
+        ? 'More reporting institutions reduced than increased their positions in the latest filing window.'
+        : unchangedCount > 0
+          ? 'The latest filing window shows a relatively balanced ownership base with a meaningful unchanged cohort.'
+          : 'Institutional positioning appears broadly balanced in the latest filing window.';
+
+  return {
+    totalInstitutionalHolders: raw.totalInstitutionalHolders,
+    totalInstitutionalShares: raw.totalInstitutionalShares,
+    totalInstitutionalOwnershipPercentage: raw.totalInstitutionalOwnershipPercentage,
+    holdersWithIncreasedHoldings: raw.holdersWithIncreasedHoldings,
+    holdersWithDecreasedHoldings: raw.holdersWithDecreasedHoldings,
+    holdersWithUnchangedHoldings: raw.holdersWithUnchangedHoldings,
+    largestHolders,
+    biggestIncreases,
+    biggestReductions,
+    concentrationSummary,
+  } satisfies SupplementaryInstitutionalHoldingsData;
+}
+
 function emptyPayload(
   tab: SupplementaryTab,
   entity: SupplementaryResponsePayload['entity']
@@ -514,6 +579,7 @@ function emptyPayload(
     insider: null,
     estimates: null,
     calendar: null,
+    holdings: null,
   };
 }
 
@@ -580,6 +646,15 @@ export async function GET(request: NextRequest) {
       const payload = emptyPayload(tab, entity);
       payload.estimates = estimates;
       payload.emptyState = estimates ? null : 'No earnings estimate data was returned for this ticker.';
+      return NextResponse.json(payload);
+    }
+
+    if (tab === 'holdings') {
+      const holdingsRaw = await fetchAlphaVantageInstitutionalHoldings(entity.symbol as string);
+      const holdings = normalizeInstitutionalHoldingsData(holdingsRaw);
+      const payload = emptyPayload(tab, entity);
+      payload.holdings = holdings;
+      payload.emptyState = holdings ? null : 'No institutional holdings data was returned for this ticker.';
       return NextResponse.json(payload);
     }
 
