@@ -449,16 +449,16 @@ function normalizeEstimatesData(raw: Record<string, unknown>) {
     return horizon.includes('year');
   });
 
-  const sortByPeriodDate = (left: Record<string, unknown>, right: Record<string, unknown>) =>
-    String(left.date || left.reportDate || '').localeCompare(String(right.date || right.reportDate || ''));
+  const sortByPeriodDateDesc = (left: Record<string, unknown>, right: Record<string, unknown>) =>
+    String(right.date || right.reportDate || '').localeCompare(String(left.date || left.reportDate || ''));
 
   const quarterly = quarterlySource
-    .sort(sortByPeriodDate)
+    .sort(sortByPeriodDateDesc)
     .filter((value): value is Record<string, unknown> => Boolean(value) && typeof value === 'object')
     .map(mapEstimateRow)
     .slice(0, 8);
   const annual = annualSource
-    .sort(sortByPeriodDate)
+    .sort(sortByPeriodDateDesc)
     .filter((value): value is Record<string, unknown> => Boolean(value) && typeof value === 'object')
     .map(mapEstimateRow)
     .slice(0, 6);
