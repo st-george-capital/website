@@ -272,11 +272,14 @@ function inferInsiderAction(record: Record<string, unknown>) {
       record.transaction_type ||
       record.acquisitionOrDisposition ||
       record.acquisition_or_disposition ||
+      record.acquisition_or_disposal ||
       record.action ||
       record.type ||
       ''
   ).toLowerCase();
 
+  if (raw === 'a') return 'buy' as const;
+  if (raw === 'd') return 'sell' as const;
   if (/\b(buy|purchase|acquire|acquisition)\b/.test(raw)) return 'buy' as const;
   if (/\b(sell|sale|dispose|disposition)\b/.test(raw)) return 'sell' as const;
   return 'other' as const;
@@ -295,8 +298,8 @@ function normalizeInsiderData(raw: Record<string, unknown>) {
 
       return {
         date: String(record.transactionDate || record.transaction_date || record.filingDate || record.filing_date || '') || null,
-        insiderName: String(record.insiderName || record.insider_name || record.name || record.owner || 'Unknown insider'),
-        title: String(record.title || record.jobTitle || record.job_title || record.executiveTitle || '') || null,
+        insiderName: String(record.insiderName || record.insider_name || record.executive || record.name || record.owner || 'Unknown insider'),
+        title: String(record.title || record.jobTitle || record.job_title || record.executiveTitle || record.executive_title || '') || null,
         action: inferInsiderAction(record),
         shares,
         sharePrice,
@@ -317,6 +320,8 @@ function normalizeInsiderData(raw: Record<string, unknown>) {
       const parsed = new Date(row.date as string);
       return !Number.isNaN(parsed.getTime()) && Date.now() - parsed.getTime() <= 30 * 24 * 60 * 60 * 1000;
     });
+  const recentBuys = recentWindow.filter((row) => row.action === 'buy').length;
+  const recentSells = recentWindow.filter((row) => row.action === 'sell').length;
 
   const insiderActivity = rows.reduce<Record<string, number>>((accumulator, row) => {
     accumulator[row.insiderName] = (accumulator[row.insiderName] || 0) + 1;
@@ -338,9 +343,17 @@ function normalizeInsiderData(raw: Record<string, unknown>) {
     mostActiveInsider,
     clusterActivity:
       recentWindow.length >= 4
-        ? 'Clustered activity in the last 30 days.'
+        ? recentBuys > recentSells
+          ? 'Recent filings skew toward clustered buying.'
+          : recentSells > recentBuys
+            ? 'Recent filings skew toward clustered selling.'
+            : 'Recent filings show mixed clustered activity.'
         : recentWindow.length >= 2
-          ? 'Some recent insider activity is visible.'
+          ? recentBuys > recentSells
+            ? 'Some recent insider buying is visible.'
+            : recentSells > recentBuys
+              ? 'Some recent insider selling is visible.'
+              : 'Some recent mixed insider activity is visible.'
           : 'No strong recent cluster signal.',
   };
 
@@ -351,15 +364,29 @@ function normalizeInsiderData(raw: Record<string, unknown>) {
 }
 
 function inferRevisionDirection(record: Record<string, unknown>) {
-  const current = parseNumeric(record.currentEstimate || record.current_estimate || record.estimatedEPSAvg || record.epsEstimate);
+  const current = parseNumeric(
+    record.currentEstimate ||
+      record.current_estimate ||
+      record.estimatedEPSAvg ||
+      record.epsEstimate ||
+      record.eps_estimate_average
+  );
   const previous = parseNumeric(
     record.priorEstimate ||
       record.prior_estimate ||
       record.previousEstimate ||
       record.previous_estimate ||
       record.estimate30DaysAgo ||
-      record.estimate_30_days_ago
+      record.estimate_30_days_ago ||
+      record.eps_estimate_average_30_days_ago
   );
+  const revisionsUp = parseNumeric(record.eps_estimate_revision_up_trailing_30_days || record.revision_up_30d);
+  const revisionsDown = parseNumeric(record.eps_estimate_revision_down_trailing_30_days || record.revision_down_30d);
+
+  if (revisionsUp != null || revisionsDown != null) {
+    if ((revisionsUp || 0) > (revisionsDown || 0)) return 'up' as const;
+    if ((revisionsDown || 0) > (revisionsUp || 0)) return 'down' as const;
+  }
 
   if (current == null || previous == null) return 'unknown' as const;
   if (current > previous) return 'up' as const;
@@ -369,25 +396,69 @@ function inferRevisionDirection(record: Record<string, unknown>) {
 
 function mapEstimateRow(record: Record<string, unknown>): SupplementaryEstimateRow {
   return {
-    period: String(record.period || record.fiscalDateEnding || record.fiscal_date_ending || record.reportDate || record.report_date || 'Unknown period'),
+    period: String(record.period || record.fiscalDateEnding || record.fiscal_date_ending || record.reportDate || record.report_date || record.date || 'Unknown period'),
     reportDate: String(record.reportDate || record.report_date || record.date || '') || null,
-    epsEstimate: parseNumeric(record.epsEstimate || record.eps_estimate || record.estimatedEPSAvg || record.estimated_eps_avg),
-    revenueEstimate: parseNumeric(record.revenueEstimate || record.revenue_estimate || record.estimatedRevenueAvg || record.estimated_revenue_avg),
-    analystCount: parseNumeric(record.numberOfAnalysts || record.analystCount || record.analyst_count || record.analysts),
+    epsEstimate: parseNumeric(
+      record.epsEstimate ||
+      record.eps_estimate ||
+      record.estimatedEPSAvg ||
+      record.estimated_eps_avg ||
+      record.eps_estimate_average
+    ),
+    revenueEstimate: parseNumeric(
+      record.revenueEstimate ||
+      record.revenue_estimate ||
+      record.estimatedRevenueAvg ||
+      record.estimated_revenue_avg ||
+      record.revenue_estimate_average
+    ),
+    analystCount: parseNumeric(
+      record.numberOfAnalysts ||
+      record.analystCount ||
+      record.analyst_count ||
+      record.analysts ||
+      record.eps_estimate_analyst_count ||
+      record.revenue_estimate_analyst_count
+    ),
     revisionDirection: inferRevisionDirection(record),
     currency: String(record.currency || record.Currency || '') || null,
   };
 }
 
 function normalizeEstimatesData(raw: Record<string, unknown>) {
-  const quarterlySource = extractFirstArray(raw, ['quarterlyEstimates', 'quarterly_estimates', 'quarterly']);
-  const annualSource = extractFirstArray(raw, ['annualEstimates', 'annual_estimates', 'annual']);
+  const estimateSource = extractFirstArray(raw, [
+    'estimates',
+    'quarterlyEstimates',
+    'quarterly_estimates',
+    'quarterly',
+    'annualEstimates',
+    'annual_estimates',
+    'annual',
+  ]);
+
+  const estimateRows = estimateSource.filter(
+    (value): value is Record<string, unknown> => Boolean(value) && typeof value === 'object'
+  );
+
+  const quarterlySource = estimateRows.filter((row) => {
+    const horizon = String(row.horizon || '').toLowerCase();
+    return horizon.includes('quarter');
+  });
+  const annualSource = estimateRows.filter((row) => {
+    const horizon = String(row.horizon || '').toLowerCase();
+    return horizon.includes('year');
+  });
+
+  const sortByPeriodDate = (left: Record<string, unknown>, right: Record<string, unknown>) =>
+    String(left.date || left.reportDate || '').localeCompare(String(right.date || right.reportDate || ''));
 
   const quarterly = quarterlySource
+    .sort(sortByPeriodDate)
     .filter((value): value is Record<string, unknown> => Boolean(value) && typeof value === 'object')
     .map(mapEstimateRow)
     .slice(0, 8);
   const annual = annualSource
+    .sort(sortByPeriodDate)
     .filter((value): value is Record<string, unknown> => Boolean(value) && typeof value === 'object')
     .map(mapEstimateRow)
     .slice(0, 6);
