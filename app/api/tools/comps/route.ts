@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const AV_KEY = process.env.ALPHA_VANTAGE_API_KEY || 'GJV339TR2PPUSN9B';
+const AV_KEY = process.env.ALPHA_VANTAGE_API_KEY || '';
 const FMP_KEY = process.env.FMP_API_KEY || '';
 
 export interface CompsRow {

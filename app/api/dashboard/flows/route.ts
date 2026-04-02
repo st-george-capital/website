@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 export const revalidate = 300;
 
-const AV_KEY = process.env.ALPHA_VANTAGE_API_KEY || 'GJV339TR2PPUSN9B';
+const AV_KEY = process.env.ALPHA_VANTAGE_API_KEY || '';
 const AV_BASE = 'https://www.alphavantage.co/query';
 
 const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
