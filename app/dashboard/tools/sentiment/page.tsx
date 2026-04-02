@@ -316,7 +316,7 @@ export default function SentimentToolPage() {
             <div>
               <CardTitle className="text-2xl">Live News Read</CardTitle>
               <CardDescription>
-                Ticker-first analysis with optional keyword narrowing. No saved history, just a clean live snapshot.
+                Ticker-first analysis with optional keyword narrowing.
               </CardDescription>
             </div>
           </div>

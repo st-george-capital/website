@@ -147,7 +147,10 @@ export async function fetchRedditSupplementaryScore({
     });
 
     if (!response.ok) {
-      return buildEmptySourceScore(`Reddit search returned ${response.status}.`, 'error');
+      if (response.status === 403) {
+        return buildEmptySourceScore('Reddit search is blocked in the current deployment environment.', 'unavailable');
+      }
+      return buildEmptySourceScore(`Reddit search is temporarily unavailable (${response.status}).`, 'error');
     }
 
     const data = await response.json();
@@ -194,7 +197,7 @@ export async function fetchXSupplementaryScore({
 }): Promise<SocialSourceScore> {
   const bearerToken = process.env.X_BEARER_TOKEN;
   if (!bearerToken) {
-    return buildEmptySourceScore('Set X_BEARER_TOKEN to enable live X sentiment.', 'unavailable');
+    return buildEmptySourceScore('Optional: configure X_BEARER_TOKEN to enable the live X overlay.', 'unavailable');
   }
 
   try {
