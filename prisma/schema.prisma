@@ -420,7 +420,8 @@ model EquityResearchReport {
   valuationMethod       String   // "dcf" | "multiples" | "both"
   valuationAnalysis     String   @db.Text
   sensitivityAnalysis   Json
-  
+  sentimentSnapshot     Json?
+
   // Risks & Scenarios
   bearCase              String   @db.Text
   bullCase              String?  @db.Text

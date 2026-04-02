@@ -131,6 +131,7 @@ export async function POST(req: NextRequest) {
         priceHistory: data.priceHistory || null,
         timeHorizon: data.timeHorizon || '12 months',
         concludingSection: data.concludingSection || null,
+        ...(data.sentimentSnapshot !== undefined ? { sentimentSnapshot: data.sentimentSnapshot } : {}),
       },
     });
 

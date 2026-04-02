@@ -6,6 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { InstitutionalValuationSection } from '@/components/InstitutionalValuationSection';
+import { ResearchSentimentSection } from '@/components/research/ResearchSentimentSection';
 
 const prisma = new PrismaClient();
 
@@ -485,6 +486,13 @@ export default async function PublicResearchReportPage({
             valuationText={report.valuationAnalysis}
           />
         </div>
+
+        {(report as any).sentimentSnapshot && (
+          <div className="bg-white rounded-2xl p-8 space-y-6">
+            <h2 className="text-3xl font-bold text-gray-900">Sentiment & News Flow</h2>
+            <ResearchSentimentSection sentiment={(report as any).sentimentSnapshot} />
+          </div>
+        )}
 
         {/* Bull & Bear Cases */}
         <div className="bg-white rounded-2xl p-8 space-y-6">

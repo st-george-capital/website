@@ -10,6 +10,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { InstitutionalValuationSection } from '@/components/InstitutionalValuationSection';
+import { ResearchSentimentSection } from '@/components/research/ResearchSentimentSection';
 import type { ResearchExportReport } from '@/components/research/ResearchExportDocument';
 
 type ResearchReport = ResearchExportReport;
@@ -550,6 +551,17 @@ export default function ResearchReportPreviewPage() {
           />
         </CardContent>
       </Card>
+
+      {report.sentimentSnapshot && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl">Sentiment & News Flow</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResearchSentimentSection sentiment={report.sentimentSnapshot} />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Bull & Bear Cases */}
       <Card>

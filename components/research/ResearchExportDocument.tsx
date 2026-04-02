@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { InstitutionalValuationSection } from '@/components/InstitutionalValuationSection';
+import { ResearchSentimentSection, type ReportSentimentSnapshot } from '@/components/research/ResearchSentimentSection';
 import sgcLogo from '@/images/exec team/logo/sgc_logo.png';
 
 export interface ResearchExportReport {
@@ -67,6 +68,7 @@ export interface ResearchExportReport {
     timeframe: string;
   }>;
   valuationAnalysis: string;
+  sentimentSnapshot?: ReportSentimentSnapshot | null;
   bearCase: string;
   bullCase?: string | null;
   bullBearJustification?: string | null;
@@ -1176,7 +1178,13 @@ export function ResearchExportDocument({
           </div>
         </PdfSection>
 
-        <PdfSection number="7" title="Scenario Analysis">
+        {report.sentimentSnapshot && (
+          <PdfSection number="7" title="Sentiment & News Flow">
+            <ResearchSentimentSection sentiment={report.sentimentSnapshot} variant="document" />
+          </PdfSection>
+        )}
+
+        <PdfSection number={report.sentimentSnapshot ? "8" : "7"} title="Scenario Analysis">
           {report.bullCase ? (
             <table className="report-table avoid-break">
               <colgroup>
@@ -1213,7 +1221,7 @@ export function ResearchExportDocument({
         </PdfSection>
 
         {report.keyRisks.length > 0 && (
-          <PdfSection number="8" title="Key Risks">
+          <PdfSection number={report.sentimentSnapshot ? "9" : "8"} title="Key Risks">
             <ol className="space-y-4">
               {report.keyRisks.map((risk, index) => (
                 <li key={index} className="avoid-break list-none border-b border-slate-200 pb-4 last:border-b-0 last:pb-0">
@@ -1240,19 +1248,19 @@ export function ResearchExportDocument({
         )}
 
         {report.aiStrategies && (
-          <PdfSection number="9" title="AI & Data Strategy">
+          <PdfSection number={report.sentimentSnapshot ? "10" : "9"} title="AI & Data Strategy">
             <PdfMarkdown content={report.aiStrategies} />
           </PdfSection>
         )}
 
         {report.esgFactors && (
-          <PdfSection number="10" title="ESG & Governance">
+          <PdfSection number={report.sentimentSnapshot ? "11" : "10"} title="ESG & Governance">
             <PdfMarkdown content={report.esgFactors} />
           </PdfSection>
         )}
 
         {report.concludingSection && (
-          <PdfSection number="11" title="Conclusion">
+          <PdfSection number={report.sentimentSnapshot ? "12" : "11"} title="Conclusion">
             <PdfMarkdown content={report.concludingSection} />
           </PdfSection>
         )}
