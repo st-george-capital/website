@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   Calendar, MapPin, Globe, TrendingUp, FileText, Users,
   BarChart3, BookOpen, Presentation, Calculator, Briefcase,
-  BookMarked, Newspaper, Mail, Settings, ChevronRight, Clock, Brain, MessageSquareText,
+  BookMarked, Newspaper, Mail, Settings, ChevronRight, Clock, Brain, MessageSquareText, Sparkles, TrendingDown, Activity,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -30,6 +30,22 @@ interface FinanceTerm {
   term: string;
   definition: string;
   category: string;
+}
+
+interface MarketMover {
+  ticker: string;
+  price: number | null;
+  changeAmount: number | null;
+  changePercentage: number | null;
+  volume: number | null;
+}
+
+interface MarketMoversPayload {
+  metadata: string | null;
+  lastUpdated: string | null;
+  topGainers: MarketMover[];
+  topLosers: MarketMover[];
+  mostActivelyTraded: MarketMover[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -225,12 +241,84 @@ function FinanceTermCard({ term, loading }: { term: FinanceTerm | null; loading:
   );
 }
 
+function formatCompactNumber(value: number | null | undefined) {
+  if (value == null || Number.isNaN(value)) return '—';
+  if (Math.abs(value) >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}bn`;
+  if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}m`;
+  return new Intl.NumberFormat('en-US').format(value);
+}
+
+function formatMoverPercent(value: number | null | undefined) {
+  if (value == null || Number.isNaN(value)) return '—';
+  return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
+}
+
+function MarketMoversCard({ movers, loading }: { movers: MarketMoversPayload | null; loading: boolean }) {
+  const sections = [
+    { label: 'Top Gainers', icon: TrendingUp, rows: movers?.topGainers || [], accent: 'text-emerald-700' },
+    { label: 'Top Losers', icon: TrendingDown, rows: movers?.topLosers || [], accent: 'text-red-700' },
+    { label: 'Most Active', icon: Activity, rows: movers?.mostActivelyTraded || [], accent: 'text-slate-700' },
+  ];
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-[11px] font-semibold text-gray-400 uppercase tracking-widest">
+          <BarChart3 size={12} />
+          Market Movers
+        </div>
+        {movers?.lastUpdated ? (
+          <span className="text-[10px] text-gray-400">{movers.lastUpdated}</span>
+        ) : null}
+      </div>
+
+      {loading ? (
+        <div className="animate-pulse space-y-3">
+          <div className="h-4 bg-gray-100 rounded w-2/5" />
+          <div className="h-16 bg-gray-50 rounded-xl" />
+          <div className="h-16 bg-gray-50 rounded-xl" />
+          <div className="h-16 bg-gray-50 rounded-xl" />
+        </div>
+      ) : movers ? (
+        <div className="grid gap-4 xl:grid-cols-3">
+          {sections.map((section) => (
+            <div key={section.label} className="rounded-xl border border-gray-100 bg-gray-50/80 p-3">
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                <section.icon size={12} className={section.accent} />
+                {section.label}
+              </div>
+              <div className="mt-3 space-y-2">
+                {section.rows.slice(0, 5).map((row) => (
+                  <div key={`${section.label}-${row.ticker}`} className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 border border-gray-100">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-gray-900">{row.ticker}</div>
+                      <div className="text-[10px] text-gray-400">
+                        ${row.price?.toFixed(2) ?? '—'} · Vol {formatCompactNumber(row.volume)}
+                      </div>
+                    </div>
+                    <div className={`text-sm font-semibold ${section.accent}`}>
+                      {formatMoverPercent(row.changePercentage)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-sm text-gray-400">Market movers unavailable right now.</div>
+      )}
+    </div>
+  );
+}
+
 function ToolsCard() {
   const tools = [
     { label: 'Capital Flows', desc: 'ETF regime · pair ratios · macro', href: '/dashboard/flows', icon: TrendingUp },
     { label: 'Country Health', desc: '24-country macro scoring', href: '/dashboard/country-health', icon: Globe },
     { label: 'Interview Tool', desc: 'Question bank · quiz mode · submissions', href: '/dashboard/tools/interview', icon: Brain },
     { label: 'Sentiment Tool', desc: 'Live news sentiment · memo view', href: '/dashboard/tools/sentiment', icon: MessageSquareText },
+    { label: 'Supplementary Tools', desc: 'Transcript · insider · estimates · calendar', href: '/dashboard/tools/supplementary', icon: Sparkles },
   ];
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col gap-3">
@@ -270,6 +358,8 @@ export default function DashboardPage() {
   const [quoteLoading, setQuoteLoading] = useState(true);
   const [financeTerm, setFinanceTerm] = useState<FinanceTerm | null>(null);
   const [financeTermLoading, setFinanceTermLoading] = useState(true);
+  const [marketMovers, setMarketMovers] = useState<MarketMoversPayload | null>(null);
+  const [marketMoversLoading, setMarketMoversLoading] = useState(true);
 
   const firstName = session?.user?.name?.split(' ')[0] ?? 'there';
   const isAdmin = session?.user?.role === 'admin';
@@ -306,6 +396,14 @@ export default function DashboardPage() {
       .then(data => { if (data?.term) setFinanceTerm(data); })
       .catch(() => {})
       .finally(() => setFinanceTermLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/dashboard/market-movers')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.topGainers) setMarketMovers(data); })
+      .catch(() => {})
+      .finally(() => setMarketMoversLoading(false));
   }, []);
 
   if (session?.user?.role === 'visitor') {
@@ -354,6 +452,8 @@ export default function DashboardPage() {
         <FinanceTermCard term={financeTerm} loading={financeTermLoading} />
         <ToolsCard />
       </div>
+
+      <MarketMoversCard movers={marketMovers} loading={marketMoversLoading} />
 
       {/* ── Navigation grid ───────────────────────────────────────────────── */}
       <div>

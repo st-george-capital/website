@@ -556,6 +556,35 @@ const getDefaultInputs = (): DCFInputs => ({
   exitMultipleMetric: 'ebitda',
 });
 
+function resizeYearArray(values: number[] | undefined, forecastYears: number, fallbackValue: number): number[] | undefined {
+  if (values == null) return undefined;
+
+  const resized = values.slice(0, forecastYears);
+  const fillValue = resized.length > 0 ? resized[resized.length - 1] : fallbackValue;
+
+  while (resized.length < forecastYears) {
+    resized.push(fillValue);
+  }
+
+  return resized;
+}
+
+function normalizeInputsForForecastYears(inputs: DCFInputs): DCFInputs {
+  const forecastYears = Math.max(1, Math.floor(inputs.forecastYears || 5));
+
+  return {
+    ...inputs,
+    forecastYears,
+    revenueGrowth: resizeYearArray(inputs.revenueGrowth, forecastYears, 0.05) ?? Array(forecastYears).fill(0.05),
+    ebitMargin: resizeYearArray(inputs.ebitMargin, forecastYears, 0.15) ?? Array(forecastYears).fill(0.15),
+    ebitMarginAdvanced: resizeYearArray(inputs.ebitMarginAdvanced, forecastYears, inputs.ebitMargin[inputs.ebitMargin.length - 1] ?? 0.15),
+    capexByYear: resizeYearArray(inputs.capexByYear, forecastYears, inputs.capexPercentOfRevenue),
+    depreciationByYear: resizeYearArray(inputs.depreciationByYear, forecastYears, inputs.depreciationPercentOfRevenue),
+    nwcChangeByYear: resizeYearArray(inputs.nwcChangeByYear, forecastYears, inputs.nwcChangePercentOfRevenueChange),
+    cashTaxRateByYear: resizeYearArray(inputs.cashTaxRateByYear, forecastYears, inputs.cashTaxRate),
+  };
+}
+
 // Financial data extracted from uploaded files
 interface ExtractedFinancials {
   revenue: number[];
@@ -1128,7 +1157,10 @@ export default function DCFToolPage() {
   }, [isAdmin, showAllModels]);
 
   const updateInput = (field: keyof DCFInputs, value: any) => {
-    setInputs(prev => ({ ...prev, [field]: value }));
+    setInputs(prev => {
+      const nextInputs = { ...prev, [field]: value };
+      return field === 'forecastYears' ? normalizeInputsForForecastYears(nextInputs) : nextInputs;
+    });
   };
 
   const updateArrayInput = (field: keyof DCFInputs, index: number, value: number) => {
@@ -1970,7 +2002,7 @@ export default function DCFToolPage() {
       perpetualGrowth: (updatedInputs.perpetualGrowth * 100).toFixed(1) + '%'
     });
 
-    setInputs(updatedInputs);
+    setInputs(normalizeInputsForForecastYears(updatedInputs));
     console.log('DCF inputs updated successfully:', updatedInputs);
 
     // Force recalculation by triggering useEffect
@@ -5263,29 +5295,30 @@ function DCFFinalPresentation({ inputs, outputs }: { inputs: DCFInputs; outputs:
 
 // DCF Calculation Logic
 function calculateDCF(inputs: DCFInputs): DCFOutputs {
+  const normalizedInputs = normalizeInputsForForecastYears(inputs);
   const revenues: number[] = [];
   const ebit: number[] = [];
   const nopat: number[] = [];
   const freeCashFlow: number[] = [];
 
   // Calculate operating forecasts
-  let revenue = inputs.startingRevenue;
+  let revenue = normalizedInputs.startingRevenue;
 
-  for (let year = 0; year < inputs.forecastYears; year++) {
-    revenue *= (1 + inputs.revenueGrowth[year]);
+  for (let year = 0; year < normalizedInputs.forecastYears; year++) {
+    revenue *= (1 + normalizedInputs.revenueGrowth[year]);
     revenues.push(revenue);
 
     // EBIT calculation - use advanced mode if available, otherwise simple mode
-    const ebitMargin = inputs.forecastMode === 'advanced' && inputs.ebitMarginAdvanced
-      ? inputs.ebitMarginAdvanced[year]
-      : inputs.ebitMargin[year];
+    const ebitMargin = normalizedInputs.forecastMode === 'advanced' && normalizedInputs.ebitMarginAdvanced
+      ? normalizedInputs.ebitMarginAdvanced[year]
+      : normalizedInputs.ebitMargin[year];
     const ebitValue = revenue * ebitMargin;
     ebit.push(ebitValue);
 
     // Tax rate - use advanced mode if available, otherwise simple mode
-    const taxRate = inputs.forecastMode === 'advanced' && inputs.cashTaxRateByYear
-      ? inputs.cashTaxRateByYear[year]
-      : inputs.cashTaxRate;
+    const taxRate = normalizedInputs.forecastMode === 'advanced' && normalizedInputs.cashTaxRateByYear
+      ? normalizedInputs.cashTaxRateByYear[year]
+      : normalizedInputs.cashTaxRate;
     const nopatValue = ebitValue * (1 - taxRate);
     nopat.push(nopatValue);
 
@@ -5293,27 +5326,27 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
     let nwcChange = 0;
     if (year === 0) {
       // First year: assume NWC builds from zero
-      const revenueChange = revenue - inputs.startingRevenue;
-      nwcChange = revenueChange * (inputs.forecastMode === 'advanced' && inputs.nwcChangeByYear
-        ? inputs.nwcChangeByYear[year]
-        : inputs.nwcChangePercentOfRevenueChange);
+      const revenueChange = revenue - normalizedInputs.startingRevenue;
+      nwcChange = revenueChange * (normalizedInputs.forecastMode === 'advanced' && normalizedInputs.nwcChangeByYear
+        ? normalizedInputs.nwcChangeByYear[year]
+        : normalizedInputs.nwcChangePercentOfRevenueChange);
     } else {
       // Subsequent years: change based on revenue growth
       const revenueChange = revenues[year] - revenues[year - 1];
-      nwcChange = revenueChange * (inputs.forecastMode === 'advanced' && inputs.nwcChangeByYear
-        ? inputs.nwcChangeByYear[year]
-        : inputs.nwcChangePercentOfRevenueChange);
+      nwcChange = revenueChange * (normalizedInputs.forecastMode === 'advanced' && normalizedInputs.nwcChangeByYear
+        ? normalizedInputs.nwcChangeByYear[year]
+        : normalizedInputs.nwcChangePercentOfRevenueChange);
     }
 
     // Depreciation
-    const depreciation = revenue * (inputs.forecastMode === 'advanced' && inputs.depreciationByYear
-      ? inputs.depreciationByYear[year]
-      : inputs.depreciationPercentOfRevenue);
+    const depreciation = revenue * (normalizedInputs.forecastMode === 'advanced' && normalizedInputs.depreciationByYear
+      ? normalizedInputs.depreciationByYear[year]
+      : normalizedInputs.depreciationPercentOfRevenue);
 
     // Capex
-    const capex = revenue * (inputs.forecastMode === 'advanced' && inputs.capexByYear
-      ? inputs.capexByYear[year]
-      : inputs.capexPercentOfRevenue);
+    const capex = revenue * (normalizedInputs.forecastMode === 'advanced' && normalizedInputs.capexByYear
+      ? normalizedInputs.capexByYear[year]
+      : normalizedInputs.capexPercentOfRevenue);
 
     // FCFF calculation
     const fcff = nopatValue + depreciation - capex - nwcChange;
@@ -5321,9 +5354,9 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
   }
 
   // Calculate WACC
-  const costOfEquity = inputs.riskFreeRate + inputs.beta * inputs.equityRiskPremium;
-  const afterTaxCostOfDebt = inputs.costOfDebt * (1 - inputs.taxRate);
-  const wacc = costOfEquity * (1 - inputs.targetDebtRatio) + afterTaxCostOfDebt * inputs.targetDebtRatio;
+  const costOfEquity = normalizedInputs.riskFreeRate + normalizedInputs.beta * normalizedInputs.equityRiskPremium;
+  const afterTaxCostOfDebt = normalizedInputs.costOfDebt * (1 - normalizedInputs.taxRate);
+  const wacc = costOfEquity * (1 - normalizedInputs.targetDebtRatio) + afterTaxCostOfDebt * normalizedInputs.targetDebtRatio;
 
   // Calculate terminal value
   let terminalValue = 0;
@@ -5331,56 +5364,56 @@ function calculateDCF(inputs: DCFInputs): DCFOutputs {
   const lastRevenue = revenues[revenues.length - 1];
   const lastEBIT = ebit[ebit.length - 1];
   // Use terminal-year D&A rate (respects advanced mode)
-  const terminalDepRate = inputs.forecastMode === 'advanced' && inputs.depreciationByYear
-    ? inputs.depreciationByYear[inputs.depreciationByYear.length - 1]
-    : inputs.depreciationPercentOfRevenue;
+  const terminalDepRate = normalizedInputs.forecastMode === 'advanced' && normalizedInputs.depreciationByYear
+    ? normalizedInputs.depreciationByYear[normalizedInputs.depreciationByYear.length - 1]
+    : normalizedInputs.depreciationPercentOfRevenue;
 
-  if (inputs.terminalMethod === 'perpetual') {
-    terminalValue = lastFCFF * (1 + inputs.perpetualGrowth) / (wacc - inputs.perpetualGrowth);
-  } else if (inputs.terminalMethod === 'multiple') {
+  if (normalizedInputs.terminalMethod === 'perpetual') {
+    terminalValue = lastFCFF * (1 + normalizedInputs.perpetualGrowth) / (wacc - normalizedInputs.perpetualGrowth);
+  } else if (normalizedInputs.terminalMethod === 'multiple') {
     let exitMetric = 0;
-    if (inputs.exitMultipleMetric === 'ebitda') {
+    if (normalizedInputs.exitMultipleMetric === 'ebitda') {
       exitMetric = lastEBIT + lastRevenue * terminalDepRate;
-    } else if (inputs.exitMultipleMetric === 'ebit') {
+    } else if (normalizedInputs.exitMultipleMetric === 'ebit') {
       exitMetric = lastEBIT;
     } else {
       exitMetric = lastFCFF;
     }
-    terminalValue = exitMetric * inputs.exitMultiple;
-  } else if (inputs.terminalMethod === 'both') {
+    terminalValue = exitMetric * normalizedInputs.exitMultiple;
+  } else if (normalizedInputs.terminalMethod === 'both') {
     // Perpetuity component
-    const perpetualTV = lastFCFF * (1 + inputs.perpetualGrowth) / (wacc - inputs.perpetualGrowth);
+    const perpetualTV = lastFCFF * (1 + normalizedInputs.perpetualGrowth) / (wacc - normalizedInputs.perpetualGrowth);
 
     // Multiple component
     let exitMetric = 0;
-    if (inputs.exitMultipleMetric === 'ebitda') {
+    if (normalizedInputs.exitMultipleMetric === 'ebitda') {
       exitMetric = lastEBIT + lastRevenue * terminalDepRate;
-    } else if (inputs.exitMultipleMetric === 'ebit') {
+    } else if (normalizedInputs.exitMultipleMetric === 'ebit') {
       exitMetric = lastEBIT;
     } else {
       exitMetric = lastFCFF;
     }
-    const multipleTV = exitMetric * inputs.exitMultiple;
+    const multipleTV = exitMetric * normalizedInputs.exitMultiple;
 
     // Weighted average
-    terminalValue = (perpetualTV * inputs.terminalWeighting) + (multipleTV * (1 - inputs.terminalWeighting));
+    terminalValue = (perpetualTV * normalizedInputs.terminalWeighting) + (multipleTV * (1 - normalizedInputs.terminalWeighting));
   }
 
   // Calculate present values (with mid-year convention if enabled)
   let pvFcff = 0;
   for (let i = 0; i < freeCashFlow.length; i++) {
-    const discountPeriod = inputs.midYearConvention ? i + 0.5 : i + 1;
+    const discountPeriod = normalizedInputs.midYearConvention ? i + 0.5 : i + 1;
     pvFcff += freeCashFlow[i] / Math.pow(1 + wacc, discountPeriod);
   }
-  const pvTerminal = terminalValue / Math.pow(1 + wacc, inputs.forecastYears);
+  const pvTerminal = terminalValue / Math.pow(1 + wacc, normalizedInputs.forecastYears);
 
   // Calculate enterprise and equity value
   const enterpriseValue = pvFcff + pvTerminal;
-  const netDebt = inputs.totalDebt - inputs.cashEquivalents;
-  const equityValue = enterpriseValue - netDebt - inputs.preferredEquity - inputs.minorityInterest + inputs.nonOperatingAssets;
-  const sharesDiluted = inputs.sharesDiluted || 100000000; // Default if not set
+  const netDebt = normalizedInputs.totalDebt - normalizedInputs.cashEquivalents;
+  const equityValue = enterpriseValue - netDebt - normalizedInputs.preferredEquity - normalizedInputs.minorityInterest + normalizedInputs.nonOperatingAssets;
+  const sharesDiluted = normalizedInputs.sharesDiluted || 100000000; // Default if not set
   const intrinsicValuePerShare = equityValue / sharesDiluted;
-  const upsideDownside = inputs.currentPrice !== 0 ? (intrinsicValuePerShare - inputs.currentPrice) / inputs.currentPrice : 0;
+  const upsideDownside = normalizedInputs.currentPrice !== 0 ? (intrinsicValuePerShare - normalizedInputs.currentPrice) / normalizedInputs.currentPrice : 0;
   // PV of terminal value as % of EV — the meaningful sensitivity indicator
   const terminalValueContribution = enterpriseValue > 0 ? pvTerminal / enterpriseValue : 0;
 
