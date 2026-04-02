@@ -45,12 +45,31 @@ function formatChartDate(value?: string) {
 
 function parseFiftyTwoWeekRange(range?: string | null) {
   if (!range) return null;
-  const matches = range.match(/-?\d+(?:\.\d+)?/g);
-  if (!matches || matches.length < 2) return null;
-  const low = Number(matches[0]);
-  const high = Number(matches[1]);
+  const normalized = range.replace(/[–—]/g, '-');
+  const explicitMatch = normalized.match(/(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)/);
+
+  let low: number;
+  let high: number;
+
+  if (explicitMatch) {
+    low = Number(explicitMatch[1]);
+    high = Number(explicitMatch[2]);
+  } else {
+    const matches = normalized.match(/\d+(?:\.\d+)?/g);
+    if (!matches || matches.length < 2) return null;
+    low = Number(matches[0]);
+    high = Number(matches[1]);
+  }
+
   if (!Number.isFinite(low) || !Number.isFinite(high)) return null;
   return { low, high };
+}
+
+function normalizeChartData(points: PricePoint[]) {
+  return [...points]
+    .filter((point) => point?.date && Number.isFinite(point?.close))
+    .sort((left, right) => new Date(left.date).getTime() - new Date(right.date).getTime())
+    .slice(-252);
 }
 
 function parseEpsMarkdownTable(content?: string | null) {
@@ -97,7 +116,7 @@ function SnapshotMetric({
 
 export function ResearchMarketSnapshotSection({ report }: { report: MarketSnapshotReport }) {
   const hasEPS = !!report.epsTableMarkdown;
-  const chartData = ((report.priceHistory || report.dcfInputs?.priceHistory || []) as PricePoint[]).slice(0, 100);
+  const chartData = normalizeChartData((report.priceHistory || report.dcfInputs?.priceHistory || []) as PricePoint[]);
   const hasChart = report.showPriceChart !== false && (chartData.length > 0 || !!report.priceChartImageUrl);
   const epsRows = parseEpsMarkdownTable(report.epsTableMarkdown).slice(0, 8);
   const leftRows = epsRows.slice(0, Math.ceil(epsRows.length / 2));
@@ -124,9 +143,9 @@ export function ResearchMarketSnapshotSection({ report }: { report: MarketSnapsh
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {report.priceDate ? <SnapshotMetric label="Date of Price" value={report.priceDate} /> : null}
         {report.fiftyTwoWeekRange ? <SnapshotMetric label="52-Week Range" value={report.fiftyTwoWeekRange} /> : null}
-        {report.marketCap != null ? <SnapshotMetric label="Market Cap" value={formatCompactCurrencyFromMillions(report.marketCap)} sublabel="Converted from report market-cap inputs" /> : null}
+        {report.marketCap != null ? <SnapshotMetric label="Market Cap" value={formatCompactCurrencyFromMillions(report.marketCap)} /> : null}
         {report.fiscalYearEnd ? <SnapshotMetric label="Fiscal Year End" value={report.fiscalYearEnd} /> : null}
-        {report.sharesOutstanding != null ? <SnapshotMetric label="Shares O/S" value={formatCompactSharesFromMillions(report.sharesOutstanding)} sublabel="Shares outstanding" /> : null}
+        {report.sharesOutstanding != null ? <SnapshotMetric label="Shares O/S" value={formatCompactSharesFromMillions(report.sharesOutstanding)} /> : null}
         {report.peRatio != null || report.dcfInputs?.peRatio != null ? (
           <SnapshotMetric label="P/E Ratio" value={`${(report.peRatio ?? report.dcfInputs?.peRatio).toFixed(2)}x`} />
         ) : null}
@@ -205,10 +224,6 @@ export function ResearchMarketSnapshotSection({ report }: { report: MarketSnapsh
                   </ReactMarkdown>
                 </div>
               )}
-
-              <div className="mt-3 text-xs text-slate-500">
-                Compact trailing earnings exhibit aligned to the report’s market context.
-              </div>
             </section>
           )}
 
@@ -302,10 +317,6 @@ export function ResearchMarketSnapshotSection({ report }: { report: MarketSnapsh
                   </div>
                 </>
               )}
-
-              <div className="mt-3 text-xs text-slate-500">
-                Institutional-style price exhibit using the report’s saved trading history and range inputs.
-              </div>
             </section>
           )}
         </div>
