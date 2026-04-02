@@ -6,6 +6,7 @@ import type {
 
 export type SentimentLabel = 'bullish' | 'neutral' | 'bearish';
 export type ConfidenceLabel = 'low' | 'medium' | 'high';
+export type SocialStatus = 'available' | 'unavailable' | 'error';
 
 export interface SentimentArticle {
   id: string;
@@ -20,7 +21,10 @@ export interface SentimentArticle {
   articleSentimentScore: number;
   articleSentimentLabel: SentimentLabel;
   relevanceScore: number;
+  sourceWeight: number;
+  weightedSentimentScore: number;
   topics: string[];
+  eventTags: string[];
   matchedTicker: string | null;
 }
 
@@ -44,6 +48,59 @@ export interface SentimentPriceContext {
   dayChangePercent: number | null;
   trailingFiveDayReturn: number | null;
   divergenceSignal: string | null;
+}
+
+export interface SentimentSourceBreakdown {
+  source: string;
+  articleCount: number;
+  averageSentiment: number;
+  weightedContribution: number;
+}
+
+export interface SentimentEventBreakdown {
+  tag: string;
+  articleCount: number;
+  averageSentiment: number;
+}
+
+export interface SentimentPeerComparison {
+  symbol: string;
+  companyName: string | null;
+  overallSentimentScore: number;
+  overallSentimentLabel: SentimentLabel;
+  signalStrength: number;
+  articleCount: number;
+}
+
+export interface SocialMention {
+  title: string;
+  detail: string;
+  publishedAt?: string;
+  score: number;
+  url?: string;
+  source: string;
+}
+
+export interface SocialSourceScore {
+  status: SocialStatus;
+  overallScore: number | null;
+  overallLabel: SentimentLabel | null;
+  confidence: ConfidenceLabel | null;
+  mentionCount: number;
+  sampleCount: number;
+  topMentions: SocialMention[];
+  note: string | null;
+}
+
+export interface SentimentSocialOverlay {
+  overallSupplementaryScore: number | null;
+  overallSupplementaryLabel: SentimentLabel | null;
+  reddit: SocialSourceScore;
+  x: SocialSourceScore;
+  referenceModels: Array<{
+    name: string;
+    url: string;
+  }>;
 }
 
 export interface SentimentResponsePayload {
@@ -75,6 +132,10 @@ export interface SentimentResponsePayload {
   trend: SentimentTrendPoint[];
   articles: SentimentArticle[];
   priceContext: SentimentPriceContext | null;
+  sourceBreakdown: SentimentSourceBreakdown[];
+  eventBreakdown: SentimentEventBreakdown[];
+  peerComparison?: SentimentPeerComparison[];
+  socialOverlay?: SentimentSocialOverlay | null;
   emptyState?: string | null;
 }
 
@@ -86,17 +147,50 @@ const TOPIC_EXCLUSIONS = new Set([
   'economy',
 ]);
 
-function average(values: number[]) {
+const SOURCE_WEIGHT_RULES = [
+  {
+    pattern: /(reuters|bloomberg|wall street journal|financial times|associated press|ap news|barron'?s|the information)/i,
+    weight: 1.25,
+  },
+  {
+    pattern: /(cnbc|marketwatch|wsj|ft\.com|investopedia|forbes|fortune|yahoo finance|zacks|morningstar)/i,
+    weight: 1.1,
+  },
+  {
+    pattern: /(benzinga|seeking alpha|investing\.com|thestreet|motley fool|nasdaq)/i,
+    weight: 1,
+  },
+  {
+    pattern: /(business wire|globenewswire|pr newswire|accesswire|newsfile|press release)/i,
+    weight: 0.72,
+  },
+];
+
+const EVENT_TAG_RULES = [
+  { tag: 'earnings', pattern: /\b(earnings|eps|quarter|q[1-4]|results|beat|miss)\b/i },
+  { tag: 'guidance', pattern: /\b(guidance|outlook|raised|lowered|forecast)\b/i },
+  { tag: 'product', pattern: /\b(product|launch|release|device|platform|feature|copilot|ai agent)\b/i },
+  { tag: 'm&a', pattern: /\b(acquisition|acquire|merger|deal|buyout|takeover|strategic alternative)\b/i },
+  { tag: 'regulation', pattern: /\b(regulator|regulation|antitrust|probe|department of justice|doj|eu|ftc)\b/i },
+  { tag: 'litigation', pattern: /\b(lawsuit|litigation|court|settlement|sued|legal)\b/i },
+  { tag: 'macro', pattern: /\b(inflation|rates|yield|fed|macro|economy|recession|tariff)\b/i },
+  { tag: 'analyst action', pattern: /\b(upgrade|downgrade|initiated|target price|price target|rating)\b/i },
+  { tag: 'management', pattern: /\b(ceo|cfo|executive|management|leadership|board)\b/i },
+  { tag: 'capital return', pattern: /\b(dividend|buyback|repurchase|capital return)\b/i },
+  { tag: 'ai', pattern: /\b(ai|artificial intelligence|machine learning|model|gpu|datacenter)\b/i },
+];
+
+export function average(values: number[]) {
   if (!values.length) return 0;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
-function round(value: number, digits = 2) {
+export function round(value: number, digits = 2) {
   const factor = 10 ** digits;
   return Math.round(value * factor) / factor;
 }
 
-function scoreToLabel(score: number): SentimentLabel {
+export function scoreToLabel(score: number): SentimentLabel {
   if (score >= 0.12) return 'bullish';
   if (score <= -0.12) return 'bearish';
   return 'neutral';
@@ -133,6 +227,24 @@ function pickTickerSentiment(
   return tickerSentiment.find((item) => item.ticker?.toUpperCase() === symbol.toUpperCase()) || null;
 }
 
+function getSourceWeight(source: string, sourceDomain: string | null) {
+  const value = [source, sourceDomain].filter(Boolean).join(' ');
+  const match = SOURCE_WEIGHT_RULES.find((rule) => rule.pattern.test(value));
+  return match?.weight ?? 0.92;
+}
+
+function normalizeTitleFingerprint(title: string) {
+  return title.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function extractEventTags(text: string) {
+  const tags = EVENT_TAG_RULES
+    .filter((rule) => rule.pattern.test(text))
+    .map((rule) => rule.tag);
+
+  return tags.length ? tags : ['company update'];
+}
+
 export function looksLikeTicker(query: string) {
   return /^[A-Za-z]{1,5}(?:\.[A-Za-z]{1,4})?$/.test(query.trim());
 }
@@ -156,12 +268,24 @@ export function normalizeSentimentArticles(
   articles: AlphaVantageNewsArticle[],
   symbol: string | null
 ): SentimentArticle[] {
+  const titleCounts = new Map<string, number>();
+  articles.forEach((article) => {
+    const fingerprint = normalizeTitleFingerprint(article.title || article.url || String(Math.random()));
+    titleCounts.set(fingerprint, (titleCounts.get(fingerprint) || 0) + 1);
+  });
+
   return articles
     .map((article, index) => {
       const publishedAt = parseAlphaVantagePublishedAt(article.timePublished);
       const matchedTickerSentiment = pickTickerSentiment(article.tickerSentiment, symbol);
       const sentimentScore = matchedTickerSentiment?.sentimentScore ?? article.overallSentimentScore ?? 0;
       const relevanceScore = matchedTickerSentiment?.relevanceScore ?? 0.5;
+      const sourceWeight = getSourceWeight(article.source || '', article.sourceDomain || null);
+      const recencyWeight = getRecencyWeight(publishedAt);
+      const clusterCount = titleCounts.get(normalizeTitleFingerprint(article.title || article.url || String(index))) || 1;
+      const clusterWeight = 1 / Math.sqrt(clusterCount);
+      const eventTags = extractEventTags(`${article.title} ${article.summary}`);
+      const weight = Math.max(0.2, relevanceScore) * sourceWeight * recencyWeight * clusterWeight;
 
       return {
         id: `${article.url}-${index}`,
@@ -176,10 +300,13 @@ export function normalizeSentimentArticles(
         articleSentimentScore: round(sentimentScore, 3),
         articleSentimentLabel: scoreToLabel(sentimentScore),
         relevanceScore: round(relevanceScore, 3),
+        sourceWeight: round(sourceWeight, 2),
+        weightedSentimentScore: round(sentimentScore * weight, 3),
         topics: article.topics
           .filter((topic) => topic.topic && !TOPIC_EXCLUSIONS.has(topic.topic.toLowerCase()))
           .sort((left, right) => right.relevanceScore - left.relevanceScore)
           .map((topic) => topic.topic),
+        eventTags,
         matchedTicker: matchedTickerSentiment?.ticker || null,
       };
     })
@@ -189,12 +316,15 @@ export function normalizeSentimentArticles(
 function computeSignalStrength(articles: SentimentArticle[]) {
   const articleFactor = Math.min(1, articles.length / 14);
   const sourceFactor = Math.min(1, new Set(articles.map((article) => article.source)).size / 8);
+  const eventFactor = Math.min(1, new Set(articles.flatMap((article) => article.eventTags)).size / 6);
   const convictionFactor = Math.min(
     1,
-    average(articles.map((article) => Math.abs(article.articleSentimentScore))) / 0.35
+    average(articles.map((article) => Math.abs(article.weightedSentimentScore))) / 0.35
   );
 
-  return Math.round((articleFactor * 0.3 + sourceFactor * 0.25 + convictionFactor * 0.45) * 100);
+  return Math.round(
+    (articleFactor * 0.25 + sourceFactor * 0.2 + eventFactor * 0.15 + convictionFactor * 0.4) * 100
+  );
 }
 
 function confidenceFromSignalStrength(signalStrength: number): ConfidenceLabel {
@@ -208,7 +338,7 @@ function topicSummary(articles: SentimentArticle[]) {
 
   articles.forEach((article) => {
     article.topics.slice(0, 3).forEach((topic, index) => {
-      const weight = (3 - index) * (Math.abs(article.articleSentimentScore) + 0.2);
+      const weight = (3 - index) * (Math.abs(article.articleSentimentScore) + 0.2) * article.sourceWeight;
       weights.set(topic, (weights.get(topic) || 0) + weight);
     });
   });
@@ -219,16 +349,64 @@ function topicSummary(articles: SentimentArticle[]) {
     .map(([topic]) => topic);
 }
 
-function buildCoverageSummary(articles: SentimentArticle[]) {
+function buildSourceBreakdown(articles: SentimentArticle[]): SentimentSourceBreakdown[] {
+  const buckets = new Map<string, SentimentArticle[]>();
+
+  articles.forEach((article) => {
+    const bucket = buckets.get(article.source) || [];
+    bucket.push(article);
+    buckets.set(article.source, bucket);
+  });
+
+  return [...buckets.entries()]
+    .map(([source, bucket]) => ({
+      source,
+      articleCount: bucket.length,
+      averageSentiment: round(average(bucket.map((article) => article.articleSentimentScore)), 3),
+      weightedContribution: round(bucket.reduce((sum, article) => sum + article.weightedSentimentScore, 0), 3),
+    }))
+    .sort((left, right) => Math.abs(right.weightedContribution) - Math.abs(left.weightedContribution))
+    .slice(0, 6);
+}
+
+function buildEventBreakdown(articles: SentimentArticle[]): SentimentEventBreakdown[] {
+  const buckets = new Map<string, SentimentArticle[]>();
+
+  articles.forEach((article) => {
+    article.eventTags.forEach((tag) => {
+      const bucket = buckets.get(tag) || [];
+      bucket.push(article);
+      buckets.set(tag, bucket);
+    });
+  });
+
+  return [...buckets.entries()]
+    .map(([tag, bucket]) => ({
+      tag,
+      articleCount: bucket.length,
+      averageSentiment: round(average(bucket.map((article) => article.articleSentimentScore)), 3),
+    }))
+    .sort((left, right) => right.articleCount - left.articleCount || Math.abs(right.averageSentiment) - Math.abs(left.averageSentiment))
+    .slice(0, 8);
+}
+
+function buildCoverageSummary(
+  articles: SentimentArticle[],
+  sourceBreakdown: SentimentSourceBreakdown[],
+  eventBreakdown: SentimentEventBreakdown[]
+) {
   if (!articles.length) {
     return 'No recent qualifying articles were found for the selected company or keyword.';
   }
 
   const sources = new Set(articles.map((article) => article.source)).size;
   const topics = topicSummary(articles);
+  const events = eventBreakdown.slice(0, 3).map((item) => item.tag);
+  const sourceText = sourceBreakdown[0]?.source ? `Top contribution came from ${sourceBreakdown[0].source}.` : '';
   const topicText = topics.length ? topics.join(', ') : 'company-specific developments';
+  const eventText = events.length ? ` Most of the tape is tied to ${events.join(', ')}.` : '';
 
-  return `${articles.length} recent articles across ${sources} sources, with coverage centered on ${topicText}.`;
+  return `${articles.length} recent articles across ${sources} sources, with coverage centered on ${topicText}.${eventText} ${sourceText}`.trim();
 }
 
 function buildDriver(article: SentimentArticle): SentimentDriver {
@@ -308,6 +486,8 @@ export function buildSentimentPayload({
   priceContext,
   usedTickerFilter,
   usedKeywordFilter,
+  peerComparison = [],
+  socialOverlay = null,
 }: {
   query: string;
   keyword: string | null;
@@ -317,6 +497,8 @@ export function buildSentimentPayload({
   priceContext: SentimentPriceContext | null;
   usedTickerFilter: boolean;
   usedKeywordFilter: boolean;
+  peerComparison?: SentimentPeerComparison[];
+  socialOverlay?: SentimentSocialOverlay | null;
 }): SentimentResponsePayload {
   if (!articles.length) {
     return {
@@ -348,13 +530,17 @@ export function buildSentimentPayload({
       trend: [],
       articles: [],
       priceContext,
+      sourceBreakdown: [],
+      eventBreakdown: [],
+      peerComparison,
+      socialOverlay,
       emptyState: 'No recent sentiment articles were found. Try a ticker symbol, broaden the horizon, or remove the keyword filter.',
     };
   }
 
   const weightedScores = articles.map((article) => {
     const recencyWeight = getRecencyWeight(new Date(article.publishedAt));
-    const weight = Math.max(0.2, article.relevanceScore) * recencyWeight;
+    const weight = Math.max(0.2, article.relevanceScore) * article.sourceWeight * recencyWeight;
     return {
       weightedScore: article.articleSentimentScore * weight,
       weight,
@@ -369,16 +555,18 @@ export function buildSentimentPayload({
   const overallSentimentLabel = scoreToLabel(overallSentimentScore);
   const bullishArticles = articles
     .filter((article) => article.articleSentimentLabel === 'bullish')
-    .sort((left, right) => Math.abs(right.articleSentimentScore) - Math.abs(left.articleSentimentScore));
+    .sort((left, right) => Math.abs(right.weightedSentimentScore) - Math.abs(left.weightedSentimentScore));
   const bearishArticles = articles
     .filter((article) => article.articleSentimentLabel === 'bearish')
-    .sort((left, right) => Math.abs(right.articleSentimentScore) - Math.abs(left.articleSentimentScore));
+    .sort((left, right) => Math.abs(right.weightedSentimentScore) - Math.abs(left.weightedSentimentScore));
   const neutralArticles = articles.filter((article) => article.articleSentimentLabel === 'neutral');
+  const sourceBreakdown = buildSourceBreakdown(articles);
+  const eventBreakdown = buildEventBreakdown(articles);
 
   const signalStrength = computeSignalStrength(articles);
   const confidence = confidenceFromSignalStrength(signalStrength);
   const latestPublishedAt = articles[0]?.publishedAt ?? null;
-  const coverageSummary = buildCoverageSummary(articles);
+  const coverageSummary = buildCoverageSummary(articles, sourceBreakdown, eventBreakdown);
 
   let investmentTakeaway = `Live news flow is ${labelToDisplay(overallSentimentLabel).toLowerCase()} with ${confidence} conviction.`;
   if (priceContext?.divergenceSignal) {
@@ -389,6 +577,10 @@ export function buildSentimentPayload({
     investmentTakeaway += ' Negative coverage is dominating the tape, which raises the bar for near-term upside.';
   } else {
     investmentTakeaway += ' The article mix is balanced enough that sentiment should be treated as confirmatory rather than decisive.';
+  }
+
+  if (eventBreakdown[0]?.tag) {
+    investmentTakeaway += ` The heaviest event bucket right now is ${eventBreakdown[0].tag}.`;
   }
 
   return {
@@ -420,6 +612,10 @@ export function buildSentimentPayload({
     trend: buildTrend(articles),
     articles: articles.slice(0, 12),
     priceContext,
+    sourceBreakdown,
+    eventBreakdown,
+    peerComparison,
+    socialOverlay,
   };
 }
 

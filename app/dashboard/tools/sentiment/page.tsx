@@ -11,15 +11,17 @@ import {
   AlertTriangle,
   ArrowLeft,
   ExternalLink,
-  Loader2,
+  Globe2,
   MessageSquareText,
   Newspaper,
   Radar,
   RefreshCw,
   Search,
   Sparkles,
+  Tags,
   TrendingDown,
   TrendingUp,
+  Users,
 } from 'lucide-react';
 
 type ArticleFilter = 'all' | SentimentLabel;
@@ -85,6 +87,62 @@ function ArticleTonePill({ label }: { label: SentimentLabel }) {
   );
 }
 
+function SocialScoreCard({
+  title,
+  source,
+}: {
+  title: string;
+  source: NonNullable<SentimentResponsePayload['socialOverlay']>['reddit'];
+}) {
+  const tone = source.overallLabel ? sentimentTone(source.overallLabel) : sentimentTone('neutral');
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{title}</div>
+          <div className="mt-2 flex items-center gap-2">
+            {source.overallLabel ? <ArticleTonePill label={source.overallLabel} /> : null}
+            <span className="text-sm text-slate-500">{source.status}</span>
+          </div>
+        </div>
+        <div className="text-right">
+          <div className={`text-2xl font-bold ${source.overallLabel ? tone.accent : 'text-slate-400'}`}>
+            {source.overallScore != null ? `${source.overallScore > 0 ? '+' : ''}${source.overallScore.toFixed(2)}` : '—'}
+          </div>
+          <div className="text-xs text-slate-500">
+            {source.sampleCount} sample{source.sampleCount === 1 ? '' : 's'}
+          </div>
+        </div>
+      </div>
+
+      {source.note && (
+        <p className="mt-3 text-sm leading-6 text-slate-600">{source.note}</p>
+      )}
+
+      {source.topMentions.length > 0 && (
+        <div className="mt-4 space-y-3">
+          {source.topMentions.slice(0, 3).map((mention) => (
+            <div key={`${mention.source}-${mention.title}-${mention.publishedAt || ''}`} className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-slate-900">{mention.title}</div>
+                  <div className="mt-1 text-xs uppercase tracking-wide text-slate-500">
+                    {mention.source}{mention.publishedAt ? ` · ${formatDateTime(mention.publishedAt)}` : ''}
+                  </div>
+                </div>
+                <div className={`text-sm font-semibold ${mention.score >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                  {mention.score > 0 ? '+' : ''}{mention.score.toFixed(2)}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DriverList({
   title,
   label,
@@ -144,6 +202,7 @@ export default function SentimentToolPage() {
 
   const [query, setQuery] = useState('');
   const [keyword, setKeyword] = useState('');
+  const [peers, setPeers] = useState('');
   const [horizon, setHorizon] = useState('7');
   const [articleFilter, setArticleFilter] = useState<ArticleFilter>('all');
   const [loading, setLoading] = useState(false);
@@ -180,6 +239,10 @@ export default function SentimentToolPage() {
 
       if (keyword.trim()) {
         params.set('keyword', keyword.trim());
+      }
+
+      if (peers.trim()) {
+        params.set('peers', peers.trim());
       }
 
       const response = await fetch(`/api/dashboard/sentiment?${params.toString()}`);
@@ -259,7 +322,7 @@ export default function SentimentToolPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <form className="grid gap-4 lg:grid-cols-[1.3fr_1fr_180px_auto]" onSubmit={handleAnalyze}>
+          <form className="grid gap-4 lg:grid-cols-[1.15fr_1fr_1fr_180px_auto]" onSubmit={handleAnalyze}>
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-700">Ticker or company</label>
               <input
@@ -275,6 +338,15 @@ export default function SentimentToolPage() {
                 value={keyword}
                 onChange={(event) => setKeyword(event.target.value)}
                 placeholder="Copilot, Azure, margins..."
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Peers</label>
+              <input
+                value={peers}
+                onChange={(event) => setPeers(event.target.value)}
+                placeholder="GOOGL, AMZN, ORCL"
                 className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
               />
             </div>
@@ -429,6 +501,178 @@ export default function SentimentToolPage() {
             </Card>
           </div>
 
+          <div className="grid gap-6 xl:grid-cols-[0.95fr_0.95fr_1.1fr]">
+            <Card className="hover:shadow-none">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
+                    <Globe2 className="h-5 w-5 text-slate-700" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl">Source Breakdown</CardTitle>
+                    <CardDescription>
+                      Weighted contribution by source, so repeated syndication does not overpower the read.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {result.sourceBreakdown.length ? result.sourceBreakdown.map((source) => (
+                  <div key={source.source} className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-slate-900">{source.source}</div>
+                        <div className="mt-1 text-xs uppercase tracking-wide text-slate-500">
+                          {source.articleCount} article{source.articleCount === 1 ? '' : 's'}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className={`text-sm font-semibold ${source.averageSentiment >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                          Avg {source.averageSentiment > 0 ? '+' : ''}{source.averageSentiment.toFixed(2)}
+                        </div>
+                        <div className="mt-1 text-xs text-slate-500">
+                          Weight {source.weightedContribution > 0 ? '+' : ''}{source.weightedContribution.toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )) : (
+                  <div className="text-sm text-slate-500">No source mix available yet.</div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-none">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
+                    <Tags className="h-5 w-5 text-slate-700" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl">What The News Is Saying</CardTitle>
+                    <CardDescription>
+                      Event buckets showing what is actually driving the current tape.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {result.eventBreakdown.length ? result.eventBreakdown.map((event) => (
+                  <div key={event.tag} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3">
+                    <div>
+                      <div className="text-sm font-semibold capitalize text-slate-900">{event.tag}</div>
+                      <div className="mt-1 text-xs uppercase tracking-wide text-slate-500">
+                        {event.articleCount} article{event.articleCount === 1 ? '' : 's'}
+                      </div>
+                    </div>
+                    <div className={`text-sm font-semibold ${event.averageSentiment >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                      {event.averageSentiment > 0 ? '+' : ''}{event.averageSentiment.toFixed(2)}
+                    </div>
+                  </div>
+                )) : (
+                  <div className="text-sm text-slate-500">No event tagging available yet.</div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-none">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
+                    <Users className="h-5 w-5 text-slate-700" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl">Peer Comparison</CardTitle>
+                    <CardDescription>
+                      Compare the name against peers to see whether tone is idiosyncratic or sector-wide.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {result.peerComparison?.length ? result.peerComparison.map((peer) => (
+                  <div key={peer.symbol} className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-slate-900">{peer.symbol}</div>
+                        <div className="mt-1 text-xs uppercase tracking-wide text-slate-500">
+                          {peer.companyName || 'Peer comparison'}
+                        </div>
+                      </div>
+                      <ArticleTonePill label={peer.overallSentimentLabel} />
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-sm text-slate-600">
+                      <span>Signal {peer.signalStrength}</span>
+                      <span>{peer.overallSentimentScore > 0 ? '+' : ''}{peer.overallSentimentScore.toFixed(2)}</span>
+                      <span>{peer.articleCount} articles</span>
+                    </div>
+                  </div>
+                )) : (
+                  <div className="rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+                    Add peers like <span className="font-medium text-slate-700">GOOGL, AMZN, ORCL</span> to compare the live read.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {result.socialOverlay && (
+            <Card hover={false} className="border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_45%,#eef4ff_100%)]">
+              <CardHeader>
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0b1f3a] text-white">
+                      <Sparkles className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl">Supplementary Social Overlay</CardTitle>
+                      <CardDescription>
+                        Separate Reddit and X read layered on top of the core live news signal.
+                      </CardDescription>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {result.socialOverlay.overallSupplementaryLabel ? (
+                      <ArticleTonePill label={result.socialOverlay.overallSupplementaryLabel} />
+                    ) : null}
+                    <div className="text-sm text-slate-600">
+                      Overlay score{' '}
+                      <span className="font-semibold text-slate-900">
+                        {result.socialOverlay.overallSupplementaryScore != null
+                          ? `${result.socialOverlay.overallSupplementaryScore > 0 ? '+' : ''}${result.socialOverlay.overallSupplementaryScore.toFixed(2)}`
+                          : '—'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="grid gap-5 xl:grid-cols-2">
+                  <SocialScoreCard title="Reddit" source={result.socialOverlay.reddit} />
+                  <SocialScoreCard title="X" source={result.socialOverlay.x} />
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Reference models</div>
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    {result.socialOverlay.referenceModels.map((model) => (
+                      <a
+                        key={model.url}
+                        href={model.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                      >
+                        {model.name}
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card hover={false} className="border-slate-200">
             <CardHeader>
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -483,6 +727,15 @@ export default function SentimentToolPage() {
                           ))}
                         </div>
                       )}
+                      {article.eventTags.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {article.eventTags.slice(0, 3).map((tag) => (
+                            <span key={tag} className="rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-medium text-sky-700">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div className="lg:pl-4 lg:text-right">
                       <div className="text-xs uppercase tracking-wide text-slate-400">Score</div>
@@ -490,6 +743,7 @@ export default function SentimentToolPage() {
                         {article.articleSentimentScore > 0 ? '+' : ''}{article.articleSentimentScore.toFixed(2)}
                       </div>
                       <div className="mt-1 text-xs text-slate-500">Relevance {article.relevanceScore.toFixed(2)}</div>
+                      <div className="mt-1 text-xs text-slate-500">Source weight {article.sourceWeight.toFixed(2)}</div>
                       <a
                         href={article.url}
                         target="_blank"

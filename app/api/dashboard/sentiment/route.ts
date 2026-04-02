@@ -13,7 +13,9 @@ import {
   buildTimeFrom,
   looksLikeTicker,
   normalizeSentimentArticles,
+  type SentimentPeerComparison,
 } from '@/lib/sentiment';
+import { buildSupplementarySocialOverlay } from '@/lib/social-sentiment';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +41,65 @@ function pickBestSymbolMatch(matches: Awaited<ReturnType<typeof fetchAlphaVantag
   });
 
   return sorted[0];
+}
+
+function normalizePeers(raw: string | null, symbol: string | null) {
+  return (raw || '')
+    .split(',')
+    .map((value) => value.trim().toUpperCase())
+    .filter(Boolean)
+    .filter((value, index, array) => array.indexOf(value) === index)
+    .filter((value) => value !== symbol)
+    .slice(0, 3);
+}
+
+async function buildPeerSnapshot(
+  peerSymbol: string,
+  horizonDays: number
+): Promise<SentimentPeerComparison | null> {
+  const [rawArticles, matchResult] = await Promise.allSettled([
+    fetchAlphaVantageNewsSentiment({
+      tickers: peerSymbol,
+      timeFrom: buildTimeFrom(horizonDays),
+      sort: 'LATEST',
+      limit: 16,
+    }),
+    fetchAlphaVantageSymbolSearch(peerSymbol),
+  ]);
+
+  if (rawArticles.status !== 'fulfilled') {
+    return null;
+  }
+
+  const articles = normalizeSentimentArticles(rawArticles.value, peerSymbol);
+  if (!articles.length) {
+    return null;
+  }
+
+  const companyName =
+    matchResult.status === 'fulfilled'
+      ? pickBestSymbolMatch(matchResult.value)?.name || null
+      : null;
+
+  const payload = buildSentimentPayload({
+    query: peerSymbol,
+    keyword: null,
+    symbol: peerSymbol,
+    companyName,
+    articles,
+    priceContext: null,
+    usedTickerFilter: true,
+    usedKeywordFilter: false,
+  });
+
+  return {
+    symbol: peerSymbol,
+    companyName,
+    overallSentimentScore: payload.snapshot.overallSentimentScore,
+    overallSentimentLabel: payload.snapshot.overallSentimentLabel,
+    signalStrength: payload.snapshot.signalStrength,
+    articleCount: payload.snapshot.articleCount,
+  };
 }
 
 export async function GET(request: NextRequest) {
@@ -77,6 +138,7 @@ export async function GET(request: NextRequest) {
       : symbol
         ? ''
         : query;
+    const peerSymbols = normalizePeers(searchParams.get('peers'), symbol);
 
     const rawArticles = await fetchAlphaVantageNewsSentiment({
       tickers: symbol || undefined,
@@ -87,6 +149,25 @@ export async function GET(request: NextRequest) {
     });
 
     const articles = normalizeSentimentArticles(rawArticles, symbol);
+
+    const [peerComparisonResult, socialOverlayResult] = await Promise.allSettled([
+      Promise.all(peerSymbols.map((peerSymbol) => buildPeerSnapshot(peerSymbol, horizonDays))),
+      buildSupplementarySocialOverlay({
+        query,
+        keyword: keyword || null,
+        symbol,
+        companyName,
+      }),
+    ]);
+
+    const peerComparison =
+      peerComparisonResult.status === 'fulfilled'
+        ? peerComparisonResult.value.filter(Boolean) as SentimentPeerComparison[]
+        : [];
+    const socialOverlay =
+      socialOverlayResult.status === 'fulfilled'
+        ? socialOverlayResult.value
+        : null;
 
     const [quoteResult, historyResult] = symbol
       ? await Promise.allSettled([
@@ -108,6 +189,8 @@ export async function GET(request: NextRequest) {
         priceContext: null,
         usedTickerFilter: Boolean(symbol),
         usedKeywordFilter: Boolean(keywords),
+        peerComparison,
+        socialOverlay,
       }).snapshot.overallSentimentLabel
     );
 
@@ -120,6 +203,8 @@ export async function GET(request: NextRequest) {
       priceContext,
       usedTickerFilter: Boolean(symbol),
       usedKeywordFilter: Boolean(keywords),
+      peerComparison,
+      socialOverlay,
     });
 
     return NextResponse.json(payload);
