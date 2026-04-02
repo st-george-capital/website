@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { Brain, Calculator, BarChart3, FileText, GitBranch, Globe, MessageSquareText } from 'lucide-react';
+import { Brain, Calculator, BarChart3, FileText, GitBranch, Globe, MessageSquareText, Sparkles } from 'lucide-react';
 
 const tools = [
   {
@@ -87,6 +87,20 @@ const tools = [
       'Bullish vs bearish drivers',
       'Recent article trend view',
       'Price-context divergence check',
+    ],
+  },
+  {
+    id: 'supplementary-tools',
+    name: 'Supplementary Tools',
+    description: 'Transcript, insider, estimate, and calendar overlays for faster equity research prep',
+    href: '/dashboard/tools/supplementary',
+    icon: Sparkles,
+    features: [
+      'Earnings call transcript read',
+      'Insider transaction tape',
+      'Forward estimate context',
+      'Upcoming earnings calendar',
+      'Dashboard-only research desk',
     ],
   },
 ];

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   Calendar, MapPin, Globe, TrendingUp, FileText, Users,
   BarChart3, BookOpen, Presentation, Calculator, Briefcase,
-  BookMarked, Newspaper, Mail, Settings, ChevronRight, Clock, Brain, MessageSquareText,
+  BookMarked, Newspaper, Mail, Settings, ChevronRight, Clock, Brain, MessageSquareText, Sparkles,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -231,6 +231,7 @@ function ToolsCard() {
     { label: 'Country Health', desc: '24-country macro scoring', href: '/dashboard/country-health', icon: Globe },
     { label: 'Interview Tool', desc: 'Question bank · quiz mode · submissions', href: '/dashboard/tools/interview', icon: Brain },
     { label: 'Sentiment Tool', desc: 'Live news sentiment · memo view', href: '/dashboard/tools/sentiment', icon: MessageSquareText },
+    { label: 'Supplementary Tools', desc: 'Transcript · insider · estimates · calendar', href: '/dashboard/tools/supplementary', icon: Sparkles },
   ];
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col gap-3">
