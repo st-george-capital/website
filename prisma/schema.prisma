@@ -74,6 +74,7 @@ model Holding {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   transactions Transaction[]
+  committeeDecisions HoldingCommitteeDecision[]
 }
 
 model Transaction {
@@ -226,18 +227,92 @@ model WeeklyContent {
 }
 
 model InvestmentPitch {
-  id          String   @id @default(cuid())
+  id          String             @id @default(cuid())
   title       String
   company     String?
-  sector      String   // "macro", "equity"
-  subcategory String?  // For macro/equity subsectors
+  sector      String             // "macro", "equity"
+  subcategory String?            // For macro/equity subsectors
   pitchDate   DateTime
   description String?
-  documentFile String? // PDF file URL
-  published   Boolean  @default(false)
-  publishDate DateTime? // When to publish
+  documentFile String?           // PDF file URL
+  published   Boolean            @default(false)
+  publishDate DateTime?          // When to publish
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  participants PitchParticipant[]
+  feedback     PitchFeedback[]
+}
+
+model HoldingCommitteeDecision {
+  id               String   @id @default(cuid())
+  holdingId        String
+  meetingDate      DateTime @default(now())
+  finalDecision    String   @default("pending") // "pending" | "approve" | "pass" | "reject" | "watchlist"
+  averageConviction Float?
+  keyObjections    String?  @db.Text
+  summary          String?  @db.Text
+  createdBy        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  holding          Holding  @relation(fields: [holdingId], references: [id], onDelete: Cascade)
+  votes            HoldingCommitteeVote[]
+
+  @@index([holdingId, meetingDate])
+}
+
+model HoldingCommitteeVote {
+  id          String   @id @default(cuid())
+  decisionId  String
+  userId      String
+  userName    String
+  vote        String   // "approve" | "pass" | "reject" | "watchlist"
+  conviction  Int
+  comment     String?  @db.Text
+  objections  String?  @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  decision    HoldingCommitteeDecision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+
+  @@unique([decisionId, userId])
+  @@index([decisionId])
+}
+
+model PitchParticipant {
+  id         String   @id @default(cuid())
+  pitchId     String
+  userId      String
+  userName    String
+  createdAt   DateTime @default(now())
+
+  pitch       InvestmentPitch @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+
+  @@unique([pitchId, userId])
+  @@index([pitchId])
+}
+
+model PitchFeedback {
+  id             String   @id @default(cuid())
+  pitchId         String
+  submittedBy     String
+  submittedByName String
+  thesisClarity   Int
+  variantView     Int
+  valuation       Int
+  catalysts       Int
+  risks           Int
+  delivery        Int
+  strengths       String?  @db.Text
+  improvements    String?  @db.Text
+  overallComment  String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  pitch           InvestmentPitch @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+
+  @@unique([pitchId, submittedBy])
+  @@index([pitchId])
 }
 
 model JobPosting {
@@ -345,7 +420,8 @@ model EquityResearchReport {
   valuationMethod       String   // "dcf" | "multiples" | "both"
   valuationAnalysis     String   @db.Text
   sensitivityAnalysis   Json
-  
+  sentimentSnapshot     Json?
+
   // Risks & Scenarios
   bearCase              String   @db.Text
   bullCase              String?  @db.Text
@@ -427,6 +503,32 @@ model EmployerLogo {
   logoUrl   String
   order     Int      @default(0)
   createdAt DateTime @default(now())
+}
+
+model CommunityInterviewQuestion {
+  id            String    @id @default(cuid())
+  seedKey       String?   @unique
+  question      String    @db.Text
+  answer        String?   @db.Text
+  notes         String?   @db.Text
+  role          String    // "sales_trading" | "investment_banking" | "buyside" | "consulting" | "general_finance" | "behavioural"
+  subcategory   String?   // e.g. "quant_trading", "technical", "case_interview"
+  questionType  String    @default("technical") // "technical" | "market" | "fit" | "case" | "brainteaser" | "product"
+  difficulty    String    @default("medium") // "easy" | "medium" | "hard"
+  company       String?
+  firmType      String?
+  topicTags     String[]  @default([])
+  sourceType    String?
+  sourceTitle   String?
+  sourceUrl     String?
+  attachmentUrl String?
+  submitterName String?
+  submittedBy   String?   // User ID
+  approved      Boolean   @default(false)
+  reviewedAt    DateTime?
+  reviewedBy    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model NewsletterSubscriber {

@@ -70,11 +70,14 @@ Required variables:
 DATABASE_URL="postgresql://user:password@localhost:5432/sgc?schema=public"
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="your-secret-key"  # Generate with: openssl rand -base64 32
+ADMIN_CODE="set-a-private-admin-code"
 ```
 
 Optional (for market data):
 ```env
 POLYGON_API_KEY="your-polygon-api-key"
+ALPHA_VANTAGE_API_KEY="your-alpha-vantage-api-key"
+X_BEARER_TOKEN="optional-x-bearer-token"
 ```
 
 4. **Set up the database**
@@ -278,4 +281,3 @@ For questions or issues:
 - [ ] Member portal
 - [ ] Event management system
 - [ ] Newsletter integration
-

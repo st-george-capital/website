@@ -1,9 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
+function summarizePitch(pitch: any) {
+  const feedbackCount = pitch.feedback.length;
+  const averageScore = feedbackCount === 0
+    ? null
+    : pitch.feedback.reduce((sum: number, item: any) => {
+        const total =
+          item.thesisClarity +
+          item.variantView +
+          item.valuation +
+          item.catalysts +
+          item.risks +
+          item.delivery;
+        return sum + total / 6;
+      }, 0) / feedbackCount;
+
+  return {
+    ...pitch,
+    feedback: undefined,
+    feedbackCount,
+    averageScore,
+    collaborationReady: true,
+  };
+}
+
+function fallbackPitch(pitch: any) {
+  return {
+    ...pitch,
+    participants: [],
+    feedbackCount: 0,
+    averageScore: null,
+    collaborationReady: false,
+  };
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -36,12 +68,37 @@ export async function GET(req: NextRequest) {
       where.published = false;
     }
 
-    const pitches = await prisma.investmentPitch.findMany({
-      where,
-      orderBy: { pitchDate: 'desc' },
-    });
+    try {
+      const pitches = await prisma.investmentPitch.findMany({
+        where,
+        orderBy: { pitchDate: 'desc' },
+        include: {
+          participants: {
+            orderBy: { userName: 'asc' },
+          },
+          feedback: {
+            select: {
+              thesisClarity: true,
+              variantView: true,
+              valuation: true,
+              catalysts: true,
+              risks: true,
+              delivery: true,
+            },
+          },
+        },
+      });
 
-    return NextResponse.json(pitches);
+      return NextResponse.json(pitches.map(summarizePitch));
+    } catch (error) {
+      console.warn('Pitch collaboration tables unavailable, falling back to legacy pitch list:', error);
+      const pitches = await prisma.investmentPitch.findMany({
+        where,
+        orderBy: { pitchDate: 'desc' },
+      });
+
+      return NextResponse.json(pitches.map(fallbackPitch));
+    }
   } catch (error) {
     console.error('Error fetching investment pitches:', error);
     return NextResponse.json(
@@ -71,23 +128,75 @@ export async function POST(req: NextRequest) {
       documentFile,
       published,
       publishDate,
+      associatedUserIds = [],
     } = await req.json();
 
-    const pitch = await prisma.investmentPitch.create({
-      data: {
-        title,
-        company,
-        sector,
-        subcategory,
-        pitchDate: new Date(pitchDate),
-        description,
-        documentFile,
-        published,
-        publishDate: publishDate ? new Date(publishDate) : null,
-      },
-    });
+    try {
+      const participantUsers = associatedUserIds.length > 0
+        ? await prisma.user.findMany({
+            where: {
+              id: { in: associatedUserIds },
+            },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          })
+        : [];
 
-    return NextResponse.json(pitch, { status: 201 });
+      const pitch = await prisma.investmentPitch.create({
+        data: {
+          title,
+          company,
+          sector,
+          subcategory,
+          pitchDate: new Date(pitchDate),
+          description,
+          documentFile,
+          published,
+          publishDate: publishDate ? new Date(publishDate) : null,
+          participants: {
+            create: participantUsers.map((user) => ({
+              userId: user.id,
+              userName: user.name || user.email,
+            })),
+          },
+        },
+        include: {
+          participants: true,
+          feedback: {
+            select: {
+              thesisClarity: true,
+              variantView: true,
+              valuation: true,
+              catalysts: true,
+              risks: true,
+              delivery: true,
+            },
+          },
+        },
+      });
+
+      return NextResponse.json(summarizePitch(pitch), { status: 201 });
+    } catch (error) {
+      console.warn('Pitch collaboration tables unavailable during create, saving legacy pitch only:', error);
+      const pitch = await prisma.investmentPitch.create({
+        data: {
+          title,
+          company,
+          sector,
+          subcategory,
+          pitchDate: new Date(pitchDate),
+          description,
+          documentFile,
+          published,
+          publishDate: publishDate ? new Date(publishDate) : null,
+        },
+      });
+
+      return NextResponse.json(fallbackPitch(pitch), { status: 201 });
+    }
   } catch (error) {
     console.error('Error creating investment pitch:', error);
     return NextResponse.json(

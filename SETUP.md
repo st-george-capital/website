@@ -26,10 +26,12 @@ DATABASE_URL="postgresql://user:password@host:5432/database?schema=public"
 # NextAuth - Generate secret with: openssl rand -base64 32
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="your-generated-secret-here"
+ADMIN_CODE="set-a-private-admin-code"
 
 # Market Data (Optional - for real-time pricing)
 POLYGON_API_KEY="your-polygon-api-key"
-ALPHA_VANTAGE_API_KEY=api_key
+ALPHA_VANTAGE_API_KEY="your-alpha-vantage-api-key"
+X_BEARER_TOKEN="optional-x-bearer-token"
 ```
 
 ## 3. Set Up Database
@@ -119,4 +121,3 @@ npx prisma generate
 ---
 
 **Estimated setup time: 10-15 minutes**
-

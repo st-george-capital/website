@@ -1,18 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { ArrowLeft, Upload, FileText } from 'lucide-react';
+import { AssociatedUsersPicker } from '@/components/pitches/AssociatedUsersPicker';
+import { ArrowLeft, FileText } from 'lucide-react';
+
+interface UserOption {
+  id: string;
+  name?: string;
+  email: string;
+  role: string;
+}
 
 export default function NewInvestmentPitchPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [users, setUsers] = useState<UserOption[]>([]);
   const [formData, setFormData] = useState({
     title: '',
     company: '',
@@ -23,9 +32,27 @@ export default function NewInvestmentPitchPage() {
     documentFile: '',
     published: false,
     publishDate: '',
+    associatedUserIds: [] as string[],
   });
 
   const isAdmin = session?.user?.role === 'admin';
+
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch('/api/users');
+        if (!response.ok) return;
+        const data = await response.json();
+        setUsers(data);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      }
+    };
+
+    fetchUsers();
+  }, [isAdmin]);
 
   if (!isAdmin) {
     return (
@@ -109,6 +136,15 @@ export default function NewInvestmentPitchPage() {
       return ['financials', 'consumer', 'energy', 'healthcare', 'technology'];
     }
     return [];
+  };
+
+  const toggleAssociatedUser = (userId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      associatedUserIds: prev.associatedUserIds.includes(userId)
+        ? prev.associatedUserIds.filter((id) => id !== userId)
+        : [...prev.associatedUserIds, userId],
+    }));
   };
 
   return (
@@ -208,6 +244,12 @@ export default function NewInvestmentPitchPage() {
                 placeholder="Optional description..."
               />
             </div>
+
+            <AssociatedUsersPicker
+              users={users}
+              selectedUserIds={formData.associatedUserIds}
+              onToggle={toggleAssociatedUser}
+            />
 
             {/* File Upload */}
             <div>

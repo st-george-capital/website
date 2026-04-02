@@ -1,96 +1,23 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { ArrowLeft, Download, Edit, Eye, TrendingUp, TrendingDown, Printer } from 'lucide-react';
+import { ArrowLeft, Download, Edit, TrendingUp, TrendingDown, Printer } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { InstitutionalValuationSection } from '@/components/InstitutionalValuationSection';
+import { ResearchMarketSnapshotSection } from '@/components/research/ResearchMarketSnapshotSection';
+import { ResearchSentimentSection } from '@/components/research/ResearchSentimentSection';
+import type { ResearchExportReport } from '@/components/research/ResearchExportDocument';
 
-interface ResearchReport {
-  id: string;
-  companyName: string;
-  ticker: string;
-  exchange: string;
-  sector: string;
-  industry: string;
-  reportDate: string;
-  analysts: string[];
-  coverageStatus: string;
-  recommendation: string;
-  currentPrice: number;
-  targetPrice: number;
-  impliedUpside: number;
-  timeHorizon: string;
-  currency: string;
-  priceDate?: string | null;
-  fiftyTwoWeekRange?: string | null;
-  marketCap?: number | null;
-  sharesOutstanding?: number | null;
-  fiscalYearEnd?: string | null;
-  priceTargetEndDate?: string | null;
-  performanceMetrics?: {
-    absYTD?: number; abs1m?: number; abs3m?: number; abs12m?: number;
-    relYTD?: number; rel1m?: number; rel3m?: number; rel12m?: number;
-  } | null;
-  epsTableMarkdown?: string | null;
-  dataSource?: string | null;
-  peRatio?: number | null;
-  forwardPE?: number | null;
-  forwardPEConsensus?: number | null;
-  dividendYield?: number | null;
-  priceChartImageUrl?: string | null;
-  showPriceChart?: boolean;
-  priceHistory?: Array<{ date: string; close: number }> | null;
-  dcfInputs?: any;
-  dcfOutputs?: any;
-  investmentThesis: Array<{
-    title?: string;
-    claim: string;
-    driver: string;
-    mispricing: string;
-  }>;
-  concludingSection?: string | null;
-  businessModel: string;
-  unitEconomics?: string;
-  economicMoat?: string;
-  industryAnalysis: string;
-  competitivePosition?: { source: string; rows: any[]; updatedAt: string } | null;
-  catalystsNearTerm: Array<{
-    event: string;
-    mechanism: string;
-    probability: string;
-    timeframe: string;
-  }>;
-  catalystsMediumTerm: Array<{
-    event: string;
-    mechanism: string;
-    probability: string;
-    timeframe: string;
-  }>;
-  valuationAnalysis: string;
-  bearCase: string;
-  bullCase?: string | null;
-  bullBearJustification?: string | null;
-  aiStrategies?: string | null;
-  keyRisks: Array<{
-    title: string;
-    description: string;
-    impact: string;
-    mitigation: string;
-  }>;
-  esgFactors?: string;
-  published: boolean;
-  status: string;
-}
+type ResearchReport = ResearchExportReport;
 
 export default function ResearchReportPreviewPage() {
   const params = useParams();
-  const router = useRouter();
   const [report, setReport] = useState<ResearchReport | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -146,24 +73,12 @@ export default function ResearchReportPreviewPage() {
   };
 
   const handleExportPDF = () => {
-    // Add print styles
-    const style = document.createElement('style');
-    style.textContent = `
-      @media print {
-        @page { margin: 0.5in; size: letter; }
-        body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-        .no-print { display: none !important; }
-        .page-break { page-break-before: always; }
-        nav, button { display: none !important; }
-      }
-    `;
-    document.head.appendChild(style);
-    
-    // Trigger print dialog (user can save as PDF)
+    if (!report) return;
+    window.open(`/api/research-reports/${report.id}/pdf`, '_blank', 'noopener,noreferrer');
+  };
+
+  const handlePrintReport = () => {
     window.print();
-    
-    // Clean up
-    setTimeout(() => document.head.removeChild(style), 1000);
   };
 
   if (loading) {
@@ -189,38 +104,38 @@ export default function ResearchReportPreviewPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-12">
-      {/* Header Actions */}
-      <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow sticky top-0 z-10">
-        <Link href="/dashboard/research">
-          <Button variant="outline" className="text-gray-700">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Reports
-          </Button>
-        </Link>
-        <div className="flex gap-2">
-          <Link href={`/dashboard/research/${report.id}/edit`}>
-            <Button className="bg-blue-600 text-white hover:bg-blue-700">
-              <Edit className="w-4 h-4 mr-2" />
-              Edit Report
+    <>
+      <div className="max-w-5xl mx-auto space-y-6 pb-12">
+        <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow sticky top-0 z-10">
+          <Link href="/dashboard/research">
+            <Button variant="outline" className="text-gray-700">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Reports
             </Button>
           </Link>
-          <Button 
-            onClick={handleExportPDF}
-            className="bg-purple-600 text-white hover:bg-purple-700"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export to PDF
-          </Button>
-          <Button 
-            onClick={handleExportPDF}
-            className="bg-gray-600 text-white hover:bg-gray-700"
-          >
-            <Printer className="w-4 h-4 mr-2" />
-            Print Report
-          </Button>
+          <div className="flex gap-2">
+            <Link href={`/dashboard/research/${report.id}/edit`}>
+              <Button className="bg-blue-600 text-white hover:bg-blue-700">
+                <Edit className="w-4 h-4 mr-2" />
+                Edit Report
+              </Button>
+            </Link>
+            <Button
+              onClick={handleExportPDF}
+              className="bg-purple-600 text-white hover:bg-purple-700"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export to PDF
+            </Button>
+            <Button
+              onClick={handlePrintReport}
+              className="bg-gray-600 text-white hover:bg-gray-700"
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              Print Report
+            </Button>
+          </div>
         </div>
-      </div>
 
       {/* Cover Page */}
       <Card className="bg-gradient-to-br from-blue-900 to-blue-700 text-white">
@@ -274,138 +189,7 @@ export default function ResearchReportPreviewPage() {
             <CardTitle className="text-xl">Company Snapshot & Price Performance</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-              {report.priceDate && (
-                <div>
-                  <div className="text-gray-500">Date of Price</div>
-                  <div className="font-semibold">{report.priceDate}</div>
-                </div>
-              )}
-              {report.fiftyTwoWeekRange && (
-                <div>
-                  <div className="text-gray-500">52-Week Range ($)</div>
-                  <div className="font-semibold">{report.fiftyTwoWeekRange}</div>
-                </div>
-              )}
-              {report.marketCap != null && (
-                <div>
-                  <div className="text-gray-500">Market Cap ($ mn)</div>
-                  <div className="font-semibold">{report.marketCap.toLocaleString()}</div>
-                </div>
-              )}
-              {report.fiscalYearEnd && (
-                <div>
-                  <div className="text-gray-500">Fiscal Year End</div>
-                  <div className="font-semibold">{report.fiscalYearEnd}</div>
-                </div>
-              )}
-              {report.sharesOutstanding != null && (
-                <div>
-                  <div className="text-gray-500">Shares O/S (mn)</div>
-                  <div className="font-semibold">{report.sharesOutstanding.toLocaleString()}</div>
-                </div>
-              )}
-              {report.priceTargetEndDate && (
-                <div>
-                  <div className="text-gray-500">Price Target End Date</div>
-                  <div className="font-semibold">{report.priceTargetEndDate}</div>
-                </div>
-              )}
-              {(report.peRatio != null || report.dcfInputs?.peRatio != null) && (
-                <div>
-                  <div className="text-gray-500">P/E Ratio</div>
-                  <div className="font-semibold">{(report.peRatio ?? report.dcfInputs?.peRatio).toFixed(2)}</div>
-                </div>
-              )}
-              {(report.forwardPE != null || report.dcfInputs?.forwardPE != null) && (
-                <div>
-                  <div className="text-gray-500">Forward P/E (DCF)</div>
-                  <div className="font-semibold text-blue-600">{(report.forwardPE ?? report.dcfInputs?.forwardPE).toFixed(2)}</div>
-                  <div className="text-xs text-gray-400">Our projection</div>
-                </div>
-              )}
-              {report.forwardPEConsensus != null && (
-                <div>
-                  <div className="text-gray-500">Forward P/E (Consensus)</div>
-                  <div className="font-semibold text-purple-600">{report.forwardPEConsensus.toFixed(2)}</div>
-                  <div className="text-xs text-gray-400">Analyst estimates</div>
-                </div>
-              )}
-              {report.dividendYield != null && (
-                <div>
-                  <div className="text-gray-500">Dividend Yield</div>
-                  <div className="font-semibold">{report.dividendYield.toFixed(2)}%</div>
-                </div>
-              )}
-            </div>
-            {report.dataSource && (
-              <p className="text-xs text-gray-500">Source: {report.dataSource}</p>
-            )}
-            {(() => {
-              const hasEPS = !!report.epsTableMarkdown;
-              const hasChart = report.showPriceChart !== false && (
-                (report.priceHistory && report.priceHistory.length > 0) ||
-                (report.dcfInputs?.priceHistory && report.dcfInputs.priceHistory.length > 0) ||
-                !!report.priceChartImageUrl
-              );
-              const sideBySide = hasEPS && hasChart;
-              return (
-                <div className={sideBySide ? 'grid grid-cols-2 gap-4 items-stretch' : 'space-y-4'}>
-                  {hasEPS && (
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-3">EPS (Recurring)</h4>
-                      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-                        <div className="prose prose-sm max-w-none [&_table]:w-full [&_table]:border-collapse [&_table]:m-0 [&_th]:bg-gray-50 [&_th]:border-b [&_th]:border-gray-200 [&_th]:px-4 [&_th]:py-3 [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-wider [&_th]:text-gray-600 [&_td]:border-b [&_td]:border-gray-100 [&_td]:px-4 [&_td]:py-3 [&_td]:text-sm [&_td]:text-gray-900 [&_tr:last-child_td]:border-b-0">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-                            {report.epsTableMarkdown!}
-                          </ReactMarkdown>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {hasChart && (
-                    <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 flex flex-col">
-                      <h4 className="font-semibold mb-3 text-gray-800">Price Chart (100 Days)</h4>
-                      {report.priceChartImageUrl && !(report.priceHistory && report.priceHistory.length > 0) ? (
-                        <img src={report.priceChartImageUrl} alt="Price Chart" className="w-full h-auto rounded" />
-                      ) : (
-                        <div className="flex-1 min-h-48 relative">
-                          <svg viewBox="0 0 800 220" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
-                            {(() => {
-                              const chartData = (report.priceHistory || report.dcfInputs?.priceHistory || []).slice(0, 100);
-                              if (!chartData.length) return null;
-                              const prices = chartData.map((d: any) => d.close);
-                              const maxPrice = Math.max(...prices);
-                              const topPad = maxPrice * 0.05;
-                              const range = maxPrice + topPad;
-                              const points = chartData.map((d: any, i: number) => {
-                                const x = (chartData.length > 1 ? i / (chartData.length - 1) : 0) * 760 + 20;
-                                const y = 200 - (d.close / range) * 180;
-                                return `${x},${y}`;
-                              }).join(' ');
-                              const areaPoints = `${points} 760,200 20,200`;
-                              return (
-                                <>
-                                  <rect x="20" y="20" width="760" height="180" fill="white" rx="4" />
-                                  <line x1="20" y1="200" x2="780" y2="200" stroke="#e5e7eb" strokeWidth="1" />
-                                  <line x1="20" y1="20" x2="20" y2="200" stroke="#e5e7eb" strokeWidth="1" />
-                                  <polygon points={areaPoints} fill="rgba(59, 130, 246, 0.08)" stroke="none" />
-                                  <polyline points={points} fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                  <text x="20" y="215" fontSize="11" fill="#6b7280">{chartData[chartData.length - 1]?.date}</text>
-                                  <text x="780" y="215" fontSize="11" fill="#6b7280" textAnchor="end">{chartData[0]?.date}</text>
-                                  <text x="20" y="28" fontSize="11" fill="#6b7280" fontWeight="500">${maxPrice.toFixed(2)}</text>
-                                  <text x="20" y="208" fontSize="11" fill="#6b7280" fontWeight="500">$0</text>
-                                </>
-                              );
-                            })()}
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
+            <ResearchMarketSnapshotSection report={report} />
           </CardContent>
         </Card>
       )}
@@ -638,6 +422,17 @@ export default function ResearchReportPreviewPage() {
         </CardContent>
       </Card>
 
+      {report.sentimentSnapshot && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl">Sentiment & News Flow</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResearchSentimentSection sentiment={report.sentimentSnapshot} />
+          </CardContent>
+        </Card>
+      )}
+
       {/* Bull & Bear Cases */}
       <Card>
         <CardHeader>
@@ -800,6 +595,7 @@ export default function ResearchReportPreviewPage() {
           </div>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </>
   );
 }

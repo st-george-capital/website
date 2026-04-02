@@ -6,7 +6,8 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { ArrowLeft, Upload, FileText } from 'lucide-react';
+import { AssociatedUsersPicker } from '@/components/pitches/AssociatedUsersPicker';
+import { ArrowLeft, FileText } from 'lucide-react';
 
 interface InvestmentPitch {
   id: string;
@@ -19,6 +20,18 @@ interface InvestmentPitch {
   documentFile?: string;
   published: boolean;
   publishDate?: string;
+  participants?: Array<{
+    id: string;
+    userId: string;
+    userName: string;
+  }>;
+}
+
+interface UserOption {
+  id: string;
+  name?: string;
+  email: string;
+  role: string;
 }
 
 export default function EditInvestmentPitchPage() {
@@ -29,6 +42,7 @@ export default function EditInvestmentPitchPage() {
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [users, setUsers] = useState<UserOption[]>([]);
   const [formData, setFormData] = useState({
     title: '',
     company: '',
@@ -39,6 +53,7 @@ export default function EditInvestmentPitchPage() {
     documentFile: '',
     published: false,
     publishDate: '',
+    associatedUserIds: [] as string[],
   });
 
   const isAdmin = session?.user?.role === 'admin';
@@ -46,6 +61,23 @@ export default function EditInvestmentPitchPage() {
   useEffect(() => {
     fetchPitch();
   }, [id]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch('/api/users');
+        if (!response.ok) return;
+        const data = await response.json();
+        setUsers(data);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      }
+    };
+
+    fetchUsers();
+  }, [isAdmin]);
 
   const fetchPitch = async () => {
     try {
@@ -62,6 +94,7 @@ export default function EditInvestmentPitchPage() {
           documentFile: data.documentFile || '',
           published: data.published,
           publishDate: data.publishDate ? new Date(data.publishDate).toISOString().slice(0, 16) : '',
+          associatedUserIds: data.participants?.map((participant) => participant.userId) || [],
         });
       }
     } catch (error) {
@@ -142,6 +175,15 @@ export default function EditInvestmentPitchPage() {
       return ['financials', 'consumer', 'energy', 'healthcare', 'technology'];
     }
     return [];
+  };
+
+  const toggleAssociatedUser = (userId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      associatedUserIds: prev.associatedUserIds.includes(userId)
+        ? prev.associatedUserIds.filter((id) => id !== userId)
+        : [...prev.associatedUserIds, userId],
+    }));
   };
 
   if (fetchLoading) {
@@ -256,6 +298,12 @@ export default function EditInvestmentPitchPage() {
                 placeholder="Optional description..."
               />
             </div>
+
+            <AssociatedUsersPicker
+              users={users}
+              selectedUserIds={formData.associatedUserIds}
+              onToggle={toggleAssociatedUser}
+            />
 
             {/* File Upload */}
             <div>

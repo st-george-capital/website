@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { Calculator, BarChart3, FileText, GitBranch, Globe } from 'lucide-react';
+import { Brain, Calculator, BarChart3, FileText, GitBranch, Globe, MessageSquareText } from 'lucide-react';
 
 const tools = [
   {
@@ -59,6 +59,34 @@ const tools = [
       'Market monetization overlay',
       'Country classification by type',
       '11 countries tracked',
+    ],
+  },
+  {
+    id: 'interview-tool',
+    name: 'Interview Tool',
+    description: 'A searchable interview bank with quiz mode, member submissions, and admin review for finance and consulting roles',
+    href: '/dashboard/tools/interview',
+    icon: Brain,
+    features: [
+      '350+ seeded interview prompts',
+      'Role, desk, and company filters',
+      'Randomized Test Me mode',
+      'Community question submissions',
+      'Admin moderation queue',
+    ],
+  },
+  {
+    id: 'sentiment-tool',
+    name: 'Sentiment Tool',
+    description: 'Live news-sentiment analysis for a ticker or company, translated into an investment memo view',
+    href: '/dashboard/tools/sentiment',
+    icon: MessageSquareText,
+    features: [
+      'Live Alpha Vantage news sentiment',
+      'Ticker and keyword filtering',
+      'Bullish vs bearish drivers',
+      'Recent article trend view',
+      'Price-context divergence check',
     ],
   },
 ];

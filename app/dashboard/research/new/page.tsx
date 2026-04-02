@@ -5,7 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { ArrowLeft, Save, Eye, FileText, DollarSign, TrendingUp, AlertTriangle, Target, Building2, Upload, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Save, Eye, FileText, DollarSign, TrendingUp, AlertTriangle, Target, Building2, Upload, Image as ImageIcon, MessageSquareText, RefreshCw } from 'lucide-react';
+import type { SentimentResponsePayload } from '@/lib/sentiment';
+import { ResearchSentimentSection, type ReportSentimentSnapshot } from '@/components/research/ResearchSentimentSection';
 
 interface ThesisBullet {
   title: string;   // one-liner grabber (markdown)
@@ -98,6 +100,10 @@ export default function NewResearchReportPage() {
   ]);
 
   const [valuationAnalysis, setValuationAnalysis] = useState('');
+  const [sentimentSnapshot, setSentimentSnapshot] = useState<ReportSentimentSnapshot | null>(null);
+  const [sentimentKeyword, setSentimentKeyword] = useState('');
+  const [sentimentHorizon, setSentimentHorizon] = useState('7');
+  const [loadingSentiment, setLoadingSentiment] = useState(false);
   
   const [bearCase, setBearCase] = useState('');
   const [bullCase, setBullCase] = useState('');
@@ -413,7 +419,7 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
 | Enterprise Value | $${(model.outputs.bull.enterpriseValue / 1e9).toFixed(2)}B |
 | WACC | ${(model.outputs.bull.wacc * 100).toFixed(2)}% |
 
-*Assumptions: Higher revenue growth, margin expansion, lower discount rate. Adjust narrative and add justification below.*`);
+*Assumptions: Higher revenue growth, margin expansion, lower discount rate.*`);
         setBearCase(`## Bear Case (from DCF model)
 
 **Target:** $${model.outputs.bear.intrinsicValuePerShare.toFixed(2)} per share (**${bearUpside.toFixed(1)}%** vs current $${model.inputs.currentPrice.toFixed(2)})
@@ -424,13 +430,51 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
 | Enterprise Value | $${(model.outputs.bear.enterpriseValue / 1e9).toFixed(2)}B |
 | WACC | ${(model.outputs.bear.wacc * 100).toFixed(2)}% |
 
-*Assumptions: Lower growth, margin pressure, higher discount rate. Adjust narrative and add justification below.*`);
+*Assumptions: Lower growth, margin pressure, higher discount rate.*`);
       }
 
       alert('DCF model loaded successfully! Full valuation analysis with tables and sensitivity analysis has been generated.' + (model.outputs.bull && model.outputs.bear ? ' Bull and bear cases pre-filled from DCF scenarios.' : ''));
     } catch (error) {
       console.error('Error loading DCF model:', error);
       alert('Failed to load DCF model');
+    }
+  };
+
+  const handlePullSentiment = async () => {
+    const query = metadata.ticker?.trim() || metadata.companyName?.trim();
+    if (!query) {
+      alert('Add a ticker or company name first so sentiment can be pulled.');
+      return;
+    }
+
+    setLoadingSentiment(true);
+    try {
+      const params = new URLSearchParams({
+        query,
+        horizon: sentimentHorizon,
+      });
+
+      if (sentimentKeyword.trim()) {
+        params.set('keyword', sentimentKeyword.trim());
+      }
+
+      const response = await fetch(`/api/dashboard/sentiment?${params.toString()}`);
+      const data: SentimentResponsePayload | { error?: string } = await response.json();
+
+      if (!response.ok) {
+        throw new Error('error' in data ? data.error || 'Failed to pull sentiment' : 'Failed to pull sentiment');
+      }
+
+      setSentimentSnapshot({
+        ...(data as SentimentResponsePayload),
+        pulledAt: new Date().toISOString(),
+        horizonDays: Number(sentimentHorizon),
+      });
+    } catch (error) {
+      console.error('Error pulling sentiment:', error);
+      alert(error instanceof Error ? error.message : 'Failed to pull sentiment');
+    } finally {
+      setLoadingSentiment(false);
     }
   };
 
@@ -456,6 +500,7 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
         catalystsNearTerm: catalystsNear,
         catalystsMediumTerm: catalystsMedium,
         valuationAnalysis,
+        sentimentSnapshot,
         bearCase,
         bullCase,
         bullBearJustification,
@@ -506,6 +551,7 @@ At $${model.outputs.intrinsicValuePerShare.toFixed(2)} per share, our DCF valuat
     { id: 'industry', name: 'Industry Analysis', icon: TrendingUp },
     { id: 'catalysts', name: 'Catalysts', icon: TrendingUp },
     { id: 'valuation', name: 'Valuation', icon: DollarSign },
+    { id: 'sentiment', name: 'Sentiment (Optional)', icon: MessageSquareText },
     { id: 'bullbear', name: 'Bull & Bear Cases', icon: TrendingUp },
     { id: 'justification', name: 'Justification (Optional)', icon: FileText },
     { id: 'risks', name: 'Risks', icon: AlertTriangle },
@@ -1517,6 +1563,76 @@ If applicable for multi-business companies..."
                     📊 When you load a DCF model, this field auto-fills with comprehensive tables. You can edit or add supplementary analysis.
                   </p>
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {activeSection === 'sentiment' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Sentiment Snapshot (Optional)</CardTitle>
+                <CardDescription>
+                  Pull a live sentiment snapshot and save it into this report so it can render after valuation in preview, export, and the published page.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid gap-4 md:grid-cols-[1.1fr_220px_auto]">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Keyword / topic</label>
+                    <input
+                      value={sentimentKeyword}
+                      onChange={(e) => setSentimentKeyword(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-md"
+                      placeholder="Optional: Copilot, cloud, margins..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Horizon</label>
+                    <select
+                      value={sentimentHorizon}
+                      onChange={(e) => setSentimentHorizon(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-md"
+                    >
+                      <option value="3">Last 3 days</option>
+                      <option value="7">Last 7 days</option>
+                      <option value="30">Last 30 days</option>
+                    </select>
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <Button type="button" onClick={handlePullSentiment} disabled={loadingSentiment}>
+                      {loadingSentiment ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          Pulling...
+                        </>
+                      ) : (
+                        <>
+                          <MessageSquareText className="w-4 h-4 mr-2" />
+                          Pull Live Sentiment
+                        </>
+                      )}
+                    </Button>
+                    {sentimentSnapshot && (
+                      <Button type="button" variant="outline" onClick={() => setSentimentSnapshot(null)}>
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <p className="text-xs text-gray-600">
+                  Uses the report ticker first, falls back to company name, and stores a saved snapshot with the report. This is optional.
+                </p>
+
+                {sentimentSnapshot ? (
+                  <div className="rounded-lg border p-4">
+                    <ResearchSentimentSection sentiment={sentimentSnapshot} />
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed p-4 text-sm text-gray-500">
+                    No sentiment snapshot saved for this report yet.
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

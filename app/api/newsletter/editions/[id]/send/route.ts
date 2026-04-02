@@ -5,10 +5,17 @@ import { prisma } from '@/lib/prisma';
 import { Resend } from 'resend';
 import { buildNewsletterEmail, MarketRow } from '@/lib/newsletter-email';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const BASE_URL = process.env.NEXTAUTH_URL || 'https://stgeorgecapital.ca';
 const FROM_ADDRESS = process.env.NEWSLETTER_FROM_EMAIL || 'outreach@stgeorgecapital.ca';
 const FROM_EMAIL = `SGC Daily Snapshot <${FROM_ADDRESS}>`;
+
+function getResendClient() {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error('RESEND_API_KEY is not configured in environment variables.');
+  }
+
+  return new Resend(process.env.RESEND_API_KEY);
+}
 
 async function fetchMarketSnapshot(): Promise<MarketRow[]> {
   try {
@@ -37,6 +44,8 @@ export async function POST(
         { status: 500 }
       );
     }
+
+    const resend = getResendClient();
 
     const edition = await prisma.newsletterEdition.findUnique({
       where: { id: params.id },
