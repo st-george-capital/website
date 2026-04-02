@@ -6,6 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { InstitutionalValuationSection } from '@/components/InstitutionalValuationSection';
+import { ResearchMarketSnapshotSection } from '@/components/research/ResearchMarketSnapshotSection';
 import { ResearchSentimentSection } from '@/components/research/ResearchSentimentSection';
 
 const prisma = new PrismaClient();
@@ -145,137 +146,7 @@ export default async function PublicResearchReportPage({
         {(report.priceDate || report.fiftyTwoWeekRange || report.marketCap != null || report.sharesOutstanding != null || report.fiscalYearEnd || report.priceTargetEndDate || report.dataSource || (report.performanceMetrics as any)?.absYTD != null || report.dcfInputs || ((report as any).priceHistory && (report as any).priceHistory.length > 0)) && (
           <div className="bg-white rounded-2xl p-8 space-y-6">
             <h2 className="text-2xl font-bold text-gray-900">Company Snapshot & Price Performance</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-              {report.priceDate && (
-                <div>
-                  <div className="text-gray-500">Date of Price</div>
-                  <div className="font-semibold text-gray-900">{report.priceDate}</div>
-                </div>
-              )}
-              {report.fiftyTwoWeekRange && (
-                <div>
-                  <div className="text-gray-500">52-Week Range ($)</div>
-                  <div className="font-semibold text-gray-900">{report.fiftyTwoWeekRange}</div>
-                </div>
-              )}
-              {report.marketCap != null && (
-                <div>
-                  <div className="text-gray-500">Market Cap ($ mn)</div>
-                  <div className="font-semibold text-gray-900">{report.marketCap.toLocaleString()}</div>
-                </div>
-              )}
-              {report.fiscalYearEnd && (
-                <div>
-                  <div className="text-gray-500">Fiscal Year End</div>
-                  <div className="font-semibold text-gray-900">{report.fiscalYearEnd}</div>
-                </div>
-              )}
-              {report.sharesOutstanding != null && (
-                <div>
-                  <div className="text-gray-500">Shares O/S (mn)</div>
-                  <div className="font-semibold text-gray-900">{report.sharesOutstanding.toLocaleString()}</div>
-                </div>
-              )}
-              {report.priceTargetEndDate && (
-                <div>
-                  <div className="text-gray-500">Price Target End Date</div>
-                  <div className="font-semibold text-gray-900">{report.priceTargetEndDate}</div>
-                </div>
-              )}
-              {((report as any).peRatio != null || (report.dcfInputs as any)?.peRatio != null) && (
-                <div>
-                  <div className="text-gray-500">P/E Ratio</div>
-                  <div className="font-semibold text-gray-900">{((report as any).peRatio ?? (report.dcfInputs as any)?.peRatio).toFixed(2)}</div>
-                </div>
-              )}
-              {((report as any).forwardPE != null || (report.dcfInputs as any)?.forwardPE != null) && (
-                <div>
-                  <div className="text-gray-500">Forward P/E (DCF)</div>
-                  <div className="font-semibold text-blue-600">{((report as any).forwardPE ?? (report.dcfInputs as any)?.forwardPE).toFixed(2)}</div>
-                  <div className="text-xs text-gray-400">Our projection</div>
-                </div>
-              )}
-              {(report as any).forwardPEConsensus != null && (
-                <div>
-                  <div className="text-gray-500">Forward P/E (Consensus)</div>
-                  <div className="font-semibold text-purple-600">{(report as any).forwardPEConsensus.toFixed(2)}</div>
-                  <div className="text-xs text-gray-400">Analyst estimates</div>
-                </div>
-              )}
-              {(report as any).dividendYield != null && (
-                <div>
-                  <div className="text-gray-500">Dividend Yield</div>
-                  <div className="font-semibold text-gray-900">{(report as any).dividendYield.toFixed(2)}%</div>
-                </div>
-              )}
-            </div>
-            {report.dataSource && (
-              <p className="text-sm text-gray-500">Source: {report.dataSource}</p>
-            )}
-            {(() => {
-              const hasEPS = !!report.epsTableMarkdown;
-              const hasChart = (report as any).showPriceChart !== false && (
-                ((report as any).priceHistory && (report as any).priceHistory.length > 0) ||
-                ((report.dcfInputs as any)?.priceHistory && (report.dcfInputs as any).priceHistory.length > 0) ||
-                !!(report as any).priceChartImageUrl
-              );
-              const sideBySide = hasEPS && hasChart;
-              return (
-                <div className={sideBySide ? 'grid grid-cols-2 gap-4 items-stretch' : 'space-y-4'}>
-                  {hasEPS && (
-                    <div>
-                      <h3 className="font-semibold text-lg text-gray-900 mb-2">EPS (Recurring)</h3>
-                      <div className="prose prose-sm max-w-none text-gray-700
-                        [&_table]:w-full [&_table]:border-collapse [&_th]:border [&_td]:border [&_th]:px-2 [&_td]:px-2 [&_th]:py-1 [&_td]:py-1 [&_th]:bg-gray-50">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-                          {report.epsTableMarkdown!}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                  )}
-                  {hasChart && (
-                    <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 flex flex-col">
-                      <h3 className="font-semibold text-lg text-gray-900 mb-3">Price Chart (100 Days)</h3>
-                      {(report as any).priceChartImageUrl && !((report as any).priceHistory && (report as any).priceHistory.length > 0) ? (
-                        <img src={(report as any).priceChartImageUrl} alt="Price Chart" className="w-full h-auto rounded-lg" />
-                      ) : (
-                        <div className="flex-1 min-h-48 relative">
-                          <svg viewBox="0 0 800 220" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
-                            {(() => {
-                              const chartData = ((report as any).priceHistory || (report.dcfInputs as any)?.priceHistory || []).slice(0, 100);
-                              if (!chartData.length) return null;
-                              const prices = chartData.map((d: any) => d.close);
-                              const maxPrice = Math.max(...prices);
-                              const topPad = maxPrice * 0.05;
-                              const range = maxPrice + topPad;
-                              const points = chartData.map((d: any, i: number) => {
-                                const x = (chartData.length > 1 ? i / (chartData.length - 1) : 0) * 760 + 20;
-                                const y = 200 - (d.close / range) * 180;
-                                return `${x},${y}`;
-                              }).join(' ');
-                              const areaPoints = `${points} 760,200 20,200`;
-                              return (
-                                <>
-                                  <rect x="20" y="20" width="760" height="180" fill="white" rx="4" />
-                                  <line x1="20" y1="200" x2="780" y2="200" stroke="#e5e7eb" strokeWidth="1" />
-                                  <line x1="20" y1="20" x2="20" y2="200" stroke="#e5e7eb" strokeWidth="1" />
-                                  <polygon points={areaPoints} fill="rgba(59, 130, 246, 0.08)" stroke="none" />
-                                  <polyline points={points} fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                  <text x="20" y="215" fontSize="11" fill="#6b7280">{chartData[chartData.length - 1]?.date}</text>
-                                  <text x="780" y="215" fontSize="11" fill="#6b7280" textAnchor="end">{chartData[0]?.date}</text>
-                                  <text x="20" y="28" fontSize="11" fill="#6b7280" fontWeight="500">${maxPrice.toFixed(2)}</text>
-                                  <text x="20" y="208" fontSize="11" fill="#6b7280" fontWeight="500">$0</text>
-                                </>
-                              );
-                            })()}
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
+            <ResearchMarketSnapshotSection report={report as any} />
           </div>
         )}
 
