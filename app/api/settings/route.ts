@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
+import { authOptions } from '@/lib/auth';
 
 // Force dynamic rendering to prevent static generation issues
 export const dynamic = 'force-dynamic';
@@ -24,7 +26,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     
     if (!session || session.user?.role !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -38,6 +40,10 @@ export async function POST(request: Request) {
       update: { value },
       create: { key, value },
     });
+
+    revalidatePath('/');
+    revalidatePath('/charity');
+    revalidatePath('/dashboard/settings');
 
     return NextResponse.json(setting);
   } catch (error) {

@@ -49,7 +49,7 @@ export default function SettingsPage() {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch('/api/settings');
+      const res = await fetch('/api/settings', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         setSettings({
@@ -146,8 +146,7 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Save each setting
-      await Promise.all(
+      const responses = await Promise.all(
         Object.entries(settings).map(([key, value]) =>
           fetch('/api/settings', {
             method: 'POST',
@@ -157,10 +156,18 @@ export default function SettingsPage() {
         )
       );
 
+      const failedResponse = responses.find((response) => !response.ok);
+      if (failedResponse) {
+        const error = await failedResponse.json().catch(() => ({ error: 'Failed to save settings' }));
+        throw new Error(error.error || 'Failed to save settings');
+      }
+
+      await fetchSettings();
+
       alert('Settings saved successfully!');
     } catch (error) {
       console.error('Error saving settings:', error);
-      alert('Failed to save settings');
+      alert(error instanceof Error ? error.message : 'Failed to save settings');
     } finally {
       setSaving(false);
     }

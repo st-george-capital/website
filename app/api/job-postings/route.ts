@@ -1,9 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { PrismaClient } from '@prisma/client';
+import { revalidatePath } from 'next/cache';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
+function parsePostingEndDate(value: string | Date) {
+  if (value instanceof Date) {
+    const parsed = new Date(value);
+    if (
+      parsed.getUTCHours() === 0 &&
+      parsed.getUTCMinutes() === 0 &&
+      parsed.getUTCSeconds() === 0 &&
+      parsed.getUTCMilliseconds() === 0
+    ) {
+      parsed.setUTCHours(23, 59, 59, 999);
+    }
+    return parsed;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return new Date(`${value}T23:59:59.999Z`);
+  }
+
+  const parsed = new Date(value);
+  if (
+    parsed.getUTCHours() === 0 &&
+    parsed.getUTCMinutes() === 0 &&
+    parsed.getUTCSeconds() === 0 &&
+    parsed.getUTCMilliseconds() === 0
+  ) {
+    parsed.setUTCHours(23, 59, 59, 999);
+  }
+  return parsed;
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -73,11 +102,14 @@ export async function POST(req: NextRequest) {
         title,
         description,
         team,
-        endDate: new Date(endDate),
+        endDate: parsePostingEndDate(endDate),
         published,
         documentFile,
       },
     });
+
+    revalidatePath('/contact');
+    revalidatePath('/dashboard/postings');
 
     return NextResponse.json(jobPosting, { status: 201 });
   } catch (error) {
