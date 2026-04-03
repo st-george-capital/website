@@ -129,7 +129,7 @@ export default function EditJobPostingPage() {
         },
         body: JSON.stringify({
           ...formData,
-          endDate: new Date(formData.endDate),
+          endDate: formData.endDate,
         }),
       });
 

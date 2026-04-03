@@ -444,7 +444,7 @@ function JobPostingsSection() {
 
   const fetchJobPostings = async () => {
     try {
-      const response = await fetch('/api/job-postings/public');
+      const response = await fetch('/api/job-postings/public', { cache: 'no-store' });
       if (response.ok) {
         const data = await response.json();
         setJobPostings(data);
