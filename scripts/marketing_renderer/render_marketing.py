@@ -5,26 +5,24 @@ import sys
 from html import escape
 
 
-# Modern color palette
-NAVY = "#030116"
-NAVY_2 = "#0b1f3a"
-NAVY_3 = "#1a2a4a"
-SLATE = "#8fa1c2"
-ICE = "#b9c9e8"
+# Professional color palette inspired by WISE
+NAVY = "#1a1a3e"
+PURPLE = "#5b4b9f"
+LAVENDER = "#e8dff5"
+SLATE = "#7a7a9e"
 TEAL = "#00d9d9"
-EMERALD = "#10b981"
-AMBER = "#f59e0b"
-ROSE = "#f43f5e"
-OFF_WHITE = "#f8fbff"
-LINE = "rgba(143, 161, 194, 0.24)"
+GOLD = "#f4d35e"
+OFF_WHITE = "#f8f9fa"
+WHITE = "#ffffff"
+LINE = "rgba(122, 122, 158, 0.2)"
 
 # Accents per source type
 ACCENTS = {
     "job_posting": TEAL,
-    "article": EMERALD,
-    "research_report": AMBER,
-    "strategy_document": ROSE,
-    "manual": ICE,
+    "article": "#10b981",
+    "research_report": GOLD,
+    "strategy_document": "#f43f5e",
+    "manual": PURPLE,
 }
 
 
@@ -47,120 +45,20 @@ def clamp(value, length):
     return text[: length - 1].rstrip() + "…"
 
 
-def smart_clamp(value, length, prefer_sentences=False):
-    """Clamp with sentence awareness for better truncation"""
-    text = collapse(value)
-    if len(text) <= length:
-        return text
-
-    if prefer_sentences:
-        # Try to cut at sentence boundary
-        sentences = [s.strip() for s in text.split('.') if s.strip()]
-        if sentences:
-            result = ""
-            for sentence in sentences:
-                candidate = result + sentence + "."
-                if len(candidate) <= length:
-                    result = candidate
-                else:
-                    return result.rstrip(". ") if result else clamp(value, length)
-
-    return text[: length - 1].rstrip() + "…"
-
-
 def render_logo(logo_url):
     if not logo_url:
         return ""
-    return f'<img src="{safe(logo_url)}" alt="SGC" style="height:38px; width:auto; display:block;" />'
+    return f'<img src="{safe(logo_url)}" alt="SGC" style="height:36px; width:auto; display:block;" />'
 
 
-def background_media(image_url, overlay=0.32):
-    if not image_url:
-        return ""
-    return f"""
-    <div style="position:absolute; inset:0; background-image:url('{safe(image_url)}'); background-size:cover; background-position:center;"></div>
-    <div style="position:absolute; inset:0; background:linear-gradient(180deg, rgba(3,1,22,{overlay + 0.12}) 0%, rgba(3,1,22,0.76) 48%, rgba(3,1,22,0.98) 100%);"></div>
-    """
+def accent_bar(accent_color, thickness=3):
+    """Top accent bar"""
+    return f'<div style="position:absolute; top:0; left:0; right:0; height:{thickness}px; background:{accent_color};"></div>'
 
 
-def accent_bar(accent_color):
-    """Gradient accent bar element"""
-    return f"""<div style="position:absolute; top:0; left:0; right:0; height:4px; background:linear-gradient(90deg, {accent_color} 0%, {accent_color}80 100%);"></div>"""
-
-
-def stat_cell(label, value, accent=SLATE):
-    """Modern stat cell with accent"""
-    return f"""
-    <div style="padding:14px 16px; border:1px solid {LINE}; border-radius:14px; background:rgba(255,255,255,0.04); border-left:3px solid {accent};">
-      <div style="font:600 9px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:{SLATE};">{safe(label)}</div>
-      <div style="margin-top:8px; font:700 24px/1.05 Georgia, 'Times New Roman', serif; color:{OFF_WHITE};">{safe(value or '—')}</div>
-    </div>
-    """
-
-
-def stat_row(label, value, accent=SLATE):
-    """Stat row for LinkedIn (horizontal layout)"""
-    return f"""
-    <div style="display:flex; justify-content:space-between; align-items:baseline; gap:16px; padding:12px 0; border-top:1px solid {LINE};">
-      <span style="font:600 10px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:{SLATE};">{safe(label)}</span>
-      <span style="font:700 20px/1.1 Georgia, 'Times New Roman', serif; color:{accent};">{safe(value or '—')}</span>
-    </div>
-    """
-
-
-def research_metrics(fields, accent):
-    return [
-        ("Rating", str(fields.get("recommendation", "—")).upper(), accent),
-        ("Target", fields.get("targetPriceFormatted") or "—", accent),
-        ("Current", fields.get("currentPriceFormatted") or "—", SLATE),
-        ("Upside", fields.get("impliedUpsideFormatted") or "—", accent),
-    ]
-
-
-def instagram_detail(snapshot, accent):
-    """Instagram footer detail section with metrics"""
-    fields = snapshot.get("fields", {})
-    source_type = snapshot.get("sourceType")
-
-    if source_type == "research_report":
-        metrics = "".join(
-            stat_cell(label, value, color)
-            for label, value, color in research_metrics(fields, accent)
-        )
-        return f'<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:22px;">{metrics}</div>'
-
-    if source_type == "job_posting":
-        return f"""
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:22px;">
-        {stat_cell('Team', fields.get('teamLabel') or 'SGC', accent)}
-        {stat_cell('Status', snapshot.get('dateLabel') or 'Rolling', accent)}
-      </div>
-      """
-
-    if source_type == "strategy_document":
-        return f"""
-      <div style="padding:14px 16px; border:1px solid {LINE}; border-radius:14px; background:rgba(255,255,255,0.04); border-left:3px solid {accent}; margin-top:22px;">
-        <div style="font:600 9px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:{SLATE};">Document Type</div>
-        <div style="margin-top:8px; font:700 22px/1.1 Georgia, 'Times New Roman', serif; color:{OFF_WHITE};">{safe(fields.get('documentTypeLabel') or 'Research')}</div>
-      </div>
-      """
-
-    return ""
-
-
-def render_instagram(snapshot, brand):
-    """Modern Instagram feed post (1080x1080 square)"""
-    image_url = snapshot.get("imageUrl")
-    source_type = snapshot.get("sourceType")
-    accent = ACCENTS.get(source_type, ICE)
-
-    title = safe(snapshot.get('title'))
-    eyebrow = safe(snapshot.get('eyebrow'))
-    subtitle = safe(smart_clamp(snapshot.get('subtitle') or snapshot.get('summary'), 140, prefer_sentences=True))
-    summary = safe(smart_clamp(snapshot.get('summary'), 200, prefer_sentences=True))
-    cta = safe(snapshot.get('cta'))
-
-    detail = instagram_detail(snapshot, accent)
+def render_instagram_event(snapshot, brand):
+    """Instagram template for job postings/events - bold, structured"""
+    accent = ACCENTS.get(snapshot.get("sourceType"), PURPLE)
 
     return f"""<!doctype html>
 <html>
@@ -169,41 +67,43 @@ def render_instagram(snapshot, brand):
     <style>
       * {{ box-sizing: border-box; }}
       html, body {{ width:1080px; height:1080px; margin:0; padding:0; }}
-      body {{ background:{NAVY}; font-family:Arial, Helvetica, sans-serif; color:{OFF_WHITE}; }}
+      body {{ background:{NAVY}; font-family:'Arial', sans-serif; color:{OFF_WHITE}; }}
     </style>
   </head>
   <body>
-    <div style="position:relative; width:1080px; height:1080px; overflow:hidden; background:{NAVY};">
-      {accent_bar(accent)}
-      {background_media(image_url, 0.36)}
-      <div style="position:absolute; inset:0; background:
-        radial-gradient(circle at top right, rgba(0,217,217,0.12) 0%, rgba(3,1,22,0) 46%),
-        linear-gradient(180deg, rgba(3,1,22,0.08) 0%, rgba(3,1,22,0.82) 44%, rgba(3,1,22,0.98) 100%);
-      "></div>
-      <div style="position:relative; z-index:1; height:100%; padding:48px 52px 54px; display:flex; flex-direction:column;">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:20px;">
-          <div style="display:flex; align-items:center; gap:14px;">
-            {render_logo(brand.get('logoUrl'))}
-            <div style="font:600 11px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:{OFF_WHITE};">St. George Capital</div>
+    <div style="position:relative; width:1080px; height:1080px; overflow:hidden; background:linear-gradient(135deg, {NAVY} 0%, {PURPLE} 100%); display:flex; flex-direction:column;">
+      {accent_bar(accent, 5)}
+
+      <div style="position:relative; z-index:1; padding:56px 52px; flex:1; display:flex; flex-direction:column;">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          {render_logo(brand.get('logoUrl'))}
+          <div style="font:700 11px/1 Arial, sans-serif; letter-spacing:0.2em; text-transform:uppercase; color:{accent};">SGC</div>
+        </div>
+
+        <div style="margin-top:48px; flex:1; display:flex; flex-direction:column; justify-content:center;">
+          <div style="font:600 12px/1.2 Arial, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:{accent}; margin-bottom:16px;">
+            {safe(snapshot.get('eyebrow'))}
           </div>
-          <div style="width:6px; height:6px; border-radius:50%; background:{accent};"></div>
-        </div>
+          <h1 style="margin:0; font:700 76px/0.95 Georgia, serif; letter-spacing:-0.02em; color:{WHITE}; word-break:break-word;">
+            {safe(clamp(snapshot.get('title'), 40))}
+          </h1>
 
-        <div style="margin-top:44px;">
-          <div style="font:600 11px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:{accent};">{eyebrow}</div>
-          <h1 style="margin:16px 0 0; max-width:920px; font:700 62px/0.98 Georgia, 'Times New Roman', serif; letter-spacing:-0.02em; word-spacing:0.1em;">{title}</h1>
-          <div style="margin-top:20px; max-width:880px; font:500 24px/1.32 Arial, Helvetica, sans-serif; color:rgba(248,251,255,0.86);">{subtitle}</div>
-        </div>
-
-        <div style="margin-top:auto;">
-          <div style="padding:16px 18px; border:1px solid {LINE}; border-radius:14px; background:rgba(255,255,255,0.04); border-left:3px solid {accent};">
-            <div style="font:400 17px/1.6 Arial, Helvetica, sans-serif; color:{OFF_WHITE};">{summary}</div>
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:16px;">
-              <div style="font:600 10px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:{SLATE};">{safe(snapshot.get('dateLabel') or 'St. George Capital')}</div>
-              <div style="padding:9px 18px; border-radius:999px; background:{accent}; color:{NAVY}; font:700 11px/1 Arial, Helvetica, sans-serif; letter-spacing:0.14em; text-transform:uppercase;">{cta}</div>
+          <div style="margin-top:28px; max-width:700px;">
+            <div style="font:500 22px/1.35 Arial, sans-serif; color:rgba(255,255,255,0.88);">
+              {safe(clamp(snapshot.get('summary'), 180))}
             </div>
           </div>
-          {detail}
+        </div>
+
+        <div style="margin-top:auto; display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+          <div style="padding:16px 18px; background:rgba(255,255,255,0.08); border:1px solid {LINE}; border-radius:12px; border-left:3px solid {accent};">
+            <div style="font:600 10px/1.2 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:{SLATE};">When</div>
+            <div style="margin-top:8px; font:700 18px/1.1 Arial, sans-serif; color:{OFF_WHITE};">{safe(snapshot.get('dateLabel') or 'TBA')}</div>
+          </div>
+          <div style="padding:16px 18px; background:{accent}; border-radius:12px;">
+            <div style="font:600 10px/1.2 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:{NAVY};">Action</div>
+            <div style="margin-top:8px; font:700 16px/1.1 Arial, sans-serif; color:{NAVY}; word-break:break-word;">{safe(clamp(snapshot.get('cta'), 25))}</div>
+          </div>
         </div>
       </div>
     </div>
@@ -211,17 +111,124 @@ def render_instagram(snapshot, brand):
 </html>"""
 
 
-def render_linkedin(snapshot, brand):
-    """Modern LinkedIn share graphic (1200x627)"""
+def render_instagram_article(snapshot, brand):
+    """Instagram template for articles - clean, minimal, image-focused"""
+    accent = ACCENTS.get(snapshot.get("sourceType"), PURPLE)
     image_url = snapshot.get("imageUrl")
-    source_type = snapshot.get("sourceType")
-    accent = ACCENTS.get(source_type, ICE)
 
-    title = safe(snapshot.get('title'))
-    eyebrow = safe(snapshot.get('eyebrow'))
-    subtitle = safe(smart_clamp(snapshot.get('subtitle') or snapshot.get('summary'), 120, prefer_sentences=True))
-    summary = safe(smart_clamp(snapshot.get('summary'), 220, prefer_sentences=True))
-    cta = safe(snapshot.get('cta'))
+    bg = f"background-image:url('{escape(image_url)}'); background-size:cover; background-position:center;" if image_url else f"background:{NAVY};"
+
+    return f"""<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      * {{ box-sizing: border-box; }}
+      html, body {{ width:1080px; height:1080px; margin:0; padding:0; }}
+      body {{ font-family:'Arial', sans-serif; color:{OFF_WHITE}; }}
+    </style>
+  </head>
+  <body>
+    <div style="position:relative; width:1080px; height:1080px; overflow:hidden; {bg}">
+      {accent_bar(accent, 5)}
+
+      <div style="position:absolute; inset:0; background:linear-gradient(180deg, rgba(26,26,62,0.12) 0%, rgba(26,26,62,0.88) 60%, rgba(26,26,62,0.98) 100%);"></div>
+
+      <div style="position:relative; z-index:1; height:100%; padding:48px 48px; display:flex; flex-direction:column;">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          {render_logo(brand.get('logoUrl'))}
+          <div style="font:600 11px/1 Arial, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:{accent};">Featured</div>
+        </div>
+
+        <div style="margin-top:auto;">
+          <div style="font:600 11px/1.2 Arial, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:{accent}; margin-bottom:12px;">
+            {safe(snapshot.get('eyebrow'))}
+          </div>
+          <h1 style="margin:0 0 20px; font:700 62px/1 Georgia, serif; letter-spacing:-0.01em; color:{WHITE}; max-width:900px;">
+            {safe(clamp(snapshot.get('title'), 45))}
+          </h1>
+
+          <div style="max-width:800px;">
+            <p style="margin:0; font:400 18px/1.6 Arial, sans-serif; color:rgba(255,255,255,0.85);">
+              {safe(clamp(snapshot.get('summary'), 200))}
+            </p>
+          </div>
+
+          <div style="margin-top:24px; display:flex; align-items:center; gap:12px;">
+            <div style="padding:10px 18px; background:{accent}; border-radius:999px; font:700 11px/1 Arial, sans-serif; letter-spacing:0.12em; text-transform:uppercase; color:{NAVY};">
+              {safe(snapshot.get('cta'))}
+            </div>
+            <div style="font:500 12px/1.2 Arial, sans-serif; color:{SLATE};">
+              {safe(snapshot.get('dateLabel') or 'St. George Capital')}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>"""
+
+
+def render_instagram_research(snapshot, brand):
+    """Instagram template for research reports - metrics-focused"""
+    accent = ACCENTS.get(snapshot.get("sourceType"), GOLD)
+    fields = snapshot.get("fields", {})
+
+    return f"""<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      * {{ box-sizing: border-box; }}
+      html, body {{ width:1080px; height:1080px; margin:0; padding:0; }}
+      body {{ background:{NAVY}; font-family:'Arial', sans-serif; color:{OFF_WHITE}; }}
+    </style>
+  </head>
+  <body>
+    <div style="position:relative; width:1080px; height:1080px; overflow:hidden; background:{NAVY}; display:flex; flex-direction:column;">
+      {accent_bar(accent, 5)}
+
+      <div style="position:relative; z-index:1; padding:52px 52px; flex:1; display:flex; flex-direction:column;">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          {render_logo(brand.get('logoUrl'))}
+          <div style="font:700 11px/1 Arial, sans-serif; letter-spacing:0.2em; text-transform:uppercase; color:{accent};">Research</div>
+        </div>
+
+        <div style="margin-top:44px; flex:1; display:flex; flex-direction:column; justify-content:center;">
+          <div style="font:600 12px/1.2 Arial, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:{accent};">
+            Equity Analysis
+          </div>
+          <h1 style="margin:16px 0 0; font:700 68px/0.96 Georgia, serif; letter-spacing:-0.02em; color:{WHITE};">
+            {safe(fields.get('ticker', 'TBD').upper())}
+          </h1>
+          <div style="margin-top:12px; font:500 24px/1.3 Arial, sans-serif; color:rgba(255,255,255,0.82);">
+            {safe(clamp(fields.get('companyName', snapshot.get('title')), 40))}
+          </div>
+        </div>
+
+        <div style="margin-top:auto; display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+          <div style="padding:14px 14px; background:rgba(255,255,255,0.08); border-radius:10px; border-left:3px solid {accent};">
+            <div style="font:600 9px/1.1 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:{SLATE};">Rating</div>
+            <div style="margin-top:6px; font:700 20px/1 Georgia, serif; color:{accent};">{safe(str(fields.get('recommendation', '—')).upper())}</div>
+          </div>
+          <div style="padding:14px 14px; background:rgba(255,255,255,0.08); border-radius:10px; border-left:3px solid {accent};">
+            <div style="font:600 9px/1.1 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:{SLATE};">Target</div>
+            <div style="margin-top:6px; font:700 18px/1 Georgia, serif; color:{OFF_WHITE};">{safe(fields.get('targetPriceFormatted', '—'))}</div>
+          </div>
+          <div style="padding:14px 14px; background:rgba(255,255,255,0.08); border-radius:10px; border-left:3px solid {accent};">
+            <div style="font:600 9px/1.1 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:{SLATE};">Upside</div>
+            <div style="margin-top:6px; font:700 20px/1 Georgia, serif; color:{accent};">{safe(fields.get('impliedUpsideFormatted', '—'))}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>"""
+
+
+def render_linkedin_event(snapshot, brand):
+    """LinkedIn template for events - structured, professional"""
+    accent = ACCENTS.get(snapshot.get("sourceType"), PURPLE)
 
     return f"""<!doctype html>
 <html>
@@ -230,58 +237,114 @@ def render_linkedin(snapshot, brand):
     <style>
       * {{ box-sizing: border-box; }}
       html, body {{ width:1200px; height:627px; margin:0; padding:0; }}
-      body {{ background:{NAVY}; font-family:Arial, Helvetica, sans-serif; color:{OFF_WHITE}; }}
+      body {{ background:{WHITE}; font-family:'Arial', sans-serif; }}
     </style>
   </head>
   <body>
-    <div style="position:relative; width:1200px; height:627px; overflow:hidden; background:{NAVY};">
-      {accent_bar(accent)}
-      {background_media(image_url, 0.18)}
-      <div style="position:absolute; inset:0; background:
-        linear-gradient(90deg, rgba(3,1,22,0.98) 0%, rgba(3,1,22,0.94) 62%, rgba(3,1,22,0.52) 100%),
-        radial-gradient(circle at top right, rgba(0,217,217,0.10) 0%, rgba(3,1,22,0) 42%);
-      "></div>
-      <div style="position:relative; z-index:1; height:100%; padding:40px 48px; display:grid; grid-template-columns: 1.5fr 0.7fr; gap:36px;">
-        <div style="display:flex; flex-direction:column;">
-          <div style="display:flex; align-items:center; gap:14px;">
-            {render_logo(brand.get('logoUrl'))}
-            <div style="font:600 11px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:{OFF_WHITE};">St. George Capital</div>
-          </div>
+    <div style="position:relative; width:1200px; height:627px; overflow:hidden; background:{WHITE}; display:grid; grid-template-columns:1.2fr 0.8fr;">
+      {accent_bar(accent, 4)}
 
-          <div style="margin-top:28px;">
-            <div style="font:600 10px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:{accent};">{eyebrow}</div>
-            <h1 style="margin:14px 0 0; max-width:680px; font:700 52px/0.96 Georgia, 'Times New Roman', serif; letter-spacing:-0.02em;">{title}</h1>
-            <div style="margin-top:14px; max-width:700px; font:500 19px/1.32 Arial, Helvetica, sans-serif; color:rgba(248,251,255,0.84);">{subtitle}</div>
-          </div>
+      <div style="padding:44px 48px; display:flex; flex-direction:column; border-right:1px solid {LINE};">
+        <div style="display:flex; align-items:center; gap:12px;">
+          {render_logo(brand.get('logoUrl'))}
+          <div style="font:600 11px/1.2 Arial, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:{NAVY};">St. George Capital</div>
+        </div>
 
-          <div style="margin-top:auto; display:flex; align-items:center; justify-content:space-between; gap:18px;">
-            <div style="max-width:620px; font:400 15px/1.6 Arial, Helvetica, sans-serif; color:{OFF_WHITE};">{summary}</div>
-            <div style="padding:10px 16px; border-radius:999px; border:1px solid {accent}; background:rgba(0,217,217,0.08); font:700 10px/1 Arial, Helvetica, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:{accent}; white-space:nowrap;">{cta}</div>
+        <div style="margin-top:32px; flex:1; display:flex; flex-direction:column; justify-content:center;">
+          <div style="font:600 11px/1.2 Arial, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:{accent}; margin-bottom:12px;">
+            {safe(snapshot.get('eyebrow'))}
+          </div>
+          <h1 style="margin:0; font:700 46px/1.05 Georgia, serif; letter-spacing:-0.01em; color:{NAVY};">
+            {safe(clamp(snapshot.get('title'), 50))}
+          </h1>
+
+          <div style="margin-top:16px; font:500 16px/1.5 Arial, sans-serif; color:#334155;">
+            {safe(clamp(snapshot.get('summary'), 150))}
           </div>
         </div>
 
-        <div style="display:flex; flex-direction:column; justify-content:space-between; padding:20px 24px; border:1px solid {LINE}; border-radius:16px; background:rgba(255,255,255,0.04); border-left:3px solid {accent};">
+        <div style="margin-top:auto;">
+          <a href="#" style="padding:11px 22px; background:{accent}; color:{NAVY}; border-radius:999px; font:700 11px/1 Arial, sans-serif; letter-spacing:0.12em; text-transform:uppercase; text-decoration:none; display:inline-block;">
+            {safe(snapshot.get('cta'))}
+          </a>
+        </div>
+      </div>
+
+      <div style="padding:40px 32px; display:flex; flex-direction:column; background:linear-gradient(135deg, {accent}11 0%, transparent 100%); justify-content:center;">
+        <div style="text-align:center;">
+          <div style="font:700 14px/1.2 Arial, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:{SLATE}; margin-bottom:16px;">Event Details</div>
+
+          <div style="margin-bottom:20px;">
+            <div style="font:600 12px/1.2 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:{SLATE}; margin-bottom:6px;">When</div>
+            <div style="font:700 16px/1.2 Arial, sans-serif; color:{NAVY};">{safe(snapshot.get('dateLabel') or 'TBA')}</div>
+          </div>
+
+          <div style="padding:12px 0; border-top:1px solid {LINE}; border-bottom:1px solid {LINE};">
+            <div style="font:600 12px/1.2 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:{SLATE}; margin-bottom:6px;">Location</div>
+            <div style="font:700 14px/1.2 Arial, sans-serif; color:{NAVY};">Online</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>"""
+
+
+def render_linkedin_research(snapshot, brand):
+    """LinkedIn template for research - data-forward"""
+    accent = ACCENTS.get(snapshot.get("sourceType"), GOLD)
+    fields = snapshot.get("fields", {})
+
+    return f"""<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      * {{ box-sizing: border-box; }}
+      html, body {{ width:1200px; height:627px; margin:0; padding:0; }}
+      body {{ background:{WHITE}; font-family:'Arial', sans-serif; }}
+    </style>
+  </head>
+  <body>
+    <div style="position:relative; width:1200px; height:627px; overflow:hidden; background:{WHITE}; display:grid; grid-template-columns:1.3fr 0.7fr;">
+      {accent_bar(accent, 4)}
+
+      <div style="padding:44px 48px; display:flex; flex-direction:column;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          {render_logo(brand.get('logoUrl'))}
+          <div style="font:600 11px/1.2 Arial, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:{NAVY};">SGC Research</div>
+        </div>
+
+        <div style="margin-top:28px;">
+          <div style="font:600 11px/1.2 Arial, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:{accent}; margin-bottom:8px;">Equity Analysis</div>
+          <h1 style="margin:0; font:700 44px/1.05 Georgia, serif; letter-spacing:-0.01em; color:{NAVY};">
+            {safe(fields.get('ticker', 'TBD').upper())}
+          </h1>
+          <div style="margin-top:6px; font:500 18px/1.3 Arial, sans-serif; color:#334155;">
+            {safe(clamp(fields.get('companyName', snapshot.get('title')), 40))}
+          </div>
+        </div>
+
+        <div style="margin-top:auto; font:400 15px/1.6 Arial, sans-serif; color:#334155;">
+          {safe(clamp(snapshot.get('summary'), 180))}
+        </div>
+      </div>
+
+      <div style="padding:32px 28px; background:linear-gradient(135deg, {accent}15 0%, transparent 100%); display:flex; flex-direction:column; justify-content:center; border-left:1px solid {LINE};">
+        <div style="text-align:center;">
+          <div style="margin-bottom:16px;">
+            <div style="font:600 10px/1.2 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:{SLATE}; margin-bottom:6px;">Rating</div>
+            <div style="font:700 26px/1 Georgia, serif; color:{accent};">{safe(str(fields.get('recommendation', '—')).upper())}</div>
+          </div>
+
+          <div style="padding:12px 0; margin:12px 0; border-top:1px solid {LINE}; border-bottom:1px solid {LINE};">
+            <div style="font:600 10px/1.2 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:{SLATE}; margin-bottom:6px;">Target Price</div>
+            <div style="font:700 20px/1 Georgia, serif; color:{NAVY};">{safe(fields.get('targetPriceFormatted', '—'))}</div>
+          </div>
+
           <div>
-            <div style="font:600 10px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:{SLATE};">Key Info</div>
-            <div style="margin-top:14px;">"""
-
-    # Add metrics based on source type
-    if source_type == "research_report":
-        metrics = research_metrics(snapshot.get("fields", {}), accent)
-        linkedin_body = "".join(stat_row(label, value, color) for label, value, color in metrics)
-    elif source_type == "job_posting":
-        fields = snapshot.get("fields", {})
-        linkedin_body = f"""
-            {stat_row('Team', fields.get('teamLabel') or 'SGC', accent)}
-            {stat_row('Deadline', snapshot.get('dateLabel') or 'Rolling', accent)}
-            """
-    else:
-        linkedin_body = f"""
-            {stat_row('Published', snapshot.get('dateLabel') or 'SGC', accent)}
-            """
-
-    return f"""{linkedin_body}
-            </div>
+            <div style="font:600 10px/1.2 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:{SLATE}; margin-bottom:6px;">Upside</div>
+            <div style="font:700 24px/1 Georgia, serif; color:{accent};">{safe(fields.get('impliedUpsideFormatted', '—'))}</div>
           </div>
         </div>
       </div>
@@ -291,9 +354,9 @@ def render_linkedin(snapshot, brand):
 
 
 def render_job_posting_pdf(snapshot, brand):
-    """Modern job posting PDF (letter size: 8.5x11in)"""
-    fields = snapshot.get("fields", {})
+    """Professional job posting PDF"""
     accent = ACCENTS.get("job_posting", TEAL)
+    fields = snapshot.get("fields", {})
 
     return f"""<!doctype html>
 <html>
@@ -301,53 +364,64 @@ def render_job_posting_pdf(snapshot, brand):
     <meta charset="utf-8" />
     <style>
       * {{ box-sizing: border-box; }}
-      html, body {{ margin:0; padding:0; background:white; }}
-      body {{ font-family:Arial, Helvetica, sans-serif; color:#0f172a; }}
+      html, body {{ margin:0; padding:0; background:{WHITE}; }}
+      body {{ font-family:Arial, Helvetica, sans-serif; color:{NAVY}; }}
     </style>
   </head>
   <body>
-    <div style="padding:40px 48px 44px; max-width:800px;">
-      <div style="background:{NAVY}; border-radius:20px; padding:28px 32px; color:{OFF_WHITE}; border-left:4px solid {accent};">
+    <div style="padding:44px 52px;">
+      <div style="background:{NAVY}; border-radius:20px; padding:32px 36px; color:{OFF_WHITE}; border-left:4px solid {accent}; margin-bottom:32px;">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:20px;">
           <div style="display:flex; align-items:center; gap:16px;">
             {render_logo(brand.get('logoUrl'))}
             <div>
-              <div style="font:600 10px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:{SLATE};">St. George Capital</div>
-              <div style="margin-top:6px; font:700 14px/1.2 Georgia, 'Times New Roman', serif;">Investment Research | Student-Led</div>
+              <div style="font:600 10px/1.2 Arial, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:{SLATE};">St. George Capital</div>
+              <div style="margin-top:6px; font:700 14px/1.2 Georgia, serif;">Student Investment Platform</div>
             </div>
           </div>
-          <div style="font:600 10px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:{accent}; text-align:right;">Recruiting<br />Flyer</div>
+          <div style="font:700 11px/1.2 Arial, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:{accent}; text-align:right;">Recruiting<br/>Opportunity</div>
         </div>
-        <div style="margin-top:24px; font:600 10px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:{accent};">{safe(snapshot.get('eyebrow'))}</div>
-        <h1 style="margin:12px 0 0; font:700 36px/1.04 Georgia, 'Times New Roman', serif; color:{OFF_WHITE};">{safe(snapshot.get('title'))}</h1>
-        <div style="margin-top:12px; font:500 16px/1.4 Arial, Helvetica, sans-serif; color:rgba(248,251,255,0.84);">{safe(snapshot.get('subtitle') or '')}</div>
+
+        <div style="margin-top:28px;">
+          <div style="font:600 10px/1.2 Arial, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:{accent}; margin-bottom:10px;">
+            {safe(snapshot.get('eyebrow'))}
+          </div>
+          <h1 style="margin:0; font:700 40px/1.05 Georgia, serif; color:{WHITE};">
+            {safe(snapshot.get('title'))}
+          </h1>
+        </div>
       </div>
 
-      <div style="display:grid; grid-template-columns:1.3fr 0.7fr; gap:32px; margin-top:32px;">
+      <div style="display:grid; grid-template-columns:1.4fr 0.6fr; gap:28px;">
         <div>
-          <div style="font:600 11px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:{NAVY_2};">About the Role</div>
-          <div style="margin-top:12px; font:400 14px/1.72 Arial, Helvetica, sans-serif; color:#334155; line-height:1.8;">{safe(smart_clamp(fields.get('description') or snapshot.get('summary'), 450, prefer_sentences=True))}</div>
+          <h2 style="margin:0 0 14px; font:600 13px/1.2 Arial, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:{NAVY};">About the Role</h2>
+          <div style="font:400 14px/1.8 Arial, sans-serif; color:#334155; margin-bottom:28px;">
+            {safe(clamp(fields.get('description') or snapshot.get('summary'), 500))}
+          </div>
 
-          <div style="margin-top:28px; font:600 11px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:{NAVY_2};">How To Apply</div>
-          <div style="margin-top:12px; font:400 14px/1.72 Arial, Helvetica, sans-serif; color:#334155;">Visit sgcresearch.ca to submit your application. Shortlisted candidates will be contacted for interviews.</div>
+          <h2 style="margin:0 0 14px; font:600 13px/1.2 Arial, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:{NAVY};">How To Apply</h2>
+          <div style="font:400 14px/1.8 Arial, sans-serif; color:#334155;">
+            Visit sgcresearch.ca to apply. All qualified candidates are encouraged to submit their materials.
+          </div>
         </div>
 
         <div>
-          <div style="border:1px solid #d8e0ee; border-radius:16px; padding:22px 24px; background:#f8fbff; border-left:3px solid {accent};">
-            <div style="font:600 11px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:#64748b;">Key Details</div>
-            <div style="margin-top:16px; display:grid; gap:18px;">
-              <div>
-                <div style="font:600 10px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:#64748b;">Team</div>
-                <div style="margin-top:8px; font:700 18px/1.15 Georgia, 'Times New Roman', serif; color:{NAVY_2};">{safe(fields.get('teamLabel') or 'SGC')}</div>
-              </div>
-              <div>
-                <div style="font:600 10px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:#64748b;">Deadline</div>
-                <div style="margin-top:8px; font:700 18px/1.15 Georgia, 'Times New Roman', serif; color:{NAVY_2};">{safe(snapshot.get('dateLabel') or 'Rolling')}</div>
-              </div>
-              <div style="padding-top:14px; border-top:1px solid #d8e0ee;">
-                <div style="font:600 10px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:#64748b;">Action</div>
-                <div style="margin-top:8px; font:600 13px/1.6 Arial, Helvetica, sans-serif; color:{NAVY_2};">{safe(snapshot.get('cta'))}</div>
-              </div>
+          <div style="background:{LAVENDER}; border-radius:16px; padding:24px; border-left:3px solid {accent};">
+            <h3 style="margin:0 0 18px; font:600 12px/1.2 Arial, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:{NAVY};">Key Info</h3>
+
+            <div style="margin-bottom:16px;">
+              <div style="font:600 10px/1.2 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:{SLATE}; margin-bottom:6px;">Team</div>
+              <div style="font:700 16px/1.2 Georgia, serif; color:{NAVY};">{safe(fields.get('teamLabel') or 'SGC')}</div>
+            </div>
+
+            <div style="margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid rgba(26,26,62,0.1);">
+              <div style="font:600 10px/1.2 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:{SLATE}; margin-bottom:6px;">Deadline</div>
+              <div style="font:700 16px/1.2 Georgia, serif; color:{NAVY};">{safe(snapshot.get('dateLabel') or 'Rolling')}</div>
+            </div>
+
+            <div>
+              <div style="font:600 10px/1.2 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:{SLATE}; margin-bottom:8px;">Action</div>
+              <div style="font:600 13px/1.5 Arial, sans-serif; color:{NAVY};">{safe(snapshot.get('cta'))}</div>
             </div>
           </div>
         </div>
@@ -361,13 +435,26 @@ def main():
     payload = read_payload()
     snapshot = payload["snapshot"]
     brand = payload.get("brand", {})
+    source_type = snapshot.get("sourceType")
+
+    # Choose templates based on source type
+    if source_type == "job_posting":
+        instagram = render_instagram_event(snapshot, brand)
+        linkedin = render_linkedin_event(snapshot, brand)
+        pdf = render_job_posting_pdf(snapshot, brand)
+    elif source_type == "research_report":
+        instagram = render_instagram_research(snapshot, brand)
+        linkedin = render_linkedin_research(snapshot, brand)
+        pdf = None
+    else:  # article, strategy, manual
+        instagram = render_instagram_article(snapshot, brand)
+        linkedin = render_linkedin_event(snapshot, brand)
+        pdf = None
 
     result = {
-        "instagramHtml": render_instagram(snapshot, brand),
-        "linkedinHtml": render_linkedin(snapshot, brand),
-        "pdfHtml": render_job_posting_pdf(snapshot, brand)
-        if snapshot.get("sourceType") == "job_posting"
-        else None,
+        "instagramHtml": instagram,
+        "linkedinHtml": linkedin,
+        "pdfHtml": pdf,
     }
     sys.stdout.write(json.dumps(result))
 
