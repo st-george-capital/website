@@ -14,6 +14,7 @@ import {
   TrendingUp,
   Download,
   Calendar,
+  Megaphone,
 } from 'lucide-react';
 import { Button } from '@/components/button';
 import { Badge } from '@/components/ui/badge';
@@ -195,6 +196,9 @@ export default function StrategyDashboardPage() {
 
                 {isAdmin && (
                   <div className="flex items-center gap-2">
+                    <Link href={`/dashboard/tools/marketing?sourceType=strategy_document&sourceId=${doc.id}`} className="inline-flex items-center px-3 py-1 border border-border rounded-md text-sm hover:bg-accent transition-colors">
+                      <Megaphone className="w-4 h-4" />
+                    </Link>
                     <Button
                       variant="outline"
                       size="sm"

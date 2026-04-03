@@ -78,6 +78,7 @@ Optional (for market data):
 POLYGON_API_KEY="your-polygon-api-key"
 ALPHA_VANTAGE_API_KEY="your-alpha-vantage-api-key"
 X_BEARER_TOKEN="optional-x-bearer-token"
+BLOB_READ_WRITE_TOKEN="required-for-generated-marketing-assets"
 ```
 
 4. **Set up the database**

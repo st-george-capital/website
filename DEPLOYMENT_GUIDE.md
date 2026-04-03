@@ -229,6 +229,7 @@ Or run these in Vercel's terminal (see Step 8).
    ```
    RESEND_API_KEY=re_xxxxx
    ADMIN_CODE=your-private-admin-code
+   BLOB_READ_WRITE_TOKEN=vercel_blob_rw_xxxxx
    ```
 4. Update `/app/api/send-email/route.ts` (uncomment Resend code)
 

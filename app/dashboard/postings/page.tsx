@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
 import { Badge } from '@/components/ui/badge';
-import { Briefcase, Plus, Users, Eye, Download, Calendar, Trash2, Edit } from 'lucide-react';
+import { Briefcase, Plus, Users, Eye, Download, Calendar, Trash2, Edit, Megaphone } from 'lucide-react';
 
 interface JobPosting {
   id: string;
@@ -224,6 +224,13 @@ export default function PostingsDashboardPage() {
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
+                      <Link
+                        href={`/dashboard/tools/marketing?sourceType=job_posting&sourceId=${posting.id}`}
+                        className="p-2 text-muted-foreground hover:text-primary transition-colors"
+                        title="Generate marketing"
+                      >
+                        <Megaphone className="w-4 h-4" />
+                      </Link>
                       <Link
                         href={`/dashboard/postings/${posting.id}/edit`}
                         className="p-2 text-muted-foreground hover:text-primary transition-colors"
