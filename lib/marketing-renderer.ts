@@ -497,41 +497,52 @@ function renderInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl: string 
     return renderJobPostingInstagramHtml(snapshot, logoUrl);
   }
 
+  // Modern Instagram 1080x1080 square template
   return `<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
     <style>
       * { box-sizing: border-box; }
-      html, body { width:1080px; height:1350px; margin:0; padding:0; }
-      body { background:${NAVY}; font-family:Arial, Helvetica, sans-serif; color:${OFF_WHITE}; }
+      html, body { width:1080px; height:1080px; margin:0; padding:0; }
+      body { background:#1a1a3e; font-family:Arial, Helvetica, sans-serif; color:#f8f9fa; }
     </style>
   </head>
   <body>
-    <div style="position:relative; width:1080px; height:1350px; overflow:hidden; background:${NAVY};">
-      ${backgroundMedia(snapshot.imageUrl)}
+    <div style="position:relative; width:1080px; height:1080px; overflow:hidden; background:linear-gradient(135deg, #1a1a3e 0%, #5b4b9f 100%);">
+      <div style="position:absolute; top:0; left:0; right:0; height:4px; background:linear-gradient(90deg, #00d9d9 0%, #10b981 100%);"></div>
+      ${backgroundMedia(snapshot.imageUrl, 0.36)}
       <div style="position:absolute; inset:0; background:
-        radial-gradient(circle at top right, rgba(17,56,108,0.34) 0%, rgba(3,1,22,0) 42%),
-        linear-gradient(180deg, rgba(3,1,22,0.12) 0%, rgba(3,1,22,0.84) 38%, rgba(3,1,22,0.98) 100%);
+        radial-gradient(circle at top right, rgba(0,217,217,0.12) 0%, rgba(26,26,62,0) 46%),
+        linear-gradient(180deg, rgba(26,26,62,0.08) 0%, rgba(26,26,62,0.82) 44%, rgba(26,26,62,0.98) 100%);
       "></div>
-      <div style="position:relative; z-index:1; height:100%; padding:54px 64px 58px; display:flex; flex-direction:column;">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:24px;">
-          <div style="display:flex; align-items:center; gap:18px;">
+      <div style="position:relative; z-index:1; height:100%; padding:48px 52px 54px; display:flex; flex-direction:column;">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div style="display:flex; align-items:center; gap:14px;">
             ${renderLogo(logoUrl)}
-            <div style="font:600 13px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:${OFF_WHITE};">St. George Capital</div>
+            <div style="font:600 11px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:#f8f9fa;">St. George Capital</div>
           </div>
-          <div style="font:600 11px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:${SLATE};">Instagram Feed</div>
+          <div style="width:6px; height:6px; border-radius:50%; background:#00d9d9;"></div>
         </div>
-        <div style="margin-top:48px; font:600 13px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.28em; text-transform:uppercase; color:${SLATE};">${escapeHtml(snapshot.eyebrow)}</div>
-        <h1 style="margin:22px 0 0; max-width:870px; font:700 78px/0.96 Georgia, 'Times New Roman', serif; letter-spacing:-0.03em;">${escapeHtml(snapshot.title)}</h1>
-        <div style="margin-top:24px; max-width:820px; font:500 28px/1.35 Arial, Helvetica, sans-serif; color:rgba(248,251,255,0.82);">${escapeHtml(clampText(snapshot.subtitle || snapshot.summary, 180))}</div>
+
+        <div style="margin-top:44px; flex:1; display:flex; flex-direction:column; justify-content:center;">
+          <div style="font:600 11px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:#00d9d9; margin-bottom:16px;">
+            ${escapeHtml(snapshot.eyebrow)}
+          </div>
+          <h1 style="margin:0; font:700 62px/0.98 Georgia, 'Times New Roman', serif; letter-spacing:-0.02em; word-spacing:0.1em; color:#ffffff; max-width:920px;">
+            ${escapeHtml(clampText(snapshot.title, 45))}
+          </h1>
+          <div style="margin-top:20px; max-width:880px; font:500 24px/1.32 Arial, Helvetica, sans-serif; color:rgba(248,249,250,0.86);">
+            ${escapeHtml(clampText(snapshot.subtitle || snapshot.summary, 140))}
+          </div>
+        </div>
+
         <div style="margin-top:auto;">
-          ${renderInstagramDetail(snapshot)}
-          <div style="margin-top:18px; padding:18px 22px; border:1px solid ${LINE}; border-radius:18px; background:rgba(255,255,255,0.04);">
-            <div style="font:400 18px/1.55 Arial, Helvetica, sans-serif; color:${OFF_WHITE};">${escapeHtml(clampText(snapshot.summary, 240))}</div>
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:18px; margin-top:18px;">
-              <div style="font:600 11px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:${SLATE};">${escapeHtml(snapshot.dateLabel || 'St. George Capital')}</div>
-              <div style="padding:10px 16px; border-radius:999px; background:${OFF_WHITE}; color:${NAVY}; font:700 12px/1 Arial, Helvetica, sans-serif; letter-spacing:0.14em; text-transform:uppercase;">${escapeHtml(snapshot.cta)}</div>
+          <div style="padding:16px 18px; border:1px solid rgba(122,122,158,0.2); border-radius:14px; background:rgba(255,255,255,0.04); border-left:3px solid #00d9d9;">
+            <div style="font:400 17px/1.6 Arial, Helvetica, sans-serif; color:#f8f9fa;">${escapeHtml(clampText(snapshot.summary, 200))}</div>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:16px;">
+              <div style="font:600 10px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:#7a7a9e;">${escapeHtml(snapshot.dateLabel || 'St. George Capital')}</div>
+              <div style="padding:9px 18px; border-radius:999px; background:#00d9d9; color:#1a1a3e; font:700 11px/1 Arial, Helvetica, sans-serif; letter-spacing:0.14em; text-transform:uppercase;">${escapeHtml(clampText(snapshot.cta, 25))}</div>
             </div>
           </div>
         </div>
@@ -546,6 +557,7 @@ function renderLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl: string |
     return renderJobPostingLinkedinHtml(snapshot, logoUrl);
   }
 
+  // Modern LinkedIn 1200x627 template
   return `<!doctype html>
 <html>
   <head>
@@ -553,32 +565,54 @@ function renderLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl: string |
     <style>
       * { box-sizing: border-box; }
       html, body { width:1200px; height:627px; margin:0; padding:0; }
-      body { background:${NAVY}; font-family:Arial, Helvetica, sans-serif; color:${OFF_WHITE}; }
+      body { background:#ffffff; font-family:Arial, Helvetica, sans-serif; color:#1a1a3e; }
     </style>
   </head>
   <body>
-    <div style="position:relative; width:1200px; height:627px; overflow:hidden; background:${NAVY};">
+    <div style="position:relative; width:1200px; height:627px; overflow:hidden; background:#ffffff; display:grid; grid-template-columns:1.2fr 0.8fr;">
+      <div style="position:absolute; top:0; left:0; right:0; height:3px; background:#00d9d9;"></div>
       ${backgroundMedia(snapshot.imageUrl, 0.18)}
       <div style="position:absolute; inset:0; background:
-        linear-gradient(90deg, rgba(3,1,22,0.98) 0%, rgba(3,1,22,0.92) 58%, rgba(3,1,22,0.58) 100%),
-        radial-gradient(circle at top right, rgba(19,62,120,0.26) 0%, rgba(3,1,22,0) 44%);
+        linear-gradient(90deg, rgba(26,26,62,0.98) 0%, rgba(26,26,62,0.94) 62%, rgba(26,26,62,0.52) 100%),
+        radial-gradient(circle at top right, rgba(0,217,217,0.10) 0%, rgba(26,26,62,0) 42%);
       "></div>
-      <div style="position:relative; z-index:1; height:100%; padding:44px 48px; display:grid; grid-template-columns:1.4fr 0.82fr; gap:30px;">
-        <div style="display:flex; flex-direction:column;">
-          <div style="display:flex; align-items:center; gap:18px;">
-            ${renderLogo(logoUrl)}
-            <div style="font:600 12px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:${OFF_WHITE};">St. George Capital</div>
+
+      <div style="position:relative; z-index:1; padding:40px 48px; display:flex; flex-direction:column;">
+        <div style="display:flex; align-items:center; gap:14px;">
+          ${renderLogo(logoUrl)}
+          <div style="font:600 11px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:#f8f9fa;">St. George Capital</div>
+        </div>
+
+        <div style="margin-top:28px; flex:1; display:flex; flex-direction:column; justify-content:center;">
+          <div style="font:600 10px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:#00d9d9; margin-bottom:12px;">
+            ${escapeHtml(snapshot.eyebrow)}
           </div>
-          <div style="margin-top:34px; font:600 11px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.28em; text-transform:uppercase; color:${SLATE};">${escapeHtml(snapshot.eyebrow)}</div>
-          <h1 style="margin:18px 0 0; max-width:650px; font:700 58px/0.94 Georgia, 'Times New Roman', serif; letter-spacing:-0.03em;">${escapeHtml(snapshot.title)}</h1>
-          <div style="margin-top:18px; max-width:640px; font:500 22px/1.35 Arial, Helvetica, sans-serif; color:rgba(248,251,255,0.84);">${escapeHtml(clampText(snapshot.subtitle || snapshot.summary, 150))}</div>
-          <div style="margin-top:auto; display:flex; align-items:center; justify-content:space-between; gap:20px;">
-            <div style="max-width:620px; font:400 16px/1.6 Arial, Helvetica, sans-serif; color:${OFF_WHITE};">${escapeHtml(clampText(snapshot.summary, 250))}</div>
-            <div style="padding:11px 16px; border-radius:999px; border:1px solid ${LINE}; background:rgba(255,255,255,0.06); font:700 11px/1 Arial, Helvetica, sans-serif; letter-spacing:0.16em; text-transform:uppercase;">${escapeHtml(snapshot.cta)}</div>
+          <h1 style="margin:0; font:700 46px/1.05 Georgia, 'Times New Roman', serif; letter-spacing:-0.01em; color:#ffffff; max-width:680px;">
+            ${escapeHtml(clampText(snapshot.title, 50))}
+          </h1>
+
+          <div style="margin-top:16px; font:500 16px/1.5 Arial, Helvetica, sans-serif; color:#f8f9fa; max-width:700px;">
+            ${escapeHtml(clampText(snapshot.summary, 150))}
           </div>
         </div>
-        <div style="display:flex; align-items:stretch;">
-          ${renderLinkedinDetail(snapshot)}
+
+        <div style="margin-top:auto;">
+          <a href="#" style="padding:11px 22px; background:#00d9d9; color:#1a1a3e; border-radius:999px; font:700 11px/1 Arial, Helvetica, sans-serif; letter-spacing:0.12em; text-transform:uppercase; text-decoration:none; display:inline-block;">
+            ${escapeHtml(snapshot.cta)}
+          </a>
+        </div>
+      </div>
+
+      <div style="position:relative; z-index:1; padding:40px 32px; display:flex; flex-direction:column; background:linear-gradient(135deg, rgba(0,217,217,0.07) 0%, transparent 100%); justify-content:center; border-left:1px solid rgba(122,122,158,0.2);">
+        <div style="text-align:center;">
+          <div style="font:700 14px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:#7a7a9e; margin-bottom:16px;">Details</div>
+
+          <div style="margin-bottom:20px;">
+            <div style="font:600 12px/1.2 Arial, Helvetica, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:#7a7a9e; margin-bottom:6px;">Published</div>
+            <div style="font:700 16px/1.2 Arial, Helvetica, sans-serif; color:#1a1a3e; word-break:break-word;">${escapeHtml(snapshot.dateLabel || 'St. George Capital')}</div>
+          </div>
+
+          ${renderInstagramDetail(snapshot)}
         </div>
       </div>
     </div>
