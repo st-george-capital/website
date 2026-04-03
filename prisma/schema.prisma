@@ -320,6 +320,8 @@ model JobPosting {
   title        String
   description  String
   team         String   // "quant_trading", "quant_research", "macro", "equity"
+  roleTag      String?
+  requirements String?  @db.Text
   endDate      DateTime
   published    Boolean  @default(false)
   documentFile String?  // PDF document URL

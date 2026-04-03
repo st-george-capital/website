@@ -53,6 +53,44 @@ function humanizeTeam(team: string | null | undefined) {
     .join(' ');
 }
 
+function humanizeRoleTag(roleTag: string | null | undefined, fallbackTeam?: string | null) {
+  const cleaned = (roleTag || '').trim();
+  if (cleaned) return cleaned;
+  return humanizeTeam(fallbackTeam);
+}
+
+function extractRoleHighlights(description: string | null | undefined, max = 3) {
+  const raw = String(description || '');
+  const bulletLines = raw
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.replace(/^[-*•]\s*/, '').replace(/^\d+[.)]\s*/, '').trim())
+    .filter(Boolean);
+
+  const preferredBulletLines = bulletLines.filter((line) => line.length >= 12);
+  if (preferredBulletLines.length >= 2) {
+    return preferredBulletLines.slice(0, max).map((line) => clampText(line, 88));
+  }
+
+  const sentenceCandidates = raw
+    .replace(/\s+/g, ' ')
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length >= 18);
+
+  if (sentenceCandidates.length > 0) {
+    return sentenceCandidates.slice(0, max).map((sentence) => clampText(sentence, 92));
+  }
+
+  const clauseCandidates = raw
+    .split(/[;•]/)
+    .map((clause) => clause.trim())
+    .filter((clause) => clause.length >= 12);
+
+  return clauseCandidates.slice(0, max).map((clause) => clampText(clause, 88));
+}
+
 function clampText(value: string | null | undefined, max = 220) {
   const text = (value || '').replace(/\s+/g, ' ').trim();
   if (!text) return '';
@@ -118,7 +156,7 @@ export function buildCaptionPack(snapshot: MarketingSourceSnapshot, overrides?: 
 
   switch (finalSnapshot.sourceType) {
     case 'job_posting': {
-      const team = humanizeTeam(finalSnapshot.fields.team);
+      const team = humanizeRoleTag(finalSnapshot.fields.roleTag, finalSnapshot.fields.team);
       const deadline = finalSnapshot.dateLabel ? `Application deadline: ${finalSnapshot.dateLabel}.` : '';
       return {
         instagram: `${finalSnapshot.title}\n${team}\n\n${clampText(finalSnapshot.summary, 220)}\n${deadline}\n${customNote}${finalSnapshot.cta}\n\n#StGeorgeCapital #FinanceCareers #UniversityOfToronto #BuySide #Recruiting`,
@@ -185,15 +223,19 @@ export async function buildMarketingSourceSnapshot(params: {
         campaignKind,
         title: posting.title,
         eyebrow: 'ST. GEORGE CAPITAL CAREERS',
-        subtitle: `${humanizeTeam(posting.team)} · Applications open`,
+        subtitle: clampText(posting.description, 160),
         summary: clampText(posting.description, 260),
-        cta: 'Apply through the SGC dashboard.',
+        cta: 'Apply on the SGC website.',
         dateLabel: formatDateLabel(posting.endDate),
         imageUrl: null,
         fields: {
           team: posting.team,
           teamLabel: humanizeTeam(posting.team),
+          roleTag: posting.roleTag,
+          roleTagLabel: humanizeRoleTag(posting.roleTag, posting.team),
           description: posting.description,
+          requirements: posting.requirements,
+          roleHighlights: extractRoleHighlights(posting.description),
           documentFile: posting.documentFile,
           published: posting.published,
         },
@@ -320,6 +362,8 @@ export async function listMarketingSourceOptions(
               OR: [
                 { title: { contains: query, mode: 'insensitive' } },
                 { description: { contains: query, mode: 'insensitive' } },
+                { roleTag: { contains: query, mode: 'insensitive' } },
+                { requirements: { contains: query, mode: 'insensitive' } },
               ],
             }
           : undefined,
@@ -330,7 +374,7 @@ export async function listMarketingSourceOptions(
       return postings.map((posting) => ({
         id: posting.id,
         title: posting.title,
-        subtitle: `${humanizeTeam(posting.team)}${posting.endDate ? ` · Deadline ${formatDateLabel(posting.endDate)}` : ''}`,
+        subtitle: `${humanizeRoleTag(posting.roleTag, posting.team)}${posting.endDate ? ` · Deadline ${formatDateLabel(posting.endDate)}` : ''}`,
         sourceType,
         published: posting.published,
       }));

@@ -13,6 +13,8 @@ interface JobPosting {
   title: string;
   description: string;
   team: string;
+  roleTag?: string | null;
+  requirements?: string | null;
   endDate: string;
   published: boolean;
   createdAt: string;
@@ -39,6 +41,10 @@ const teamColors = {
   macro: 'bg-purple-100 text-purple-700',
   equity: 'bg-orange-100 text-orange-700',
 };
+
+function formatTeamLabel(team: string) {
+  return team.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
 
 export default function PostingsDashboardPage() {
   const { data: session } = useSession();
@@ -205,8 +211,13 @@ export default function PostingsDashboardPage() {
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-1">
                           <h3 className="font-medium">{posting.title}</h3>
+                          {posting.roleTag && (
+                            <Badge className="bg-slate-100 text-slate-700">
+                              {posting.roleTag}
+                            </Badge>
+                          )}
                           <Badge className={teamColors[posting.team as keyof typeof teamColors] || 'bg-gray-100 text-gray-700'}>
-                            {posting.team.replace('_', ' ')}
+                            {formatTeamLabel(posting.team)}
                           </Badge>
                           {posting.published ? (
                             <Badge className="bg-green-100 text-green-700">Published</Badge>
