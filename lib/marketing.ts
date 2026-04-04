@@ -59,6 +59,14 @@ function humanizeRoleTag(roleTag: string | null | undefined, fallbackTeam?: stri
   return humanizeTeam(fallbackTeam);
 }
 
+function extractThesisPoints(thesis: unknown): string[] {
+  if (!Array.isArray(thesis)) return [];
+  return thesis
+    .slice(0, 3)
+    .map((item: Record<string, unknown>) => String(item?.claim || '').trim())
+    .filter(Boolean);
+}
+
 function extractRoleHighlights(description: string | null | undefined, max = 3) {
   const raw = String(description || '');
   const bulletLines = raw
@@ -225,7 +233,7 @@ export async function buildMarketingSourceSnapshot(params: {
         eyebrow: 'ST. GEORGE CAPITAL CAREERS',
         subtitle: clampText(posting.description, 160),
         summary: clampText(posting.description, 260),
-        cta: 'Find out more and apply at stgeorgecapital.ca/joinus',
+        cta: 'Find out more and apply at stgeorgecapital.ca/contact',
         dateLabel: formatDateLabel(posting.endDate),
         imageUrl: null,
         fields: {
@@ -294,6 +302,7 @@ export async function buildMarketingSourceSnapshot(params: {
           currency: report.currency,
           timeHorizon: report.timeHorizon,
           published: report.published,
+          thesisPoints: extractThesisPoints(report.investmentThesis),
         },
       } satisfies MarketingSourceSnapshot;
     }

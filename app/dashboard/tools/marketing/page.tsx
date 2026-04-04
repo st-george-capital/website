@@ -243,13 +243,14 @@ export default function MarketingStudioPage() {
     setCampaignKind(campaign.campaignKind);
     setSelectedSourceId(campaign.sourceSnapshot.sourceId || '');
     const snap = campaign.sourceSnapshot;
+    const ov = campaign.overrideFields;
     setOverrides({
-      eyebrow: campaign.overrideFields?.eyebrow || snap.eyebrow || '',
-      subtitle: campaign.overrideFields?.subtitle || snap.subtitle || '',
-      cta: campaign.overrideFields?.cta || snap.cta || '',
-      dateLabel: campaign.overrideFields?.dateLabel || snap.dateLabel || '',
-      customNote: campaign.overrideFields?.customNote || '',
-      imageUrl: campaign.overrideFields?.imageUrl || snap.imageUrl || '',
+      eyebrow: (ov?.eyebrow && ov.eyebrow.trim()) ? ov.eyebrow : snap.eyebrow || '',
+      subtitle: (ov?.subtitle && ov.subtitle.trim()) ? ov.subtitle : snap.subtitle || '',
+      cta: (ov?.cta && ov.cta.trim()) ? ov.cta : snap.cta || '',
+      dateLabel: (ov?.dateLabel && ov.dateLabel.trim()) ? ov.dateLabel : snap.dateLabel || '',
+      customNote: ov?.customNote || '',
+      imageUrl: (ov?.imageUrl && ov.imageUrl.trim()) ? ov.imageUrl : snap.imageUrl || '',
     });
     setCaptions({
       instagram: campaign.generatedCaptions?.instagram || '',
