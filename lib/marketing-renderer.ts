@@ -72,8 +72,21 @@ function collapseWhitespace(value: string | null | undefined) {
   return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
+function stripMarkdown(value: string) {
+  return value
+    .replace(/^#{1,6}\s+/gm, '')          // headings
+    .replace(/\*\*([^*]+)\*\*/g, '$1')     // bold
+    .replace(/\*([^*]+)\*/g, '$1')         // italic
+    .replace(/__([^_]+)__/g, '$1')         // bold alt
+    .replace(/_([^_]+)_/g, '$1')           // italic alt
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // links
+    .replace(/`([^`]+)`/g, '$1')           // inline code
+    .replace(/^\s*[-*+]\s+/gm, '')         // list bullets
+    .replace(/^\s*\d+\.\s+/gm, '');        // numbered lists
+}
+
 function clampText(value: string | null | undefined, length: number) {
-  const text = collapseWhitespace(value);
+  const text = collapseWhitespace(stripMarkdown(String(value || '')));
   if (text.length <= length) return text;
   return `${text.slice(0, length - 1).trimEnd()}…`;
 }
@@ -182,8 +195,8 @@ function renderJobPostingInstagramHtml(snapshot: MarketingSourceSnapshot, logoUr
           <h1 style="margin-top:18px; font:700 ${titlePx}px/0.98 Georgia, 'Times New Roman', serif; letter-spacing:-0.02em; color:${WHITE};">
             ${escapeHtml(title)}
           </h1>
-          <div style="margin-top:22px; max-width:860px; font:500 22px/1.35 Arial, sans-serif; color:rgba(248,249,250,0.85);">
-            ${escapeHtml(clampText(snapshot.subtitle || snapshot.summary, 160))}
+          <div style="margin-top:22px; max-width:860px; font:500 20px/1.35 Arial, sans-serif; color:rgba(248,249,250,0.85);">
+            ${escapeHtml(collapseWhitespace(stripMarkdown(snapshot.subtitle || snapshot.summary || '')))}
           </div>
         </div>
 
@@ -225,7 +238,7 @@ function renderArticleInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl: 
             ${escapeHtml(title)}
           </h1>
           <div style="margin-top:18px; max-width:860px; font:400 18px/1.5 Arial, sans-serif; color:rgba(248,249,250,0.85);">
-            ${escapeHtml(clampText(snapshot.summary, 220))}
+            ${escapeHtml(collapseWhitespace(stripMarkdown(snapshot.subtitle || snapshot.summary || '')))}
           </div>
           <div style="margin-top:24px; display:flex; align-items:center; gap:14px;">
             <div style="padding:10px 20px; background:${accent}; border-radius:999px; font:700 11px/1 Arial, sans-serif; letter-spacing:0.12em; text-transform:uppercase; color:${NAVY};">
@@ -250,34 +263,34 @@ function renderResearchInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl:
     <div style="position:relative; width:1080px; height:1080px; overflow:hidden; background:${NAVY}; color:${OFF_WHITE};">
       ${accentBar(accent, 5)}
 
-      <div style="position:relative; z-index:1; height:100%; padding:52px 52px 48px; display:flex; flex-direction:column; justify-content:center; gap:28px;">
+      <div style="position:relative; z-index:1; height:100%; padding:52px; display:flex; flex-direction:column;">
         ${headerRow(logoUrl, 'Research', accent)}
 
-        <div style="flex:0 0 auto;">
+        <div style="margin-top:auto; margin-bottom:auto;">
           <div style="font:600 12px/1.2 Arial, sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:${accent};">
             Equity Analysis
           </div>
-          <h1 style="margin-top:14px; font:700 86px/0.92 Georgia, 'Times New Roman', serif; letter-spacing:-0.02em; color:${WHITE};">
+          <h1 style="margin-top:18px; font:700 96px/0.92 Georgia, 'Times New Roman', serif; letter-spacing:-0.02em; color:${WHITE};">
             ${escapeHtml((fields.ticker || 'TBD').toUpperCase())}
           </h1>
-          <div style="margin-top:10px; font:500 26px/1.3 Arial, sans-serif; color:rgba(248,249,250,0.82);">
+          <div style="margin-top:14px; font:500 28px/1.3 Arial, sans-serif; color:rgba(248,249,250,0.82);">
             ${escapeHtml(collapseWhitespace(fields.companyName || snapshot.title))}
           </div>
-          ${fields.sector ? `<div style="margin-top:8px; font:500 15px/1.2 Arial, sans-serif; color:${SLATE};">${escapeHtml(fields.sector)}</div>` : ''}
+          ${fields.sector ? `<div style="margin-top:10px; font:500 16px/1.2 Arial, sans-serif; color:${SLATE}; text-transform:uppercase; letter-spacing:0.08em;">${escapeHtml(fields.sector)}</div>` : ''}
         </div>
 
-        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
-          <div style="padding:16px 18px; background:rgba(255,255,255,0.06); border-left:3px solid ${accent}; border-radius:10px;">
-            <div style="font:600 9px/1.1 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:${SLATE};">Rating</div>
-            <div style="margin-top:8px; font:700 22px/1 Georgia, serif; color:${accent};">${escapeHtml(String(fields.recommendation || '—').toUpperCase())}</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-bottom:18px;">
+          <div style="padding:20px 22px; background:rgba(255,255,255,0.06); border-left:3px solid ${accent}; border-radius:10px;">
+            <div style="font:600 10px/1.1 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:${SLATE};">Rating</div>
+            <div style="margin-top:10px; font:700 26px/1 Georgia, serif; color:${accent};">${escapeHtml(String(fields.recommendation || '—').toUpperCase())}</div>
           </div>
-          <div style="padding:16px 18px; background:rgba(255,255,255,0.06); border-left:3px solid ${accent}; border-radius:10px;">
-            <div style="font:600 9px/1.1 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:${SLATE};">Target</div>
-            <div style="margin-top:8px; font:700 20px/1 Georgia, serif; color:${OFF_WHITE};">${escapeHtml(fields.targetPriceFormatted || '—')}</div>
+          <div style="padding:20px 22px; background:rgba(255,255,255,0.06); border-left:3px solid ${accent}; border-radius:10px;">
+            <div style="font:600 10px/1.1 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:${SLATE};">Target</div>
+            <div style="margin-top:10px; font:700 24px/1 Georgia, serif; color:${OFF_WHITE};">${escapeHtml(fields.targetPriceFormatted || '—')}</div>
           </div>
-          <div style="padding:16px 18px; background:rgba(255,255,255,0.06); border-left:3px solid ${accent}; border-radius:10px;">
-            <div style="font:600 9px/1.1 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:${SLATE};">Upside</div>
-            <div style="margin-top:8px; font:700 22px/1 Georgia, serif; color:${accent};">${escapeHtml(fields.impliedUpsideFormatted || '—')}</div>
+          <div style="padding:20px 22px; background:rgba(255,255,255,0.06); border-left:3px solid ${accent}; border-radius:10px;">
+            <div style="font:600 10px/1.1 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:${SLATE};">Upside</div>
+            <div style="margin-top:10px; font:700 26px/1 Georgia, serif; color:${accent};">${escapeHtml(fields.impliedUpsideFormatted || '—')}</div>
           </div>
         </div>
 
@@ -319,7 +332,7 @@ function renderStrategyInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl:
           </h1>
           ${fields.year ? `<div style="margin-top:16px; display:inline-block; padding:6px 14px; background:rgba(255,255,255,0.1); border-radius:6px; font:600 14px/1.2 Arial, sans-serif; color:${accent};">${escapeHtml(fields.year)}</div>` : ''}
           <div style="margin-top:18px; max-width:860px; font:400 18px/1.5 Arial, sans-serif; color:rgba(248,249,250,0.82);">
-            ${escapeHtml(clampText(snapshot.summary, 220))}
+            ${escapeHtml(collapseWhitespace(stripMarkdown(snapshot.subtitle || snapshot.summary || '')))}
           </div>
         </div>
 
@@ -363,7 +376,7 @@ function renderJobPostingLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl
               ${escapeHtml(title)}
             </h1>
             <div style="margin-top:14px; font:400 16px/1.55 Arial, sans-serif; color:#334155; max-width:600px;">
-              ${escapeHtml(clampText(snapshot.summary, 160))}
+              ${escapeHtml(collapseWhitespace(stripMarkdown(snapshot.subtitle || snapshot.summary || '')))}
             </div>
           </div>
 
@@ -420,8 +433,10 @@ function renderResearchLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl: 
             </div>
           </div>
 
-          <div style="margin-top:auto; font:400 15px/1.6 Arial, sans-serif; color:#334155; max-width:600px;">
-            ${escapeHtml(clampText(snapshot.summary, 160))}
+          <div style="margin-top:auto;">
+            <div style="padding:11px 22px; display:inline-block; background:${accent}; border-radius:999px; font:700 11px/1 Arial, sans-serif; letter-spacing:0.12em; text-transform:uppercase; color:${NAVY};">
+              Read More on Our Website
+            </div>
           </div>
         </div>
 
@@ -471,7 +486,7 @@ function renderGenericLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl: s
             ${escapeHtml(title)}
           </h1>
           <div style="margin-top:14px; font:400 17px/1.55 Arial, sans-serif; color:#334155; max-width:860px;">
-            ${escapeHtml(clampText(snapshot.summary, 240))}
+            ${escapeHtml(collapseWhitespace(stripMarkdown(snapshot.subtitle || snapshot.summary || '')))}
           </div>
         </div>
 

@@ -242,13 +242,14 @@ export default function MarketingStudioPage() {
     setSourceType(campaign.sourceType);
     setCampaignKind(campaign.campaignKind);
     setSelectedSourceId(campaign.sourceSnapshot.sourceId || '');
+    const snap = campaign.sourceSnapshot;
     setOverrides({
-      eyebrow: campaign.overrideFields?.eyebrow || '',
-      subtitle: campaign.overrideFields?.subtitle || '',
-      cta: campaign.overrideFields?.cta || '',
-      dateLabel: campaign.overrideFields?.dateLabel || '',
+      eyebrow: campaign.overrideFields?.eyebrow || snap.eyebrow || '',
+      subtitle: campaign.overrideFields?.subtitle || snap.subtitle || '',
+      cta: campaign.overrideFields?.cta || snap.cta || '',
+      dateLabel: campaign.overrideFields?.dateLabel || snap.dateLabel || '',
       customNote: campaign.overrideFields?.customNote || '',
-      imageUrl: campaign.overrideFields?.imageUrl || '',
+      imageUrl: campaign.overrideFields?.imageUrl || snap.imageUrl || '',
     });
     setCaptions({
       instagram: campaign.generatedCaptions?.instagram || '',
@@ -614,9 +615,9 @@ export default function MarketingStudioPage() {
               )}
 
               <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-                <div className="text-sm font-semibold text-slate-900">Override layer</div>
+                <div className="text-sm font-semibold text-slate-900">Edit fields</div>
                 <p className="mt-1 text-xs text-slate-500">
-                  Keep edits light. The templates are built to stay consistent across all SGC marketing outputs.
+                  These fields auto-populate from the source. Edit any field and regenerate to update the graphics.
                 </p>
                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                   {[
