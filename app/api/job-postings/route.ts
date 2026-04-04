@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate team
-    const validTeams = ['quant_trading', 'quant_research', 'macro', 'equity'];
+    const validTeams = ['quant_trading', 'quant_research', 'macro', 'equity', 'macro_equity', 'operations', 'executive'];
     if (!validTeams.includes(team)) {
       return NextResponse.json(
         { error: 'Invalid team selection' },
