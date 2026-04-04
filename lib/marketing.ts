@@ -225,7 +225,7 @@ export async function buildMarketingSourceSnapshot(params: {
         eyebrow: 'ST. GEORGE CAPITAL CAREERS',
         subtitle: clampText(posting.description, 160),
         summary: clampText(posting.description, 260),
-        cta: 'Find out more and apply at stgeorgecapital.ca/contact',
+        cta: 'Find out more and apply at stgeorgecapital.ca/joinus',
         dateLabel: formatDateLabel(posting.endDate),
         imageUrl: null,
         fields: {
@@ -253,7 +253,7 @@ export async function buildMarketingSourceSnapshot(params: {
         eyebrow: 'OUR TAKE',
         subtitle: article.excerpt,
         summary: clampText(article.excerpt, 260),
-        cta: 'Read more at stgeorgecapital.ca',
+        cta: 'Read more at stgeorgecapital.ca/research',
         dateLabel: formatDateLabel(article.publishedAt || article.createdAt),
         imageUrl: article.coverImage,
         fields: {
@@ -277,7 +277,7 @@ export async function buildMarketingSourceSnapshot(params: {
         eyebrow: 'EQUITY RESEARCH',
         subtitle: `${report.recommendation.toUpperCase()} · Target ${formatCurrency(report.targetPrice, report.currency) || '—'} · ${formatPercent(report.impliedUpside) || '—'}`,
         summary: clampText(report.concludingSection || report.valuationAnalysis || report.businessModel, 300),
-        cta: 'Read more at stgeorgecapital.ca',
+        cta: 'Read more at stgeorgecapital.ca/equity-research',
         dateLabel: formatDateLabel(report.reportDate),
         imageUrl: report.coverImage,
         fields: {
@@ -309,7 +309,7 @@ export async function buildMarketingSourceSnapshot(params: {
         eyebrow: document.type === 'investment_strategy' ? 'INVESTMENT STRATEGY' : 'INDUSTRY REPORT',
         subtitle: document.executiveSummary || `${document.year} research outlook`,
         summary: clampText(document.executiveSummary || document.content, 300),
-        cta: 'Read more at stgeorgecapital.ca',
+        cta: 'Read more at stgeorgecapital.ca/strategy',
         dateLabel: formatDateLabel(document.publishDate || document.createdAt),
         imageUrl: document.coverImage,
         fields: {

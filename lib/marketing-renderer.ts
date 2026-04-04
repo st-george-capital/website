@@ -93,7 +93,25 @@ function clampText(value: string | null | undefined, length: number) {
 
 function renderLogo(logoUrl: string | undefined) {
   if (!logoUrl) return '';
-  return `<img src="${escapeHtml(logoUrl)}" alt="SGC" style="height:36px; width:auto; display:block;" />`;
+  return `<img src="${escapeHtml(logoUrl)}" alt="SGC" style="height:48px; width:auto; display:block;" />`;
+}
+
+function siteUrlForSource(sourceType: string) {
+  switch (sourceType) {
+    case 'job_posting': return 'stgeorgecapital.ca/joinus';
+    case 'article': return 'stgeorgecapital.ca/research';
+    case 'research_report': return 'stgeorgecapital.ca/equity-research';
+    case 'strategy_document': return 'stgeorgecapital.ca/strategy';
+    default: return 'stgeorgecapital.ca';
+  }
+}
+
+function ratingColor(recommendation: string | null | undefined) {
+  const rec = String(recommendation || '').toLowerCase().trim();
+  if (rec === 'buy' || rec === 'strong buy' || rec === 'overweight') return '#22c55e'; // green
+  if (rec === 'sell' || rec === 'strong sell' || rec === 'underweight') return '#ef4444'; // red
+  if (rec === 'hold' || rec === 'neutral' || rec === 'equal-weight') return GOLD; // yellow/gold
+  return GOLD; // default
 }
 
 function backgroundMedia(imageUrl: string | null | undefined, overlay = 0.32) {
@@ -143,11 +161,11 @@ function liHead() {
 function headerRow(logoUrl: string | undefined, badge: string, badgeColor: string) {
   return `
     <div style="display:flex; align-items:center; justify-content:space-between;">
-      <div style="display:flex; align-items:center; gap:12px;">
+      <div style="display:flex; align-items:center; gap:14px;">
         ${renderLogo(logoUrl)}
-        <div style="font:600 11px/1.2 Arial, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:${OFF_WHITE};">St. George Capital</div>
+        <div style="font:700 16px/1.2 Arial, sans-serif; letter-spacing:0.12em; text-transform:uppercase; color:${OFF_WHITE};">St. George Capital</div>
       </div>
-      <div style="font:700 10px/1 Arial, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:${badgeColor};">${escapeHtml(badge)}</div>
+      <div style="font:700 12px/1 Arial, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:${badgeColor};">${escapeHtml(badge)}</div>
     </div>
   `;
 }
@@ -155,11 +173,11 @@ function headerRow(logoUrl: string | undefined, badge: string, badgeColor: strin
 function headerRowDark(logoUrl: string | undefined, badge: string, badgeColor: string) {
   return `
     <div style="display:flex; align-items:center; justify-content:space-between;">
-      <div style="display:flex; align-items:center; gap:12px;">
+      <div style="display:flex; align-items:center; gap:14px;">
         ${renderLogo(logoUrl)}
-        <div style="font:600 11px/1.2 Arial, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:${NAVY};">St. George Capital</div>
+        <div style="font:700 16px/1.2 Arial, sans-serif; letter-spacing:0.12em; text-transform:uppercase; color:${NAVY};">St. George Capital</div>
       </div>
-      <div style="font:700 10px/1 Arial, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:${badgeColor};">${escapeHtml(badge)}</div>
+      <div style="font:700 12px/1 Arial, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:${badgeColor};">${escapeHtml(badge)}</div>
     </div>
   `;
 }
@@ -178,7 +196,7 @@ function renderJobPostingInstagramHtml(snapshot: MarketingSourceSnapshot, logoUr
   const accent = TEAL;
   const teamLabel = collapseWhitespace(snapshot.fields.teamLabel || 'SGC');
   const title = collapseWhitespace(snapshot.title);
-  const titlePx = titleFontSize(title, 72, 44, 28);
+  const titlePx = titleFontSize(title, 88, 52, 20);
 
   return `<!doctype html><html><head>${igHead()}</head>
   <body>
@@ -189,7 +207,7 @@ function renderJobPostingInstagramHtml(snapshot: MarketingSourceSnapshot, logoUr
         ${headerRow(logoUrl, escapeHtml(teamLabel), accent)}
 
         <div style="margin-top:auto; margin-bottom:auto;">
-          <div style="font:600 12px/1.2 Arial, sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:${accent};">
+          <div style="font:600 13px/1.2 Arial, sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:${accent};">
             ${escapeHtml(teamLabel)} — Now Recruiting
           </div>
           <h1 style="margin-top:18px; font:700 ${titlePx}px/0.98 Georgia, 'Times New Roman', serif; letter-spacing:-0.02em; color:${WHITE};">
@@ -207,7 +225,7 @@ function renderJobPostingInstagramHtml(snapshot: MarketingSourceSnapshot, logoUr
           </div>
           <div style="padding:18px 20px; background:${accent}; border-radius:12px;">
             <div style="font:600 10px/1.2 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:${NAVY};">Find Out More &amp; Apply</div>
-            <div style="margin-top:8px; font:700 18px/1.1 Arial, sans-serif; color:${NAVY};">stgeorgecapital.ca</div>
+            <div style="margin-top:8px; font:700 18px/1.1 Arial, sans-serif; color:${NAVY};">${escapeHtml(siteUrlForSource('job_posting'))}</div>
           </div>
         </div>
       </div>
@@ -244,8 +262,8 @@ function renderArticleInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl: 
             <div style="padding:10px 20px; background:${accent}; border-radius:999px; font:700 11px/1 Arial, sans-serif; letter-spacing:0.12em; text-transform:uppercase; color:${NAVY};">
               Read More on Our Website
             </div>
-            <div style="font:500 12px/1.2 Arial, sans-serif; color:${SLATE};">
-              ${escapeHtml(snapshot.dateLabel || '')}
+            <div style="font:500 13px/1.2 Arial, sans-serif; color:${SLATE};">
+              ${escapeHtml(siteUrlForSource('article'))}
             </div>
           </div>
         </div>
@@ -257,6 +275,7 @@ function renderArticleInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl: 
 function renderResearchInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl: string | undefined) {
   const accent = GOLD;
   const fields = snapshot.fields || {};
+  const recColor = ratingColor(fields.recommendation);
 
   return `<!doctype html><html><head>${igHead()}</head>
   <body>
@@ -267,30 +286,30 @@ function renderResearchInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl:
         ${headerRow(logoUrl, 'Research', accent)}
 
         <div style="margin-top:auto; margin-bottom:auto;">
-          <div style="font:600 12px/1.2 Arial, sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:${accent};">
+          <div style="font:600 14px/1.2 Arial, sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:${accent};">
             Equity Analysis
           </div>
-          <h1 style="margin-top:18px; font:700 96px/0.92 Georgia, 'Times New Roman', serif; letter-spacing:-0.02em; color:${WHITE};">
+          <h1 style="margin-top:18px; font:700 104px/0.92 Georgia, 'Times New Roman', serif; letter-spacing:-0.02em; color:${WHITE};">
             ${escapeHtml((fields.ticker || 'TBD').toUpperCase())}
           </h1>
-          <div style="margin-top:14px; font:500 28px/1.3 Arial, sans-serif; color:rgba(248,249,250,0.82);">
+          <div style="margin-top:14px; font:500 30px/1.3 Arial, sans-serif; color:rgba(248,249,250,0.82);">
             ${escapeHtml(collapseWhitespace(fields.companyName || snapshot.title))}
           </div>
-          ${fields.sector ? `<div style="margin-top:10px; font:500 16px/1.2 Arial, sans-serif; color:${SLATE}; text-transform:uppercase; letter-spacing:0.08em;">${escapeHtml(fields.sector)}</div>` : ''}
+          ${fields.sector ? `<div style="margin-top:10px; font:500 17px/1.2 Arial, sans-serif; color:${SLATE}; text-transform:uppercase; letter-spacing:0.08em;">${escapeHtml(fields.sector)}</div>` : ''}
         </div>
 
         <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-bottom:18px;">
-          <div style="padding:20px 22px; background:rgba(255,255,255,0.06); border-left:3px solid ${accent}; border-radius:10px;">
-            <div style="font:600 10px/1.1 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:${SLATE};">Rating</div>
-            <div style="margin-top:10px; font:700 26px/1 Georgia, serif; color:${accent};">${escapeHtml(String(fields.recommendation || '—').toUpperCase())}</div>
+          <div style="padding:22px 24px; background:rgba(255,255,255,0.06); border-left:3px solid ${recColor}; border-radius:10px;">
+            <div style="font:600 11px/1.1 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:${SLATE};">Rating</div>
+            <div style="margin-top:10px; font:700 28px/1 Georgia, serif; color:${recColor};">${escapeHtml(String(fields.recommendation || '—').toUpperCase())}</div>
           </div>
-          <div style="padding:20px 22px; background:rgba(255,255,255,0.06); border-left:3px solid ${accent}; border-radius:10px;">
-            <div style="font:600 10px/1.1 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:${SLATE};">Target</div>
-            <div style="margin-top:10px; font:700 24px/1 Georgia, serif; color:${OFF_WHITE};">${escapeHtml(fields.targetPriceFormatted || '—')}</div>
+          <div style="padding:22px 24px; background:rgba(255,255,255,0.06); border-left:3px solid ${accent}; border-radius:10px;">
+            <div style="font:600 11px/1.1 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:${SLATE};">Target</div>
+            <div style="margin-top:10px; font:700 26px/1 Georgia, serif; color:${OFF_WHITE};">${escapeHtml(fields.targetPriceFormatted || '—')}</div>
           </div>
-          <div style="padding:20px 22px; background:rgba(255,255,255,0.06); border-left:3px solid ${accent}; border-radius:10px;">
-            <div style="font:600 10px/1.1 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:${SLATE};">Upside</div>
-            <div style="margin-top:10px; font:700 26px/1 Georgia, serif; color:${accent};">${escapeHtml(fields.impliedUpsideFormatted || '—')}</div>
+          <div style="padding:22px 24px; background:rgba(255,255,255,0.06); border-left:3px solid ${accent}; border-radius:10px;">
+            <div style="font:600 11px/1.1 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:${SLATE};">Upside</div>
+            <div style="margin-top:10px; font:700 28px/1 Georgia, serif; color:${accent};">${escapeHtml(fields.impliedUpsideFormatted || '—')}</div>
           </div>
         </div>
 
@@ -298,8 +317,8 @@ function renderResearchInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl:
           <div style="padding:10px 20px; background:${accent}; border-radius:999px; font:700 11px/1 Arial, sans-serif; letter-spacing:0.12em; text-transform:uppercase; color:${NAVY};">
             Read More on Our Website
           </div>
-          <div style="font:500 12px/1.2 Arial, sans-serif; color:${SLATE};">
-            ${escapeHtml(snapshot.dateLabel || '')}
+          <div style="font:500 13px/1.2 Arial, sans-serif; color:${SLATE};">
+            ${escapeHtml(siteUrlForSource('research_report'))}
           </div>
         </div>
       </div>
@@ -340,8 +359,8 @@ function renderStrategyInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl:
           <div style="padding:10px 20px; background:${accent}; border-radius:999px; font:700 11px/1 Arial, sans-serif; letter-spacing:0.12em; text-transform:uppercase; color:#0f172a;">
             Read More on Our Website
           </div>
-          <div style="font:500 12px/1.2 Arial, sans-serif; color:${SLATE};">
-            ${escapeHtml(snapshot.dateLabel || '')}
+          <div style="font:500 13px/1.2 Arial, sans-serif; color:${SLATE};">
+            ${escapeHtml(siteUrlForSource('strategy_document'))}
           </div>
         </div>
       </div>
@@ -402,7 +421,7 @@ function renderJobPostingLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl
 
           <div>
             <div style="font:600 10px/1.2 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:${SLATE}; margin-bottom:6px;">Apply</div>
-            <div style="font:600 14px/1.4 Arial, sans-serif; color:${NAVY};">stgeorgecapital.ca</div>
+            <div style="font:600 14px/1.4 Arial, sans-serif; color:${NAVY};">${escapeHtml(siteUrlForSource('job_posting'))}</div>
           </div>
         </div>
       </div>
@@ -413,6 +432,7 @@ function renderJobPostingLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl
 function renderResearchLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl: string | undefined) {
   const accent = GOLD;
   const fields = snapshot.fields || {};
+  const recColor = ratingColor(fields.recommendation);
 
   return `<!doctype html><html><head>${liHead()}</head>
   <body>
@@ -429,7 +449,7 @@ function renderResearchLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl: 
               ${escapeHtml((fields.ticker || 'TBD').toUpperCase())}
             </h1>
             <div style="margin-top:8px; font:500 18px/1.3 Arial, sans-serif; color:#334155;">
-              ${escapeHtml(clampText(fields.companyName || snapshot.title, 36))}
+              ${escapeHtml(collapseWhitespace(fields.companyName || snapshot.title))}
             </div>
           </div>
 
@@ -444,7 +464,7 @@ function renderResearchLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl: 
           <div style="text-align:center;">
             <div style="margin-bottom:20px;">
               <div style="font:600 10px/1.2 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:${SLATE}; margin-bottom:8px;">Rating</div>
-              <div style="font:700 28px/1 Georgia, serif; color:${accent};">${escapeHtml(String(fields.recommendation || '—').toUpperCase())}</div>
+              <div style="font:700 28px/1 Georgia, serif; color:${recColor};">${escapeHtml(String(fields.recommendation || '—').toUpperCase())}</div>
             </div>
             <div style="padding:18px 0; margin:0; border-top:1px solid ${LINE}; border-bottom:1px solid ${LINE};">
               <div style="font:600 10px/1.2 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:${SLATE}; margin-bottom:8px;">Target Price</div>
@@ -495,7 +515,7 @@ function renderGenericLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl: s
             Read More on Our Website
           </div>
           <div style="font:500 13px/1.2 Arial, sans-serif; color:${SLATE};">
-            ${escapeHtml(snapshot.dateLabel || 'stgeorgecapital.ca')}
+            ${escapeHtml(siteUrlForSource(snapshot.sourceType))}
           </div>
         </div>
       </div>
@@ -553,7 +573,7 @@ function renderJobPostingPdfHtml(snapshot: MarketingSourceSnapshot, logoUrl: str
             <div style="font:400 14px/1.8 Arial, sans-serif; color:#334155;">${escapeHtml(requirements)}</div>
           ` : ''}
           <h2 style="margin:24px 0 12px; font:600 12px/1.2 Arial, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:${NAVY};">How To Apply</h2>
-          <div style="font:400 14px/1.8 Arial, sans-serif; color:#334155;">Visit stgeorgecapital.ca to apply. All qualified candidates are encouraged to submit their materials.</div>
+          <div style="font:400 14px/1.8 Arial, sans-serif; color:#334155;">Visit stgeorgecapital.ca/joinus to apply. All qualified candidates are encouraged to submit their materials.</div>
         </div>
 
         <div>
@@ -573,7 +593,7 @@ function renderJobPostingPdfHtml(snapshot: MarketingSourceSnapshot, logoUrl: str
             </div>
             <div>
               <div style="font:600 10px/1.2 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:#64748b; margin-bottom:6px;">Website</div>
-              <div style="font:600 14px/1.4 Arial, sans-serif; color:${NAVY};">stgeorgecapital.ca</div>
+              <div style="font:600 14px/1.4 Arial, sans-serif; color:${NAVY};">stgeorgecapital.ca/joinus</div>
             </div>
           </div>
         </div>
