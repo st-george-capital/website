@@ -12,7 +12,7 @@ interface JobPosting {
   id: string;
   title: string;
   description: string;
-  team: 'quant_trading' | 'quant_research' | 'macro' | 'equity';
+  team: string;
   roleTag?: string | null;
   requirements?: string | null;
   endDate: string;
@@ -20,7 +20,9 @@ interface JobPosting {
   documentFile?: string;
 }
 
-function formatTeamLabel(team: JobPosting['team']) {
+function formatTeamLabel(team: string) {
+  if (team === 'macro_equity') return 'Macro & Equity';
+  if (team === 'executive') return 'Executive Team';
   return team.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
@@ -497,11 +499,14 @@ function JobPostingsSection() {
 function JobPostingCard({ posting }: { posting: JobPosting }) {
   const [showApplicationForm, setShowApplicationForm] = useState(false);
 
-  const teamColors = {
+  const teamColors: Record<string, string> = {
     quant_trading: 'bg-blue-100 text-blue-700 border-blue-200',
     quant_research: 'bg-green-100 text-green-700 border-green-200',
     macro: 'bg-purple-100 text-purple-700 border-purple-200',
     equity: 'bg-orange-100 text-orange-700 border-orange-200',
+    macro_equity: 'bg-purple-100 text-purple-700 border-purple-200',
+    operations: 'bg-slate-100 text-slate-700 border-slate-200',
+    executive: 'bg-amber-100 text-amber-700 border-amber-200',
   };
 
   return (

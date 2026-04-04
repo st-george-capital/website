@@ -319,7 +319,7 @@ model JobPosting {
   id           String   @id @default(cuid())
   title        String
   description  String
-  team         String   // "quant_trading", "quant_research", "macro", "equity"
+  team         String   // "quant_trading", "quant_research", "macro_equity", "operations", "executive"
   roleTag      String?
   requirements String?  @db.Text
   endDate      DateTime

@@ -151,8 +151,9 @@ export default function NewJobPostingPage() {
                 >
                   <option value="quant_trading">Quant Trading</option>
                   <option value="quant_research">Quant Research</option>
-                  <option value="macro">Macro</option>
-                  <option value="equity">Equity</option>
+                  <option value="macro_equity">Macro & Equity</option>
+                  <option value="operations">Operations</option>
+                  <option value="executive">Executive Team</option>
                 </select>
               </div>
             </div>

@@ -47,10 +47,15 @@ function formatPercent(value: number | null | undefined) {
 
 function humanizeTeam(team: string | null | undefined) {
   if (!team) return 'SGC';
-  return team
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
+  switch (team) {
+    case 'macro_equity': return 'Macro & Equity';
+    case 'executive': return 'Executive Team';
+    default:
+      return team
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+  }
 }
 
 function humanizeRoleTag(roleTag: string | null | undefined, fallbackTeam?: string | null) {

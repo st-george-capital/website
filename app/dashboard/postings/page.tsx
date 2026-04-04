@@ -35,14 +35,19 @@ interface JobApplication {
   };
 }
 
-const teamColors = {
+const teamColors: Record<string, string> = {
   quant_trading: 'bg-blue-100 text-blue-700',
   quant_research: 'bg-green-100 text-green-700',
   macro: 'bg-purple-100 text-purple-700',
   equity: 'bg-orange-100 text-orange-700',
+  macro_equity: 'bg-purple-100 text-purple-700',
+  operations: 'bg-slate-100 text-slate-700',
+  executive: 'bg-amber-100 text-amber-700',
 };
 
 function formatTeamLabel(team: string) {
+  if (team === 'macro_equity') return 'Macro & Equity';
+  if (team === 'executive') return 'Executive Team';
   return team.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
