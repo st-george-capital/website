@@ -785,7 +785,7 @@ export async function renderAndStoreMarketingPack(params: {
     const assets: StoredMarketingAsset[] = [];
 
     const instagramPage = await browser.newPage();
-    await preparePage(instagramPage, rendered.instagramHtml, 1080, 1350);
+    await preparePage(instagramPage, rendered.instagramHtml, 1080, 1080);
     const instagramBuffer = Buffer.from(await instagramPage.screenshot({ type: 'png' }) as Uint8Array);
     await instagramPage.close();
     assets.push({
@@ -798,7 +798,7 @@ export async function renderAndStoreMarketingPack(params: {
         contentType: 'image/png',
       }),
       width: 1080,
-      height: 1350,
+      height: 1080,
       ordering: 0,
     });
 
