@@ -155,9 +155,17 @@ function headerRowDark(logoUrl: string | undefined, badge: string, badgeColor: s
 /*  INSTAGRAM TEMPLATES (1080 x 1080)                                  */
 /* ================================================================== */
 
+function titleFontSize(text: string, maxPx: number, minPx: number, thresholdLen: number) {
+  if (text.length <= thresholdLen) return maxPx;
+  const scaled = Math.round(maxPx - ((text.length - thresholdLen) * (maxPx - minPx)) / (thresholdLen * 1.4));
+  return Math.max(minPx, Math.min(maxPx, scaled));
+}
+
 function renderJobPostingInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl: string | undefined) {
   const accent = TEAL;
   const teamLabel = collapseWhitespace(snapshot.fields.teamLabel || 'SGC');
+  const title = collapseWhitespace(snapshot.title);
+  const titlePx = titleFontSize(title, 72, 44, 28);
 
   return `<!doctype html><html><head>${igHead()}</head>
   <body>
@@ -165,17 +173,17 @@ function renderJobPostingInstagramHtml(snapshot: MarketingSourceSnapshot, logoUr
       ${accentBar(accent, 5)}
 
       <div style="position:relative; z-index:1; height:100%; padding:52px; display:flex; flex-direction:column;">
-        ${headerRow(logoUrl, 'Careers', accent)}
+        ${headerRow(logoUrl, escapeHtml(teamLabel), accent)}
 
         <div style="margin-top:auto; margin-bottom:auto;">
           <div style="font:600 12px/1.2 Arial, sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:${accent};">
             ${escapeHtml(teamLabel)} — Now Recruiting
           </div>
-          <h1 style="margin-top:18px; font:700 76px/0.95 Georgia, 'Times New Roman', serif; letter-spacing:-0.02em; color:${WHITE};">
-            ${escapeHtml(clampText(snapshot.title, 38))}
+          <h1 style="margin-top:18px; font:700 ${titlePx}px/0.98 Georgia, 'Times New Roman', serif; letter-spacing:-0.02em; color:${WHITE};">
+            ${escapeHtml(title)}
           </h1>
-          <div style="margin-top:22px; max-width:860px; font:500 24px/1.35 Arial, sans-serif; color:rgba(248,249,250,0.85);">
-            ${escapeHtml(clampText(snapshot.subtitle || snapshot.summary, 120))}
+          <div style="margin-top:22px; max-width:860px; font:500 22px/1.35 Arial, sans-serif; color:rgba(248,249,250,0.85);">
+            ${escapeHtml(clampText(snapshot.subtitle || snapshot.summary, 160))}
           </div>
         </div>
 
@@ -185,8 +193,8 @@ function renderJobPostingInstagramHtml(snapshot: MarketingSourceSnapshot, logoUr
             <div style="margin-top:8px; font:700 20px/1.1 Georgia, serif; color:${OFF_WHITE};">${escapeHtml(snapshot.dateLabel || 'Rolling')}</div>
           </div>
           <div style="padding:18px 20px; background:${accent}; border-radius:12px;">
-            <div style="font:600 10px/1.2 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:${NAVY};">Apply Now</div>
-            <div style="margin-top:8px; font:700 18px/1.1 Arial, sans-serif; color:${NAVY};">sgcresearch.ca</div>
+            <div style="font:600 10px/1.2 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:${NAVY};">Find Out More &amp; Apply</div>
+            <div style="margin-top:8px; font:700 18px/1.1 Arial, sans-serif; color:${NAVY};">stgeorgecapital.ca</div>
           </div>
         </div>
       </div>
@@ -197,6 +205,8 @@ function renderJobPostingInstagramHtml(snapshot: MarketingSourceSnapshot, logoUr
 function renderArticleInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl: string | undefined) {
   const accent = GREEN;
   const hasImage = !!snapshot.imageUrl;
+  const title = collapseWhitespace(snapshot.title);
+  const titlePx = titleFontSize(title, 62, 38, 30);
 
   return `<!doctype html><html><head>${igHead()}</head>
   <body>
@@ -211,15 +221,15 @@ function renderArticleInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl: 
           <div style="font:600 12px/1.2 Arial, sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:${accent};">
             ${escapeHtml(snapshot.eyebrow || 'Our Take')}
           </div>
-          <h1 style="margin-top:16px; font:700 62px/0.98 Georgia, 'Times New Roman', serif; letter-spacing:-0.02em; color:${WHITE}; max-width:920px;">
-            ${escapeHtml(clampText(snapshot.title, 42))}
+          <h1 style="margin-top:16px; font:700 ${titlePx}px/0.98 Georgia, 'Times New Roman', serif; letter-spacing:-0.02em; color:${WHITE}; max-width:920px;">
+            ${escapeHtml(title)}
           </h1>
-          <div style="margin-top:18px; max-width:860px; font:400 19px/1.55 Arial, sans-serif; color:rgba(248,249,250,0.85);">
-            ${escapeHtml(clampText(snapshot.summary, 180))}
+          <div style="margin-top:18px; max-width:860px; font:400 18px/1.5 Arial, sans-serif; color:rgba(248,249,250,0.85);">
+            ${escapeHtml(clampText(snapshot.summary, 220))}
           </div>
           <div style="margin-top:24px; display:flex; align-items:center; gap:14px;">
             <div style="padding:10px 20px; background:${accent}; border-radius:999px; font:700 11px/1 Arial, sans-serif; letter-spacing:0.12em; text-transform:uppercase; color:${NAVY};">
-              ${escapeHtml(clampText(snapshot.cta, 22))}
+              Read More on Our Website
             </div>
             <div style="font:500 12px/1.2 Arial, sans-serif; color:${SLATE};">
               ${escapeHtml(snapshot.dateLabel || '')}
@@ -240,20 +250,20 @@ function renderResearchInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl:
     <div style="position:relative; width:1080px; height:1080px; overflow:hidden; background:${NAVY}; color:${OFF_WHITE};">
       ${accentBar(accent, 5)}
 
-      <div style="position:relative; z-index:1; height:100%; padding:52px; display:flex; flex-direction:column;">
+      <div style="position:relative; z-index:1; height:100%; padding:52px 52px 48px; display:flex; flex-direction:column; justify-content:center; gap:28px;">
         ${headerRow(logoUrl, 'Research', accent)}
 
-        <div style="margin-top:auto; margin-bottom:auto;">
+        <div style="flex:0 0 auto;">
           <div style="font:600 12px/1.2 Arial, sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:${accent};">
             Equity Analysis
           </div>
-          <h1 style="margin-top:18px; font:700 86px/0.92 Georgia, 'Times New Roman', serif; letter-spacing:-0.02em; color:${WHITE};">
+          <h1 style="margin-top:14px; font:700 86px/0.92 Georgia, 'Times New Roman', serif; letter-spacing:-0.02em; color:${WHITE};">
             ${escapeHtml((fields.ticker || 'TBD').toUpperCase())}
           </h1>
-          <div style="margin-top:14px; font:500 26px/1.3 Arial, sans-serif; color:rgba(248,249,250,0.82);">
-            ${escapeHtml(clampText(fields.companyName || snapshot.title, 36))}
+          <div style="margin-top:10px; font:500 26px/1.3 Arial, sans-serif; color:rgba(248,249,250,0.82);">
+            ${escapeHtml(collapseWhitespace(fields.companyName || snapshot.title))}
           </div>
-          ${fields.sector ? `<div style="margin-top:10px; font:500 15px/1.2 Arial, sans-serif; color:${SLATE};">${escapeHtml(fields.sector)}</div>` : ''}
+          ${fields.sector ? `<div style="margin-top:8px; font:500 15px/1.2 Arial, sans-serif; color:${SLATE};">${escapeHtml(fields.sector)}</div>` : ''}
         </div>
 
         <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
@@ -270,19 +280,30 @@ function renderResearchInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl:
             <div style="margin-top:8px; font:700 22px/1 Georgia, serif; color:${accent};">${escapeHtml(fields.impliedUpsideFormatted || '—')}</div>
           </div>
         </div>
+
+        <div style="display:flex; align-items:center; gap:14px;">
+          <div style="padding:10px 20px; background:${accent}; border-radius:999px; font:700 11px/1 Arial, sans-serif; letter-spacing:0.12em; text-transform:uppercase; color:${NAVY};">
+            Read More on Our Website
+          </div>
+          <div style="font:500 12px/1.2 Arial, sans-serif; color:${SLATE};">
+            ${escapeHtml(snapshot.dateLabel || '')}
+          </div>
+        </div>
       </div>
     </div>
   </body></html>`;
 }
 
 function renderStrategyInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl: string | undefined) {
-  const accent = ROSE;
+  const accent = '#60a5fa'; /* sky blue — visually distinct from job posting teal and navy-purple bg */
   const fields = snapshot.fields || {};
   const docType = fields.documentTypeLabel || (fields.type === 'investment_strategy' ? 'Investment Strategy' : 'Industry Report');
+  const title = collapseWhitespace(snapshot.title);
+  const titlePx = titleFontSize(title, 64, 40, 28);
 
   return `<!doctype html><html><head>${igHead()}</head>
   <body>
-    <div style="position:relative; width:1080px; height:1080px; overflow:hidden; background:linear-gradient(135deg, ${NAVY} 0%, ${PURPLE} 100%); color:${OFF_WHITE};">
+    <div style="position:relative; width:1080px; height:1080px; overflow:hidden; background:linear-gradient(155deg, #0f172a 0%, #1e3a5f 55%, #0f172a 100%); color:${OFF_WHITE};">
       ${accentBar(accent, 5)}
       ${backgroundMedia(snapshot.imageUrl, 0.4)}
 
@@ -293,18 +314,18 @@ function renderStrategyInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl:
           <div style="font:600 12px/1.2 Arial, sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:${accent};">
             ${escapeHtml(docType)}
           </div>
-          <h1 style="margin-top:18px; font:700 68px/0.96 Georgia, 'Times New Roman', serif; letter-spacing:-0.02em; color:${WHITE}; max-width:920px;">
-            ${escapeHtml(clampText(snapshot.title, 42))}
+          <h1 style="margin-top:18px; font:700 ${titlePx}px/0.98 Georgia, 'Times New Roman', serif; letter-spacing:-0.02em; color:${WHITE}; max-width:920px;">
+            ${escapeHtml(title)}
           </h1>
           ${fields.year ? `<div style="margin-top:16px; display:inline-block; padding:6px 14px; background:rgba(255,255,255,0.1); border-radius:6px; font:600 14px/1.2 Arial, sans-serif; color:${accent};">${escapeHtml(fields.year)}</div>` : ''}
-          <div style="margin-top:18px; max-width:860px; font:400 19px/1.55 Arial, sans-serif; color:rgba(248,249,250,0.82);">
-            ${escapeHtml(clampText(snapshot.summary, 180))}
+          <div style="margin-top:18px; max-width:860px; font:400 18px/1.5 Arial, sans-serif; color:rgba(248,249,250,0.82);">
+            ${escapeHtml(clampText(snapshot.summary, 220))}
           </div>
         </div>
 
         <div style="display:flex; align-items:center; gap:14px;">
-          <div style="padding:10px 20px; background:${accent}; border-radius:999px; font:700 11px/1 Arial, sans-serif; letter-spacing:0.12em; text-transform:uppercase; color:${WHITE};">
-            ${escapeHtml(clampText(snapshot.cta, 22))}
+          <div style="padding:10px 20px; background:${accent}; border-radius:999px; font:700 11px/1 Arial, sans-serif; letter-spacing:0.12em; text-transform:uppercase; color:#0f172a;">
+            Read More on Our Website
           </div>
           <div style="font:500 12px/1.2 Arial, sans-serif; color:${SLATE};">
             ${escapeHtml(snapshot.dateLabel || '')}
@@ -322,6 +343,8 @@ function renderStrategyInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl:
 function renderJobPostingLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl: string | undefined) {
   const accent = TEAL;
   const teamLabel = collapseWhitespace(snapshot.fields.teamLabel || 'SGC');
+  const title = collapseWhitespace(snapshot.title);
+  const titlePx = title.length > 40 ? 36 : title.length > 28 ? 40 : 46;
 
   return `<!doctype html><html><head>${liHead()}</head>
   <body>
@@ -330,23 +353,23 @@ function renderJobPostingLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl
 
       <div style="height:100%; display:grid; grid-template-columns:1.2fr 0.8fr;">
         <div style="padding:44px 48px; display:flex; flex-direction:column;">
-          ${headerRowDark(logoUrl, 'Careers', accent)}
+          ${headerRowDark(logoUrl, escapeHtml(teamLabel), accent)}
 
           <div style="margin-top:28px; flex:1; display:flex; flex-direction:column; justify-content:center;">
             <div style="font:600 11px/1.2 Arial, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:${accent};">
               ${escapeHtml(teamLabel)} — Now Recruiting
             </div>
-            <h1 style="margin-top:12px; font:700 46px/1.02 Georgia, 'Times New Roman', serif; letter-spacing:-0.01em; color:${NAVY}; max-width:640px;">
-              ${escapeHtml(clampText(snapshot.title, 48))}
+            <h1 style="margin-top:12px; font:700 ${titlePx}px/1.02 Georgia, 'Times New Roman', serif; letter-spacing:-0.01em; color:${NAVY}; max-width:640px;">
+              ${escapeHtml(title)}
             </h1>
             <div style="margin-top:14px; font:400 16px/1.55 Arial, sans-serif; color:#334155; max-width:600px;">
-              ${escapeHtml(clampText(snapshot.summary, 140))}
+              ${escapeHtml(clampText(snapshot.summary, 160))}
             </div>
           </div>
 
           <div style="margin-top:auto;">
             <div style="padding:11px 22px; display:inline-block; background:${accent}; border-radius:999px; font:700 11px/1 Arial, sans-serif; letter-spacing:0.12em; text-transform:uppercase; color:${NAVY};">
-              ${escapeHtml(clampText(snapshot.cta, 22))}
+              Find Out More &amp; Apply
             </div>
           </div>
         </div>
@@ -366,7 +389,7 @@ function renderJobPostingLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl
 
           <div>
             <div style="font:600 10px/1.2 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:${SLATE}; margin-bottom:6px;">Apply</div>
-            <div style="font:600 14px/1.4 Arial, sans-serif; color:${NAVY};">sgcresearch.ca</div>
+            <div style="font:600 14px/1.4 Arial, sans-serif; color:${NAVY};">stgeorgecapital.ca</div>
           </div>
         </div>
       </div>
@@ -424,7 +447,9 @@ function renderResearchLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl: 
 }
 
 function renderGenericLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl: string | undefined) {
-  const accent = accentForSource(snapshot.sourceType);
+  const accent = snapshot.sourceType === 'strategy_document' ? '#60a5fa' : accentForSource(snapshot.sourceType);
+  const title = collapseWhitespace(snapshot.title);
+  const titlePx = title.length > 46 ? 36 : title.length > 30 ? 42 : 48;
 
   return `<!doctype html><html><head>${liHead()}</head>
   <body>
@@ -442,20 +467,20 @@ function renderGenericLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl: s
           <div style="font:600 11px/1.2 Arial, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:${accent};">
             ${escapeHtml(snapshot.eyebrow || '')}
           </div>
-          <h1 style="margin-top:12px; font:700 48px/1.02 Georgia, 'Times New Roman', serif; letter-spacing:-0.01em; color:${NAVY}; max-width:900px;">
-            ${escapeHtml(clampText(snapshot.title, 52))}
+          <h1 style="margin-top:12px; font:700 ${titlePx}px/1.02 Georgia, 'Times New Roman', serif; letter-spacing:-0.01em; color:${NAVY}; max-width:900px;">
+            ${escapeHtml(title)}
           </h1>
           <div style="margin-top:14px; font:400 17px/1.55 Arial, sans-serif; color:#334155; max-width:860px;">
-            ${escapeHtml(clampText(snapshot.summary, 200))}
+            ${escapeHtml(clampText(snapshot.summary, 240))}
           </div>
         </div>
 
         <div style="margin-top:auto; display:flex; align-items:center; gap:14px;">
           <div style="padding:11px 22px; display:inline-block; background:${accent}; border-radius:999px; font:700 11px/1 Arial, sans-serif; letter-spacing:0.12em; text-transform:uppercase; color:${NAVY};">
-            ${escapeHtml(clampText(snapshot.cta, 22))}
+            Read More on Our Website
           </div>
           <div style="font:500 13px/1.2 Arial, sans-serif; color:${SLATE};">
-            ${escapeHtml(snapshot.dateLabel || 'St. George Capital')}
+            ${escapeHtml(snapshot.dateLabel || 'stgeorgecapital.ca')}
           </div>
         </div>
       </div>
@@ -513,7 +538,7 @@ function renderJobPostingPdfHtml(snapshot: MarketingSourceSnapshot, logoUrl: str
             <div style="font:400 14px/1.8 Arial, sans-serif; color:#334155;">${escapeHtml(requirements)}</div>
           ` : ''}
           <h2 style="margin:24px 0 12px; font:600 12px/1.2 Arial, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:${NAVY};">How To Apply</h2>
-          <div style="font:400 14px/1.8 Arial, sans-serif; color:#334155;">Visit sgcresearch.ca to apply. All qualified candidates are encouraged to submit their materials.</div>
+          <div style="font:400 14px/1.8 Arial, sans-serif; color:#334155;">Visit stgeorgecapital.ca to apply. All qualified candidates are encouraged to submit their materials.</div>
         </div>
 
         <div>
@@ -533,7 +558,7 @@ function renderJobPostingPdfHtml(snapshot: MarketingSourceSnapshot, logoUrl: str
             </div>
             <div>
               <div style="font:600 10px/1.2 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:#64748b; margin-bottom:6px;">Website</div>
-              <div style="font:600 14px/1.4 Arial, sans-serif; color:${NAVY};">sgcresearch.ca</div>
+              <div style="font:600 14px/1.4 Arial, sans-serif; color:${NAVY};">stgeorgecapital.ca</div>
             </div>
           </div>
         </div>
