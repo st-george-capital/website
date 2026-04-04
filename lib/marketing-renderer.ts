@@ -38,12 +38,14 @@ interface StoredMarketingAsset {
 /* ------------------------------------------------------------------ */
 
 const NAVY = '#0b1f3a';
+const SGC_BRAND = '#030116'; /* SGC brand navy — matches logo background */
 const PURPLE = '#5b4b9f';
 const SLATE = '#7a7a9e';
 const TEAL = '#00d9d9';
 const GREEN = '#10b981';
 const GOLD = '#f4d35e';
 const ROSE = '#f43f5e';
+const ROYAL = '#6366f1'; /* indigo-500 — manual/ad-hoc accent, professional & popping */
 const OFF_WHITE = '#f8f9fa';
 const WHITE = '#ffffff';
 const LINE = 'rgba(122, 122, 158, 0.2)';
@@ -143,6 +145,18 @@ function accentBar(color: string, thickness = 4) {
   return `<div style="position:absolute; top:0; left:0; right:0; height:${thickness}px; background:${color}; z-index:10;"></div>`;
 }
 
+function campaignKindBadge(kind: string): string {
+  switch (kind) {
+    case 'recruiting': return 'Recruiting';
+    case 'article': return 'Featured';
+    case 'research': return 'Research';
+    case 'strategy': return 'Strategy';
+    case 'charity': return 'Charity';
+    case 'announcement': return 'Announcement';
+    default: return kind.charAt(0).toUpperCase() + kind.slice(1);
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /*  Shared HTML boilerplate                                            */
 /* ------------------------------------------------------------------ */
@@ -196,6 +210,7 @@ function titleFontSize(text: string, maxPx: number, minPx: number, thresholdLen:
 function renderJobPostingInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl: string | undefined) {
   const accent = TEAL;
   const teamLabel = collapseWhitespace(snapshot.fields.teamLabel || 'SGC');
+  const badge = campaignKindBadge(snapshot.campaignKind);
   const title = collapseWhitespace(snapshot.title);
   const titlePx = titleFontSize(title, 88, 52, 20);
 
@@ -205,7 +220,7 @@ function renderJobPostingInstagramHtml(snapshot: MarketingSourceSnapshot, logoUr
       ${accentBar(accent, 5)}
 
       <div style="position:relative; z-index:1; height:100%; padding:52px; display:flex; flex-direction:column;">
-        ${headerRow(escapeHtml(teamLabel), accent)}
+        ${headerRow(badge, accent)}
 
         <div style="margin-top:auto; margin-bottom:auto;">
           <div style="font:600 13px/1.2 Arial, sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:${accent};">
@@ -239,6 +254,7 @@ function renderArticleInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl: 
   const hasImage = !!snapshot.imageUrl;
   const title = collapseWhitespace(snapshot.title);
   const titlePx = titleFontSize(title, 62, 38, 30);
+  const badge = campaignKindBadge(snapshot.campaignKind);
 
   return `<!doctype html><html><head>${igHead()}</head>
   <body>
@@ -247,7 +263,7 @@ function renderArticleInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl: 
       ${backgroundMedia(snapshot.imageUrl, 0.36)}
 
       <div style="position:relative; z-index:1; height:100%; padding:52px; display:flex; flex-direction:column;">
-        ${headerRow('Featured', accent)}
+        ${headerRow(badge, accent)}
 
         <div style="margin-top:auto;">
           <div style="font:600 12px/1.2 Arial, sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:${accent};">
@@ -296,7 +312,7 @@ function renderResearchInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl:
       ${accentBar(accent, 5)}
 
       <div style="position:relative; z-index:1; height:100%; padding:52px; display:flex; flex-direction:column;">
-        ${headerRow('Research', accent)}
+        ${headerRow(campaignKindBadge(snapshot.campaignKind), accent)}
 
         <div style="margin-top:32px;">
           <div style="font:600 14px/1.2 Arial, sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:${accent};">
@@ -345,6 +361,7 @@ function renderStrategyInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl:
   const accent = '#60a5fa'; /* sky blue — visually distinct from job posting teal and navy-purple bg */
   const fields = snapshot.fields || {};
   const docType = fields.documentTypeLabel || (fields.type === 'investment_strategy' ? 'Investment Strategy' : 'Industry Report');
+  const badge = campaignKindBadge(snapshot.campaignKind);
   const title = collapseWhitespace(snapshot.title);
   const titlePx = titleFontSize(title, 64, 40, 28);
 
@@ -355,7 +372,7 @@ function renderStrategyInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl:
       ${backgroundMedia(snapshot.imageUrl, 0.4)}
 
       <div style="position:relative; z-index:1; height:100%; padding:52px; display:flex; flex-direction:column;">
-        ${headerRow(docType, accent)}
+        ${headerRow(badge, accent)}
 
         <div style="margin-top:auto; margin-bottom:auto;">
           <div style="font:600 12px/1.2 Arial, sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:${accent};">
@@ -383,6 +400,48 @@ function renderStrategyInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl:
   </body></html>`;
 }
 
+function renderManualInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl: string | undefined) {
+  const accent = ROYAL;
+  const badge = campaignKindBadge(snapshot.campaignKind);
+  const title = collapseWhitespace(snapshot.title);
+  const titlePx = titleFontSize(title, 80, 46, 22);
+  const subtitle = collapseWhitespace(stripMarkdown(snapshot.subtitle || snapshot.summary || ''));
+
+  return `<!doctype html><html><head>${igHead()}</head>
+  <body>
+    <div style="position:relative; width:1080px; height:1080px; overflow:hidden; background:linear-gradient(180deg, ${SGC_BRAND} 0%, ${SGC_BRAND} 35%, #0a0a2e 65%, #141432 100%); color:${OFF_WHITE};">
+
+      <div style="position:relative; z-index:1; height:100%; padding:56px; display:flex; flex-direction:column;">
+        <!-- Header: large logo text left, badge right -->
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div style="font:700 32px/1.1 Georgia, 'Times New Roman', serif; letter-spacing:0.05em; color:${WHITE};">St. George Capital</div>
+          <div style="padding:8px 18px; border:1.5px solid ${accent}; border-radius:8px; font:700 12px/1 Arial, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:${accent};">${escapeHtml(badge)}</div>
+        </div>
+
+        <!-- Centered title block -->
+        <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:0 20px;">
+          <h1 style="font:700 ${titlePx}px/1.02 Georgia, 'Times New Roman', serif; letter-spacing:-0.01em; color:${WHITE}; max-width:960px;">
+            ${escapeHtml(title)}
+          </h1>
+          ${subtitle ? `<div style="margin-top:24px; max-width:820px; font:400 20px/1.5 Arial, sans-serif; color:rgba(248,249,250,0.78);">
+            ${escapeHtml(subtitle)}
+          </div>` : ''}
+        </div>
+
+        <!-- Bottom: CTA row -->
+        <div style="display:flex; align-items:center; justify-content:center; gap:24px;">
+          <div style="padding:14px 28px; background:${accent}; border-radius:999px; font:700 13px/1 Arial, sans-serif; letter-spacing:0.10em; text-transform:uppercase; color:${WHITE};">
+            More Details Below
+          </div>
+          <div style="font:600 15px/1.2 Arial, sans-serif; color:rgba(248,249,250,0.6); letter-spacing:0.04em;">
+            Sign Up Link in Bio
+          </div>
+        </div>
+      </div>
+    </div>
+  </body></html>`;
+}
+
 /* ================================================================== */
 /*  LINKEDIN TEMPLATES (1200 x 627)                                    */
 /* ================================================================== */
@@ -390,6 +449,7 @@ function renderStrategyInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl:
 function renderJobPostingLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl: string | undefined) {
   const accent = TEAL;
   const teamLabel = collapseWhitespace(snapshot.fields.teamLabel || 'SGC');
+  const badge = campaignKindBadge(snapshot.campaignKind);
   const title = collapseWhitespace(snapshot.title);
   const titlePx = title.length > 40 ? 36 : title.length > 28 ? 40 : 46;
 
@@ -400,7 +460,7 @@ function renderJobPostingLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl
 
       <div style="height:100%; display:grid; grid-template-columns:1.2fr 0.8fr;">
         <div style="padding:44px 48px; display:flex; flex-direction:column;">
-          ${headerRowDark(escapeHtml(teamLabel), accent)}
+          ${headerRowDark(badge, accent)}
 
           <div style="margin-top:28px; flex:1; display:flex; flex-direction:column; justify-content:center;">
             <div style="font:600 11px/1.2 Arial, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:${accent};">
@@ -456,7 +516,7 @@ function renderResearchLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl: 
 
       <div style="height:100%; display:grid; grid-template-columns:1.3fr 0.7fr;">
         <div style="padding:44px 48px; display:flex; flex-direction:column;">
-          ${headerRowDark('Research', accent)}
+          ${headerRowDark(campaignKindBadge(snapshot.campaignKind), accent)}
 
           <div style="margin-top:24px; flex:1; display:flex; flex-direction:column; justify-content:center;">
             <div style="font:600 11px/1.2 Arial, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:${accent};">Equity Analysis</div>
@@ -511,7 +571,7 @@ function renderGenericLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl: s
       "></div>
 
       <div style="position:relative; z-index:1; height:100%; padding:44px 52px; display:flex; flex-direction:column;">
-        ${headerRowDark('SGC', accent)}
+        ${headerRowDark(campaignKindBadge(snapshot.campaignKind), accent)}
 
         <div style="margin-top:28px; flex:1; display:flex; flex-direction:column; justify-content:center;">
           <div style="font:600 11px/1.2 Arial, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:${accent};">
@@ -531,6 +591,48 @@ function renderGenericLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl: s
           </div>
           <div style="font:500 13px/1.2 Arial, sans-serif; color:${SLATE};">
             ${escapeHtml(siteUrlForSource(snapshot.sourceType))}
+          </div>
+        </div>
+      </div>
+    </div>
+  </body></html>`;
+}
+
+function renderManualLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl: string | undefined) {
+  const accent = ROYAL;
+  const badge = campaignKindBadge(snapshot.campaignKind);
+  const title = collapseWhitespace(snapshot.title);
+  const titlePx = title.length > 46 ? 36 : title.length > 30 ? 42 : 48;
+  const subtitle = collapseWhitespace(stripMarkdown(snapshot.subtitle || snapshot.summary || ''));
+
+  return `<!doctype html><html><head>${liHead()}</head>
+  <body>
+    <div style="position:relative; width:1200px; height:627px; overflow:hidden; background:linear-gradient(135deg, ${SGC_BRAND} 0%, #0a0a2e 60%, #1a1a40 100%); color:${OFF_WHITE};">
+
+      <div style="position:relative; z-index:1; height:100%; padding:44px 52px; display:flex; flex-direction:column;">
+        <!-- Header -->
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div style="font:700 24px/1.1 Georgia, 'Times New Roman', serif; letter-spacing:0.05em; color:${WHITE};">St. George Capital</div>
+          <div style="padding:6px 14px; border:1.5px solid ${accent}; border-radius:6px; font:700 11px/1 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:${accent};">${escapeHtml(badge)}</div>
+        </div>
+
+        <!-- Content -->
+        <div style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+          <h1 style="font:700 ${titlePx}px/1.04 Georgia, 'Times New Roman', serif; letter-spacing:-0.01em; color:${WHITE}; max-width:940px;">
+            ${escapeHtml(title)}
+          </h1>
+          ${subtitle ? `<div style="margin-top:16px; max-width:860px; font:400 17px/1.55 Arial, sans-serif; color:rgba(248,249,250,0.75);">
+            ${escapeHtml(subtitle)}
+          </div>` : ''}
+        </div>
+
+        <!-- Bottom -->
+        <div style="display:flex; align-items:center; gap:18px;">
+          <div style="padding:11px 24px; background:${accent}; border-radius:999px; font:700 11px/1 Arial, sans-serif; letter-spacing:0.12em; text-transform:uppercase; color:${WHITE};">
+            More Details Below
+          </div>
+          <div style="font:500 13px/1.2 Arial, sans-serif; color:rgba(248,249,250,0.5);">
+            stgeorgecapital.ca
           </div>
         </div>
       </div>
@@ -632,8 +734,10 @@ function renderInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl: string 
       return renderResearchInstagramHtml(snapshot, logoUrl);
     case 'strategy_document':
       return renderStrategyInstagramHtml(snapshot, logoUrl);
+    case 'manual':
+      return renderManualInstagramHtml(snapshot, logoUrl);
     default:
-      return renderArticleInstagramHtml(snapshot, logoUrl);
+      return renderManualInstagramHtml(snapshot, logoUrl);
   }
 }
 
@@ -643,6 +747,8 @@ function renderLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl: string |
       return renderJobPostingLinkedinHtml(snapshot, logoUrl);
     case 'research_report':
       return renderResearchLinkedinHtml(snapshot, logoUrl);
+    case 'manual':
+      return renderManualLinkedinHtml(snapshot, logoUrl);
     default:
       return renderGenericLinkedinHtml(snapshot, logoUrl);
   }
