@@ -132,7 +132,7 @@ function backgroundMedia(imageUrl: string | null | undefined, overlay = 0.32) {
 function accentForSource(sourceType: string) {
   switch (sourceType) {
     case 'job_posting': return TEAL;
-    case 'article': return GREEN;
+    case 'article': return '#2dd4bf';
     case 'research_report': return GOLD;
     case 'strategy_document': return ROSE;
     default: return PURPLE;
@@ -165,25 +165,19 @@ function liHead() {
     </style>`;
 }
 
-function headerRow(logoUrl: string | undefined, badge: string, badgeColor: string) {
+function headerRow(badge: string, badgeColor: string) {
   return `
     <div style="display:flex; align-items:center; justify-content:space-between;">
-      <div style="display:flex; align-items:center; gap:16px;">
-        ${renderLogoSvg(OFF_WHITE, 56)}
-        <div style="font:700 18px/1.2 Arial, sans-serif; letter-spacing:0.10em; text-transform:uppercase; color:${OFF_WHITE};">St. George Capital</div>
-      </div>
+      <div style="font:700 20px/1.2 Georgia, 'Times New Roman', serif; letter-spacing:0.06em; color:${OFF_WHITE};">St. George Capital</div>
       <div style="font:700 13px/1 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:${badgeColor};">${escapeHtml(badge)}</div>
     </div>
   `;
 }
 
-function headerRowDark(logoUrl: string | undefined, badge: string, badgeColor: string) {
+function headerRowDark(badge: string, badgeColor: string) {
   return `
     <div style="display:flex; align-items:center; justify-content:space-between;">
-      <div style="display:flex; align-items:center; gap:16px;">
-        ${renderLogoSvg(NAVY, 56)}
-        <div style="font:700 18px/1.2 Arial, sans-serif; letter-spacing:0.10em; text-transform:uppercase; color:${NAVY};">St. George Capital</div>
-      </div>
+      <div style="font:700 20px/1.2 Georgia, 'Times New Roman', serif; letter-spacing:0.06em; color:${NAVY};">St. George Capital</div>
       <div style="font:700 13px/1 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:${badgeColor};">${escapeHtml(badge)}</div>
     </div>
   `;
@@ -211,7 +205,7 @@ function renderJobPostingInstagramHtml(snapshot: MarketingSourceSnapshot, logoUr
       ${accentBar(accent, 5)}
 
       <div style="position:relative; z-index:1; height:100%; padding:52px; display:flex; flex-direction:column;">
-        ${headerRow(logoUrl, escapeHtml(teamLabel), accent)}
+        ${headerRow(escapeHtml(teamLabel), accent)}
 
         <div style="margin-top:auto; margin-bottom:auto;">
           <div style="font:600 13px/1.2 Arial, sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:${accent};">
@@ -241,7 +235,7 @@ function renderJobPostingInstagramHtml(snapshot: MarketingSourceSnapshot, logoUr
 }
 
 function renderArticleInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl: string | undefined) {
-  const accent = GREEN;
+  const accent = '#2dd4bf'; /* teal-400 — professional, distinct from job posting cyan */
   const hasImage = !!snapshot.imageUrl;
   const title = collapseWhitespace(snapshot.title);
   const titlePx = titleFontSize(title, 62, 38, 30);
@@ -253,7 +247,7 @@ function renderArticleInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl: 
       ${backgroundMedia(snapshot.imageUrl, 0.36)}
 
       <div style="position:relative; z-index:1; height:100%; padding:52px; display:flex; flex-direction:column;">
-        ${headerRow(logoUrl, 'Featured', accent)}
+        ${headerRow('Featured', accent)}
 
         <div style="margin-top:auto;">
           <div style="font:600 12px/1.2 Arial, sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:${accent};">
@@ -302,7 +296,7 @@ function renderResearchInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl:
       ${accentBar(accent, 5)}
 
       <div style="position:relative; z-index:1; height:100%; padding:52px; display:flex; flex-direction:column;">
-        ${headerRow(logoUrl, 'Research', accent)}
+        ${headerRow('Research', accent)}
 
         <div style="margin-top:32px;">
           <div style="font:600 14px/1.2 Arial, sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:${accent};">
@@ -361,7 +355,7 @@ function renderStrategyInstagramHtml(snapshot: MarketingSourceSnapshot, logoUrl:
       ${backgroundMedia(snapshot.imageUrl, 0.4)}
 
       <div style="position:relative; z-index:1; height:100%; padding:52px; display:flex; flex-direction:column;">
-        ${headerRow(logoUrl, docType, accent)}
+        ${headerRow(docType, accent)}
 
         <div style="margin-top:auto; margin-bottom:auto;">
           <div style="font:600 12px/1.2 Arial, sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:${accent};">
@@ -406,7 +400,7 @@ function renderJobPostingLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl
 
       <div style="height:100%; display:grid; grid-template-columns:1.2fr 0.8fr;">
         <div style="padding:44px 48px; display:flex; flex-direction:column;">
-          ${headerRowDark(logoUrl, escapeHtml(teamLabel), accent)}
+          ${headerRowDark(escapeHtml(teamLabel), accent)}
 
           <div style="margin-top:28px; flex:1; display:flex; flex-direction:column; justify-content:center;">
             <div style="font:600 11px/1.2 Arial, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:${accent};">
@@ -462,7 +456,7 @@ function renderResearchLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl: 
 
       <div style="height:100%; display:grid; grid-template-columns:1.3fr 0.7fr;">
         <div style="padding:44px 48px; display:flex; flex-direction:column;">
-          ${headerRowDark(logoUrl, 'Research', accent)}
+          ${headerRowDark('Research', accent)}
 
           <div style="margin-top:24px; flex:1; display:flex; flex-direction:column; justify-content:center;">
             <div style="font:600 11px/1.2 Arial, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:${accent};">Equity Analysis</div>
@@ -517,7 +511,7 @@ function renderGenericLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl: s
       "></div>
 
       <div style="position:relative; z-index:1; height:100%; padding:44px 52px; display:flex; flex-direction:column;">
-        ${headerRowDark(logoUrl, 'SGC', accent)}
+        ${headerRowDark('SGC', accent)}
 
         <div style="margin-top:28px; flex:1; display:flex; flex-direction:column; justify-content:center;">
           <div style="font:600 11px/1.2 Arial, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:${accent};">

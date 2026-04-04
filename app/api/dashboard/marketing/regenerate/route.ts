@@ -33,6 +33,8 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const campaignId = typeof body.campaignId === 'string' ? body.campaignId : null;
+    const clientOverrides = (body.overrideFields || null) as MarketingOverrideFields | null;
+    const clientCaptions = (body.generatedCaptions || null) as MarketingCaptionPack | null;
 
     if (!campaignId) {
       return NextResponse.json({ error: 'campaignId is required' }, { status: 400 });
@@ -46,11 +48,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
     }
 
+    const overrides = clientOverrides ?? (campaign.overrideFields || null) as unknown as MarketingOverrideFields | null;
+    const captions = clientCaptions ?? (campaign.generatedCaptions || null) as unknown as MarketingCaptionPack | null;
+
     const rendered = await renderAndStoreMarketingPack({
       campaignId: campaign.id,
       snapshot: campaign.sourceSnapshot as unknown as MarketingSourceSnapshot,
-      overrides: (campaign.overrideFields || null) as unknown as MarketingOverrideFields | null,
-      captions: (campaign.generatedCaptions || null) as unknown as MarketingCaptionPack | null,
+      overrides,
+      captions,
       origin: resolveOrigin(request),
     });
 
@@ -60,6 +65,7 @@ export async function POST(request: NextRequest) {
         where: { id: campaign.id },
         data: {
           status: 'generated',
+          overrideFields: overrides ? toJsonValue(overrides) : undefined,
           sourceSnapshot: toJsonValue(rendered.snapshot),
           generatedCaptions: toJsonValue(rendered.captions),
         },

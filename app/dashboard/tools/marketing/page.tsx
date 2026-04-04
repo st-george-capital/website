@@ -369,7 +369,11 @@ export default function MarketingStudioPage() {
       const response = await fetch('/api/dashboard/marketing/regenerate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ campaignId: activeCampaign.id }),
+        body: JSON.stringify({
+          campaignId: activeCampaign.id,
+          overrideFields: overrides,
+          generatedCaptions: captions.instagram || captions.linkedin ? captions : null,
+        }),
       });
       const data = await response.json();
       if (!response.ok) {
