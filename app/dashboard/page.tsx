@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   Calendar, MapPin, Globe, TrendingUp, FileText, Users,
   BarChart3, BookOpen, Presentation, Calculator, Briefcase,
-  BookMarked, Newspaper, Mail, Settings, ChevronRight, Clock, Brain, MessageSquareText, Sparkles, TrendingDown, Activity,
+  BookMarked, Newspaper, Mail, Settings, ChevronRight, Clock, Brain, MessageSquareText, Sparkles, TrendingDown, Activity, Megaphone,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -96,6 +96,7 @@ const NAV_ITEMS: {
   { label: 'Strategy',          desc: 'Documents & frameworks',     href: '/dashboard/strategy',      icon: FileText,      color: 'bg-teal-50 text-teal-600' },
   { label: 'Team',              desc: 'Member directory',           href: '/dashboard/team',          icon: Users,         color: 'bg-pink-50 text-pink-600' },
   { label: 'Tools',             desc: 'Capital flows & analytics',  href: '/dashboard/tools',         icon: Calculator,    color: 'bg-gray-100 text-gray-600' },
+  { label: 'Marketing Studio',  desc: 'Branded social asset packs', href: '/dashboard/tools/marketing', icon: Megaphone,   color: 'bg-indigo-50 text-indigo-600', adminOnly: true },
   { label: 'Postings',          desc: 'Job & internship listings',  href: '/dashboard/postings',      icon: Briefcase,     color: 'bg-orange-50 text-orange-600', adminOnly: true },
   { label: 'Resume Book',       desc: 'Member resumes',             href: '/dashboard/resume-book',   icon: BookMarked,    color: 'bg-rose-50 text-rose-600',    adminOnly: true },
   { label: 'Newsletter',        desc: 'Email broadcasts',           href: '/dashboard/newsletter',    icon: Newspaper,     color: 'bg-lime-50 text-lime-600',    adminOnly: true },

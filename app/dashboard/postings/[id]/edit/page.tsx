@@ -19,6 +19,8 @@ export default function EditJobPostingPage() {
     title: '',
     description: '',
     team: 'quant_trading',
+    roleTag: '',
+    requirements: '',
     endDate: '',
     published: false,
     documentFile: '',
@@ -41,6 +43,8 @@ export default function EditJobPostingPage() {
           title: data.title || '',
           description: data.description || '',
           team: data.team || 'quant_trading',
+          roleTag: data.roleTag || '',
+          requirements: data.requirements || '',
           endDate: data.endDate ? new Date(data.endDate).toISOString().split('T')[0] : '',
           published: data.published || false,
           documentFile: data.documentFile || '',
@@ -194,10 +198,25 @@ export default function EditJobPostingPage() {
                 >
                   <option value="quant_trading">Quant Trading</option>
                   <option value="quant_research">Quant Research</option>
-                  <option value="macro">Macro</option>
-                  <option value="equity">Equity</option>
+                  <option value="macro_equity">Macro & Equity</option>
+                  <option value="operations">Operations</option>
+                  <option value="executive">Executive Team</option>
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Role Tag / Category</label>
+              <input
+                type="text"
+                value={formData.roleTag}
+                onChange={(e) => setFormData(prev => ({ ...prev, roleTag: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-primary focus:outline-none"
+                placeholder="e.g., Executive Team, Leadership, Operations, Philanthropy & Community"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Use this to label the role on the website and marketing output without changing the underlying team.
+              </p>
             </div>
 
             <div>
@@ -213,14 +232,25 @@ export default function EditJobPostingPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Job Description *</label>
+              <label className="block text-sm font-medium mb-2">Role Description *</label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 rows={6}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-primary focus:outline-none"
                 required
-                placeholder="Describe the role, responsibilities, requirements, and what makes this position exciting..."
+                placeholder="Describe the role itself, the team context, and what makes the opportunity compelling. This summary can appear on the website and in marketing."
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Requirements</label>
+              <textarea
+                value={formData.requirements}
+                onChange={(e) => setFormData(prev => ({ ...prev, requirements: e.target.value }))}
+                rows={5}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-primary focus:outline-none"
+                placeholder="Add the detailed qualifications, expectations, and application requirements here. This stays with the posting but is not used in the social graphic."
               />
             </div>
 

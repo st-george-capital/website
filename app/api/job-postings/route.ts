@@ -78,7 +78,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { title, description, team, endDate, published, documentFile } = await req.json();
+    const {
+      title,
+      description,
+      team,
+      roleTag,
+      requirements,
+      endDate,
+      published,
+      documentFile,
+    } = await req.json();
 
     // Validate required fields
     if (!title || !description || !team || !endDate) {
@@ -89,7 +98,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate team
-    const validTeams = ['quant_trading', 'quant_research', 'macro', 'equity'];
+    const validTeams = ['quant_trading', 'quant_research', 'macro', 'equity', 'macro_equity', 'operations', 'executive'];
     if (!validTeams.includes(team)) {
       return NextResponse.json(
         { error: 'Invalid team selection' },
@@ -102,6 +111,8 @@ export async function POST(req: NextRequest) {
         title,
         description,
         team,
+        roleTag: roleTag?.trim() || null,
+        requirements: requirements?.trim() || null,
         endDate: parsePostingEndDate(endDate),
         published,
         documentFile,

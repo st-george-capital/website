@@ -81,11 +81,20 @@ export async function PATCH(
       );
     }
 
-    const { title, description, team, endDate, published, documentFile } = await req.json();
+    const {
+      title,
+      description,
+      team,
+      roleTag,
+      requirements,
+      endDate,
+      published,
+      documentFile,
+    } = await req.json();
 
     // Validate team if provided
     if (team) {
-      const validTeams = ['quant_trading', 'quant_research', 'macro', 'equity'];
+      const validTeams = ['quant_trading', 'quant_research', 'macro', 'equity', 'macro_equity', 'operations', 'executive'];
       if (!validTeams.includes(team)) {
         return NextResponse.json(
           { error: 'Invalid team selection' },
@@ -100,6 +109,8 @@ export async function PATCH(
         ...(title !== undefined && { title }),
         ...(description !== undefined && { description }),
         ...(team !== undefined && { team }),
+        ...(roleTag !== undefined && { roleTag: roleTag?.trim() || null }),
+        ...(requirements !== undefined && { requirements: requirements?.trim() || null }),
         ...(endDate !== undefined && { endDate: parsePostingEndDate(endDate) }),
         ...(published !== undefined && { published }),
         ...(documentFile !== undefined && { documentFile: documentFile || null }),

@@ -12,10 +12,18 @@ interface JobPosting {
   id: string;
   title: string;
   description: string;
-  team: 'quant_trading' | 'quant_research' | 'macro' | 'equity';
+  team: string;
+  roleTag?: string | null;
+  requirements?: string | null;
   endDate: string;
   published: boolean;
   documentFile?: string;
+}
+
+function formatTeamLabel(team: string) {
+  if (team === 'macro_equity') return 'Macro & Equity';
+  if (team === 'executive') return 'Executive Team';
+  return team.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 
@@ -491,11 +499,14 @@ function JobPostingsSection() {
 function JobPostingCard({ posting }: { posting: JobPosting }) {
   const [showApplicationForm, setShowApplicationForm] = useState(false);
 
-  const teamColors = {
+  const teamColors: Record<string, string> = {
     quant_trading: 'bg-blue-100 text-blue-700 border-blue-200',
     quant_research: 'bg-green-100 text-green-700 border-green-200',
     macro: 'bg-purple-100 text-purple-700 border-purple-200',
     equity: 'bg-orange-100 text-orange-700 border-orange-200',
+    macro_equity: 'bg-purple-100 text-purple-700 border-purple-200',
+    operations: 'bg-slate-100 text-slate-700 border-slate-200',
+    executive: 'bg-amber-100 text-amber-700 border-amber-200',
   };
 
   return (
@@ -503,9 +514,16 @@ function JobPostingCard({ posting }: { posting: JobPosting }) {
       <Card className="hover:shadow-lg transition-shadow">
         <CardHeader>
           <div className="flex items-start justify-between mb-3">
-            <Badge className={`${teamColors[posting.team as keyof typeof teamColors] || 'bg-gray-100 text-gray-700 border-gray-200'} border`}>
-              {posting.team.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-            </Badge>
+            <div className="flex flex-wrap gap-2">
+              {posting.roleTag && (
+                <Badge className="bg-slate-100 text-slate-700 border-slate-200 border">
+                  {posting.roleTag}
+                </Badge>
+              )}
+              <Badge className={`${teamColors[posting.team as keyof typeof teamColors] || 'bg-gray-100 text-gray-700 border-gray-200'} border`}>
+                {formatTeamLabel(posting.team)}
+              </Badge>
+            </div>
             <span className="text-sm text-muted-foreground">
               Due: {new Date(posting.endDate).toLocaleDateString()}
             </span>
@@ -664,10 +682,30 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
         <CardHeader>
           <CardTitle>Apply for {posting.title}</CardTitle>
           <CardDescription>
-            {posting.team.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} Team
+            {posting.roleTag ? `${posting.roleTag} · ` : ''}{formatTeamLabel(posting.team)} Team
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="space-y-4 mb-5">
+            <div>
+              <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-muted-foreground mb-2">
+                Role Description
+              </h4>
+              <p className="text-sm text-foreground/90 leading-6">
+                {posting.description}
+              </p>
+            </div>
+            {posting.requirements && (
+              <div>
+                <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-muted-foreground mb-2">
+                  Requirements
+                </h4>
+                <p className="text-sm text-foreground/80 leading-6 whitespace-pre-line">
+                  {posting.requirements}
+                </p>
+              </div>
+            )}
+          </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-2">Full Name *</label>

@@ -6,13 +6,15 @@ import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
 import { Badge } from '@/components/ui/badge';
-import { Briefcase, Plus, Users, Eye, Download, Calendar, Trash2, Edit } from 'lucide-react';
+import { Briefcase, Plus, Users, Eye, Download, Calendar, Trash2, Edit, Megaphone } from 'lucide-react';
 
 interface JobPosting {
   id: string;
   title: string;
   description: string;
   team: string;
+  roleTag?: string | null;
+  requirements?: string | null;
   endDate: string;
   published: boolean;
   createdAt: string;
@@ -33,12 +35,21 @@ interface JobApplication {
   };
 }
 
-const teamColors = {
+const teamColors: Record<string, string> = {
   quant_trading: 'bg-blue-100 text-blue-700',
   quant_research: 'bg-green-100 text-green-700',
   macro: 'bg-purple-100 text-purple-700',
   equity: 'bg-orange-100 text-orange-700',
+  macro_equity: 'bg-purple-100 text-purple-700',
+  operations: 'bg-slate-100 text-slate-700',
+  executive: 'bg-amber-100 text-amber-700',
 };
+
+function formatTeamLabel(team: string) {
+  if (team === 'macro_equity') return 'Macro & Equity';
+  if (team === 'executive') return 'Executive Team';
+  return team.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
 
 export default function PostingsDashboardPage() {
   const { data: session } = useSession();
@@ -205,8 +216,13 @@ export default function PostingsDashboardPage() {
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-1">
                           <h3 className="font-medium">{posting.title}</h3>
+                          {posting.roleTag && (
+                            <Badge className="bg-slate-100 text-slate-700">
+                              {posting.roleTag}
+                            </Badge>
+                          )}
                           <Badge className={teamColors[posting.team as keyof typeof teamColors] || 'bg-gray-100 text-gray-700'}>
-                            {posting.team.replace('_', ' ')}
+                            {formatTeamLabel(posting.team)}
                           </Badge>
                           {posting.published ? (
                             <Badge className="bg-green-100 text-green-700">Published</Badge>
@@ -224,6 +240,13 @@ export default function PostingsDashboardPage() {
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
+                      <Link
+                        href={`/dashboard/tools/marketing?sourceType=job_posting&sourceId=${posting.id}`}
+                        className="p-2 text-muted-foreground hover:text-primary transition-colors"
+                        title="Generate marketing"
+                      >
+                        <Megaphone className="w-4 h-4" />
+                      </Link>
                       <Link
                         href={`/dashboard/postings/${posting.id}/edit`}
                         className="p-2 text-muted-foreground hover:text-primary transition-colors"

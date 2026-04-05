@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { FileText, Plus, Eye, Edit, Trash2, Download, TrendingUp, TrendingDown } from 'lucide-react';
+import { FileText, Plus, Eye, Edit, Trash2, Download, Megaphone, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface ResearchReport {
   id: string;
@@ -210,6 +210,15 @@ export default function ResearchDashboardPage() {
                   </div>
 
                   <div className="flex flex-col gap-2 ml-4">
+                    <Button
+                      onClick={() => router.push(`/dashboard/tools/marketing?sourceType=research_report&sourceId=${report.id}`)}
+                      variant="outline"
+                      size="sm"
+                      className="border-slate-300 text-slate-700 hover:bg-slate-50"
+                    >
+                      <Megaphone className="w-4 h-4 mr-2" />
+                      Marketing
+                    </Button>
                     <Button
                       onClick={() => router.push(`/dashboard/research/${report.id}/edit`)}
                       className="bg-blue-600 text-white hover:bg-blue-700"

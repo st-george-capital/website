@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/button';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/card';
-import { Plus, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, EyeOff, Megaphone } from 'lucide-react';
 
 interface Article {
   id: string;
@@ -185,6 +185,15 @@ export default function ArticlesPage() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          onClick={() => router.push(`/dashboard/tools/marketing?sourceType=article&sourceId=${article.id}`)}
+                          title="Generate marketing"
+                          className="hover:bg-indigo-50"
+                        >
+                          <Megaphone className="w-4 h-4 text-indigo-600" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => router.push(`/dashboard/articles/${article.id}/edit`)}
                           title="Edit article"
                           className="hover:bg-blue-50"
@@ -216,4 +225,3 @@ export default function ArticlesPage() {
     </div>
   );
 }
-

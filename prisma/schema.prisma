@@ -319,7 +319,9 @@ model JobPosting {
   id           String   @id @default(cuid())
   title        String
   description  String
-  team         String   // "quant_trading", "quant_research", "macro", "equity"
+  team         String   // "quant_trading", "quant_research", "macro_equity", "operations", "executive"
+  roleTag      String?
+  requirements String?  @db.Text
   endDate      DateTime
   published    Boolean  @default(false)
   documentFile String?  // PDF document URL
@@ -549,6 +551,44 @@ model NewsletterEdition {
   status          String    @default("draft") // "draft" | "sent"
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+}
+
+model MarketingCampaign {
+  id               String           @id @default(cuid())
+  sourceType       String           // "job_posting" | "article" | "research_report" | "strategy_document" | "manual"
+  sourceId         String?
+  campaignKind     String           // "recruiting" | "article" | "research" | "strategy" | "charity" | "announcement"
+  title            String
+  status           String           @default("draft") // "draft" | "generated"
+  sourceSnapshot   Json
+  overrideFields   Json?
+  generatedCaptions Json?
+  createdBy        String
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  assets           MarketingAsset[]
+
+  @@index([sourceType, sourceId])
+  @@index([createdBy, createdAt])
+}
+
+model MarketingAsset {
+  id          String            @id @default(cuid())
+  campaignId  String
+  platform    String            // "instagram" | "linkedin" | "pdf"
+  assetKind   String            // "feed" | "flyer" | "caption"
+  mimeType    String
+  blobUrl     String
+  width       Int?
+  height      Int?
+  ordering    Int               @default(0)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  campaign    MarketingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId, platform, ordering])
 }
 
 model SavedDCFModel {
