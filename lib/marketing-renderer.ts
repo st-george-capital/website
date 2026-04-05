@@ -223,10 +223,10 @@ function renderJobPostingInstagramHtml(snapshot: MarketingSourceSnapshot, logoUr
         ${headerRow(badge, accent)}
 
         <div style="margin-top:auto; margin-bottom:auto;">
-          <div style="font:600 13px/1.2 Arial, sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:${accent};">
-            ${escapeHtml(teamLabel)} — Now Recruiting
+          <div style="display:inline-block; padding:10px 22px; background:${accent}; border-radius:8px; font:800 18px/1 Arial, sans-serif; letter-spacing:0.16em; text-transform:uppercase; color:${NAVY};">
+            ${escapeHtml(teamLabel)} — Now Hiring
           </div>
-          <h1 style="margin-top:18px; font:700 ${titlePx}px/0.98 Georgia, 'Times New Roman', serif; letter-spacing:-0.02em; color:${WHITE};">
+          <h1 style="margin-top:24px; font:700 ${titlePx}px/0.98 Georgia, 'Times New Roman', serif; letter-spacing:-0.02em; color:${WHITE};">
             ${escapeHtml(title)}
           </h1>
           <div style="margin-top:22px; max-width:860px; font:500 20px/1.35 Arial, sans-serif; color:rgba(248,249,250,0.85);">
@@ -463,10 +463,10 @@ function renderJobPostingLinkedinHtml(snapshot: MarketingSourceSnapshot, logoUrl
           ${headerRowDark(badge, accent)}
 
           <div style="margin-top:28px; flex:1; display:flex; flex-direction:column; justify-content:center;">
-            <div style="font:600 11px/1.2 Arial, sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:${accent};">
-              ${escapeHtml(teamLabel)} — Now Recruiting
+            <div style="display:inline-block; padding:7px 16px; background:${accent}; border-radius:6px; font:800 13px/1 Arial, sans-serif; letter-spacing:0.14em; text-transform:uppercase; color:${NAVY}; width:fit-content;">
+              ${escapeHtml(teamLabel)} — Now Hiring
             </div>
-            <h1 style="margin-top:12px; font:700 ${titlePx}px/1.02 Georgia, 'Times New Roman', serif; letter-spacing:-0.01em; color:${NAVY}; max-width:640px;">
+            <h1 style="margin-top:14px; font:700 ${titlePx}px/1.02 Georgia, 'Times New Roman', serif; letter-spacing:-0.01em; color:${NAVY}; max-width:640px;">
               ${escapeHtml(title)}
             </h1>
             <div style="margin-top:14px; font:400 16px/1.55 Arial, sans-serif; color:#334155; max-width:600px;">

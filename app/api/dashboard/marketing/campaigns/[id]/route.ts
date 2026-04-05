@@ -36,3 +36,25 @@ export async function GET(
     return NextResponse.json({ error: 'Failed to load marketing campaign' }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!hasMarketingAccess(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    await prisma.$transaction([
+      prisma.marketingAsset.deleteMany({ where: { campaignId: params.id } }),
+      prisma.marketingCampaign.delete({ where: { id: params.id } }),
+    ]);
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error('[dashboard/marketing/campaigns/[id]] DELETE error:', error);
+    return NextResponse.json({ error: 'Failed to delete campaign' }, { status: 500 });
+  }
+}

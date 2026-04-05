@@ -12,7 +12,9 @@ import {
   RefreshCw,
   Save,
   Sparkles,
+  Trash2,
   Wand2,
+  Zap,
 } from 'lucide-react';
 import { Button } from '@/components/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/card';
@@ -388,6 +390,52 @@ export default function MarketingStudioPage() {
     }
   }
 
+  async function deleteCampaign(id: string) {
+    try {
+      const response = await fetch(`/api/dashboard/marketing/campaigns/${id}`, { method: 'DELETE' });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete campaign');
+      }
+      if (activeCampaign?.id === id) {
+        setActiveCampaign(null);
+        setOverrides(emptyOverrides);
+        setCaptions({ instagram: '', linkedin: '' });
+      }
+      await loadCampaigns();
+    } catch (error) {
+      setPageError(error instanceof Error ? error.message : 'Failed to delete campaign');
+    }
+  }
+
+  const [bulkGenerating, setBulkGenerating] = useState(false);
+  const [bulkRange, setBulkRange] = useState<'week' | 'month' | 'year' | 'all'>('month');
+  const [bulkSourceType, setBulkSourceType] = useState<MarketingSourceType>('job_posting');
+  const [bulkResults, setBulkResults] = useState<{ total: number; generated: number; errors: number } | null>(null);
+
+  async function bulkGenerate() {
+    setBulkGenerating(true);
+    setBulkResults(null);
+    setPageError(null);
+    try {
+      const response = await fetch('/api/dashboard/marketing/generate-bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceType: bulkSourceType, range: bulkRange }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Bulk generation failed');
+      }
+      setBulkResults({ total: data.total, generated: data.generated, errors: data.errors });
+      await loadCampaigns();
+    } catch (error) {
+      setPageError(error instanceof Error ? error.message : 'Bulk generation failed');
+    } finally {
+      setBulkGenerating(false);
+    }
+  }
+
   if (status === 'loading') {
     return (
       <div className="flex min-h-[320px] items-center justify-center">
@@ -479,6 +527,9 @@ export default function MarketingStudioPage() {
                       setSourceType(option);
                       setSelectedSourceId('');
                       setSourceSearch('');
+                      setOverrides(emptyOverrides);
+                      setCaptions({ instagram: '', linkedin: '' });
+                      setActiveCampaign(null);
                       if (option === 'manual') {
                         setManualInput(emptyManual);
                       }
@@ -532,7 +583,12 @@ export default function MarketingStudioPage() {
                   <label className="mb-2 block text-sm font-medium text-slate-700">Source item</label>
                   <select
                     value={selectedSourceId}
-                    onChange={(event) => setSelectedSourceId(event.target.value)}
+                    onChange={(event) => {
+                      setSelectedSourceId(event.target.value);
+                      setOverrides(emptyOverrides);
+                      setCaptions({ instagram: '', linkedin: '' });
+                      setActiveCampaign(null);
+                    }}
                     className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
                   >
                     <option value="">Select a source item</option>
@@ -675,6 +731,58 @@ export default function MarketingStudioPage() {
 
           <Card hover={false}>
             <CardHeader>
+              <CardTitle>Bulk Generate</CardTitle>
+              <CardDescription>Generate marketing packs for all items of a source type within a time range.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">Source type</label>
+                  <select
+                    value={bulkSourceType}
+                    onChange={(e) => setBulkSourceType(e.target.value as MarketingSourceType)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                  >
+                    {(['job_posting', 'article', 'research_report', 'strategy_document'] as MarketingSourceType[]).map((t) => (
+                      <option key={t} value={t}>{sourceTypeLabel(t)}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">Time range</label>
+                  <select
+                    value={bulkRange}
+                    onChange={(e) => setBulkRange(e.target.value as 'week' | 'month' | 'year' | 'all')}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                  >
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                    <option value="year">This Year</option>
+                    <option value="all">All Time</option>
+                  </select>
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    onClick={bulkGenerate}
+                    disabled={bulkGenerating || generating}
+                    className="w-full bg-[#0b1f3a] text-white hover:bg-[#08162a]"
+                  >
+                    <Zap className="mr-2 h-4 w-4" />
+                    {bulkGenerating ? 'Generating…' : 'Bulk Generate'}
+                  </Button>
+                </div>
+              </div>
+              {bulkResults ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                  Generated {bulkResults.generated} of {bulkResults.total} items.
+                  {bulkResults.errors > 0 ? ` ${bulkResults.errors} failed.` : ''}
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <Card hover={false}>
+            <CardHeader>
               <CardTitle>Captions</CardTitle>
               <CardDescription>Deterministic captions from source data, with optional editorial cleanup before you save or regenerate.</CardDescription>
             </CardHeader>
@@ -712,31 +820,52 @@ export default function MarketingStudioPage() {
                 <div className="text-sm text-slate-500">Loading campaigns…</div>
               ) : campaigns.length ? (
                 campaigns.map((campaign) => (
-                  <button
+                  <div
                     key={campaign.id}
-                    type="button"
-                    onClick={() => void loadCampaign(campaign.id)}
-                    className={`w-full rounded-2xl border p-4 text-left transition ${
+                    className={`relative rounded-2xl border p-4 transition ${
                       activeCampaign?.id === campaign.id
                         ? 'border-[#0b1f3a] bg-[#0b1f3a] text-white'
                         : 'border-slate-200 bg-white text-slate-900 hover:border-slate-300'
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <div className="text-xs font-semibold uppercase tracking-[0.18em] opacity-70">
-                          {sourceTypeLabel(campaign.sourceType)}
+                    <button
+                      type="button"
+                      onClick={() => void loadCampaign(campaign.id)}
+                      className="w-full text-left"
+                    >
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-[0.18em] opacity-70">
+                            {sourceTypeLabel(campaign.sourceType)}
+                          </div>
+                          <div className="mt-2 font-semibold">{campaign.title}</div>
+                          <div className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusTone(campaign.status)}`}>
+                            {campaign.status}
+                          </div>
                         </div>
-                        <div className="mt-2 font-semibold">{campaign.title}</div>
-                        <div className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusTone(campaign.status)}`}>
-                          {campaign.status}
+                        <div className={`text-xs ${activeCampaign?.id === campaign.id ? 'text-slate-200' : 'text-slate-500'}`}>
+                          {formatDateTime(campaign.updatedAt)}
                         </div>
                       </div>
-                      <div className={`text-xs ${activeCampaign?.id === campaign.id ? 'text-slate-200' : 'text-slate-500'}`}>
-                        {formatDateTime(campaign.updatedAt)}
-                      </div>
-                    </div>
-                  </button>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm('Delete this campaign and all its assets?')) {
+                          void deleteCampaign(campaign.id);
+                        }
+                      }}
+                      className={`absolute right-3 top-3 rounded-lg p-1.5 transition ${
+                        activeCampaign?.id === campaign.id
+                          ? 'text-white/50 hover:bg-white/10 hover:text-white'
+                          : 'text-slate-400 hover:bg-red-50 hover:text-red-600'
+                      }`}
+                      title="Delete campaign"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 ))
               ) : (
                 <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
