@@ -3,6 +3,7 @@ import path from 'node:path';
 import { put } from '@vercel/blob';
 import type { Page } from 'puppeteer-core';
 import { launchPdfBrowser } from '@/lib/pdf/browser';
+export { launchPdfBrowser } from '@/lib/pdf/browser';
 import {
   applyMarketingOverrides,
   buildCaptionPack,
@@ -824,6 +825,7 @@ export async function renderAndStoreMarketingPack(params: {
   overrides?: MarketingOverrideFields | null;
   captions?: MarketingCaptionPack | null;
   origin: string;
+  sharedBrowser?: import('puppeteer-core').Browser | null;
 }) {
   const finalSnapshot = applyMarketingOverrides(params.snapshot, params.overrides);
   const captions = params.captions || buildCaptionPack(finalSnapshot);
@@ -831,7 +833,7 @@ export async function renderAndStoreMarketingPack(params: {
 
   const rendered = renderAll(finalSnapshot, logoSource);
 
-  const browser = await launchPdfBrowser();
+  const browser = params.sharedBrowser || await launchPdfBrowser();
   const titleSlug = sanitizeSegment(resolveCampaignTitle(finalSnapshot));
   const basePath = `marketing/${params.campaignId}/${titleSlug}`;
 
@@ -934,6 +936,8 @@ export async function renderAndStoreMarketingPack(params: {
       assets,
     };
   } finally {
-    await browser.close();
+    if (!params.sharedBrowser) {
+      await browser.close();
+    }
   }
 }

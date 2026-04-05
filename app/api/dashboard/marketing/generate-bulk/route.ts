@@ -11,7 +11,7 @@ import {
   resolveCampaignTitle,
   type MarketingSourceType,
 } from '@/lib/marketing';
-import { renderAndStoreMarketingPack } from '@/lib/marketing-renderer';
+import { launchPdfBrowser, renderAndStoreMarketingPack } from '@/lib/marketing-renderer';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -50,6 +50,10 @@ function rangeToDate(range: string): Date | null {
     default:
       return null;
   }
+}
+
+export async function GET() {
+  return NextResponse.json({ error: 'Use POST' }, { status: 405 });
 }
 
 export async function POST(request: NextRequest) {
@@ -103,65 +107,82 @@ export async function POST(request: NextRequest) {
     let generated = 0;
     let errors = 0;
 
-    for (const source of toGenerate) {
-      try {
-        const snapshot = await buildMarketingSourceSnapshot({
-          sourceType,
-          sourceId: source.id,
-        });
-        const captions = buildCaptionPack(snapshot);
-        const title = resolveCampaignTitle(snapshot);
+    if (toGenerate.length === 0) {
+      return NextResponse.json({
+        total: 0,
+        generated: 0,
+        errors: 0,
+        skipped: filteredSources.length,
+      });
+    }
 
-        const campaign = await prisma.marketingCampaign.create({
-          data: {
-            sourceType: snapshot.sourceType,
-            sourceId: snapshot.sourceId || null,
-            campaignKind: snapshot.campaignKind,
-            title,
-            status: 'draft',
-            sourceSnapshot: toJsonValue(snapshot),
-            generatedCaptions: toJsonValue(captions),
-            createdBy: userId,
-          },
-        });
+    // Launch a single shared browser for all renders
+    const browser = await launchPdfBrowser();
 
-        const rendered = await renderAndStoreMarketingPack({
-          campaignId: campaign.id,
-          snapshot,
-          captions,
-          origin,
-        });
+    try {
+      for (const source of toGenerate) {
+        try {
+          const snapshot = await buildMarketingSourceSnapshot({
+            sourceType,
+            sourceId: source.id,
+          });
+          const captions = buildCaptionPack(snapshot);
+          const title = resolveCampaignTitle(snapshot);
 
-        await prisma.$transaction([
-          prisma.marketingAsset.deleteMany({ where: { campaignId: campaign.id } }),
-          prisma.marketingCampaign.update({
-            where: { id: campaign.id },
+          const campaign = await prisma.marketingCampaign.create({
             data: {
-              title: resolveCampaignTitle(rendered.snapshot),
-              status: 'generated',
-              sourceSnapshot: toJsonValue(rendered.snapshot),
-              generatedCaptions: toJsonValue(rendered.captions),
+              sourceType: snapshot.sourceType,
+              sourceId: snapshot.sourceId || null,
+              campaignKind: snapshot.campaignKind,
+              title,
+              status: 'draft',
+              sourceSnapshot: toJsonValue(snapshot),
+              generatedCaptions: toJsonValue(captions),
+              createdBy: userId,
             },
-          }),
-          prisma.marketingAsset.createMany({
-            data: rendered.assets.map((asset) => ({
-              campaignId: campaign.id,
-              platform: asset.platform,
-              assetKind: asset.assetKind,
-              mimeType: asset.mimeType,
-              blobUrl: asset.blobUrl,
-              width: asset.width,
-              height: asset.height,
-              ordering: asset.ordering,
-            })),
-          }),
-        ]);
+          });
 
-        generated++;
-      } catch (err) {
-        console.error(`[bulk-generate] Failed for source ${source.id}:`, err);
-        errors++;
+          const rendered = await renderAndStoreMarketingPack({
+            campaignId: campaign.id,
+            snapshot,
+            captions,
+            origin,
+            sharedBrowser: browser,
+          });
+
+          await prisma.$transaction([
+            prisma.marketingAsset.deleteMany({ where: { campaignId: campaign.id } }),
+            prisma.marketingCampaign.update({
+              where: { id: campaign.id },
+              data: {
+                title: resolveCampaignTitle(rendered.snapshot),
+                status: 'generated',
+                sourceSnapshot: toJsonValue(rendered.snapshot),
+                generatedCaptions: toJsonValue(rendered.captions),
+              },
+            }),
+            prisma.marketingAsset.createMany({
+              data: rendered.assets.map((asset) => ({
+                campaignId: campaign.id,
+                platform: asset.platform,
+                assetKind: asset.assetKind,
+                mimeType: asset.mimeType,
+                blobUrl: asset.blobUrl,
+                width: asset.width,
+                height: asset.height,
+                ordering: asset.ordering,
+              })),
+            }),
+          ]);
+
+          generated++;
+        } catch (err) {
+          console.error(`[bulk-generate] Failed for source ${source.id}:`, err);
+          errors++;
+        }
       }
+    } finally {
+      await browser.close();
     }
 
     return NextResponse.json({

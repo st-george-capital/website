@@ -423,6 +423,10 @@ export default function MarketingStudioPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sourceType: bulkSourceType, range: bulkRange }),
       });
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error(`Bulk generation failed (server returned ${response.status})`);
+      }
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || 'Bulk generation failed');
