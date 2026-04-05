@@ -16,6 +16,7 @@ import {
   Wand2,
   Zap,
 } from 'lucide-react';
+import JSZip from 'jszip';
 import { Button } from '@/components/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/card';
 import type {
@@ -440,6 +441,58 @@ export default function MarketingStudioPage() {
     }
   }
 
+  const [bulkDownloading, setBulkDownloading] = useState<string | null>(null);
+
+  async function bulkDownload(platform: 'instagram' | 'linkedin') {
+    setBulkDownloading(platform);
+    try {
+      const zip = new JSZip();
+      const relevantCampaigns = campaigns.filter((c) => c.status === 'generated' && c.assets.length > 0);
+      let count = 0;
+
+      for (const campaign of relevantCampaigns) {
+        const asset = campaign.assets.find(
+          (a) => a.platform === platform && a.assetKind === 'feed'
+        );
+        if (!asset) continue;
+
+        try {
+          const res = await fetch(asset.blobUrl);
+          if (!res.ok) continue;
+          const blob = await res.blob();
+          const ext = asset.mimeType === 'image/png' ? 'png' : 'jpg';
+          const safeName = campaign.title
+            .replace(/[^a-zA-Z0-9 _-]/g, '')
+            .replace(/\s+/g, '_')
+            .slice(0, 60);
+          zip.file(`${safeName}.${ext}`, blob);
+          count++;
+        } catch {
+          // skip failed fetches
+        }
+      }
+
+      if (count === 0) {
+        setPageError(`No ${platform} assets found across generated campaigns.`);
+        return;
+      }
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sgc-${platform}-assets-${new Date().toISOString().slice(0, 10)}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setPageError(error instanceof Error ? error.message : 'Download failed');
+    } finally {
+      setBulkDownloading(null);
+    }
+  }
+
   if (status === 'loading') {
     return (
       <div className="flex min-h-[320px] items-center justify-center">
@@ -816,8 +869,34 @@ export default function MarketingStudioPage() {
         <div className="space-y-6">
           <Card hover={false}>
             <CardHeader>
-              <CardTitle>Campaign History</CardTitle>
-              <CardDescription>Saved frozen-source campaigns you can reopen and regenerate without mutating the original content record.</CardDescription>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <CardTitle>Campaign History</CardTitle>
+                  <CardDescription>Saved frozen-source campaigns you can reopen and regenerate without mutating the original content record.</CardDescription>
+                </div>
+                {campaigns.some((c) => c.status === 'generated') ? (
+                  <div className="flex shrink-0 gap-2">
+                    <Button
+                      onClick={() => bulkDownload('instagram')}
+                      disabled={!!bulkDownloading}
+                      variant="outline"
+                      className="text-xs px-3 py-1.5 h-auto"
+                    >
+                      <Download className="mr-1.5 h-3.5 w-3.5" />
+                      {bulkDownloading === 'instagram' ? 'Zipping…' : 'All IG'}
+                    </Button>
+                    <Button
+                      onClick={() => bulkDownload('linkedin')}
+                      disabled={!!bulkDownloading}
+                      variant="outline"
+                      className="text-xs px-3 py-1.5 h-auto"
+                    >
+                      <Download className="mr-1.5 h-3.5 w-3.5" />
+                      {bulkDownloading === 'linkedin' ? 'Zipping…' : 'All LI'}
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
               {loadingCampaigns ? (
