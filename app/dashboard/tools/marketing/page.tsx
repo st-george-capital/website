@@ -875,24 +875,22 @@ export default function MarketingStudioPage() {
                   <CardDescription>Saved frozen-source campaigns you can reopen and regenerate without mutating the original content record.</CardDescription>
                 </div>
                 <div className="flex shrink-0 gap-2">
-                  <Button
+                  <button
                     onClick={() => bulkDownload('instagram')}
                     disabled={!!bulkDownloading || !campaigns.length}
-                    variant="outline"
-                    className="text-xs px-3 py-1.5 h-auto"
+                    className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Download className="mr-1.5 h-3.5 w-3.5" />
                     {bulkDownloading === 'instagram' ? 'Zipping…' : 'All IG'}
-                  </Button>
-                  <Button
+                  </button>
+                  <button
                     onClick={() => bulkDownload('linkedin')}
                     disabled={!!bulkDownloading || !campaigns.length}
-                    variant="outline"
-                    className="text-xs px-3 py-1.5 h-auto"
+                    className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Download className="mr-1.5 h-3.5 w-3.5" />
                     {bulkDownloading === 'linkedin' ? 'Zipping…' : 'All LI'}
-                  </Button>
+                  </button>
                 </div>
               </div>
             </CardHeader>
