@@ -12,7 +12,7 @@ const navItems = [
     href: '#',
     submenu: [
       { name: 'Our Mission', href: '/' },
-      { name: 'Culture', href: '/culture' },
+      { name: "Culture & Where We've Worked", href: '/culture' },
       { name: 'Charity & Impact', href: '/charity' },
     ],
   },

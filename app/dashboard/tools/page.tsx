@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { Brain, Calculator, BarChart3, FileText, GitBranch, Globe, Megaphone, MessageSquareText, Sparkles } from 'lucide-react';
+import { Brain, Calculator, BarChart3, FileText, GitBranch, Globe, MessageSquareText, Sparkles } from 'lucide-react';
 
 const tools = [
   {
@@ -101,20 +101,6 @@ const tools = [
       'Forward estimate context',
       'Upcoming earnings calendar',
       'Dashboard-only research desk',
-    ],
-  },
-  {
-    id: 'marketing-studio',
-    name: 'Marketing Studio',
-    description: 'Generate branded Instagram, LinkedIn, and flyer assets directly from SGC reports, articles, and postings',
-    href: '/dashboard/tools/marketing',
-    icon: Megaphone,
-    features: [
-      'Source-linked campaign generation',
-      'Instagram and LinkedIn platform pack',
-      'Recruiting flyer PDF for postings',
-      'Saved campaign history',
-      'Fixed SGC institutional template system',
     ],
   },
 ];
