@@ -874,28 +874,26 @@ export default function MarketingStudioPage() {
                   <CardTitle>Campaign History</CardTitle>
                   <CardDescription>Saved frozen-source campaigns you can reopen and regenerate without mutating the original content record.</CardDescription>
                 </div>
-                {campaigns.some((c) => c.status === 'generated') ? (
-                  <div className="flex shrink-0 gap-2">
-                    <Button
-                      onClick={() => bulkDownload('instagram')}
-                      disabled={!!bulkDownloading}
-                      variant="outline"
-                      className="text-xs px-3 py-1.5 h-auto"
-                    >
-                      <Download className="mr-1.5 h-3.5 w-3.5" />
-                      {bulkDownloading === 'instagram' ? 'Zipping…' : 'All IG'}
-                    </Button>
-                    <Button
-                      onClick={() => bulkDownload('linkedin')}
-                      disabled={!!bulkDownloading}
-                      variant="outline"
-                      className="text-xs px-3 py-1.5 h-auto"
-                    >
-                      <Download className="mr-1.5 h-3.5 w-3.5" />
-                      {bulkDownloading === 'linkedin' ? 'Zipping…' : 'All LI'}
-                    </Button>
-                  </div>
-                ) : null}
+                <div className="flex shrink-0 gap-2">
+                  <Button
+                    onClick={() => bulkDownload('instagram')}
+                    disabled={!!bulkDownloading || !campaigns.length}
+                    variant="outline"
+                    className="text-xs px-3 py-1.5 h-auto"
+                  >
+                    <Download className="mr-1.5 h-3.5 w-3.5" />
+                    {bulkDownloading === 'instagram' ? 'Zipping…' : 'All IG'}
+                  </Button>
+                  <Button
+                    onClick={() => bulkDownload('linkedin')}
+                    disabled={!!bulkDownloading || !campaigns.length}
+                    variant="outline"
+                    className="text-xs px-3 py-1.5 h-auto"
+                  >
+                    <Download className="mr-1.5 h-3.5 w-3.5" />
+                    {bulkDownloading === 'linkedin' ? 'Zipping…' : 'All LI'}
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
