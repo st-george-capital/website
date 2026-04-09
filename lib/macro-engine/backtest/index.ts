@@ -98,6 +98,21 @@ function scoreWindowRows(
 export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Promise<string> {
   console.log('runBacktest: starting walk-forward backtest');
   console.log(`  holdoutStart=${toDateKey(HOLDOUT_START)}`);
+
+  // Auto-detect dataStart from earliest feature row in DB — overrides hardcoded default
+  // if DB has older data than the config assumes (prevents silent empty-window skip)
+  const earliestFeature = await prisma.factorFeatureMatrix.findFirst({
+    orderBy: { featureDate: 'asc' },
+    select: { featureDate: true },
+  });
+  if (earliestFeature && earliestFeature.featureDate < config.dataStart) {
+    console.log(`  dataStart extended: DB has data from ${toDateKey(earliestFeature.featureDate)}, config had ${toDateKey(config.dataStart)}`);
+    config = { ...config, dataStart: earliestFeature.featureDate };
+  } else if (earliestFeature && earliestFeature.featureDate > config.dataStart) {
+    console.log(`  dataStart auto-corrected: DB earliest feature is ${toDateKey(earliestFeature.featureDate)} (config assumed ${toDateKey(config.dataStart)} — no data that early)`);
+    config = { ...config, dataStart: earliestFeature.featureDate };
+  }
+
   console.log(`  dataStart=${toDateKey(config.dataStart)}`);
   console.log(`  stepMonths=${config.stepMonths}, trainMinYears=${config.trainMinYears}`);
 
