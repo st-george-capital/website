@@ -591,6 +591,80 @@ model MarketingAsset {
   @@index([campaignId, platform, ordering])
 }
 
+// ─── Macro-Engine Raw Storage ────────────────────────────────────────────────
+
+model OhlcvDaily {
+  ticker      String
+  date        DateTime
+  open        Float
+  high        Float
+  low         Float
+  close       Float
+  adjClose    Float
+  volume      BigInt
+  dividendAmt Float    @default(0)
+  splitCoeff  Float    @default(1)
+
+  @@id([ticker, date])
+  @@map("ohlcv_daily")
+}
+
+model MacroSeriesVintage {
+  id              String   @id @default(cuid())
+  seriesId        String
+  observationDate DateTime
+  realtimeStart   DateTime
+  realtimeEnd     DateTime
+  value           Float?
+
+  @@unique([seriesId, observationDate, realtimeStart])
+  @@map("macro_series_vintage")
+}
+
+model EarningsRevision {
+  id               String   @id @default(cuid())
+  symbol           String
+  date             DateTime
+  estimatedEpsLow  Float?
+  estimatedEpsHigh Float?
+  estimatedEpsAvg  Float?
+  estimatedRevAvg  Float?
+  numAnalystsEps   Int?
+  fetchedAt        DateTime @default(now())
+
+  @@unique([symbol, date])
+  @@map("earnings_revisions")
+}
+
+model OecdLeadingIndicator {
+  id        String   @id @default(cuid())
+  country   String
+  period    DateTime
+  cliValue  Float
+  seriesId  String
+  fetchedAt DateTime @default(now())
+
+  @@unique([country, period])
+  @@map("oecd_leading_indicators")
+}
+
+model IngestLog {
+  id           String   @id @default(cuid())
+  source       String
+  ticker       String?
+  seriesId     String?
+  startDate    DateTime
+  endDate      DateTime
+  rowsUpserted Int
+  status       String
+  errorMsg     String?
+  runAt        DateTime @default(now())
+
+  @@map("ingest_log")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 model SavedDCFModel {
   id                    String   @id @default(cuid())
   ticker                String
