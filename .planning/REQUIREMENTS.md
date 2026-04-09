@@ -12,7 +12,7 @@
 - [x] **DATA-03**: ETF universe is defined in a configurable file (not hardcoded), with each entry including ticker, sector/country mapping, inception date, and proxy-series for pre-inception history
 - [x] **DATA-04**: System ingests Alpha Vantage premium data (price history, earnings, economic indicators) using existing rate-limit-aware sequential fetch pattern
 - [x] **DATA-05**: System ingests Financial Modeling Prep (FMP) earnings revision history (10+ years of analyst estimate changes) for all universe equities and ETFs
-- [x] **DATA-06**: System ingests OECD leading indicator series (free API, no key) for country-level macro context
+- [x] **DATA-06**: System ingests OECD leading indicator series via FRED mirror (uses FRED_API_KEY) for country-level macro context
 
 ### Feature Engineering
 
