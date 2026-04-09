@@ -76,7 +76,12 @@ Plans:
   2. Each regime label has its own factor weight set; a regime with fewer than the minimum sample threshold falls back to global weights
   3. The holdout set (most recent 3 years) is never touched during optimization; OOS metrics are computed on it exactly once after all tuning is complete
   4. Backtest output displays OOS hit rate, annualized Sharpe, and max drawdown vs SPY/ACWI — in-sample stats are not shown
-**Plans**: TBD
+**Plans**: 3 plans (3 waves)
+
+Plans:
+- [ ] 04-01-PLAN.md — Prisma schema (BacktestRun, FactorWeightSet, BacktestMetric) + TypeScript contracts (types.ts)
+- [ ] 04-02-PLAN.md — Core lib: windows.ts, returns.ts, weights.ts, metrics.ts
+- [ ] 04-03-PLAN.md — CLI orchestrator (index.ts, run-backtest.ts, verify-backtest.ts) + npm scripts
 
 ### Phase 5: Allocation Signals
 **Goal**: The system produces daily ranked allocation signals with conviction scores, probabilistic forecasts, single-stock picks, and analyst consensus validation — all ready for the dashboard to consume
@@ -112,6 +117,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. Data Foundation | 4/4 | Complete    | 2026-04-09 |
 | 2. Feature Engineering | 5/5 | Complete    | 2026-04-09 |
 | 3. Regime Classifier | 0/TBD | Not started | - |
-| 4. Backtesting Engine | 0/TBD | Not started | - |
+| 4. Backtesting Engine | 0/3 | Not started | - |
 | 5. Allocation Signals | 0/TBD | Not started | - |
 | 6. Dashboard & Integration | 0/TBD | Not started | - |
