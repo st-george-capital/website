@@ -24,10 +24,10 @@
 
 ### Regime Classifier
 
-- [ ] **REGM-01**: System classifies macro regimes using data-derived clustering (k-means or GMM) on the macro feature vector — regime labels emerge from data, not hardcoded definitions
-- [ ] **REGM-02**: Regime labels are stabilized across re-fits using template matching (e.g., Wasserstein distance to canonical cluster prototypes), so the same economic environment always maps to the same label
-- [ ] **REGM-03**: Regime classifier is validated against known historical periods (2008 GFC, 2020 COVID shock, 2022 rate shock) before any downstream use
-- [ ] **REGM-04**: System computes regime transition probabilities: P(regime changes in next 3/6/12 months) based on historical regime duration and transition frequency
+- [x] **REGM-01**: System classifies macro regimes using data-derived clustering (k-means or GMM) on the macro feature vector — regime labels emerge from data, not hardcoded definitions
+- [x] **REGM-02**: Regime labels are stabilized across re-fits using template matching (e.g., Wasserstein distance to canonical cluster prototypes), so the same economic environment always maps to the same label
+- [x] **REGM-03**: Regime classifier is validated against known historical periods (2008 GFC, 2020 COVID shock, 2022 rate shock) before any downstream use
+- [x] **REGM-04**: System computes regime transition probabilities: P(regime changes in next 3/6/12 months) based on historical regime duration and transition frequency
 
 ### Backtesting Engine
 
@@ -92,10 +92,10 @@
 | FEAT-03 | Phase 2 | Complete |
 | FEAT-04 | Phase 2 | Complete |
 | FEAT-05 | Phase 2 | Complete |
-| REGM-01 | Phase 3 | Pending |
-| REGM-02 | Phase 3 | Pending |
-| REGM-03 | Phase 3 | Pending |
-| REGM-04 | Phase 3 | Pending |
+| REGM-01 | Phase 3 | Complete |
+| REGM-02 | Phase 3 | Complete |
+| REGM-03 | Phase 3 | Complete |
+| REGM-04 | Phase 3 | Complete |
 | BACK-01 | Phase 4 | Pending |
 | BACK-02 | Phase 4 | Pending |
 | BACK-03 | Phase 4 | Pending |
