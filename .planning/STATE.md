@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-02-PLAN.md (rollingZScore + 6 macro factor compute functions)
-last_updated: "2026-04-09T03:12:12.889Z"
+stopped_at: Completed 02-04-PLAN.md (buildFeatureRow + buildFeatureMatrix orchestrator)
+last_updated: "2026-04-09T03:15:32.239Z"
 last_activity: "2026-04-09 — Completed 01-02 (provider adapters: ALFRED, AV, FMP, OECD)"
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 9
-  completed_plans: 7
+  completed_plans: 8
   percent: 50
 ---
 
@@ -53,6 +53,7 @@ Progress: [█████░░░░░] 50%
 | Phase 01-data-foundation P03 | 15m | 3 tasks | 7 files |
 | Phase 01-data-foundation P04 | 20m | 3 tasks | 4 files |
 | Phase 02-feature-engineering P02 | 15m | 2 tasks | 9 files |
+| Phase 02-feature-engineering P04 | 15m | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,7 @@ Recent decisions affecting current work:
 - [Phase 02-feature-engineering]: VXX proxy for pre-VIXY dates: flows-regime uses VXX ticker for dates before 2011-01-03 (VIXY inception), returning partial score rather than null
 - [Phase 02-feature-engineering]: rollingZScore excludes current observation from lookback distribution — scored AGAINST the prior distribution, not part of it
 - [Phase 02-feature-engineering]: Carry factor returns null for sector ETFs and US — rate differential only meaningful for non-US country ETFs
+- [Phase 02-feature-engineering]: getUniverse() used in CLI — universe.ts exports getUniverse, not loadUniverse
 
 ### Pending Todos
 
@@ -89,6 +91,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-09T03:12:05.920Z
-Stopped at: Completed 02-02-PLAN.md (rollingZScore + 6 macro factor compute functions)
+Last session: 2026-04-09T03:15:32.236Z
+Stopped at: Completed 02-04-PLAN.md (buildFeatureRow + buildFeatureMatrix orchestrator)
 Resume file: None

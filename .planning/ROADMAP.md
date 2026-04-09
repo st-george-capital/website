@@ -105,7 +105,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Data Foundation | 4/4 | Complete    | 2026-04-09 |
-| 2. Feature Engineering | 3/5 | In Progress|  |
+| 2. Feature Engineering | 4/5 | In Progress|  |
 | 3. Regime Classifier | 0/TBD | Not started | - |
 | 4. Backtesting Engine | 0/TBD | Not started | - |
 | 5. Allocation Signals | 0/TBD | Not started | - |
