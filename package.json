@@ -17,7 +17,9 @@
     "init-settings": "node scripts/init-settings.js",
     "create-admin-user": "node scripts/create-admin.js",
     "ingest": "npx tsx scripts/macro-engine/run-ingest.ts",
-    "ingest:dry": "npx tsx scripts/macro-engine/run-ingest.ts --dry-run"
+    "ingest:dry": "npx tsx scripts/macro-engine/run-ingest.ts --dry-run",
+    "verify:data": "npx tsx scripts/macro-engine/verify-data-foundation.ts",
+    "report:data": "npx tsx scripts/macro-engine/report-data-foundation.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
