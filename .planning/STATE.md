@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-01-PLAN.md (credit spreads, FeatureRow types, FactorFeatureMatrix schema)
-last_updated: "2026-04-09T03:07:49.942Z"
+stopped_at: Completed 02-03-PLAN.md (country-health and flows-regime factor adapters)
+last_updated: "2026-04-09T03:11:31.976Z"
 last_activity: "2026-04-09 — Completed 01-02 (provider adapters: ALFRED, AV, FMP, OECD)"
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 9
-  completed_plans: 5
+  completed_plans: 6
   percent: 50
 ---
 
@@ -73,6 +73,8 @@ Recent decisions affecting current work:
 - [Phase 01-data-foundation]: verify:data exits non-zero on any failure; report:data always exits 0 — display scripts must not block CI
 - [Phase 02-feature-engineering]: FactorFeatureMatrix uses composite PK (featureDate, ticker) for direct upsert by natural key
 - [Phase 02-feature-engineering]: sourceDataMaxDates is in-memory only (not a DB column) — structural contract for Plan 05 look-ahead bias test
+- [Phase 02-feature-engineering]: world-bank.ts extraction: World Bank fetch logic extracted from route.ts into standalone lib module for reuse by factor adapter
+- [Phase 02-feature-engineering]: VXX proxy for pre-VIXY dates: flows-regime uses VXX ticker for dates before 2011-01-03 (VIXY inception), returning partial score rather than null
 
 ### Pending Todos
 
@@ -84,6 +86,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-09T03:07:46.617Z
-Stopped at: Completed 02-01-PLAN.md (credit spreads, FeatureRow types, FactorFeatureMatrix schema)
+Last session: 2026-04-09T03:11:28.189Z
+Stopped at: Completed 02-03-PLAN.md (country-health and flows-regime factor adapters)
 Resume file: None

@@ -20,7 +20,7 @@
 - [ ] **FEAT-02**: System produces cross-sectional factor rankings across all countries and sectors at each historical date (relative scoring within universe)
 - [x] **FEAT-03**: System builds a complete factor feature matrix: 6 factors × all assets × daily frequency, stored in DB for backtest and scoring use
 - [ ] **FEAT-04**: Automated tests verify that no feature row uses data from a future date — backtest pipeline fails if look-ahead bias is detected
-- [ ] **FEAT-05**: Country-health pillar scores and ETF flows regime signal are read from existing pipelines as factor inputs (not recomputed), with optional recalibration to reduce overweight bias toward stable-governance countries
+- [x] **FEAT-05**: Country-health pillar scores and ETF flows regime signal are read from existing pipelines as factor inputs (not recomputed), with optional recalibration to reduce overweight bias toward stable-governance countries
 
 ### Regime Classifier
 
@@ -91,7 +91,7 @@
 | FEAT-02 | Phase 2 | Pending |
 | FEAT-03 | Phase 2 | Complete |
 | FEAT-04 | Phase 2 | Pending |
-| FEAT-05 | Phase 2 | Pending |
+| FEAT-05 | Phase 2 | Complete |
 | REGM-01 | Phase 3 | Pending |
 | REGM-02 | Phase 3 | Pending |
 | REGM-03 | Phase 3 | Pending |
