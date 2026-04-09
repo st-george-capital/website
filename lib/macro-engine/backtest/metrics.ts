@@ -85,6 +85,6 @@ export function aggregateMetrics(
     maxDrawdown: maxDrawdown(allExcess),
     startDate:   windowResults[0].window.testStart,
     endDate:     windowResults[windowResults.length - 1].window.testEnd,
-    nPeriods:    windowResults.length,
+    nPeriods:    allExcess.length,
   };
 }

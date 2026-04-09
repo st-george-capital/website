@@ -56,6 +56,10 @@ export function fitWeightSetsForWindow(
   const weightSets: WeightSet[] = [];
 
   for (const [regimeLabel, rows] of groups) {
+    if (regimeLabel === 'global') {
+      continue;
+    }
+
     if (rows.length >= minRegimeSamples) {
       weightSets.push({
         regimeLabel,
