@@ -748,3 +748,61 @@ model RegimeTransition {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ─── Backtesting Engine Models ────────────────────────────────────────────────
+
+model BacktestRun {
+  id               String   @id @default(cuid())
+  runAt            DateTime @default(now())
+  dataStart        String   // ISO date string of training corpus start
+  holdoutStart     String   // ISO date string — hard boundary, e.g. "2022-01-01"
+  windowCount      Int      // number of walk-forward steps completed
+  stepMonths       Int      // test window length in months
+  lambdaRidge      Float    // ridge regularization parameter used
+  minRegimeSamples Int      // threshold for regime-specific vs global fallback
+  notes            String?
+
+  weightSets FactorWeightSet[]
+  metrics    BacktestMetric[]
+
+  @@map("backtest_runs")
+}
+
+model FactorWeightSet {
+  id          String   @id @default(cuid())
+  runId       String
+  regimeLabel String   // regime label string, or "global" for fallback
+  wGrowth     Float
+  wInflation  Float
+  wMonetary   Float
+  wCredit     Float
+  wCarry      Float
+  wEarnings   Float
+  sampleCount Int      // number of (ticker, date) observations used
+  isFallback  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  run BacktestRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, regimeLabel])
+  @@map("factor_weight_sets")
+}
+
+model BacktestMetric {
+  id          String   @id @default(cuid())
+  runId       String
+  window      String   // "oos" (walk-forward OOS aggregate) or "holdout"
+  benchmark   String   // "SPY" or "ACWI"
+  hitRate     Float    // 0-1
+  sharpeAnn   Float    // annualized Sharpe on excess returns
+  maxDrawdown Float    // negative fraction, e.g. -0.35
+  startDate   String   // ISO date of metric window start
+  endDate     String   // ISO date of metric window end
+  nPeriods    Int      // number of test periods included
+  createdAt   DateTime @default(now())
+
+  run BacktestRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, window, benchmark])
+  @@map("backtest_metrics")
+}
