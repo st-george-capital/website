@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. The universe config file drives which tickers are ingested; adding a ticker to that file causes it to appear in the DB on next ingest without any code change
   4. FMP earnings revision history is queryable by equity and date, returning analyst estimate changes up to that date only
   5. OECD leading indicator series are present in the DB for all configured countries
-**Plans**: TBD
+**Plans**: 4 planned (3 waves)
 
 ### Phase 2: Feature Engineering
 **Goal**: A complete, look-ahead-free factor feature matrix is built and stored, ready for regime classification and backtesting
@@ -97,7 +97,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Data Foundation | 0/TBD | Not started | - |
+| 1. Data Foundation | 1/4 | In Progress|  |
 | 2. Feature Engineering | 0/TBD | Not started | - |
 | 3. Regime Classifier | 0/TBD | Not started | - |
 | 4. Backtesting Engine | 0/TBD | Not started | - |

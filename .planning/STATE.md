@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-04-08)
 ## Current Position
 
 Phase: 1 of 6 (Data Foundation)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-04-08 — Roadmap created
+Plan: 2 of 4 in current phase
+Status: In Progress
+Last activity: 2026-04-09 — Completed 01-02 (provider adapters: ALFRED, AV, FMP, OECD)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 20%
 
 ## Performance Metrics
 
@@ -45,6 +45,8 @@ Recent decisions affecting current work:
 - Architecture: Regime-filtered factor scoring (Citadel/Bridgewater hybrid) — macro regime sets context, factors rank within it
 - Data: ALFRED vintage API for FRED (point-in-time, no look-ahead from retroactive revisions)
 - Integration: Reuse existing country-health and flows pipelines as factor inputs — do not rebuild
+- 01-02: OECD CLI uses FRED mirror (USALOLITONOSTSAM pattern) rather than direct OECD API — same vintage pattern, simpler
+- 01-02: AV macro adapter is a separate module from lib/alpha-vantage.ts — preserves existing callers
 
 ### Pending Todos
 
@@ -57,5 +59,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-04-08
-Stopped at: Roadmap created, ready to begin Phase 1 planning
-Resume file: None
+Stopped at: Completed 01-02-PLAN.md (provider adapters)
+Resume file: .planning/phases/01-data-foundation/01-03-PLAN.md
