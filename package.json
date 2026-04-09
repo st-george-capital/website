@@ -36,6 +36,8 @@
     "gray-matter": "^4.0.3",
     "jszip": "^3.10.1",
     "lucide-react": "^0.462.0",
+    "ml-kmeans": "^7.0.0",
+    "ml-matrix": "^6.12.1",
     "next": "14.2.18",
     "next-auth": "^4.24.10",
     "puppeteer-core": "^24.40.0",
