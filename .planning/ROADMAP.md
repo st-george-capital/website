@@ -60,7 +60,12 @@ Plans:
   2. Re-running the classifier on the same data produces the same label assignments (label stability across re-fits via template matching)
   3. The 2008 GFC window, 2020 COVID shock window, and 2022 rate shock window each map consistently to distinct regime labels that match intuitive descriptions of those environments
   4. For any date, the system returns P(regime changes in 3/6/12 months) derived from historical regime duration and transition frequency
-**Plans**: TBD
+**Plans**: 3 plans (3 waves)
+
+Plans:
+- [ ] 03-01-PLAN.md — Install ml-kmeans/ml-matrix, add Prisma schema models, define TypeScript contracts
+- [ ] 03-02-PLAN.md — Core regime lib: feature aggregation, k-means fit, template stabilization, transition matrix
+- [ ] 03-03-PLAN.md — CLI orchestrator, historical validation (2008/2020/2022), stability verification script
 
 ### Phase 4: Backtesting Engine
 **Goal**: Regime-conditioned factor weights are derived from walk-forward backtesting and validated on an untouched holdout set, with OOS performance metrics visible
