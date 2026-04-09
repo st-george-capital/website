@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-04-PLAN.md (buildFeatureRow + buildFeatureMatrix orchestrator)
-last_updated: "2026-04-09T03:15:32.239Z"
+stopped_at: Completed 02-05-PLAN.md (look-ahead bias test + verify-feature-matrix CLI)
+last_updated: "2026-04-09T03:18:16.292Z"
 last_activity: "2026-04-09 — Completed 01-02 (provider adapters: ALFRED, AV, FMP, OECD)"
 progress:
   total_phases: 6
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 9
-  completed_plans: 8
+  completed_plans: 9
   percent: 50
 ---
 
@@ -54,6 +54,7 @@ Progress: [█████░░░░░] 50%
 | Phase 01-data-foundation P04 | 20m | 3 tasks | 4 files |
 | Phase 02-feature-engineering P02 | 15m | 2 tasks | 9 files |
 | Phase 02-feature-engineering P04 | 15m | 2 tasks | 3 files |
+| Phase 02-feature-engineering P05 | 2min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,8 @@ Recent decisions affecting current work:
 - [Phase 02-feature-engineering]: rollingZScore excludes current observation from lookback distribution — scored AGAINST the prior distribution, not part of it
 - [Phase 02-feature-engineering]: Carry factor returns null for sector ETFs and US — rate differential only meaningful for non-US country ETFs
 - [Phase 02-feature-engineering]: getUniverse() used in CLI — universe.ts exports getUniverse, not loadUniverse
+- [Phase 02-feature-engineering]: Look-ahead test reads sourceDataMaxDates structurally (in-memory from buildFeatureRow), never re-queries DB — avoids false positives
+- [Phase 02-feature-engineering]: Coverage warnings (<50% rows with 3+ z-scores) do not cause non-zero exit — only look-ahead violations fail the pipeline
 
 ### Pending Todos
 
@@ -91,6 +94,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-09T03:15:32.236Z
-Stopped at: Completed 02-04-PLAN.md (buildFeatureRow + buildFeatureMatrix orchestrator)
+Last session: 2026-04-09T03:18:16.290Z
+Stopped at: Completed 02-05-PLAN.md (look-ahead bias test + verify-feature-matrix CLI)
 Resume file: None

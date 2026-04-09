@@ -13,7 +13,7 @@ Six phases build the engine from the ground up: raw data ingestion and storage, 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Data Foundation** - Ingest and store 20+ years of ETF, FRED, AV, FMP, and OECD data with a configurable universe file (completed 2026-04-09)
-- [ ] **Phase 2: Feature Engineering** - Compute point-in-time rolling z-scores, cross-sectional rankings, and the full factor feature matrix with look-ahead bias tests
+- [x] **Phase 2: Feature Engineering** - Compute point-in-time rolling z-scores, cross-sectional rankings, and the full factor feature matrix with look-ahead bias tests (completed 2026-04-09)
 - [ ] **Phase 3: Regime Classifier** - Fit data-derived regime clusters, stabilize labels across re-fits, validate against known historical shocks, and compute transition probabilities
 - [ ] **Phase 4: Backtesting Engine** - Walk-forward train/test with regime-conditioned weight optimization, holdout OOS validation, and Sharpe/hit-rate reporting
 - [ ] **Phase 5: Allocation Signals** - Daily scoring cron, conviction scores with factor attribution, probabilistic forecasts, O'Neil single-stock screening, and analyst consensus overlay
@@ -105,7 +105,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Data Foundation | 4/4 | Complete    | 2026-04-09 |
-| 2. Feature Engineering | 4/5 | In Progress|  |
+| 2. Feature Engineering | 5/5 | Complete   | 2026-04-09 |
 | 3. Regime Classifier | 0/TBD | Not started | - |
 | 4. Backtesting Engine | 0/TBD | Not started | - |
 | 5. Allocation Signals | 0/TBD | Not started | - |
