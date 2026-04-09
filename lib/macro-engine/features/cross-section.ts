@@ -1,5 +1,5 @@
 // lib/macro-engine/features/cross-section.ts
-import { crossSectionZScore } from '../../../lib/country-health/scoring';
+import { crossSectionZScore } from '../../country-health/scoring';
 import type { FeatureRow } from '../types';
 
 type FactorKey = 'zGrowth' | 'zInflation' | 'zMonetary' | 'zCredit' | 'zCarry' | 'zEarnings';
