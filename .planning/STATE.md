@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 04-02-PLAN.md (pure computation modules)
-last_updated: "2026-04-09T14:38:17.449Z"
+status: phase-complete
+stopped_at: Completed 04-03-PLAN.md (orchestrator + CLI + verification)
+last_updated: "2026-04-09T16:10:00.000Z"
 last_activity: "2026-04-09 — Completed 01-02 (provider adapters: ALFRED, AV, FMP, OECD)"
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 15
-  completed_plans: 14
-  percent: 50
+  completed_plans: 15
+  percent: 100
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-08)
 
 **Core value:** Given the current global macro regime, tell me which countries and sectors will outperform and underperform — with probabilities, backtested accuracy, and specific investable recommendations (ETFs + equities).
-**Current focus:** Phase 1 — Data Foundation
+**Current focus:** Phase 5 — Allocation Signals
 
 ## Current Position
 
-Phase: 1 of 6 (Data Foundation)
-Plan: 2 of 4 in current phase
-Status: In Progress
-Last activity: 2026-04-09 — Completed 01-02 (provider adapters: ALFRED, AV, FMP, OECD)
+Phase: 5 of 6 (Allocation Signals)
+Plan: TBD
+Status: Phase 4 complete; next phase not planned
+Last activity: 2026-04-09 — Completed Phase 4 / 04-03 (backtest orchestrator + CLI)
 
-Progress: [█████░░░░░] 50%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -60,6 +60,7 @@ Progress: [█████░░░░░] 50%
 | Phase 03-regime-classifier P03 | 15min | 2 tasks | 4 files |
 | Phase 04-backtesting-engine P01 | 10 | 2 tasks | 2 files |
 | Phase 04-backtesting-engine P02 | 10min | 2 tasks | 4 files |
+| Phase 04-backtesting-engine P03 | 3h | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,8 @@ Recent decisions affecting current work:
 - [Phase 04-backtesting-engine]: HOLDOUT_START hard-coded to 2022-01-01 — changing it invalidates all prior backtest results
 - [Phase 04-backtesting-engine]: TypeScript interfaces mirror Prisma models field-for-field to avoid impedance mismatch
 - [Phase 04-backtesting-engine]: ml-matrix solve() is standalone function — import { solve } from ml-matrix, not Matrix method
+- [Phase 04-backtesting-engine]: Backtest CLI uses DIRECT_URL for local analytics when DATABASE_URL is Prisma Accelerate
+- [Phase 04-backtesting-engine]: Managed Postgres without TimescaleDB is acceptable for dev; checkTimescaleDb warns and falls back
 
 ### Pending Todos
 
@@ -102,6 +105,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-09T14:38:17.446Z
-Stopped at: Completed 04-02-PLAN.md (pure computation modules)
+Last session: 2026-04-09T16:10:00.000Z
+Stopped at: Completed 04-03-PLAN.md (orchestrator + CLI + verification)
 Resume file: None

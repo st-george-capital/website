@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Data Foundation** - Ingest and store 20+ years of ETF, FRED, AV, FMP, and OECD data with a configurable universe file (completed 2026-04-09)
 - [x] **Phase 2: Feature Engineering** - Compute point-in-time rolling z-scores, cross-sectional rankings, and the full factor feature matrix with look-ahead bias tests (completed 2026-04-09)
 - [ ] **Phase 3: Regime Classifier** - Fit data-derived regime clusters, stabilize labels across re-fits, validate against known historical shocks, and compute transition probabilities
-- [ ] **Phase 4: Backtesting Engine** - Walk-forward train/test with regime-conditioned weight optimization, holdout OOS validation, and Sharpe/hit-rate reporting
+- [x] **Phase 4: Backtesting Engine** - Walk-forward train/test with regime-conditioned weight optimization, holdout OOS validation, and Sharpe/hit-rate reporting (completed 2026-04-09)
 - [ ] **Phase 5: Allocation Signals** - Daily scoring cron, conviction scores with factor attribution, probabilistic forecasts, O'Neil single-stock screening, and analyst consensus overlay
 - [ ] **Phase 6: Dashboard & Integration** - Regime badge, allocation table, backtest stats panel, single-stock picks panel, and tools-page card
 
@@ -79,9 +79,9 @@ Plans:
 **Plans**: 3 plans (3 waves)
 
 Plans:
-- [ ] 04-01-PLAN.md — Prisma schema (BacktestRun, FactorWeightSet, BacktestMetric) + TypeScript contracts (types.ts)
-- [ ] 04-02-PLAN.md — Core lib: windows.ts, returns.ts, weights.ts, metrics.ts
-- [ ] 04-03-PLAN.md — CLI orchestrator (index.ts, run-backtest.ts, verify-backtest.ts) + npm scripts
+- [x] 04-01-PLAN.md — Prisma schema (BacktestRun, FactorWeightSet, BacktestMetric) + TypeScript contracts (types.ts)
+- [x] 04-02-PLAN.md — Core lib: windows.ts, returns.ts, weights.ts, metrics.ts
+- [x] 04-03-PLAN.md — CLI orchestrator (index.ts, run-backtest.ts, verify-backtest.ts) + npm scripts
 
 ### Phase 5: Allocation Signals
 **Goal**: The system produces daily ranked allocation signals with conviction scores, probabilistic forecasts, single-stock picks, and analyst consensus validation — all ready for the dashboard to consume
@@ -117,6 +117,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. Data Foundation | 4/4 | Complete    | 2026-04-09 |
 | 2. Feature Engineering | 5/5 | Complete    | 2026-04-09 |
 | 3. Regime Classifier | 0/TBD | Not started | - |
-| 4. Backtesting Engine | 2/3 | In Progress|  |
+| 4. Backtesting Engine | 3/3 | Complete    | 2026-04-09 |
 | 5. Allocation Signals | 0/TBD | Not started | - |
 | 6. Dashboard & Integration | 0/TBD | Not started | - |
