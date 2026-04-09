@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed Phase 3 — Regime Classifier (03-01, 03-02, 03-03)"
-last_updated: "2026-04-09"
-last_activity: "2026-04-09 — Completed Phase 3 (ml-kmeans clustering, template stabilization, Markov transitions, CLI fit/verify scripts)"
+stopped_at: Completed 04-01-PLAN.md (Prisma backtest models + TypeScript contracts)
+last_updated: "2026-04-09T14:35:13.522Z"
+last_activity: "2026-04-09 — Completed 01-02 (provider adapters: ALFRED, AV, FMP, OECD)"
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 15
-  completed_plans: 15
+  completed_plans: 13
   percent: 50
 ---
 
@@ -58,6 +58,7 @@ Progress: [█████░░░░░] 50%
 | Phase 03-regime-classifier P01 | 8min | 2 tasks | 4 files |
 | Phase 03-regime-classifier P02 | 5min | 2 tasks | 3 files |
 | Phase 03-regime-classifier P03 | 15min | 2 tasks | 4 files |
+| Phase 04-backtesting-engine P01 | 10 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,8 @@ Recent decisions affecting current work:
 - [Phase 02-feature-engineering]: getUniverse() used in CLI — universe.ts exports getUniverse, not loadUniverse
 - [Phase 02-feature-engineering]: Look-ahead test reads sourceDataMaxDates structurally (in-memory from buildFeatureRow), never re-queries DB — avoids false positives
 - [Phase 02-feature-engineering]: Coverage warnings (<50% rows with 3+ z-scores) do not cause non-zero exit — only look-ahead violations fail the pipeline
+- [Phase 04-backtesting-engine]: HOLDOUT_START hard-coded to 2022-01-01 — changing it invalidates all prior backtest results
+- [Phase 04-backtesting-engine]: TypeScript interfaces mirror Prisma models field-for-field to avoid impedance mismatch
 
 ### Pending Todos
 
@@ -97,6 +100,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-09T03:44:54.843Z
-Stopped at: Completed 03-03-PLAN.md (regime orchestrator, CLI scripts, historical validation)
+Last session: 2026-04-09T14:35:13.519Z
+Stopped at: Completed 04-01-PLAN.md (Prisma backtest models + TypeScript contracts)
 Resume file: None

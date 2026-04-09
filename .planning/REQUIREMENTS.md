@@ -31,10 +31,10 @@
 
 ### Backtesting Engine
 
-- [ ] **BACK-01**: Walk-forward backtest engine trains factor weights only on data preceding each test window — never on data from the test period itself
-- [ ] **BACK-02**: Factor weights are optimized per regime (each regime label has its own weight set derived from backtesting), with global fallback weights when a regime has insufficient samples
-- [ ] **BACK-03**: A pre-committed holdout set (most recent 3 years) is reserved before any optimization begins and never touched during weight tuning — used only for final OOS validation
-- [ ] **BACK-04**: Backtest reports hit rate (% correct directional calls), annualized Sharpe, and max drawdown vs SPY/ACWI benchmark — OOS metrics only, no in-sample stats displayed
+- [x] **BACK-01**: Walk-forward backtest engine trains factor weights only on data preceding each test window — never on data from the test period itself
+- [x] **BACK-02**: Factor weights are optimized per regime (each regime label has its own weight set derived from backtesting), with global fallback weights when a regime has insufficient samples
+- [x] **BACK-03**: A pre-committed holdout set (most recent 3 years) is reserved before any optimization begins and never touched during weight tuning — used only for final OOS validation
+- [x] **BACK-04**: Backtest reports hit rate (% correct directional calls), annualized Sharpe, and max drawdown vs SPY/ACWI benchmark — OOS metrics only, no in-sample stats displayed
 
 ### Allocation Signals
 
@@ -96,10 +96,10 @@
 | REGM-02 | Phase 3 | Complete |
 | REGM-03 | Phase 3 | Complete |
 | REGM-04 | Phase 3 | Complete |
-| BACK-01 | Phase 4 | Pending |
-| BACK-02 | Phase 4 | Pending |
-| BACK-03 | Phase 4 | Pending |
-| BACK-04 | Phase 4 | Pending |
+| BACK-01 | Phase 4 | Complete |
+| BACK-02 | Phase 4 | Complete |
+| BACK-03 | Phase 4 | Complete |
+| BACK-04 | Phase 4 | Complete |
 | ALLC-01 | Phase 5 | Pending |
 | ALLC-02 | Phase 5 | Pending |
 | ALLC-03 | Phase 5 | Pending |
