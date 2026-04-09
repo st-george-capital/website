@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 // Shared row types for macro-engine provider adapters
 
 export interface MacroSeriesVintageRow {
@@ -37,3 +39,24 @@ export interface OecdCliRow {
   cliValue: number;
   seriesId: string;
 }
+
+// ─── Universe Config ──────────────────────────────────────────────────────────
+
+export const UniverseEntrySchema = z.object({
+  ticker:        z.string().min(1),
+  name:          z.string().min(1),
+  type:          z.enum(['etf', 'equity']),
+  sector:        z.string().nullable(),           // null for country ETFs
+  country:       z.string().length(2).nullable(), // ISO2, null for sector ETFs
+  inceptionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  proxySeries:   z.string().nullable(),           // AV ticker or FRED series ID
+  currency:      z.string().length(3),            // "USD"
+  exchange:      z.string().min(1),               // "NYSE", "NASDAQ"
+});
+
+export const UniverseConfigSchema = z.object({
+  universe: z.array(UniverseEntrySchema).min(1),
+});
+
+export type UniverseEntry = z.infer<typeof UniverseEntrySchema>;
+export type UniverseConfig = z.infer<typeof UniverseConfigSchema>;
