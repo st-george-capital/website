@@ -23,6 +23,26 @@ export async function classifyRegimes(
 ): Promise<ClassifyResult> {
   // Step 1: Aggregate feature vectors
   const vectors = await buildDailyFeatureVectors(startDate, endDate);
+
+  // Pre-flight: require at least 100 vectors and <60% average null rate
+  if (vectors.length < 100) {
+    throw new Error(
+      `Insufficient feature data — only ${vectors.length} daily vectors available after null exclusion. ` +
+      'Run feature build first and verify coverage (need at least 100 dates).'
+    );
+  }
+  // Compute average null fraction from the FEATURE_DIMENSIONS length
+  // vectors already had high-null dates excluded; check average dimension coverage
+  // (vectors with <50% nulls were kept, so avg null rate of kept vectors is bounded)
+  // Still guard against pathological cases:
+  const avgVectorMagnitude = vectors.reduce((s, dv) => s + dv.vector.reduce((a, v) => a + Math.abs(v), 0), 0) / vectors.length;
+  if (avgVectorMagnitude < 0.01) {
+    throw new Error(
+      'Insufficient feature data — average vector magnitude is near zero across all dates. ' +
+      'The feature matrix may be empty or all-zero. Run feature build first and verify coverage.'
+    );
+  }
+
   console.log(`Fitting k=${k} clusters on ${vectors.length} daily vectors...`);
 
   // Step 2: Fit k-means

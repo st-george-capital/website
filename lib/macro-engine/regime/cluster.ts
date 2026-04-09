@@ -28,31 +28,55 @@ export async function buildDailyFeatureVectors(
     },
   });
 
-  // Group by featureDate
-  const byDate = new Map<string, number[][]>();
+  // Group raw nullable values by featureDate
+  const byDate = new Map<string, Array<(number | null)[]>>();
   for (const row of rows) {
     const key = row.featureDate.toISOString().slice(0, 10);
-    // null → 0: no data treated as average signal
-    const vec = [
-      row.zGrowth ?? 0,
-      row.zInflation ?? 0,
-      row.zMonetary ?? 0,
-      row.zCredit ?? 0,
-      row.zCarry ?? 0,
-      row.zEarnings ?? 0,
+    const vec: (number | null)[] = [
+      row.zGrowth,
+      row.zInflation,
+      row.zMonetary,
+      row.zCredit,
+      row.zCarry,
+      row.zEarnings,
     ];
     if (!byDate.has(key)) byDate.set(key, []);
     byDate.get(key)!.push(vec);
   }
 
-  return Array.from(byDate.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([dateStr, vecs]) => ({
-      date: new Date(dateStr),
-      vector: FEATURE_DIMENSIONS.map((_, i) =>
-        vecs.reduce((s, v) => s + v[i], 0) / vecs.length
-      ),
-    }));
+  let excludedDates = 0;
+  const result: DailyFeatureVector[] = [];
+
+  for (const [dateStr, vecs] of Array.from(byDate.entries()).sort(([a], [b]) => a.localeCompare(b))) {
+    // Count nulls per dimension across all asset rows for this date
+    const dimNullCounts = FEATURE_DIMENSIONS.map((_, i) =>
+      vecs.filter(v => v[i] === null).length
+    );
+    const totalNulls = dimNullCounts.reduce((s, n) => s + n, 0);
+    const totalValues = vecs.length * FEATURE_DIMENSIONS.length;
+    const nullFraction = totalNulls / totalValues;
+
+    // Exclude dates where more than 50% of dimension values are null
+    if (nullFraction > 0.5) {
+      excludedDates++;
+      continue;
+    }
+
+    // Average non-null values per dimension; impute remaining nulls to 0
+    const vector = FEATURE_DIMENSIONS.map((_, i) => {
+      const nonNull = vecs.map(v => v[i]).filter((x): x is number => x !== null);
+      if (nonNull.length === 0) return 0; // dimension entirely missing — impute 0
+      return nonNull.reduce((s, x) => s + x, 0) / nonNull.length;
+    });
+
+    result.push({ date: new Date(dateStr), vector });
+  }
+
+  if (excludedDates > 0) {
+    console.warn(`buildDailyFeatureVectors: excluded ${excludedDates} date(s) with >50% null z-scores`);
+  }
+
+  return result;
 }
 
 /**
