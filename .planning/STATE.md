@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-04-PLAN.md (query helpers and Phase 1 verification gate)
-last_updated: "2026-04-09T02:43:06.388Z"
+stopped_at: Completed 02-01-PLAN.md (credit spreads, FeatureRow types, FactorFeatureMatrix schema)
+last_updated: "2026-04-09T03:07:49.942Z"
 last_activity: "2026-04-09 — Completed 01-02 (provider adapters: ALFRED, AV, FMP, OECD)"
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 9
+  completed_plans: 5
   percent: 50
 ---
 
@@ -71,6 +71,8 @@ Recent decisions affecting current work:
 - [Phase 01-data-foundation]: Ingest logging uses raw SQL to avoid Prisma client regeneration requirement
 - [Phase 01-data-foundation]: Query helpers use parameterized prisma.$queryRaw — no string interpolation to prevent SQL injection
 - [Phase 01-data-foundation]: verify:data exits non-zero on any failure; report:data always exits 0 — display scripts must not block CI
+- [Phase 02-feature-engineering]: FactorFeatureMatrix uses composite PK (featureDate, ticker) for direct upsert by natural key
+- [Phase 02-feature-engineering]: sourceDataMaxDates is in-memory only (not a DB column) — structural contract for Plan 05 look-ahead bias test
 
 ### Pending Todos
 
@@ -82,6 +84,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-09T02:39:04.561Z
-Stopped at: Completed 01-04-PLAN.md (query helpers and Phase 1 verification gate)
+Last session: 2026-04-09T03:07:46.617Z
+Stopped at: Completed 02-01-PLAN.md (credit spreads, FeatureRow types, FactorFeatureMatrix schema)
 Resume file: None

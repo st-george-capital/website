@@ -16,9 +16,9 @@
 
 ### Feature Engineering
 
-- [ ] **FEAT-01**: System computes point-in-time rolling z-scores for all 6 macro factors, using only data available up to each historical date (no global normalization)
+- [x] **FEAT-01**: System computes point-in-time rolling z-scores for all 6 macro factors, using only data available up to each historical date (no global normalization)
 - [ ] **FEAT-02**: System produces cross-sectional factor rankings across all countries and sectors at each historical date (relative scoring within universe)
-- [ ] **FEAT-03**: System builds a complete factor feature matrix: 6 factors × all assets × daily frequency, stored in DB for backtest and scoring use
+- [x] **FEAT-03**: System builds a complete factor feature matrix: 6 factors × all assets × daily frequency, stored in DB for backtest and scoring use
 - [ ] **FEAT-04**: Automated tests verify that no feature row uses data from a future date — backtest pipeline fails if look-ahead bias is detected
 - [ ] **FEAT-05**: Country-health pillar scores and ETF flows regime signal are read from existing pipelines as factor inputs (not recomputed), with optional recalibration to reduce overweight bias toward stable-governance countries
 
@@ -87,9 +87,9 @@
 | DATA-04 | Phase 1 | Complete |
 | DATA-05 | Phase 1 | Complete |
 | DATA-06 | Phase 1 | Complete |
-| FEAT-01 | Phase 2 | Pending |
+| FEAT-01 | Phase 2 | Complete |
 | FEAT-02 | Phase 2 | Pending |
-| FEAT-03 | Phase 2 | Pending |
+| FEAT-03 | Phase 2 | Complete |
 | FEAT-04 | Phase 2 | Pending |
 | FEAT-05 | Phase 2 | Pending |
 | REGM-01 | Phase 3 | Pending |
