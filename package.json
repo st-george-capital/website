@@ -20,6 +20,7 @@
     "ingest:dry": "npx tsx scripts/macro-engine/run-ingest.ts --dry-run",
     "verify:data": "npx tsx scripts/macro-engine/verify-data-foundation.ts",
     "report:data": "npx tsx scripts/macro-engine/report-data-foundation.ts",
+    "report:data-quality": "npx tsx scripts/macro-engine/report-data-quality.ts",
     "verify:features": "npx tsx scripts/macro-engine/verify-feature-matrix.ts",
     "fit:regimes": "npx tsx scripts/macro-engine/run-regime-fit.ts",
     "verify:regime-stability": "npx tsx scripts/macro-engine/verify-regime-stability.ts",
