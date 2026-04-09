@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 04.1-01-PLAN.md (FRED vintage throw + maxDrawdown null guard)
-last_updated: "2026-04-09T19:51:35.694Z"
+stopped_at: Completed 04.1-02-PLAN.md (null imputation fixes + benchmark pre-validation)
+last_updated: "2026-04-09T19:54:41.213Z"
 last_activity: 2026-04-09 — Completed Phase 4 / 04-03 (backtest orchestrator + CLI)
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 18
-  completed_plans: 16
+  completed_plans: 17
   percent: 100
 ---
 
@@ -61,6 +61,7 @@ Progress: [██████████] 100%
 | Phase 04-backtesting-engine P01 | 10 | 2 tasks | 2 files |
 | Phase 04-backtesting-engine P02 | 10min | 2 tasks | 4 files |
 | Phase 04-backtesting-engine P03 | 3h | 2 tasks | 3 files |
+| Phase 04.1-data-integrity P02 | 8 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -96,6 +97,9 @@ Recent decisions affecting current work:
 - [Phase 04-backtesting-engine]: Managed Postgres without TimescaleDB is acceptable for dev; checkTimescaleDb warns and falls back
 - [Phase 04.1-data-integrity]: FRED vintage 400/5xx throws — no fallback to current observations (look-ahead bias prevention)
 - [Phase 04.1-data-integrity]: maxDrawdown returns null for empty/all-zero series — sentinel -1.0 eliminated; DB write uses ?? 0 for non-nullable Float
+- [Phase 04.1-data-integrity]: Regime clustering: dates with >50% null z-score dimensions excluded entirely rather than imputed to zero
+- [Phase 04.1-data-integrity]: Backtest training: rows with >3 of 6 null feature dimensions excluded — threshold chosen to drop genuinely data-sparse rows while keeping partially observed ones
+- [Phase 04.1-data-integrity]: Benchmark pre-validation: SPY price gaps throw before scoring loop starts — avoids silent inflated excess returns
 
 ### Pending Todos
 
@@ -107,6 +111,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-09T19:51:31.245Z
-Stopped at: Completed 04.1-01-PLAN.md (FRED vintage throw + maxDrawdown null guard)
+Last session: 2026-04-09T19:54:41.211Z
+Stopped at: Completed 04.1-02-PLAN.md (null imputation fixes + benchmark pre-validation)
 Resume file: None
