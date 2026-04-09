@@ -20,7 +20,9 @@
     "ingest:dry": "npx tsx scripts/macro-engine/run-ingest.ts --dry-run",
     "verify:data": "npx tsx scripts/macro-engine/verify-data-foundation.ts",
     "report:data": "npx tsx scripts/macro-engine/report-data-foundation.ts",
-    "verify:features": "npx tsx scripts/macro-engine/verify-feature-matrix.ts"
+    "verify:features": "npx tsx scripts/macro-engine/verify-feature-matrix.ts",
+    "fit:regimes": "tsx scripts/macro-engine/run-regime-fit.ts",
+    "verify:regime-stability": "tsx scripts/macro-engine/verify-regime-stability.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
