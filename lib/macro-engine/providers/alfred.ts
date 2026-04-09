@@ -37,14 +37,11 @@ export async function fetchFredAllVintages(
   const response = await fetch(url.toString());
 
   if (!response.ok) {
-    if (response.status === 400 || response.status >= 500) {
-      console.warn(
-        `FRED vintage request for ${seriesId} failed with ${response.status}; ` +
-        'falling back to standard observations with observation-date realtime metadata.'
-      );
-      return fetchFredCurrentObservations(seriesId, startDate);
-    }
-    throw new Error(`FRED API error: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `FRED vintage fetch for ${seriesId} failed with HTTP ${response.status} — ` +
+      'no fallback to current observations (look-ahead bias prevention). ' +
+      'Check FRED_API_KEY validity and series availability for output_type=2.'
+    );
   }
 
   const data = await response.json();
@@ -76,11 +73,11 @@ export async function fetchFredAllVintages(
   }
 
   if (rows.length === 0 && observations.length > 0) {
-    console.warn(
-      `FRED vintage response for ${seriesId} used matrix format; ` +
-      'falling back to standard observations with observation-date realtime metadata.'
+    throw new Error(
+      `FRED vintage response for ${seriesId} returned ${observations.length} observations ` +
+      'but none could be parsed as point-in-time rows. ' +
+      'The response may use an unexpected format. No fallback to current observations (look-ahead bias prevention).'
     );
-    return fetchFredCurrentObservations(seriesId, startDate);
   }
 
   return rows;
