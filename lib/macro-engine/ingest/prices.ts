@@ -15,6 +15,8 @@ export interface IngestResult {
  *
  * Incremental: if max(date) for a ticker is within 7 days of today, uses
  * outputsize=compact (250 rows). If more than 7 days behind, uses full.
+ *
+ * In dry-run mode: skips live API calls, prints incremental strategy per ticker.
  */
 export async function ingestPrices(
   universe: UniverseEntry[],
@@ -25,17 +27,15 @@ export async function ingestPrices(
 
   // Build a map of last ingested date per ticker for incremental support
   const lastDateMap = new Map<string, Date>();
-  if (!opts.dryRun) {
-    try {
-      const lastDates = await prisma.$queryRaw<{ ticker: string; last_date: Date }[]>`
-        SELECT ticker, MAX(date) as last_date FROM ohlcv_daily GROUP BY ticker
-      `;
-      for (const row of lastDates) {
-        lastDateMap.set(row.ticker, new Date(row.last_date));
-      }
-    } catch {
-      // Table may be empty or not yet have rows — continue with full fetch
+  try {
+    const lastDates = await prisma.$queryRaw<{ ticker: string; last_date: Date }[]>`
+      SELECT ticker, MAX(date) as last_date FROM ohlcv_daily GROUP BY ticker
+    `;
+    for (const row of lastDates) {
+      lastDateMap.set(row.ticker, new Date(row.last_date));
     }
+  } catch {
+    // Table may be empty or DB unavailable in dry-run — continue with full fetch plan
   }
 
   const today = new Date();
@@ -53,6 +53,29 @@ export async function ingestPrices(
       tickersNeedingFull.push(entry.ticker);
     }
   }
+
+  if (opts.dryRun) {
+    // In dry-run: print incremental strategy without making API calls
+    for (const ticker of tickersNeedingFull) {
+      const entry = universe.find((e) => e.ticker === ticker)!;
+      const lastDate = lastDateMap.get(ticker);
+      console.log(
+        `[dry-run] prices: ${ticker} — full fetch (last_date: ${lastDate ? lastDate.toISOString().slice(0, 10) : 'never'}, inception: ${entry.inceptionDate})`
+      );
+    }
+    for (const ticker of tickersNeedingCompact) {
+      const lastDate = lastDateMap.get(ticker)!;
+      console.log(
+        `[dry-run] prices: ${ticker} — incremental compact fetch since ${lastDate.toISOString().slice(0, 10)}`
+      );
+    }
+    console.log(
+      `[dry-run] prices summary: ${tickersNeedingFull.length} full, ${tickersNeedingCompact.length} incremental`
+    );
+    return { source: 'alpha-vantage', rowsUpserted: 0, errors: [], status: 'success' };
+  }
+
+  // Live run: fetch and upsert
 
   // Fetch full-history tickers
   const fullResults = tickersNeedingFull.length > 0
@@ -83,13 +106,7 @@ export async function ingestPrices(
       ? result.rows.filter((r) => r.date >= inception)
       : result.rows;
 
-    if (opts.dryRun) {
-      console.log(`[dry-run] prices: ${result.ticker} — ${rows.length} rows (post-inception)`);
-      rowsUpserted += rows.length;
-      continue;
-    }
-
-    // Upsert rows in batches
+    // Upsert rows
     for (const row of rows) {
       try {
         await prisma.$executeRaw`
@@ -136,14 +153,9 @@ export async function ingestPrices(
 async function fetchUniverseOhlcvCompact(
   tickers: string[]
 ): Promise<{ ticker: string; rows: import('../types').OhlcvDailyRow[]; error?: string }[]> {
-  // Import the underlying fetch helpers inline to avoid circular deps
-  const { fetchUniverseOhlcv: _full } = await import('../providers/alpha-vantage');
-  // AV does not expose outputsize per-ticker via fetchUniverseOhlcv, so we use
-  // the same provider but note: compact means only 250 rows (last ~1 year).
-  // For a true compact call we'd need a custom fetch. The stagger is respected
-  // inside fetchUniverseOhlcv already. For simplicity we call full fetch but
-  // filter to last 250 rows post-fetch (no extra API charge; AV response is same).
-  const results = await _full(tickers);
+  // AV does not expose outputsize per-ticker via fetchUniverseOhlcv's public API.
+  // We call the full provider and slice to 250 rows — same data, no extra charge.
+  const results = await fetchUniverseOhlcv(tickers);
   return results.map((r) => ({
     ...r,
     rows: r.rows.slice(0, 250),

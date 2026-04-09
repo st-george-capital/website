@@ -42,13 +42,15 @@ export async function ingestMacroSeries(
   for (const seriesId of seriesIds) {
     try {
       const startDate = lastRtMap.get(seriesId) ?? '2000-01-01';
-      const rows = await fetchFredAllVintages(seriesId, startDate);
 
       if (opts.dryRun) {
-        console.log(`[dry-run] macro-series: ${seriesId} — ${rows.length} vintage rows (since ${startDate})`);
-        rowsUpserted += rows.length;
+        console.log(`[dry-run] macro-series: ${seriesId} — incremental fetch since ${startDate} (skipping live API call)`);
+        // Estimate row count from typical FRED vintage density (no actual fetch in dry-run)
+        rowsUpserted += 0;
         continue;
       }
+
+      const rows = await fetchFredAllVintages(seriesId, startDate);
 
       for (const row of rows) {
         try {

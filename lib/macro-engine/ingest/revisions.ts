@@ -7,6 +7,8 @@ import type { IngestResult } from './prices';
 /**
  * Ingests earnings revisions (EarningsRevision) for equity tickers via FMP
  * and OECD CLI data (OecdLeadingIndicator) for all countries in the universe.
+ *
+ * In dry-run mode: skips live API calls and prints planned operations.
  */
 export async function ingestRevisions(
   tickers: string[],
@@ -15,18 +17,26 @@ export async function ingestRevisions(
   const errors: string[] = [];
   let rowsUpserted = 0;
 
-  // ── Earnings Revisions (FMP) ──────────────────────────────────────────────
   const equities = getByType('equity').filter((e) => tickers.includes(e.ticker));
+  const countries = getCountries();
 
+  if (opts.dryRun) {
+    for (const entry of equities) {
+      console.log(`[dry-run] revisions/fmp: ${entry.ticker} — would fetch analyst estimates`);
+    }
+    for (const country of countries) {
+      console.log(`[dry-run] revisions/oecd: ${country} — would fetch CLI data via FRED mirror`);
+    }
+    console.log(
+      `[dry-run] revisions summary: ${equities.length} equity tickers, ${countries.length} OECD countries`
+    );
+    return { source: 'fmp+oecd', rowsUpserted: 0, errors: [], status: 'success' };
+  }
+
+  // ── Earnings Revisions (FMP) ──────────────────────────────────────────────
   for (const entry of equities) {
     try {
       const rows = await fetchAnalystEstimates(entry.ticker);
-
-      if (opts.dryRun) {
-        console.log(`[dry-run] revisions/fmp: ${entry.ticker} — ${rows.length} estimate rows`);
-        rowsUpserted += rows.length;
-        continue;
-      }
 
       for (const row of rows) {
         try {
@@ -65,17 +75,9 @@ export async function ingestRevisions(
   }
 
   // ── OECD CLI (via FRED mirror) ────────────────────────────────────────────
-  const countries = getCountries();
-
   for (const country of countries) {
     try {
       const rows = await fetchOecdCliForCountry(country);
-
-      if (opts.dryRun) {
-        console.log(`[dry-run] revisions/oecd: ${country} — ${rows.length} CLI rows`);
-        rowsUpserted += rows.length;
-        continue;
-      }
 
       for (const row of rows) {
         try {
