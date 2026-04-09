@@ -6,7 +6,7 @@ import type { IngestResult } from './prices';
  * The six FRED series ingested for Phase 2 factor matrix.
  * GDP, UNRATE, CPIAUCSL, FEDFUNDS, T10Y2Y, INDPRO
  */
-export const FRED_SERIES_IDS = ['GDP', 'UNRATE', 'CPIAUCSL', 'FEDFUNDS', 'T10Y2Y', 'INDPRO'];
+export const FRED_SERIES_IDS = ['GDP', 'UNRATE', 'CPIAUCSL', 'FEDFUNDS', 'T10Y2Y', 'INDPRO', 'BAMLH0A0HYM2', 'BAMLC0A0CM'];
 
 /**
  * Fetches all vintages for each FRED series and upserts into macro_series_vintage.
