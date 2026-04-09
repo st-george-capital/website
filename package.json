@@ -15,7 +15,9 @@
     "create-admin": "node scripts/create-admin.js",
     "seed-team": "node scripts/seed-team.js",
     "init-settings": "node scripts/init-settings.js",
-    "create-admin-user": "node scripts/create-admin.js"
+    "create-admin-user": "node scripts/create-admin.js",
+    "ingest": "npx tsx scripts/macro-engine/run-ingest.ts",
+    "ingest:dry": "npx tsx scripts/macro-engine/run-ingest.ts --dry-run"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
