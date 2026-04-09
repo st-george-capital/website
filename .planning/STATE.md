@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 04-03-PLAN.md (orchestrator + CLI + verification)
-last_updated: "2026-04-09T19:31:53.651Z"
+stopped_at: Completed 04.1-01-PLAN.md (FRED vintage throw + maxDrawdown null guard)
+last_updated: "2026-04-09T19:51:35.694Z"
 last_activity: 2026-04-09 — Completed Phase 4 / 04-03 (backtest orchestrator + CLI)
 progress:
-  total_phases: 6
+  total_phases: 7
   completed_phases: 4
-  total_plans: 15
-  completed_plans: 15
+  total_plans: 18
+  completed_plans: 16
   percent: 100
 ---
 
@@ -94,6 +94,8 @@ Recent decisions affecting current work:
 - [Phase 04-backtesting-engine]: ml-matrix solve() is standalone function — import { solve } from ml-matrix, not Matrix method
 - [Phase 04-backtesting-engine]: Backtest CLI uses DIRECT_URL for local analytics when DATABASE_URL is Prisma Accelerate
 - [Phase 04-backtesting-engine]: Managed Postgres without TimescaleDB is acceptable for dev; checkTimescaleDb warns and falls back
+- [Phase 04.1-data-integrity]: FRED vintage 400/5xx throws — no fallback to current observations (look-ahead bias prevention)
+- [Phase 04.1-data-integrity]: maxDrawdown returns null for empty/all-zero series — sentinel -1.0 eliminated; DB write uses ?? 0 for non-nullable Float
 
 ### Pending Todos
 
@@ -105,6 +107,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-09T16:10:00.000Z
-Stopped at: Completed 04-03-PLAN.md (orchestrator + CLI + verification)
+Last session: 2026-04-09T19:51:31.245Z
+Stopped at: Completed 04.1-01-PLAN.md (FRED vintage throw + maxDrawdown null guard)
 Resume file: None
