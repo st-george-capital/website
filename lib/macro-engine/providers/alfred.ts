@@ -52,31 +52,70 @@ export async function fetchFredAllVintages(
 
   const observations: unknown[] = Array.isArray(data.observations) ? data.observations : [];
 
+  if (observations.length === 0) {
+    return [];
+  }
+
+  /**
+   * output_type=2 returns a WIDE/PIVOT format — each row is:
+   *   { "date": "2020-01-01", "GDP_20240101": "21706.51", "GDP_20240228": "21706.51", ... }
+   *
+   * Keys (other than "date") are `${SERIES_ID}_${YYYYMMDD}` where YYYYMMDD is the vintage date.
+   * We expand each row into one MacroSeriesVintageRow per vintage column, giving us the full
+   * revision history: for each (observationDate, vintageDate) pair, the value known at that time.
+   */
   const rows: MacroSeriesVintageRow[] = [];
+  const prefix = `${seriesId}_`;
 
   for (const obs of observations) {
     const o = obs as Record<string, string>;
+    const observationDate = new Date(o.date);
 
-    // Filter out unreleased values (FRED represents missing as '.')
-    if (o.value === '.') continue;
+    // Collect all vintage columns for this observation date
+    // Sort by vintage date so we can compute realtimeEnd as next vintage - 1 day
+    const vintageEntries: Array<{ vintageDate: Date; value: number }> = [];
 
-    const value = parseFloat(o.value);
-    if (!isFinite(value)) continue;
+    for (const [key, val] of Object.entries(o)) {
+      if (!key.startsWith(prefix)) continue;
+      if (val === '.' || val === '') continue;
+      const value = parseFloat(val);
+      if (!isFinite(value)) continue;
 
-    rows.push({
-      seriesId,
-      observationDate: new Date(o.date),
-      realtimeStart: new Date(o.realtime_start),
-      realtimeEnd: new Date(o.realtime_end),
-      value,
-    });
+      const datePart = key.slice(prefix.length); // e.g. "20240101"
+      const vintageDate = new Date(
+        `${datePart.slice(0, 4)}-${datePart.slice(4, 6)}-${datePart.slice(6, 8)}`
+      );
+      if (isNaN(vintageDate.getTime())) continue;
+
+      vintageEntries.push({ vintageDate, value });
+    }
+
+    // Sort ascending by vintage date
+    vintageEntries.sort((a, b) => a.vintageDate.getTime() - b.vintageDate.getTime());
+
+    for (let i = 0; i < vintageEntries.length; i++) {
+      const { vintageDate, value } = vintageEntries[i];
+      // realtimeEnd = day before next vintage, or far-future for the last known vintage
+      const nextVintage = vintageEntries[i + 1]?.vintageDate;
+      const realtimeEnd = nextVintage
+        ? new Date(nextVintage.getTime() - 86400000) // one day before next revision
+        : new Date('9999-12-31');
+
+      rows.push({
+        seriesId,
+        observationDate,
+        realtimeStart: vintageDate,
+        realtimeEnd,
+        value,
+      });
+    }
   }
 
-  if (rows.length === 0 && observations.length > 0) {
+  if (rows.length === 0) {
     throw new Error(
-      `FRED vintage response for ${seriesId} returned ${observations.length} observations ` +
-      'but none could be parsed as point-in-time rows. ' +
-      'The response may use an unexpected format. No fallback to current observations (look-ahead bias prevention).'
+      `FRED vintage response for ${seriesId} returned ${observations.length} observation rows ` +
+      `but no vintage columns could be parsed. Expected keys like "${prefix}YYYYMMDD". ` +
+      'No fallback to current observations (look-ahead bias prevention).'
     );
   }
 
