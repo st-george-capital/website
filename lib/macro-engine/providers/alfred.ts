@@ -37,6 +37,13 @@ export async function fetchFredAllVintages(
   const response = await fetch(url.toString());
 
   if (!response.ok) {
+    if (response.status === 400 || response.status >= 500) {
+      console.warn(
+        `FRED vintage request for ${seriesId} failed with ${response.status}; ` +
+        'falling back to standard observations with observation-date realtime metadata.'
+      );
+      return fetchFredCurrentObservations(seriesId, startDate);
+    }
     throw new Error(`FRED API error: ${response.status} ${response.statusText}`);
   }
 
@@ -68,5 +75,60 @@ export async function fetchFredAllVintages(
     });
   }
 
+  if (rows.length === 0 && observations.length > 0) {
+    console.warn(
+      `FRED vintage response for ${seriesId} used matrix format; ` +
+      'falling back to standard observations with observation-date realtime metadata.'
+    );
+    return fetchFredCurrentObservations(seriesId, startDate);
+  }
+
   return rows;
+}
+
+async function fetchFredCurrentObservations(
+  seriesId: string,
+  startDate: string,
+): Promise<MacroSeriesVintageRow[]> {
+  const apiKey = process.env.FRED_API_KEY;
+  if (!apiKey) {
+    throw new Error('FRED_API_KEY is not set.');
+  }
+
+  const url = new URL(FRED_BASE);
+  url.searchParams.set('series_id', seriesId);
+  url.searchParams.set('observation_start', startDate);
+  url.searchParams.set('file_type', 'json');
+  url.searchParams.set('api_key', apiKey);
+  url.searchParams.set('limit', '10000');
+
+  const response = await fetch(url.toString());
+  if (!response.ok) {
+    throw new Error(`FRED API error: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  if (data.error_message) {
+    throw new Error(`FRED API error: ${data.error_message}`);
+  }
+
+  const observations: unknown[] = Array.isArray(data.observations) ? data.observations : [];
+  const realtimeEnd = new Date('9999-12-31');
+
+  return observations.flatMap((obs) => {
+    const o = obs as Record<string, string>;
+    if (o.value === '.') return [];
+
+    const value = parseFloat(o.value);
+    if (!Number.isFinite(value)) return [];
+
+    const observationDate = new Date(o.date);
+    return [{
+      seriesId,
+      observationDate,
+      realtimeStart: observationDate,
+      realtimeEnd,
+      value,
+    }];
+  });
 }

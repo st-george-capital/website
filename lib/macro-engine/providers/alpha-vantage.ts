@@ -44,11 +44,13 @@ async function fetchAv(params: Record<string, string>): Promise<unknown> {
 
 function parseRows(ticker: string, data: unknown): OhlcvDailyRow[] {
   const d = data as Record<string, unknown>;
-  const timeSeries = d['Time Series (Daily Adjusted)'] as Record<string, Record<string, string>> | undefined;
+  const timeSeries = (
+    d['Time Series (Daily Adjusted)'] ?? d['Time Series (Daily)']
+  ) as Record<string, Record<string, string>> | undefined;
 
   if (!timeSeries) {
     throw new Error(
-      `No 'Time Series (Daily Adjusted)' in response for ${ticker}. ` +
+      `No daily adjusted time series in response for ${ticker}. ` +
       'Ensure TIME_SERIES_DAILY_ADJUSTED endpoint was used, not TIME_SERIES_DAILY.'
     );
   }

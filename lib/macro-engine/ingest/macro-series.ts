@@ -52,25 +52,23 @@ export async function ingestMacroSeries(
 
       const rows = await fetchFredAllVintages(seriesId, startDate);
 
-      for (const row of rows) {
+      for (let start = 0; start < rows.length; start += 1000) {
+        const batch = rows.slice(start, start + 1000);
         try {
-          await prisma.$executeRaw`
-            INSERT INTO macro_series_vintage ("seriesId", "observationDate", "realtimeStart", "realtimeEnd", value)
-            VALUES (
-              ${row.seriesId},
-              ${row.observationDate},
-              ${row.realtimeStart},
-              ${row.realtimeEnd},
-              ${row.value}
-            )
-            ON CONFLICT ("seriesId", "observationDate", "realtimeStart") DO UPDATE SET
-              "realtimeEnd" = EXCLUDED."realtimeEnd",
-              value = EXCLUDED.value
-          `;
-          rowsUpserted++;
+          const created = await prisma.macroSeriesVintage.createMany({
+            data: batch.map((row) => ({
+              seriesId: row.seriesId,
+              observationDate: row.observationDate,
+              realtimeStart: row.realtimeStart,
+              realtimeEnd: row.realtimeEnd,
+              value: row.value,
+            })),
+            skipDuplicates: true,
+          });
+          rowsUpserted += created.count;
         } catch (err) {
           errors.push(
-            `${seriesId} ${row.observationDate.toISOString()}: ${err instanceof Error ? err.message : String(err)}`
+            `${seriesId} batch ${start / 1000 + 1}: ${err instanceof Error ? err.message : String(err)}`
           );
         }
       }

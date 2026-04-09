@@ -3,8 +3,9 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 export interface TimescaleDbStatus {
-  available: true;
-  version: string;
+  mode: 'timescale' | 'plain-postgres';
+  available: boolean;
+  version: string | null;
 }
 
 /**
@@ -12,7 +13,9 @@ export interface TimescaleDbStatus {
  * This must be called as the first step in the db bootstrap and ingest orchestrator
  * before any migration or data write.
  *
- * Exits non-zero with a clear operator message if TimescaleDB is absent or not enabled.
+ * Falls back to plain PostgreSQL if TimescaleDB is absent on this host.
+ * That is slower for large historical backtests, but keeps the macro engine
+ * runnable on managed Postgres providers that do not ship the extension.
  */
 export async function checkTimescaleDb(): Promise<TimescaleDbStatus> {
   const rows = await prisma.$queryRaw<
@@ -20,27 +23,28 @@ export async function checkTimescaleDb(): Promise<TimescaleDbStatus> {
   >`SELECT name, installed_version FROM pg_available_extensions WHERE name = 'timescaledb'`;
 
   if (!rows || rows.length === 0) {
-    throw new Error(
+    console.warn(
       'TimescaleDB extension not available on this PostgreSQL host. ' +
-      'Install timescaledb or switch to a provider that supports it ' +
-      '(e.g. Timescale Cloud, Supabase, Neon with timescaledb enabled). ' +
-      'Fallback: use plain PostgreSQL with composite index (ticker, date DESC) — ' +
-      'acceptable under 2M rows but loses compression and time_bucket().'
+      'Continuing with plain PostgreSQL fallback. Historical scans may be slower, ' +
+      'and Timescale compression/time_bucket() features will be unavailable.'
     );
+    return { mode: 'plain-postgres', available: false, version: null };
   }
 
   const row = rows[0];
 
   if (row.installed_version === null) {
-    throw new Error(
+    console.warn(
       'TimescaleDB is available but not enabled. ' +
-      'Run: CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;'
+      'Continuing with plain PostgreSQL fallback. To enable it later, run: ' +
+      'CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;'
     );
+    return { mode: 'plain-postgres', available: false, version: null };
   }
 
   console.log(`TimescaleDB available: version ${row.installed_version}`);
 
-  return { available: true, version: row.installed_version };
+  return { mode: 'timescale', available: true, version: row.installed_version };
 }
 
 export { prisma };

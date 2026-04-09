@@ -106,37 +106,30 @@ export async function ingestPrices(
       ? result.rows.filter((r) => r.date >= inception)
       : result.rows;
 
-    // Upsert rows
-    for (const row of rows) {
+    // Insert in batches. Prisma Postgres / Accelerate is much faster with
+    // createMany than thousands of one-row raw SQL upserts.
+    for (let start = 0; start < rows.length; start += 1000) {
+      const batch = rows.slice(start, start + 1000);
       try {
-        await prisma.$executeRaw`
-          INSERT INTO ohlcv_daily (ticker, date, open, high, low, close, "adjClose", volume, "dividendAmt", "splitCoeff")
-          VALUES (
-            ${row.ticker},
-            ${row.date},
-            ${row.open},
-            ${row.high},
-            ${row.low},
-            ${row.close},
-            ${row.adjClose},
-            ${row.volume},
-            ${row.dividendAmt},
-            ${row.splitCoeff}
-          )
-          ON CONFLICT (ticker, date) DO UPDATE SET
-            open = EXCLUDED.open,
-            high = EXCLUDED.high,
-            low = EXCLUDED.low,
-            close = EXCLUDED.close,
-            "adjClose" = EXCLUDED."adjClose",
-            volume = EXCLUDED.volume,
-            "dividendAmt" = EXCLUDED."dividendAmt",
-            "splitCoeff" = EXCLUDED."splitCoeff"
-        `;
-        rowsUpserted++;
+        const created = await prisma.ohlcvDaily.createMany({
+          data: batch.map((row) => ({
+            ticker: row.ticker,
+            date: row.date,
+            open: row.open,
+            high: row.high,
+            low: row.low,
+            close: row.close,
+            adjClose: row.adjClose,
+            volume: row.volume,
+            dividendAmt: row.dividendAmt,
+            splitCoeff: row.splitCoeff,
+          })),
+          skipDuplicates: true,
+        });
+        rowsUpserted += created.count;
       } catch (err) {
         errors.push(
-          `${result.ticker} ${row.date.toISOString()}: ${err instanceof Error ? err.message : String(err)}`
+          `${result.ticker} batch ${start / 1000 + 1}: ${err instanceof Error ? err.message : String(err)}`
         );
       }
     }
