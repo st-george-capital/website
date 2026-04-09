@@ -48,16 +48,17 @@ interface FactorYearRow {
 }
 
 async function printFactorNullTable(): Promise<void> {
+  // Columns are camelCase in Postgres (no @map on this model)
   const results = await prisma.$queryRaw<FactorYearRow[]>(Prisma.sql`
     SELECT
-      EXTRACT(YEAR FROM feature_date)::int AS year,
+      EXTRACT(YEAR FROM "featureDate")::int AS year,
       COUNT(*) AS total,
-      COUNT(z_growth)    AS z_growth_count,
-      COUNT(z_inflation) AS z_inflation_count,
-      COUNT(z_monetary)  AS z_monetary_count,
-      COUNT(z_credit)    AS z_credit_count,
-      COUNT(z_carry)     AS z_carry_count,
-      COUNT(z_earnings)  AS z_earnings_count
+      COUNT("zGrowth")    AS z_growth_count,
+      COUNT("zInflation") AS z_inflation_count,
+      COUNT("zMonetary")  AS z_monetary_count,
+      COUNT("zCredit")    AS z_credit_count,
+      COUNT("zCarry")     AS z_carry_count,
+      COUNT("zEarnings")  AS z_earnings_count
     FROM factor_feature_matrix
     GROUP BY 1
     ORDER BY 1

@@ -25,7 +25,8 @@
     "fit:regimes": "npx tsx scripts/macro-engine/run-regime-fit.ts",
     "verify:regime-stability": "npx tsx scripts/macro-engine/verify-regime-stability.ts",
     "backtest:run": "npx tsx scripts/macro-engine/run-backtest.ts",
-    "verify:backtest": "npx tsx scripts/macro-engine/verify-backtest.ts"
+    "verify:backtest": "npx tsx scripts/macro-engine/verify-backtest.ts",
+    "build:features": "npx tsx scripts/macro-engine/run-feature-build.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
