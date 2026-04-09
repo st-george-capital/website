@@ -94,7 +94,12 @@ Plans:
   3. Before backtest runs, SPY and benchmark price coverage is validated for the full backtest window — missing prices cause a non-zero exit, not a silent ??0 fallback
   4. A `npm run report:data-quality` command prints per-factor null % by year, flags years with >20% null, and identifies which FRED/AV/FMP fetches are producing sparse data
   5. The max drawdown of -1.000 is resolved — either a real data gap is found and fixed, or a guard prevents the metric from returning -1.0 when excess returns are empty/zero
-**Plans**: TBD
+**Plans**: 3 plans (3 waves)
+
+Plans:
+- [ ] 04.1-01-PLAN.md — Fix FRED vintage throw + maxDrawdown null guard
+- [ ] 04.1-02-PLAN.md — Exclude high-null rows from regime/backtest + benchmark pre-validation + pre-flight guard
+- [ ] 04.1-03-PLAN.md — Data quality report script + npm run report:data-quality
 
 ### Phase 5: Allocation Signals
 **Goal**: The system produces daily ranked allocation signals with conviction scores, probabilistic forecasts, single-stock picks, and analyst consensus validation — all ready for the dashboard to consume
@@ -131,6 +136,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 2. Feature Engineering | 5/5 | Complete    | 2026-04-09 |
 | 3. Regime Classifier | 3/3 | Complete    | 2026-04-09 |
 | 4. Backtesting Engine | 3/3 | Complete    | 2026-04-09 |
-| 4.1. Data Integrity and Validation | 0/TBD | Not started | - |
+| 4.1. Data Integrity and Validation | 0/3 | Not started | - |
 | 5. Allocation Signals | 0/TBD | Not started | - |
 | 6. Dashboard & Integration | 0/TBD | Not started | - |
