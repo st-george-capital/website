@@ -706,3 +706,45 @@ model SavedDCFModel {
 
   report EquityResearchReport?
 }
+
+// ─── Regime Classifier Models ─────────────────────────────────────────────────
+
+model RegimeTemplate {
+  id           String   @id @default(cuid())
+  fitDate      DateTime
+  regimeLabel  String
+  labelIndex   Int
+  centroidJson String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@map("regime_templates")
+}
+
+model RegimeLabel {
+  date        DateTime @id
+  regimeLabel String
+  labelIndex  Int
+  confidence  Float?
+  fitId       String
+  createdAt   DateTime @default(now())
+
+  @@map("regime_labels")
+}
+
+model RegimeTransition {
+  id         String   @id @default(cuid())
+  fitId      String
+  fromLabel  String
+  toLabel    String
+  prob1Day   Float
+  prob63Day  Float
+  prob126Day Float
+  prob252Day Float
+  computedAt DateTime @default(now())
+
+  @@unique([fitId, fromLabel, toLabel])
+  @@map("regime_transitions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
