@@ -16,6 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Feature Engineering** - Compute point-in-time rolling z-scores, cross-sectional rankings, and the full factor feature matrix with look-ahead bias tests (completed 2026-04-09)
 - [ ] **Phase 3: Regime Classifier** - Fit data-derived regime clusters, stabilize labels across re-fits, validate against known historical shocks, and compute transition probabilities
 - [x] **Phase 4: Backtesting Engine** - Walk-forward train/test with regime-conditioned weight optimization, holdout OOS validation, and Sharpe/hit-rate reporting (completed 2026-04-09)
+- [ ] **Phase 4.1: Data Integrity and Validation** (INSERTED) - Fix silent null imputation, FRED vintage fallbacks, missing price gaps, and add pre-flight data quality checks before models run
 - [ ] **Phase 5: Allocation Signals** - Daily scoring cron, conviction scores with factor attribution, probabilistic forecasts, O'Neil single-stock screening, and analyst consensus overlay
 - [ ] **Phase 6: Dashboard & Integration** - Regime badge, allocation table, backtest stats panel, single-stock picks panel, and tools-page card
 
@@ -83,6 +84,18 @@ Plans:
 - [x] 04-02-PLAN.md — Core lib: windows.ts, returns.ts, weights.ts, metrics.ts
 - [x] 04-03-PLAN.md — CLI orchestrator (index.ts, run-backtest.ts, verify-backtest.ts) + npm scripts
 
+### Phase 4.1: Data Integrity and Validation
+**Goal**: All model inputs are validated for completeness and correctness before any model (regime classifier, backtest) runs — silent null imputation is replaced with explicit checks, FRED vintage fallbacks are logged and flagged, and a data quality report shows real coverage per factor per date range
+**Depends on**: Phase 4
+**Requirements**: DATA-01, DATA-02, FEAT-01, FEAT-03 (data quality enforcement)
+**Success Criteria** (what must be TRUE):
+  1. FRED vintage fetch failures throw explicitly (no silent downgrade to current observations) — look-ahead bias is impossible from this path
+  2. Before regime fitting runs, a pre-flight check asserts >80% non-null coverage across all 6 factors — exits non-zero with a readable report if coverage is insufficient
+  3. Before backtest runs, SPY and benchmark price coverage is validated for the full backtest window — missing prices cause a non-zero exit, not a silent ??0 fallback
+  4. A `npm run report:data-quality` command prints per-factor null % by year, flags years with >20% null, and identifies which FRED/AV/FMP fetches are producing sparse data
+  5. The max drawdown of -1.000 is resolved — either a real data gap is found and fixed, or a guard prevents the metric from returning -1.0 when excess returns are empty/zero
+**Plans**: TBD
+
 ### Phase 5: Allocation Signals
 **Goal**: The system produces daily ranked allocation signals with conviction scores, probabilistic forecasts, single-stock picks, and analyst consensus validation — all ready for the dashboard to consume
 **Depends on**: Phase 4
@@ -116,7 +129,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Data Foundation | 4/4 | Complete    | 2026-04-09 |
 | 2. Feature Engineering | 5/5 | Complete    | 2026-04-09 |
-| 3. Regime Classifier | 0/TBD | Not started | - |
+| 3. Regime Classifier | 3/3 | Complete    | 2026-04-09 |
 | 4. Backtesting Engine | 3/3 | Complete    | 2026-04-09 |
+| 4.1. Data Integrity and Validation | 0/TBD | Not started | - |
 | 5. Allocation Signals | 0/TBD | Not started | - |
 | 6. Dashboard & Integration | 0/TBD | Not started | - |
