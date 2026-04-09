@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Feature Engineering** - Compute point-in-time rolling z-scores, cross-sectional rankings, and the full factor feature matrix with look-ahead bias tests (completed 2026-04-09)
 - [ ] **Phase 3: Regime Classifier** - Fit data-derived regime clusters, stabilize labels across re-fits, validate against known historical shocks, and compute transition probabilities
 - [x] **Phase 4: Backtesting Engine** - Walk-forward train/test with regime-conditioned weight optimization, holdout OOS validation, and Sharpe/hit-rate reporting (completed 2026-04-09)
-- [ ] **Phase 4.1: Data Integrity and Validation** (INSERTED) - Fix silent null imputation, FRED vintage fallbacks, missing price gaps, and add pre-flight data quality checks before models run
+- [x] **Phase 4.1: Data Integrity and Validation** (INSERTED) - Fix silent null imputation, FRED vintage fallbacks, missing price gaps, and add pre-flight data quality checks before models run (completed 2026-04-09)
 - [ ] **Phase 5: Allocation Signals** - Daily scoring cron, conviction scores with factor attribution, probabilistic forecasts, O'Neil single-stock screening, and analyst consensus overlay
 - [ ] **Phase 6: Dashboard & Integration** - Regime badge, allocation table, backtest stats panel, single-stock picks panel, and tools-page card
 
@@ -136,6 +136,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 2. Feature Engineering | 5/5 | Complete    | 2026-04-09 |
 | 3. Regime Classifier | 3/3 | Complete    | 2026-04-09 |
 | 4. Backtesting Engine | 3/3 | Complete    | 2026-04-09 |
-| 4.1. Data Integrity and Validation | 0/3 | Not started | - |
+| 4.1. Data Integrity and Validation | 3/3 | Complete   | 2026-04-09 |
 | 5. Allocation Signals | 0/TBD | Not started | - |
 | 6. Dashboard & Integration | 0/TBD | Not started | - |
