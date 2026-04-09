@@ -54,7 +54,7 @@ export interface TrainRow {
   ticker:      string;
   featureDate: Date;
   regimeLabel: string;
-  features:    number[]; // length 6, nulls imputed to 0
+  features:    number[]; // length 6, nulls imputed to 0 (addressed in Phase 4.1)
   fwdReturn:   number;   // (adjClose[featureDate+forwardDays] / adjClose[featureDate]) - 1, excess over SPY
 }
 
@@ -86,7 +86,7 @@ export interface MetricsResult {
   benchmark:   'SPY' | 'ACWI';
   hitRate:     number; // 0-1
   sharpeAnn:   number; // annualized Sharpe on excess returns
-  maxDrawdown: number; // negative fraction, e.g. -0.35
+  maxDrawdown: number | null; // negative fraction, e.g. -0.35; null when no excess return data
   startDate:   Date;
   endDate:     Date;
   nPeriods:    number;

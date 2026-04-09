@@ -244,7 +244,7 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
   console.log(
     `OOS metrics: hitRate=${oosMetrics.hitRate.toFixed(3)}, sharpe=${oosMetrics.sharpeAnn.toFixed(
       3,
-    )}, maxDD=${oosMetrics.maxDrawdown.toFixed(3)}`,
+    )}, maxDD=${oosMetrics.maxDrawdown?.toFixed(3) ?? 'null'}`,
   );
 
   if (finalWeightSets.length === 0) {
@@ -317,9 +317,7 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
   console.log(
     `Holdout metrics: hitRate=${holdoutMetrics.hitRate.toFixed(
       3,
-    )}, sharpe=${holdoutMetrics.sharpeAnn.toFixed(3)}, maxDD=${holdoutMetrics.maxDrawdown.toFixed(
-      3,
-    )}`,
+    )}, sharpe=${holdoutMetrics.sharpeAnn.toFixed(3)}, maxDD=${holdoutMetrics.maxDrawdown?.toFixed(3) ?? 'null'}`,
   );
 
   const run = await prisma.backtestRun.create({
@@ -355,7 +353,7 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
     benchmark: metric.benchmark,
     hitRate: metric.hitRate,
     sharpeAnn: metric.sharpeAnn,
-    maxDrawdown: metric.maxDrawdown,
+    maxDrawdown: metric.maxDrawdown ?? 0,
     startDate: toDateKey(metric.startDate),
     endDate: toDateKey(metric.endDate),
     nPeriods: metric.nPeriods,

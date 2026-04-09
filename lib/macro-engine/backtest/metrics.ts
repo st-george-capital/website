@@ -36,7 +36,15 @@ export function annualizedSharpe(excessReturns: number[], periodsPerYear: number
  * Returns a negative fraction — e.g. -0.35 for a 35% drawdown.
  * Computes on the FULL series (cumulative), not per-window max.
  */
-export function maxDrawdown(periodReturns: number[]): number {
+export function maxDrawdown(periodReturns: number[]): number | null {
+  if (periodReturns.length === 0) {
+    console.warn('maxDrawdown: received empty periodReturns — returning null instead of -1.0');
+    return null;
+  }
+  if (periodReturns.every(r => r === 0)) {
+    console.warn('maxDrawdown: all period returns are zero — returning null (no meaningful drawdown)');
+    return null;
+  }
   let peak       = 1;
   let maxDD      = 0;
   let cumulative = 1;
