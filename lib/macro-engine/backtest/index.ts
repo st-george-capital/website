@@ -37,6 +37,10 @@ function toDateKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+function countNullDimensions(row: FeatureSliceRow): number {
+  return BACKTEST_FEATURE_DIMS.filter((dim) => row[dim] === null).length;
+}
+
 function toFeatureVector(row: FeatureSliceRow): number[] {
   return BACKTEST_FEATURE_DIMS.map((dim) => row[dim] ?? 0);
 }
@@ -155,10 +159,17 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
     const trainingReturnMap = toReturnMap(trainingReturns);
 
     const trainRows: TrainRow[] = [];
+    let excludedTrainRows = 0;
     for (const row of trainingFeatures) {
       const dateKey = toDateKey(row.featureDate);
       const forwardReturn = trainingReturnMap.get(`${row.ticker}|${dateKey}`);
       if (forwardReturn === undefined) continue;
+
+      // Exclude rows where >3 of 6 dimensions are null (would fabricate too much signal)
+      if (countNullDimensions(row) > 3) {
+        excludedTrainRows++;
+        continue;
+      }
 
       trainRows.push({
         ticker: row.ticker,
@@ -167,6 +178,9 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
         features: toFeatureVector(row),
         fwdReturn: forwardReturn,
       });
+    }
+    if (excludedTrainRows > 0) {
+      console.warn(`    window ${index + 1}: excluded ${excludedTrainRows} train rows with >3 null dimensions`);
     }
 
     if (trainRows.length === 0) {
@@ -213,6 +227,18 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
 
     const benchmarkReturns = await computeForwardReturns(['SPY'], window.testStart, window.testEnd);
     const benchmarkReturnMap = toBenchmarkMap(benchmarkReturns, 'SPY');
+
+    // Pre-validate benchmark coverage: every test date that has asset features must have a benchmark price
+    const testDateKeys = new Set(testFeatures.map(r => toDateKey(r.featureDate)));
+    const missingBenchmarkDates = [...testDateKeys].filter(dk => !benchmarkReturnMap.has(dk));
+    if (missingBenchmarkDates.length > 0) {
+      const sample = missingBenchmarkDates.slice(0, 3).join(', ');
+      throw new Error(
+        `Benchmark price gap detected in window ${index + 1}: SPY prices missing for ` +
+        `${missingBenchmarkDates.length} date(s) (e.g. ${sample}). ` +
+        'Ingest SPY prices before running backtest.'
+      );
+    }
 
     const weightSetMap = new Map(weightSets.map((weightSet) => [weightSet.regimeLabel, weightSet.weights]));
     const globalWeights = weightSetMap.get('global') ?? weightSets[0]?.weights;
