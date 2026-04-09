@@ -42,7 +42,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Cross-sectional factor rankings across all countries and sectors are stored for every date in the backtest window
   3. The automated look-ahead bias test fails the pipeline (non-zero exit) if any feature row references a data point dated after the feature date
   4. Country-health pillar scores and flows regime signal are read from existing pipelines and appear as columns in the feature matrix without being recomputed
-**Plans**: TBD
+**Plans**: 5 plans (4 waves)
+
+Plans:
+- [ ] 02-01-PLAN.md — Credit spread ingest gap + FactorFeatureMatrix schema + FeatureRow type contracts
+- [ ] 02-02-PLAN.md — rollingZScore helper + 6 macro factor compute functions (FEAT-01)
+- [ ] 02-03-PLAN.md — Country-health and flows regime factor adapters (FEAT-05)
+- [ ] 02-04-PLAN.md — Cross-section ranking + buildFeatureRow orchestrator + batch builder + CLI (FEAT-02, FEAT-03)
+- [ ] 02-05-PLAN.md — Look-ahead bias assertion + verify-feature-matrix script (FEAT-04)
 
 ### Phase 3: Regime Classifier
 **Goal**: A validated, data-derived regime classifier labels every historical date with a stable regime and produces transition probabilities
@@ -98,7 +105,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Data Foundation | 4/4 | Complete    | 2026-04-09 |
-| 2. Feature Engineering | 0/TBD | Not started | - |
+| 2. Feature Engineering | 0/5 | Not started | - |
 | 3. Regime Classifier | 0/TBD | Not started | - |
 | 4. Backtesting Engine | 0/TBD | Not started | - |
 | 5. Allocation Signals | 0/TBD | Not started | - |
