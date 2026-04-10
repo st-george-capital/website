@@ -111,7 +111,13 @@ Plans:
   3. For each country and sector, the system computes P(outperforms benchmark in 6 months) and P(outperforms in 12 months) based on current factor and regime state
   4. For any favored sector, the single-stock filter returns equities ranked by EPS rank, SMR rating, computed RS rating, DMA position, institutional sponsorship trend, and earnings revision momentum
   5. The top analyst buy/sell recommendations for favored equities appear alongside model signals, showing alignment or divergence between model and consensus
-**Plans**: TBD
+**Plans**: 4 plans (4 waves)
+
+Plans:
+- [ ] 05-01-PLAN.md — Prisma schema (AllocationSignal, StockScreenResult) + scoring orchestrator + cron route + CLI + verify script (ALLC-01, ALLC-02)
+- [ ] 05-02-PLAN.md — Probabilistic forecasts: P(outperforms 6m/12m) via empirical calibration (ALLC-03)
+- [ ] 05-03-PLAN.md — Single-stock screener: equity OHLCV ingest + O'Neil proxy scoring (ALLC-04)
+- [ ] 05-04-PLAN.md — Analyst consensus overlay: FMP grades/recommendations adapter (ALLC-05)
 
 ### Phase 6: Dashboard & Integration
 **Goal**: Users can view current macro regime, ranked allocation signals, backtest credibility stats, and single-stock recommendations in one dashboard, accessible from the tools page
@@ -137,5 +143,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. Regime Classifier | 3/3 | Complete    | 2026-04-09 |
 | 4. Backtesting Engine | 3/3 | Complete    | 2026-04-09 |
 | 4.1. Data Integrity and Validation | 3/3 | Complete    | 2026-04-09 |
-| 5. Allocation Signals | 0/TBD | Not started | - |
+| 5. Allocation Signals | 0/4 | Not started | - |
 | 6. Dashboard & Integration | 0/TBD | Not started | - |
