@@ -1,6 +1,6 @@
 // lib/macro-engine/features/index.ts
 import { eachDayOfInterval, isWeekend } from 'date-fns';
-import { prisma } from '../db';
+import { prismaDirectUrl as prisma } from '../db';
 import type { FeatureRow, UniverseEntry } from '../types';
 import { computeGrowthFactor }       from './factors/growth';
 import { computeInflationFactor }    from './factors/inflation';
@@ -11,6 +11,7 @@ import { computeEarningsFactor }     from './factors/earnings';
 import { computeCountryHealthScore } from './factors/country-health';
 import { computeFlowsRegimeScore }   from './factors/flows-regime';
 import { computeCrossSection }       from './cross-section';
+import { clearFredRangeCache }       from '../query';
 
 export async function buildFeatureRow(
   asOfDate: Date,
@@ -76,20 +77,45 @@ export async function buildFeatureMatrix(
   for (let di = 0; di < allDays.length; di++) {
     const date = allDays[di];
 
+    // Clear FRED range cache so all tickers on this date share cached results
+    clearFredRangeCache();
+
     const rows: FeatureRow[] = await Promise.all(
       universe.map(entry => buildFeatureRow(date, entry))
     );
 
     const ranked = computeCrossSection(rows);
 
+    // Batch upsert via raw SQL — avoids Prisma Accelerate 10s per-query timeout
+    // that ORM upsert triggers (SELECT + INSERT/UPDATE as two round trips)
     for (const row of ranked) {
-      // Strip sourceDataMaxDates before upsert — not a DB column
       const { sourceDataMaxDates: _smd, ...dbRow } = row;
-      await prisma.factorFeatureMatrix.upsert({
-        where: { featureDate_ticker: { featureDate: row.featureDate, ticker: row.ticker } },
-        create: dbRow,
-        update: dbRow,
-      });
+      await prisma.$executeRaw`
+        INSERT INTO factor_feature_matrix (
+          "featureDate", ticker, "countryCode",
+          "zGrowth", "zInflation", "zMonetary", "zCredit", "zCarry", "zEarnings",
+          "rankGrowth", "rankInflation", "rankMonetary", "rankCredit", "rankCarry", "rankEarnings",
+          "countryHealthScore", "flowsRegimeScore", "countryHealthVintage", "dataAsOf", "builtAt"
+        ) VALUES (
+          ${dbRow.featureDate}, ${dbRow.ticker}, ${dbRow.countryCode},
+          ${dbRow.zGrowth}, ${dbRow.zInflation}, ${dbRow.zMonetary}, ${dbRow.zCredit}, ${dbRow.zCarry}, ${dbRow.zEarnings},
+          ${dbRow.rankGrowth}, ${dbRow.rankInflation}, ${dbRow.rankMonetary}, ${dbRow.rankCredit}, ${dbRow.rankCarry}, ${dbRow.rankEarnings},
+          ${dbRow.countryHealthScore}, ${dbRow.flowsRegimeScore}, ${dbRow.countryHealthVintage}, ${dbRow.dataAsOf}, NOW()
+        )
+        ON CONFLICT ("featureDate", ticker) DO UPDATE SET
+          "countryCode" = EXCLUDED."countryCode",
+          "zGrowth" = EXCLUDED."zGrowth", "zInflation" = EXCLUDED."zInflation",
+          "zMonetary" = EXCLUDED."zMonetary", "zCredit" = EXCLUDED."zCredit",
+          "zCarry" = EXCLUDED."zCarry", "zEarnings" = EXCLUDED."zEarnings",
+          "rankGrowth" = EXCLUDED."rankGrowth", "rankInflation" = EXCLUDED."rankInflation",
+          "rankMonetary" = EXCLUDED."rankMonetary", "rankCredit" = EXCLUDED."rankCredit",
+          "rankCarry" = EXCLUDED."rankCarry", "rankEarnings" = EXCLUDED."rankEarnings",
+          "countryHealthScore" = EXCLUDED."countryHealthScore",
+          "flowsRegimeScore" = EXCLUDED."flowsRegimeScore",
+          "countryHealthVintage" = EXCLUDED."countryHealthVintage",
+          "dataAsOf" = EXCLUDED."dataAsOf",
+          "builtAt" = NOW()
+      `;
       rowsWritten++;
     }
 

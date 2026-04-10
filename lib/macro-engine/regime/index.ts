@@ -3,7 +3,7 @@
 // Called by scripts/macro-engine/run-regime-fit.ts.
 // Does NOT contain algorithm logic — delegates to cluster.ts, templates.ts, transitions.ts.
 
-import { prisma } from '../db';
+import { prismaDirectUrl as prisma } from '../db';
 import { buildDailyFeatureVectors, fitClusters, autoNameRegime } from './cluster';
 import { loadActiveTemplates, saveTemplates, matchToTemplates, euclideanDist } from './templates';
 import { computeTransitionMatrix, buildTransitionRows } from './transitions';

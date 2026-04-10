@@ -2,11 +2,11 @@
  * lib/macro-engine/features/factors/growth.ts
  *
  * Compute growth factor z-score (point-in-time).
- * - US: INDPRO industrial production MoM % change, rollingZScore with MONTHLY_WINDOW
+ * - US: GDP QoQ % change (INDPRO unavailable via ALFRED vintage; GDP is quarterly but available)
  * - Non-US: OECD CLI series, rollingZScore with MONTHLY_WINDOW
  */
 import { subMonths } from 'date-fns';
-import { getFredAsOf, getOecdCli } from '../../query';
+import { getFredRangeAsOf, getOecdCli } from '../../query';
 import { rollingZScore, MONTHLY_WINDOW } from '../z-scores';
 
 export async function computeGrowthFactor(
@@ -23,32 +23,26 @@ export async function computeGrowthFactor(
     return { value: rollingZScore(series, MONTHLY_WINDOW, asOfDate), sourceMaxDate };
   }
 
-  // US: INDPRO industrial production MoM % change
-  const rawSeries: { date: Date; value: number }[] = [];
-  let sourceMaxDate: Date | null = null;
+  // US: GDP QoQ % change — batch fetch 70 months worth of quarterly observations
+  const obsStart = subMonths(asOfDate, 70);
+  const vintageRows = await getFredRangeAsOf('GDP', obsStart, asOfDate, asOfDate);
 
-  for (let i = 65; i >= 0; i--) {
-    const obsDate = subMonths(asOfDate, i);
-    const row = await getFredAsOf('INDPRO', obsDate, asOfDate);
-    if (row) {
-      rawSeries.push({ date: row.observationDate, value: row.value });
-      if (!sourceMaxDate || row.observationDate > sourceMaxDate) {
-        sourceMaxDate = row.observationDate;
-      }
-    }
-  }
+  if (vintageRows.length < 2) return { value: null, sourceMaxDate: null };
 
-  // Compute MoM % change series
-  const momSeries: { date: Date; value: number }[] = [];
+  const rawSeries = vintageRows.map(r => ({ date: r.observationDate, value: r.value }));
+  const sourceMaxDate = rawSeries[rawSeries.length - 1].date;
+
+  // Compute QoQ % change series
+  const qoqSeries: { date: Date; value: number }[] = [];
   for (let i = 1; i < rawSeries.length; i++) {
     const prev = rawSeries[i - 1].value;
     if (prev !== 0) {
-      momSeries.push({
+      qoqSeries.push({
         date: rawSeries[i].date,
         value: (rawSeries[i].value / prev - 1) * 100,
       });
     }
   }
 
-  return { value: rollingZScore(momSeries, MONTHLY_WINDOW, asOfDate), sourceMaxDate };
+  return { value: rollingZScore(qoqSeries, MONTHLY_WINDOW, asOfDate), sourceMaxDate };
 }

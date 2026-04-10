@@ -2,6 +2,19 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+/**
+ * Direct Postgres client that bypasses Prisma Accelerate.
+ * Use for bulk read queries that exceed Accelerate limits:
+ *   - P6009: Response > 5MB
+ *   - P6004: Query > 10s execution time
+ *
+ * Only available in server-side scripts (Node.js) — not for API routes.
+ * Falls back to the standard Accelerate client if DIRECT_URL is not set.
+ */
+export const prismaDirectUrl = process.env.DIRECT_URL
+  ? new PrismaClient({ datasourceUrl: process.env.DIRECT_URL })
+  : prisma;
+
 export interface TimescaleDbStatus {
   mode: 'timescale' | 'plain-postgres';
   available: boolean;

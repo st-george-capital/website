@@ -1,6 +1,6 @@
 // lib/macro-engine/regime/cluster.ts
 import { kmeans } from 'ml-kmeans';
-import { prisma } from '../db';
+import { prismaDirectUrl as prisma } from '../db';
 import type { DailyFeatureVector, RegimeFitResult } from './types';
 import { FEATURE_DIMENSIONS } from './types';
 import { createId } from '@paralleldrive/cuid2';

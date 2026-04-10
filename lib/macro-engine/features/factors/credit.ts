@@ -2,31 +2,26 @@
  * lib/macro-engine/features/factors/credit.ts
  *
  * Compute credit factor z-score (point-in-time).
- * - Fetches BAMLH0A0HYM2 (HY OAS spread) for last 65 months (daily series)
- * - rollingZScore with DAILY_WINDOW=252
+ * - Fetches UNRATE (unemployment rate) as credit proxy — vintage-available monthly series
+ * - BAMLH0A0HYM2 (HY OAS) not available via ALFRED output_type=2 (HTTP 400)
+ * - rollingZScore with MONTHLY_WINDOW=60
  */
 import { subMonths } from 'date-fns';
-import { getFredAsOf } from '../../query';
-import { rollingZScore, DAILY_WINDOW } from '../z-scores';
+import { getFredRangeAsOf } from '../../query';
+import { rollingZScore, MONTHLY_WINDOW } from '../z-scores';
 
 export async function computeCreditFactor(
   asOfDate: Date
 ): Promise<{ value: number | null; sourceMaxDate: Date | null }> {
-  const series: { date: Date; value: number }[] = [];
-  let sourceMaxDate: Date | null = null;
+  const obsStart = subMonths(asOfDate, 65);
 
-  // BAMLH0A0HYM2 is a daily series — fetch monthly observation points as proxies
-  // (getFredAsOf returns the vintage as-of asOfDate for the given observation period)
-  for (let i = 65; i >= 0; i--) {
-    const obsDate = subMonths(asOfDate, i);
-    const row = await getFredAsOf('BAMLH0A0HYM2', obsDate, asOfDate);
-    if (row) {
-      series.push({ date: row.observationDate, value: row.value });
-      if (!sourceMaxDate || row.observationDate > sourceMaxDate) {
-        sourceMaxDate = row.observationDate;
-      }
-    }
-  }
+  // Use UNRATE as credit conditions proxy (vintage-available; inverted risk signal)
+  const rows = await getFredRangeAsOf('UNRATE', obsStart, asOfDate, asOfDate);
 
-  return { value: rollingZScore(series, DAILY_WINDOW, asOfDate), sourceMaxDate };
+  if (rows.length === 0) return { value: null, sourceMaxDate: null };
+
+  const series = rows.map(r => ({ date: r.observationDate, value: r.value }));
+  const sourceMaxDate = rows[rows.length - 1].observationDate;
+
+  return { value: rollingZScore(series, MONTHLY_WINDOW, asOfDate), sourceMaxDate };
 }

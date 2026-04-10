@@ -17,7 +17,7 @@
  *   Expected: ohlcv_daily, macro_series_vintage, earnings_revisions, oecd_leading_indicators
  */
 
-import { prisma } from './db';
+import { prismaDirectUrl as prisma } from './db';
 import type {
   OhlcvDailyRow,
   MacroSeriesVintageRow,
@@ -91,6 +91,64 @@ export async function getFredAsOf(
     LIMIT 1
   `;
   return rows[0] ?? null;
+}
+
+/**
+ * Per-call cache for getFredRangeAsOf — keyed by "seriesId|asOfDate".
+ * Cleared by calling clearFredRangeCache(). Used to avoid redundant DB hits
+ * when the same FRED series is needed by multiple factor computations on the same date.
+ */
+const _fredRangeCache = new Map<string, MacroSeriesVintageRow[]>();
+
+export function clearFredRangeCache(): void {
+  _fredRangeCache.clear();
+}
+
+/**
+ * Returns all FRED observations for a series in [obsStart, obsEnd] as known on asOfDate.
+ * One query replaces N individual getFredAsOf calls — use this for rolling window calculations.
+ *
+ * For each distinct observationDate in the window, returns the vintage that was valid on asOfDate
+ * (realtimeStart <= asOfDate AND realtimeEnd >= asOfDate), taking the latest realtimeStart.
+ *
+ * Results are cached by (seriesId, asOfDate) — call clearFredRangeCache() between dates.
+ */
+export async function getFredRangeAsOf(
+  seriesId: string,
+  obsStart: Date,
+  obsEnd: Date,
+  asOfDate: Date
+): Promise<MacroSeriesVintageRow[]> {
+  // Cache key: series + asOfDate. obsStart/obsEnd vary per call but we always use
+  // 65–73 months back from asOfDate — keying on asOfDate is sufficient since the
+  // result is trimmed by obsStart anyway.
+  const cacheKey = `${seriesId}|${asOfDate.toISOString().slice(0, 10)}`;
+  if (_fredRangeCache.has(cacheKey)) {
+    const cached = _fredRangeCache.get(cacheKey)!;
+    // Filter to requested obs range
+    return cached.filter(r => r.observationDate >= obsStart && r.observationDate <= obsEnd);
+  }
+
+  // Fetch 80 months of data (max any factor needs is 73 months for inflation)
+  const wideStart = new Date(asOfDate.getTime() - 80 * 30.5 * 86400000);
+  const rows = await prisma.$queryRaw<MacroSeriesVintageRow[]>`
+    SELECT DISTINCT ON ("observationDate")
+      "seriesId",
+      "observationDate",
+      "realtimeStart",
+      "realtimeEnd",
+      value
+    FROM macro_series_vintage
+    WHERE "seriesId" = ${seriesId}
+      AND "observationDate" >= ${wideStart}
+      AND "observationDate" <= ${asOfDate}
+      AND "realtimeStart" <= ${asOfDate}
+      AND "realtimeEnd" >= ${asOfDate}
+    ORDER BY "observationDate" ASC, "realtimeStart" DESC
+  `;
+
+  _fredRangeCache.set(cacheKey, rows);
+  return rows.filter(r => r.observationDate >= obsStart && r.observationDate <= obsEnd);
 }
 
 /**

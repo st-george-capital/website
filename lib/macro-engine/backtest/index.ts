@@ -1,4 +1,4 @@
-import { prisma } from '../db';
+import { prismaDirectUrl as prisma } from '../db';
 import { getUniverse } from '../universe';
 import {
   BACKTEST_FEATURE_DIMS,
@@ -243,14 +243,15 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
     const benchmarkReturns = await computeForwardReturns(['SPY'], window.testStart, window.testEnd);
     const benchmarkReturnMap = toBenchmarkMap(benchmarkReturns, 'SPY');
 
-    // Pre-validate benchmark coverage: every test date that has asset features must have a benchmark price
-    const testDateKeys = new Set(testFeatures.map(r => toDateKey(r.featureDate)));
-    const missingBenchmarkDates = [...testDateKeys].filter(dk => !benchmarkReturnMap.has(dk));
+    // Pre-validate benchmark coverage: any date that has asset forward returns must also have SPY return.
+    // (Dates with no asset returns are market holidays — skip them, not a data error.)
+    const datesWithAssetReturns = new Set([...testReturnMap.keys()].map(k => k.split('|')[1]));
+    const missingBenchmarkDates = [...datesWithAssetReturns].filter(dk => !benchmarkReturnMap.has(dk));
     if (missingBenchmarkDates.length > 0) {
       const sample = missingBenchmarkDates.slice(0, 3).join(', ');
       throw new Error(
         `Benchmark price gap detected in window ${index + 1}: SPY prices missing for ` +
-        `${missingBenchmarkDates.length} date(s) (e.g. ${sample}). ` +
+        `${missingBenchmarkDates.length} date(s) that have asset returns (e.g. ${sample}). ` +
         'Ingest SPY prices before running backtest.'
       );
     }

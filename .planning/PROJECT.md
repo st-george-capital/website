@@ -26,7 +26,8 @@ Given the current global macro regime, tell me which countries and sectors will 
 - [ ] Backtesting engine — 10–20 year lookback, hit rate + simulated P&L vs benchmark, per sector and country
 - [ ] Probabilistic forecasting — P(regime transition), P(central bank action), P(sector/country sees inflows/outperformance in 2Y window)
 - [ ] ETF + single-stock universe management — dynamic, not hardcoded; driven by sector/country mapping
-- [ ] Forward-looking dashboard view — current signals, probabilities, allocation table with entry ETFs/equities
+- [ ] Single-stock filtering layer — within favored sectors/countries, screen equities on O'Neil-style fundamentals (EPS rank, SMR rating, RS rating), technical structure (base patterns, DMA position), institutional sponsorship trends (fund count y/y), and earnings revision momentum
+- [ ] Forward-looking dashboard view — current signals, probabilities, allocation table with entry ETFs + highest-conviction individual equities per sector
 - [ ] Integration with existing country-health and flows dashboards — reuse scores and signals, don't rebuild
 - [ ] Tools page card — add Macro Allocation Engine entry to `/dashboard/tools`
 
@@ -46,9 +47,9 @@ Given the current global macro regime, tell me which countries and sectors will 
 - FRED data fetched in country-health ingest — reusable pattern for macro time-series.
 
 **Data sources available:**
-- Alpha Vantage (premium): price history, ETF data, earnings, news sentiment, economic indicators
+- Alpha Vantage (premium): price history, ETF data, earnings, news sentiment, economic indicators, EPS/SMR data
 - FRED: macro time series (rates, spreads, GDP, CPI, PMI, unemployment, yield curves)
-- Additional needed: credit/bond spreads by country (FRED has some), commodity prices (AV has some), earnings revision data
+- Additional needed: credit/bond spreads by country (FRED has some), commodity prices (AV has some), earnings revision data, RS ratings / institutional sponsorship counts (IBD-style — may need proxy computation from price + volume data)
 
 **Design constraints:**
 - Factor weights must be model-derived (from backtesting), not hand-tuned constants
@@ -73,4 +74,4 @@ Given the current global macro regime, tell me which countries and sectors will 
 | Model-derived weights via backtest optimization | Prevents overfitting to intuition; weights justified by historical evidence | — Pending |
 
 ---
-*Last updated: 2026-04-08 after initialization*
+*Last updated: 2026-04-08 after adding O'Neil-style single stock screening layer*

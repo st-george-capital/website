@@ -79,10 +79,10 @@ export async function computeFlowsRegimeScore(
   const seriesMap: Record<string, OhlcvDailyRow[]> = {};
   let sourceMaxDate: Date | null = null;
 
-  for (const t of allTickers) {
-    const rows = await getOhlcv(t, windowStart, asOfDate);
-    seriesMap[t] = rows;
-    for (const r of rows) {
+  const allRows = await Promise.all(allTickers.map(t => getOhlcv(t, windowStart, asOfDate)));
+  for (let i = 0; i < allTickers.length; i++) {
+    seriesMap[allTickers[i]] = allRows[i];
+    for (const r of allRows[i]) {
       if (!sourceMaxDate || r.date > sourceMaxDate) sourceMaxDate = r.date;
     }
   }

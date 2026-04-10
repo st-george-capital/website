@@ -6,11 +6,13 @@
  * - For sector ETFs (countryCode=null): returns null (carry not applicable)
  */
 import { subMonths } from 'date-fns';
-import { getFredAsOf } from '../../query';
+import { getFredRangeAsOf } from '../../query';
 import { rollingZScore, MONTHLY_WINDOW } from '../z-scores';
 
 /**
  * Maps ISO2 country codes to their central bank policy rate FRED series IDs.
+ * Only FEDFUNDS is guaranteed available via ALFRED output_type=2.
+ * Other central bank series may be missing — carry returns null in that case.
  */
 const COUNTRY_RATE_SERIES: Record<string, string> = {
   US: 'FEDFUNDS',
@@ -25,48 +27,32 @@ const COUNTRY_RATE_SERIES: Record<string, string> = {
   CA: 'IRSTCB01CAM156N',
 };
 
-async function fetchRateSeries(
-  seriesId: string,
-  asOfDate: Date,
-  monthsBack: number
-): Promise<{ date: Date; value: number }[]> {
-  const result: { date: Date; value: number }[] = [];
-  for (let i = monthsBack; i >= 0; i--) {
-    const obsDate = subMonths(asOfDate, i);
-    const row = await getFredAsOf(seriesId, obsDate, asOfDate);
-    if (row) {
-      result.push({ date: row.observationDate, value: row.value });
-    }
-  }
-  return result;
-}
-
 export async function computeCarryFactor(
   asOfDate: Date,
   countryCode: string | null
 ): Promise<{ value: number | null; sourceMaxDate: Date | null }> {
-  // Carry is not meaningful for sector ETFs
-  if (countryCode === null) return { value: null, sourceMaxDate: null };
+  // Carry is not meaningful for sector ETFs or US
+  if (countryCode === null || countryCode === 'US') return { value: null, sourceMaxDate: null };
 
   const countrySeries = COUNTRY_RATE_SERIES[countryCode];
   if (!countrySeries) return { value: null, sourceMaxDate: null };
 
-  // US carry differential is always zero — not informative
-  if (countryCode === 'US') return { value: null, sourceMaxDate: null };
+  const obsStart = subMonths(asOfDate, 65);
 
-  const [countryRates, usFedFunds] = await Promise.all([
-    fetchRateSeries(countrySeries, asOfDate, 65),
-    fetchRateSeries('FEDFUNDS', asOfDate, 65),
+  // Batch fetch both series
+  const [countryRows, fedRows] = await Promise.all([
+    getFredRangeAsOf(countrySeries, obsStart, asOfDate, asOfDate),
+    getFredRangeAsOf('FEDFUNDS', obsStart, asOfDate, asOfDate),
   ]);
 
-  if (countryRates.length === 0 || usFedFunds.length === 0) {
+  if (countryRows.length === 0 || fedRows.length === 0) {
     return { value: null, sourceMaxDate: null };
   }
 
-  // Build a map of FEDFUNDS by month key for alignment
+  // Build FEDFUNDS lookup by month key
   const fedMap = new Map<string, number>();
-  for (const r of usFedFunds) {
-    const key = `${r.date.getFullYear()}-${r.date.getMonth()}`;
+  for (const r of fedRows) {
+    const key = `${r.observationDate.getFullYear()}-${r.observationDate.getMonth()}`;
     fedMap.set(key, r.value);
   }
 
@@ -74,12 +60,12 @@ export async function computeCarryFactor(
   const diffSeries: { date: Date; value: number }[] = [];
   let sourceMaxDate: Date | null = null;
 
-  for (const r of countryRates) {
-    const key = `${r.date.getFullYear()}-${r.date.getMonth()}`;
+  for (const r of countryRows) {
+    const key = `${r.observationDate.getFullYear()}-${r.observationDate.getMonth()}`;
     const fed = fedMap.get(key);
     if (fed !== undefined) {
-      diffSeries.push({ date: r.date, value: r.value - fed });
-      if (!sourceMaxDate || r.date > sourceMaxDate) sourceMaxDate = r.date;
+      diffSeries.push({ date: r.observationDate, value: r.value - fed });
+      if (!sourceMaxDate || r.observationDate > sourceMaxDate) sourceMaxDate = r.observationDate;
     }
   }
 

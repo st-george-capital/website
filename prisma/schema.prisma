@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -13,15 +13,15 @@ model User {
   email            String      @unique
   passwordHash     String
   name             String?
-  role             String      @default("visitor") // "visitor", "user", "admin"
-  tags             String[]    @default([]) // Array of tags for categorization
-  emailVerified    Boolean     @default(false)
-  emailToken       String?     @unique
-  emailTokenExpiry DateTime?
-  teamMemberId     String?     @unique
-  teamMember       TeamMember? @relation(fields: [teamMemberId], references: [id])
+  role             String      @default("visitor")
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
+  emailToken       String?     @unique
+  emailTokenExpiry DateTime?
+  emailVerified    Boolean     @default(false)
+  teamMemberId     String?     @unique
+  tags             String[]    @default([])
+  teamMember       TeamMember? @relation(fields: [teamMemberId], references: [id])
 }
 
 model Article {
@@ -53,16 +53,14 @@ model TeamMember {
   linkedin    String?
   headshot    String?
   isExecutive Boolean @default(false)
-  isAlumni    Boolean @default(false)
   order       Int     @default(0)
+  isAlumni    Boolean @default(false)
   user        User?
 }
 
 model Holding {
   id                 String                     @id @default(cuid())
   ticker             String                     @unique
-  apiTicker          String? // Ticker with exchange suffix for API calls (e.g., "RY.TRT")
-  exchange           String                     @default("US") // "US", "TRT", "TRV", "LON"
   assetType          String
   quantity           Float
   costBasis          Float?
@@ -74,35 +72,37 @@ model Holding {
   visible            Boolean                    @default(true)
   createdAt          DateTime                   @default(now())
   updatedAt          DateTime                   @updatedAt
-  transactions       Transaction[]
+  apiTicker          String?
+  exchange           String                     @default("US")
   committeeDecisions HoldingCommitteeDecision[]
+  transactions       Transaction[]
 }
 
 model Transaction {
   id             String   @id @default(cuid())
   holdingId      String?
-  ticker         String // Denormalized: preserved even if holding is deleted
-  type           String // "BUY" or "SELL"
+  type           String
   quantity       Float
   price          Float
   fees           Float    @default(0)
-  exchange       String   @default("US")
   date           DateTime @default(now())
   notes          String?
-  positionBefore Float    @default(0)
-  positionAfter  Float    @default(0)
-  cashBefore     Float    @default(0)
-  cashAfter      Float    @default(0)
-  realizedPnL    Float? // Only populated on SELL trades
-  avgCostAtTrade Float? // Snapshot of avg cost basis at time of trade
   createdAt      DateTime @default(now())
-  holding        Holding? @relation(fields: [holdingId], references: [id], onDelete: SetNull)
+  avgCostAtTrade Float?
+  cashAfter      Float    @default(0)
+  cashBefore     Float    @default(0)
+  exchange       String   @default("US")
+  positionAfter  Float    @default(0)
+  positionBefore Float    @default(0)
+  realizedPnL    Float?
+  ticker         String
+  holding        Holding? @relation(fields: [holdingId], references: [id])
 }
 
 model PortfolioSnapshot {
   id             String   @id @default(cuid())
   date           DateTime @unique
-  portfolioValue Float // Total = stocks + cash
+  portfolioValue Float
   stocksValue    Float
   cashBalance    Float
   totalCostBasis Float
@@ -152,41 +152,41 @@ model Settings {
 
 model Investment {
   id            String    @id @default(cuid())
-  type          String // "thesis" or "outlook"
+  type          String
   title         String
   company       String?
   ticker        String?
-  year          String // Year as string to allow any year
-  season        String // "Fall", "Winter", "Summer"
-  content       String // Full thesis/outlook content
-  thesis        String? // Why we invested
+  year          String
+  season        String
+  content       String
+  thesis        String?
   entryDate     DateTime?
   priceAtEntry  Float?
-  initialTarget Float? // Price target when invested
-  currentTarget Float? // Current price target
-  exitPrice     Float? // Price when position was exited
-  active        Boolean   @default(true) // Whether position is still active
-  publishDate   DateTime? // When to publish/display on holdings
-  tags          String // Comma-separated: "Equity", "Macro", "Investment Strategy"
-  coverImage    String? // Cover image URL
+  initialTarget Float?
+  currentTarget Float?
+  tags          String
   published     Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  coverImage    String?
+  publishDate   DateTime?
+  active        Boolean   @default(true)
+  exitPrice     Float?
 }
 
 model StrategyDocument {
   id               String    @id @default(cuid())
-  type             String // "investment_strategy" or "industry_report"
+  type             String
   title            String
-  year             String // Year as string
-  content          String // Full document content (markdown)
-  executiveSummary String? // Brief summary for display
-  industries       String? // Comma-separated industries covered
-  sectors          String? // Comma-separated sectors covered
-  coverImage       String? // Cover image URL
-  documentFile     String? // PDF document URL if uploaded
+  year             String
+  content          String
+  executiveSummary String?
+  industries       String?
+  sectors          String?
+  coverImage       String?
+  documentFile     String?
   published        Boolean   @default(false)
-  publishDate      DateTime? // When to publish/display
+  publishDate      DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 }
@@ -199,102 +199,99 @@ model CalendarEvent {
   endDate     DateTime?
   allDay      Boolean   @default(false)
   location    String?
-  category    String // "quant_trading", "quant_research", "macro", "equity"
-  subcategory String? // For macro/equity: "financials", "consumer", "energy", "healthcare", "macro_technology"
-  priority    String    @default("medium") // "low", "medium", "high", "urgent"
-  status      String    @default("scheduled") // "scheduled", "in_progress", "completed", "cancelled"
-  attendees   String? // Comma-separated user IDs
-  tags        String[]  @default([]) // Array of tags for categorization
-  createdBy   String // User ID who created the event
+  category    String
+  subcategory String?
+  priority    String    @default("medium")
+  status      String    @default("scheduled")
+  attendees   String?
+  createdBy   String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  tags        String[]  @default([])
 }
 
 model WeeklyContent {
   id           String    @id @default(cuid())
   title        String
-  category     String // "news", "learning"
-  year         String // Year as string
-  season       String // "winter", "summer", "fall"
-  week         Int // Week number 1-52
+  category     String
+  year         String
+  season       String
+  week         Int
   description  String?
-  contentType  String    @default("pdf") // "pdf" or "markdown"
-  content      String? // Markdown content when contentType is "markdown"
-  documentFile String? // PDF file URL
+  documentFile String?
   published    Boolean   @default(false)
-  publishDate  DateTime? // When to publish
+  publishDate  DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+  content      String?
+  contentType  String    @default("pdf")
 }
 
 model InvestmentPitch {
   id           String             @id @default(cuid())
   title        String
   company      String?
-  sector       String // "macro", "equity"
-  subcategory  String? // For macro/equity subsectors
+  sector       String
+  subcategory  String?
   pitchDate    DateTime
   description  String?
-  documentFile String? // PDF file URL
+  documentFile String?
   published    Boolean            @default(false)
-  publishDate  DateTime? // When to publish
+  publishDate  DateTime?
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
-  participants PitchParticipant[]
   feedback     PitchFeedback[]
+  participants PitchParticipant[]
 }
 
 model HoldingCommitteeDecision {
-  id                String   @id @default(cuid())
+  id                String                 @id @default(cuid())
   holdingId         String
-  meetingDate       DateTime @default(now())
-  finalDecision     String   @default("pending") // "pending" | "approve" | "pass" | "reject" | "watchlist"
+  meetingDate       DateTime               @default(now())
+  finalDecision     String                 @default("pending")
   averageConviction Float?
-  keyObjections     String?  @db.Text
-  summary           String?  @db.Text
+  keyObjections     String?
+  summary           String?
   createdBy         String
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  holding Holding                @relation(fields: [holdingId], references: [id], onDelete: Cascade)
-  votes   HoldingCommitteeVote[]
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  holding           Holding                @relation(fields: [holdingId], references: [id], onDelete: Cascade)
+  votes             HoldingCommitteeVote[]
 
   @@index([holdingId, meetingDate])
 }
 
 model HoldingCommitteeVote {
-  id         String   @id @default(cuid())
+  id         String                   @id @default(cuid())
   decisionId String
   userId     String
   userName   String
-  vote       String // "approve" | "pass" | "reject" | "watchlist"
+  vote       String
   conviction Int
-  comment    String?  @db.Text
-  objections String?  @db.Text
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  decision HoldingCommitteeDecision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  comment    String?
+  objections String?
+  createdAt  DateTime                 @default(now())
+  updatedAt  DateTime                 @updatedAt
+  decision   HoldingCommitteeDecision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
 
   @@unique([decisionId, userId])
   @@index([decisionId])
 }
 
 model PitchParticipant {
-  id        String   @id @default(cuid())
+  id        String          @id @default(cuid())
   pitchId   String
   userId    String
   userName  String
-  createdAt DateTime @default(now())
-
-  pitch InvestmentPitch @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+  createdAt DateTime        @default(now())
+  pitch     InvestmentPitch @relation(fields: [pitchId], references: [id], onDelete: Cascade)
 
   @@unique([pitchId, userId])
   @@index([pitchId])
 }
 
 model PitchFeedback {
-  id              String   @id @default(cuid())
+  id              String          @id @default(cuid())
   pitchId         String
   submittedBy     String
   submittedByName String
@@ -304,200 +301,158 @@ model PitchFeedback {
   catalysts       Int
   risks           Int
   delivery        Int
-  strengths       String?  @db.Text
-  improvements    String?  @db.Text
-  overallComment  String?  @db.Text
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  pitch InvestmentPitch @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+  strengths       String?
+  improvements    String?
+  overallComment  String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  pitch           InvestmentPitch @relation(fields: [pitchId], references: [id], onDelete: Cascade)
 
   @@unique([pitchId, submittedBy])
   @@index([pitchId])
 }
 
 model JobPosting {
-  id           String   @id @default(cuid())
+  id           String           @id @default(cuid())
   title        String
   description  String
-  team         String // "quant_trading", "quant_research", "macro_equity", "operations", "executive"
-  roleTag      String?
-  requirements String?  @db.Text
+  team         String
   endDate      DateTime
-  published    Boolean  @default(false)
-  documentFile String? // PDF document URL
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
+  published    Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  documentFile String?
+  requirements String?
+  roleTag      String?
   applications JobApplication[]
 }
 
 model JobApplication {
-  id               String   @id @default(cuid())
+  id               String     @id @default(cuid())
   jobPostingId     String
   name             String
   email            String
+  resumeFile       String?
+  appliedAt        DateTime   @default(now())
   faculty          String?
+  internshipCount  Int        @default(0)
+  internshipFields String[]   @default([])
   subfaculty       String?
-  internshipCount  Int      @default(0)
-  internshipFields String[] @default([])
-  resumeFile       String? // Resume file URL
-  appliedAt        DateTime @default(now())
-
-  jobPosting JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  jobPosting       JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
 }
 
 model EquityResearchReport {
-  id String @id @default(cuid())
-
-  // Metadata
-  companyName        String
-  ticker             String
-  exchange           String
-  sector             String
-  industry           String
-  reportDate         DateTime @default(now())
-  analysts           String[] @default([]) // Array of analyst names
-  coverageStatus     String // "initiation" | "update"
-  recommendation     String // "buy" | "hold" | "sell" | "overweight" | "neutral" | "underweight"
-  currentPrice       Float
-  targetPrice        Float
-  impliedUpside      Float // Calculated: (targetPrice - currentPrice) / currentPrice
-  timeHorizon        String   @default("12 months")
-  currency           String   @default("USD")
-  // Company snapshot (JPM-style)
-  priceDate          String? // e.g. "29 Sep 15"
-  fiftyTwoWeekRange  String? // e.g. "22.81-39.27"
-  marketCap          Float? // in millions
-  sharesOutstanding  Float? // in millions
-  fiscalYearEnd      String? // e.g. "Jun"
-  priceTargetEndDate String? // e.g. "31-Dec-16"
-  performanceMetrics Json? // { absYTD, abs1m, abs3m, abs12m, relYTD, rel1m, rel3m, rel12m }
-  epsTableMarkdown   String?  @db.Text // EPS table (markdown or pasted)
-  dataSource         String?  @db.Text // e.g. "Company data, Bloomberg, J.P. Morgan estimates"
-  peRatio            Float? // From API / DCF
-  forwardPE          Float? // Calculated from DCF projections
-  forwardPEConsensus Float? // From API (analyst consensus)
-  dividendYield      Float? // From API (as percentage, e.g. 2.5 for 2.5%)
-  priceChartImageUrl String? // Custom uploaded chart image URL (fallback if priceHistory unavailable)
-  showPriceChart     Boolean  @default(true) // Whether to include the price chart in the published report
-  priceHistory       Json? // [{ date, close }] for chart (from DCF/API)
-
-  // Report Status & Collaboration
-  status        String   @default("draft") // "draft" | "under_review" | "published"
-  version       Int      @default(1)
-  createdBy     String // User ID
-  lastEditedBy  String? // User ID
-  collaborators String[] @default([]) // Array of user IDs with edit access
-
-  // DCF Integration
-  dcfModelId String? @unique
-  dcfInputs  Json? // Store DCF inputs for reproducibility
-  dcfOutputs Json? // Store DCF outputs
-
-  // Executive Summary
-  investmentThesis Json // Array of { claim, driver, mispricing }
-
-  // Financial Snapshot
-  financialSnapshot Json // Structured data: revenue, EBITDA, margins, etc.
-
-  // Business Model
-  businessModel String  @db.Text
-  unitEconomics String? @db.Text
-  economicMoat  String? @db.Text
-
-  // Industry Analysis
-  industryAnalysis    String @db.Text
-  competitivePosition Json? // Structured competitor data
-
-  // Catalysts
-  catalystsNearTerm   Json // Array of { event, mechanism, probability }
-  catalystsMediumTerm Json
-
-  // Financial Forecasts
-  forecastAssumptions     Json // Structured assumptions
+  id                      String          @id @default(cuid())
+  companyName             String
+  ticker                  String
+  exchange                String
+  sector                  String
+  industry                String
+  reportDate              DateTime        @default(now())
+  analysts                String[]        @default([])
+  coverageStatus          String
+  recommendation          String
+  currentPrice            Float
+  targetPrice             Float
+  impliedUpside           Float
+  timeHorizon             String          @default("12 months")
+  currency                String          @default("USD")
+  status                  String          @default("draft")
+  version                 Int             @default(1)
+  createdBy               String
+  lastEditedBy            String?
+  collaborators           String[]        @default([])
+  dcfModelId              String?         @unique
+  dcfInputs               Json?
+  dcfOutputs              Json?
+  investmentThesis        Json
+  financialSnapshot       Json
+  businessModel           String
+  unitEconomics           String?
+  economicMoat            String?
+  industryAnalysis        String
+  competitivePosition     Json?
+  catalystsNearTerm       Json
+  catalystsMediumTerm     Json
+  forecastAssumptions     Json
   incomeStatementForecast Json
   cashFlowForecast        Json
-
-  // Valuation
-  valuationMethod     String // "dcf" | "multiples" | "both"
-  valuationAnalysis   String @db.Text
-  sensitivityAnalysis Json
-  sentimentSnapshot   Json?
-
-  // Risks & Scenarios
-  bearCase              String  @db.Text
-  bullCase              String? @db.Text
-  bullBearJustification String? @db.Text // Optional justification for bull/bear cases
-  keyRisks              Json // Array of risk objects
-
-  // AI & Strategy
-  aiStrategies String? @db.Text // Company AI strategy / use of AI
-
-  // ESG
-  esgFactors       String? @db.Text
-  governanceIssues String? @db.Text
-
-  // Conclusion
-  concludingSection String? @db.Text
-
-  // Files & Exports
-  coverImage String?
-  pdfExport  String?
-  excelModel String?
-
-  // Publishing
-  published     Boolean   @default(false)
-  publishedAt   DateTime?
-  showOnWebsite Boolean   @default(true) // Can hide from public without deleting
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  dcfModel SavedDCFModel?  @relation(fields: [dcfModelId], references: [id])
-  versions ReportVersion[]
-  comments ReportComment[]
+  valuationMethod         String
+  valuationAnalysis       String
+  sensitivityAnalysis     Json
+  bearCase                String
+  keyRisks                Json
+  esgFactors              String?
+  governanceIssues        String?
+  coverImage              String?
+  pdfExport               String?
+  excelModel              String?
+  published               Boolean         @default(false)
+  publishedAt             DateTime?
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+  aiStrategies            String?
+  bullBearJustification   String?
+  bullCase                String?
+  showOnWebsite           Boolean         @default(true)
+  dataSource              String?
+  epsTableMarkdown        String?
+  fiftyTwoWeekRange       String?
+  fiscalYearEnd           String?
+  marketCap               Float?
+  performanceMetrics      Json?
+  priceDate               String?
+  priceTargetEndDate      String?
+  sharesOutstanding       Float?
+  forwardPE               Float?
+  peRatio                 Float?
+  priceHistory            Json?
+  dividendYield           Float?
+  forwardPEConsensus      Float?
+  priceChartImageUrl      String?
+  concludingSection       String?
+  showPriceChart          Boolean         @default(true)
+  sentimentSnapshot       Json?
+  dcfModel                SavedDCFModel?  @relation(fields: [dcfModelId], references: [id])
+  comments                ReportComment[]
+  versions                ReportVersion[]
 }
 
 model ReportVersion {
-  id        String   @id @default(cuid())
+  id        String               @id @default(cuid())
   reportId  String
   version   Int
-  snapshot  Json // Full report snapshot
-  createdBy String // User ID
+  snapshot  Json
+  createdBy String
   changeLog String?
-  createdAt DateTime @default(now())
-
-  report EquityResearchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  createdAt DateTime             @default(now())
+  report    EquityResearchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 }
 
 model ReportComment {
-  id        String   @id @default(cuid())
+  id        String               @id @default(cuid())
   reportId  String
-  section   String // Which section
+  section   String
   userId    String
   userName  String
-  content   String   @db.Text
-  resolved  Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  report EquityResearchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  content   String
+  resolved  Boolean              @default(false)
+  createdAt DateTime             @default(now())
+  report    EquityResearchReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 }
 
 model ResumeSubmission {
   id               String   @id @default(cuid())
   name             String
   email            String
-  faculty          String? // "engineering" | "arts_science" | "rotman" — null for job applicants
+  faculty          String?
   subfaculty       String?
   internshipCount  Int      @default(0)
   internshipFields String[] @default([])
-  resumeFile       String? // PDF URL — may be null if synced from application without file
-  source           String   @default("direct") // "direct" | "job_application"
-  appliedFor       String? // Job posting title (preserved even after posting is deleted)
+  resumeFile       String?
   createdAt        DateTime @default(now())
+  appliedFor       String?
+  source           String   @default("direct")
 }
 
 model EmployerLogo {
@@ -511,13 +466,13 @@ model EmployerLogo {
 model CommunityInterviewQuestion {
   id            String    @id @default(cuid())
   seedKey       String?   @unique
-  question      String    @db.Text
-  answer        String?   @db.Text
-  notes         String?   @db.Text
-  role          String // "sales_trading" | "investment_banking" | "buyside" | "consulting" | "general_finance" | "behavioural"
-  subcategory   String? // e.g. "quant_trading", "technical", "case_interview"
-  questionType  String    @default("technical") // "technical" | "market" | "fit" | "case" | "brainteaser" | "product"
-  difficulty    String    @default("medium") // "easy" | "medium" | "hard"
+  question      String
+  answer        String?
+  notes         String?
+  role          String
+  subcategory   String?
+  questionType  String    @default("technical")
+  difficulty    String    @default("medium")
   company       String?
   firmType      String?
   topicTags     String[]  @default([])
@@ -526,7 +481,7 @@ model CommunityInterviewQuestion {
   sourceUrl     String?
   attachmentUrl String?
   submitterName String?
-  submittedBy   String? // User ID
+  submittedBy   String?
   approved      Boolean   @default(false)
   reviewedAt    DateTime?
   reviewedBy    String?
@@ -546,53 +501,49 @@ model NewsletterEdition {
   id             String    @id @default(cuid())
   title          String
   issueNumber    Int
-  rawContent     String    @db.Text
+  rawContent     String
   sentAt         DateTime?
   recipientCount Int       @default(0)
-  status         String    @default("draft") // "draft" | "sent"
+  status         String    @default("draft")
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 }
 
 model MarketingCampaign {
-  id                String   @id @default(cuid())
-  sourceType        String // "job_posting" | "article" | "research_report" | "strategy_document" | "manual"
+  id                String           @id @default(cuid())
+  sourceType        String
   sourceId          String?
-  campaignKind      String // "recruiting" | "article" | "research" | "strategy" | "charity" | "announcement"
+  campaignKind      String
   title             String
-  status            String   @default("draft") // "draft" | "generated"
+  status            String           @default("draft")
   sourceSnapshot    Json
   overrideFields    Json?
   generatedCaptions Json?
   createdBy         String
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  assets MarketingAsset[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  assets            MarketingAsset[]
 
   @@index([sourceType, sourceId])
   @@index([createdBy, createdAt])
 }
 
 model MarketingAsset {
-  id         String   @id @default(cuid())
+  id         String            @id @default(cuid())
   campaignId String
-  platform   String // "instagram" | "linkedin" | "pdf"
-  assetKind  String // "feed" | "flyer" | "caption"
+  platform   String
+  assetKind  String
   mimeType   String
   blobUrl    String
   width      Int?
   height     Int?
-  ordering   Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  campaign MarketingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  ordering   Int               @default(0)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  campaign   MarketingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
   @@index([campaignId, platform, ordering])
 }
-
-// ─── Macro-Engine Raw Storage ────────────────────────────────────────────────
 
 model OhlcvDaily {
   ticker      String
@@ -607,6 +558,7 @@ model OhlcvDaily {
   splitCoeff  Float    @default(1)
 
   @@id([ticker, date])
+  @@index([ticker, date])
   @@map("ohlcv_daily")
 }
 
@@ -619,6 +571,7 @@ model MacroSeriesVintage {
   value           Float?
 
   @@unique([seriesId, observationDate, realtimeStart])
+  @@index([seriesId, observationDate, realtimeStart, realtimeEnd])
   @@map("macro_series_vintage")
 }
 
@@ -690,25 +643,20 @@ model IngestLog {
   @@map("ingest_log")
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-
 model SavedDCFModel {
-  id            String   @id @default(cuid())
+  id            String                @id @default(cuid())
   ticker        String
   companyName   String
-  inputs        Json // Full DCF inputs
-  outputs       Json // Calculated outputs
-  financialData Json? // Historical financial data
+  inputs        Json
+  outputs       Json
+  financialData Json?
   userId        String
   name          String
-  notes         String?  @db.Text
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  report EquityResearchReport?
+  notes         String?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  report        EquityResearchReport?
 }
-
-// ─── Regime Classifier Models ─────────────────────────────────────────────────
 
 model RegimeTemplate {
   id           String   @id @default(cuid())
@@ -748,61 +696,54 @@ model RegimeTransition {
   @@map("regime_transitions")
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ─── Backtesting Engine Models ────────────────────────────────────────────────
-
 model BacktestRun {
-  id               String   @id @default(cuid())
-  runAt            DateTime @default(now())
-  dataStart        String   // ISO date string of training corpus start
-  holdoutStart     String   // ISO date string — hard boundary, e.g. "2022-01-01"
-  windowCount      Int      // number of walk-forward steps completed
-  stepMonths       Int      // test window length in months
-  lambdaRidge      Float    // ridge regularization parameter used
-  minRegimeSamples Int      // threshold for regime-specific vs global fallback
+  id               String            @id @default(cuid())
+  runAt            DateTime          @default(now())
+  dataStart        String
+  holdoutStart     String
+  windowCount      Int
+  stepMonths       Int
+  lambdaRidge      Float
+  minRegimeSamples Int
   notes            String?
-
-  weightSets FactorWeightSet[]
-  metrics    BacktestMetric[]
+  metrics          BacktestMetric[]
+  weightSets       FactorWeightSet[]
 
   @@map("backtest_runs")
 }
 
 model FactorWeightSet {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   runId       String
-  regimeLabel String   // regime label string, or "global" for fallback
+  regimeLabel String
   wGrowth     Float
   wInflation  Float
   wMonetary   Float
   wCredit     Float
   wCarry      Float
   wEarnings   Float
-  sampleCount Int      // number of (ticker, date) observations used
-  isFallback  Boolean  @default(false)
-  createdAt   DateTime @default(now())
-
-  run BacktestRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  sampleCount Int
+  isFallback  Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  run         BacktestRun @relation(fields: [runId], references: [id], onDelete: Cascade)
 
   @@unique([runId, regimeLabel])
   @@map("factor_weight_sets")
 }
 
 model BacktestMetric {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   runId       String
-  window      String   // "oos" (walk-forward OOS aggregate) or "holdout"
-  benchmark   String   // "SPY" or "ACWI"
-  hitRate     Float    // 0-1
-  sharpeAnn   Float    // annualized Sharpe on excess returns
-  maxDrawdown Float    // negative fraction, e.g. -0.35
-  startDate   String   // ISO date of metric window start
-  endDate     String   // ISO date of metric window end
-  nPeriods    Int      // number of test periods included
-  createdAt   DateTime @default(now())
-
-  run BacktestRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  window      String
+  benchmark   String
+  hitRate     Float
+  sharpeAnn   Float
+  maxDrawdown Float
+  startDate   String
+  endDate     String
+  nPeriods    Int
+  createdAt   DateTime    @default(now())
+  run         BacktestRun @relation(fields: [runId], references: [id], onDelete: Cascade)
 
   @@unique([runId, window, benchmark])
   @@map("backtest_metrics")
