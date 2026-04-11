@@ -94,7 +94,7 @@ export async function runIngest(opts: RunOptions): Promise<RunSummary> {
 
   if (runRevisions) {
     console.log('=== Stage: revisions ===');
-    const result = await ingestRevisions(equityTickers, opts);
+    const result = await ingestRevisions(universe.map((e) => e.ticker), opts);
     results.push(result);
     if (!opts.dryRun) {
       await logIngestRun(result);
