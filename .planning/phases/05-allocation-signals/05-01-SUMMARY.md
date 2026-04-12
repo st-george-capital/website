@@ -130,3 +130,7 @@ None - no external service configuration required. `CRON_SECRET` environment var
 ---
 *Phase: 05-allocation-signals*
 *Completed: 2026-04-12*
+
+## Self-Check: PASSED
+
+All 9 files confirmed on disk. Commits cfc9fb8 and 75992d9 confirmed in git log.
