@@ -42,7 +42,7 @@
 - [x] **ALLC-02**: Each signal includes conviction score, primary factor drivers (factor attribution), current regime context, and recommended entry ETF ticker
 - [x] **ALLC-03**: System computes probabilistic forecasts for each country/sector: P(outperforms benchmark in next 6/12 months) based on current factor + regime state
 - [x] **ALLC-04**: Single-stock filter screens equities within favored sectors using O'Neil-style criteria: EPS rank, SMR rating, RS rating (computed from price vs. universe), DMA position (50/100/200), institutional sponsorship trend (fund count y/y), and earnings revision momentum
-- [ ] **ALLC-05**: Dashboard surfaces top buy-side and sell-side analyst recommendations for favored equities, providing external conviction validation alongside model signals (e.g., shows Google/Microsoft as buys when model and consensus align)
+- [x] **ALLC-05**: Dashboard surfaces top buy-side and sell-side analyst recommendations for favored equities, providing external conviction validation alongside model signals (e.g., shows Google/Microsoft as buys when model and consensus align)
 
 ### Dashboard & Integration
 
@@ -104,7 +104,7 @@
 | ALLC-02 | Phase 5 | Complete |
 | ALLC-03 | Phase 5 | Complete |
 | ALLC-04 | Phase 5 | Complete |
-| ALLC-05 | Phase 5 | Pending |
+| ALLC-05 | Phase 5 | Complete |
 | DASH-01 | Phase 6 | Pending |
 | DASH-02 | Phase 6 | Pending |
 | DASH-03 | Phase 6 | Pending |

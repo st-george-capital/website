@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 05-03-PLAN.md (single-stock screener)
-last_updated: "2026-04-12T21:41:54.818Z"
+stopped_at: Completed 05-04-PLAN.md (analyst consensus + SMR proxy)
+last_updated: "2026-04-12T21:47:53.340Z"
 last_activity: 2026-04-09 — Completed Phase 4 / 04-03 (backtest orchestrator + CLI)
 progress:
   total_phases: 7
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 22
-  completed_plans: 21
+  completed_plans: 22
   percent: 100
 ---
 
@@ -66,6 +66,7 @@ Progress: [██████████] 100%
 | Phase 05-allocation-signals P01 | 4min | 2 tasks | 9 files |
 | Phase 05-allocation-signals P02 | 3min | 2 tasks | 3 files |
 | Phase 05-allocation-signals P03 | 20min | 2 tasks | 4 files |
+| Phase 05-allocation-signals P04 | 25min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -113,6 +114,9 @@ Recent decisions affecting current work:
 - [Phase 05-allocation-signals]: checkProbs upgraded from warn-only to ALLC-03 hard failure with >= 80% coverage enforcement
 - [Phase 05-allocation-signals]: RS Proxy uses weighted-ROC formula (labeled universe-relative within proxy list) — not IBD RS Rating; 420-day OHLCV window for ROC(252) computability
 - [Phase 05-allocation-signals]: smrProxy null in Plan 03; Plan 04 populates via FMP income statement data; earningsRevisionMomentum null for equities (FactorFeatureMatrix is ETF-only)
+- [Phase 05-allocation-signals]: FMP legacy v3/v4 endpoints discontinued post-Aug 2025 — adapted to /stable/grades and /stable/income-statement
+- [Phase 05-allocation-signals]: Analyst consensus aggregated from per-analyst grade rows (90-day window) — no pre-aggregated endpoint on current FMP tier
+- [Phase 05-allocation-signals]: SMR computation uses 5 quarterly rows (Starter tier limit=5); >= 4 required — condition met; net income/revenue used as ROE proxy
 
 ### Pending Todos
 
@@ -124,6 +128,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-12T21:41:54.815Z
-Stopped at: Completed 05-03-PLAN.md (single-stock screener)
+Last session: 2026-04-12T21:47:53.337Z
+Stopped at: Completed 05-04-PLAN.md (analyst consensus + SMR proxy)
 Resume file: None
