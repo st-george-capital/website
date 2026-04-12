@@ -135,7 +135,7 @@ async function checkFields(prisma: import('@prisma/client').PrismaClient) {
 }
 
 async function checkProbs(prisma: import('@prisma/client').PrismaClient) {
-  header('ALLC-02 Probability fields (prob6m / prob12m)');
+  header('ALLC-03 Probability fields (prob6m / prob12m)');
 
   const latest = await prisma.allocationSignal.findFirst({
     orderBy: { runDate: 'desc' },
@@ -150,30 +150,56 @@ async function checkProbs(prisma: import('@prisma/client').PrismaClient) {
   const rows = await prisma.allocationSignal.findMany({
     where: { runDate: latest.runDate },
     select: { ticker: true, prob6m: true, prob12m: true },
+    orderBy: { ticker: 'asc' },
   });
 
-  let probFailures = 0;
+  console.log(`  runDate=${latest.runDate.toISOString().slice(0, 10)}, rows=${rows.length}`);
 
+  // Print per-ticker values for inspection
+  console.log('  ticker  prob6m   prob12m');
+  for (const row of rows) {
+    const p6 = row.prob6m !== null ? row.prob6m.toFixed(3) : 'null';
+    const p12 = row.prob12m !== null ? row.prob12m.toFixed(3) : 'null';
+    console.log(`  ${row.ticker.padEnd(6)}  ${p6.padStart(7)}  ${p12.padStart(7)}`);
+  }
+
+  let rangeFailures = 0;
+
+  // Assert all non-null probs are in [0, 1]
   for (const row of rows) {
     if (row.prob6m !== null && row.prob6m !== undefined) {
       if (row.prob6m < 0 || row.prob6m > 1) {
         fail(`${row.ticker}: prob6m=${row.prob6m} out of [0,1]`);
-        probFailures++;
+        rangeFailures++;
       }
     }
     if (row.prob12m !== null && row.prob12m !== undefined) {
       if (row.prob12m < 0 || row.prob12m > 1) {
         fail(`${row.ticker}: prob12m=${row.prob12m} out of [0,1]`);
-        probFailures++;
+        rangeFailures++;
       }
     }
   }
 
-  const nullCount = rows.filter((r) => r.prob6m === null && r.prob12m === null).length;
-  if (nullCount === rows.length) {
-    pass(`prob6m/prob12m are null for all ${rows.length} rows (expected at this stage)`);
-  } else if (probFailures === 0) {
-    pass(`prob6m/prob12m in valid range [0,1] for all populated rows`);
+  // Assert >= 80% of rows have non-null prob6m and prob12m
+  const populatedCount = rows.filter(
+    (r) => r.prob6m !== null && r.prob12m !== null,
+  ).length;
+  const coveragePct = rows.length > 0 ? (populatedCount / rows.length) * 100 : 0;
+
+  console.log(`  coverage: ${populatedCount}/${rows.length} rows have non-null prob6m+prob12m (${coveragePct.toFixed(1)}%)`);
+
+  if (rows.length > 0 && coveragePct < 80) {
+    fail(
+      `prob6m/prob12m coverage ${coveragePct.toFixed(1)}% < 80% — run \`npm run signals:run\` to populate`,
+    );
+    return;
+  }
+
+  if (rangeFailures === 0 && rows.length > 0 && coveragePct >= 80) {
+    pass(`${populatedCount}/${rows.length} rows (${coveragePct.toFixed(1)}%) have prob6m+prob12m in valid range [0,1]`);
+  } else if (rows.length === 0) {
+    fail('No AllocationSignal rows for this runDate');
   }
 }
 

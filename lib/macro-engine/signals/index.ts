@@ -5,6 +5,7 @@
 
 import { prisma } from '../db';
 import { scoreUniverse } from './scoring';
+import { computeOutperformanceProbabilities } from './probabilities';
 
 export interface DailySignalsResult {
   runDate: string;
@@ -37,8 +38,19 @@ export async function runDailySignals(asOfDate?: Date): Promise<DailySignalsResu
   const sorted = [...entries].sort((a, b) => b.score - a.score);
   const ranked = sorted.map((entry, i) => ({ ...entry, rank: i + 1 }));
 
+  // Compute outperformance probabilities (calibrated from pre-HOLDOUT_START data)
+  const probMap = await computeOutperformanceProbabilities(
+    ranked.map((s) => ({
+      ticker: s.ticker,
+      convictionScore: s.convictionScore,
+      regimeLabel: s.regimeLabel,
+    })),
+    runDate,
+  );
+
   // Upsert all entries
   for (const entry of ranked) {
+    const probs = probMap.get(entry.ticker);
     await prisma.allocationSignal.upsert({
       where: {
         runDate_ticker: {
@@ -56,8 +68,8 @@ export async function runDailySignals(asOfDate?: Date): Promise<DailySignalsResu
         factorAttribution: entry.factorAttribution,
         rank: entry.rank,
         etfTicker: entry.etfTicker,
-        prob6m: null,
-        prob12m: null,
+        prob6m: probs?.prob6m ?? null,
+        prob12m: probs?.prob12m ?? null,
       },
       update: {
         score: entry.score,
@@ -67,6 +79,8 @@ export async function runDailySignals(asOfDate?: Date): Promise<DailySignalsResu
         factorAttribution: entry.factorAttribution,
         rank: entry.rank,
         etfTicker: entry.etfTicker,
+        prob6m: probs?.prob6m ?? null,
+        prob12m: probs?.prob12m ?? null,
       },
     });
   }
