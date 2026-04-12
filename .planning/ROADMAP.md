@@ -143,5 +143,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. Regime Classifier | 3/3 | Complete    | 2026-04-09 |
 | 4. Backtesting Engine | 3/3 | Complete    | 2026-04-09 |
 | 4.1. Data Integrity and Validation | 3/3 | Complete    | 2026-04-09 |
-| 5. Allocation Signals | 0/4 | Not started | - |
+| 5. Allocation Signals | 1/4 | In Progress|  |
 | 6. Dashboard & Integration | 0/TBD | Not started | - |

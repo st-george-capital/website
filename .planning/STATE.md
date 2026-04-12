@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 04.1-03-PLAN.md (data quality report script)
-last_updated: "2026-04-09T19:58:09.020Z"
+stopped_at: Completed 05-01-PLAN.md (allocation signals foundation)
+last_updated: "2026-04-12T21:27:53.884Z"
 last_activity: 2026-04-09 — Completed Phase 4 / 04-03 (backtest orchestrator + CLI)
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 18
-  completed_plans: 18
+  total_plans: 22
+  completed_plans: 19
   percent: 100
 ---
 
@@ -63,6 +63,7 @@ Progress: [██████████] 100%
 | Phase 04-backtesting-engine P03 | 3h | 2 tasks | 3 files |
 | Phase 04.1-data-integrity P02 | 8 | 2 tasks | 3 files |
 | Phase 04.1-data-integrity P03 | 8 | 2 tasks | 2 files |
+| Phase 05-allocation-signals P01 | 4min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -102,6 +103,10 @@ Recent decisions affecting current work:
 - [Phase 04.1-data-integrity]: Backtest training: rows with >3 of 6 null feature dimensions excluded — threshold chosen to drop genuinely data-sparse rows while keeping partially observed ones
 - [Phase 04.1-data-integrity]: Benchmark pre-validation: SPY price gaps throw before scoring loop starts — avoids silent inflated excess returns
 - [Phase 04.1-data-integrity]: report:data-quality exits 0 always — visibility tool, not a gate (consistent with report:data)
+- [Phase 05-allocation-signals]: scoreUniverse uses prismaDirectUrl; runDailySignals uses prisma for API route compatibility
+- [Phase 05-allocation-signals]: etfTicker = ticker for ETFs — equities will map to sector ETF in Plan 02
+- [Phase 05-allocation-signals]: prob6m/prob12m written as null at this stage — populated by Plan 02
+- [Phase 05-allocation-signals]: Staleness warning at >5 days: emits warn but does not throw
 
 ### Pending Todos
 
@@ -113,6 +118,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-09T19:56:33.758Z
-Stopped at: Completed 04.1-03-PLAN.md (data quality report script)
+Last session: 2026-04-12T21:27:53.880Z
+Stopped at: Completed 05-01-PLAN.md (allocation signals foundation)
 Resume file: None
