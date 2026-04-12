@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 05-01-PLAN.md (allocation signals foundation)
-last_updated: "2026-04-12T21:27:53.884Z"
+stopped_at: Completed 05-02-PLAN.md (probabilistic forecasts)
+last_updated: "2026-04-12T21:33:16.072Z"
 last_activity: 2026-04-09 — Completed Phase 4 / 04-03 (backtest orchestrator + CLI)
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 22
-  completed_plans: 19
+  completed_plans: 20
   percent: 100
 ---
 
@@ -64,6 +64,7 @@ Progress: [██████████] 100%
 | Phase 04.1-data-integrity P02 | 8 | 2 tasks | 3 files |
 | Phase 04.1-data-integrity P03 | 8 | 2 tasks | 2 files |
 | Phase 05-allocation-signals P01 | 4min | 2 tasks | 9 files |
+| Phase 05-allocation-signals P02 | 3min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -107,6 +108,8 @@ Recent decisions affecting current work:
 - [Phase 05-allocation-signals]: etfTicker = ticker for ETFs — equities will map to sector ETF in Plan 02
 - [Phase 05-allocation-signals]: prob6m/prob12m written as null at this stage — populated by Plan 02
 - [Phase 05-allocation-signals]: Staleness warning at >5 days: emits warn but does not throw
+- [Phase 05-allocation-signals]: FactorFeatureMatrix has no regimeLabel — joined regime_labels on nearest prior date via correlated subquery for historical calibration
+- [Phase 05-allocation-signals]: checkProbs upgraded from warn-only to ALLC-03 hard failure with >= 80% coverage enforcement
 
 ### Pending Todos
 
@@ -118,6 +121,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-12T21:27:53.880Z
-Stopped at: Completed 05-01-PLAN.md (allocation signals foundation)
+Last session: 2026-04-12T21:33:16.069Z
+Stopped at: Completed 05-02-PLAN.md (probabilistic forecasts)
 Resume file: None
