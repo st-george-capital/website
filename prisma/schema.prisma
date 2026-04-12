@@ -748,3 +748,43 @@ model BacktestMetric {
   @@unique([runId, window, benchmark])
   @@map("backtest_metrics")
 }
+
+model AllocationSignal {
+  id                String   @id @default(cuid())
+  runDate           DateTime
+  ticker            String
+  score             Float
+  convictionScore   Float
+  direction         String   // "overweight" | "underweight" | "neutral"
+  regimeLabel       String
+  factorAttribution Json
+  rank              Int
+  etfTicker         String
+  prob6m            Float?
+  prob12m           Float?
+  createdAt         DateTime @default(now())
+
+  @@unique([runDate, ticker])
+  @@map("allocation_signals")
+}
+
+model StockScreenResult {
+  id                            String   @id @default(cuid())
+  runDate                       DateTime
+  ticker                        String
+  sectorEtf                     String
+  rsRating                      Float?
+  epsRankProxy                  Float?
+  smrProxy                      String?
+  dma50Position                 Float?
+  dma100Position                Float?
+  dma200Position                Float?
+  institutionalSponsorshipTrend Float?
+  earningsRevisionMomentum      Float?
+  compositeScore                Float
+  analystConsensus              Json?
+  createdAt                     DateTime @default(now())
+
+  @@unique([runDate, ticker])
+  @@map("stock_screen_results")
+}
