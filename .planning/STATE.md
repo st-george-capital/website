@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 05-02-PLAN.md (probabilistic forecasts)
-last_updated: "2026-04-12T21:33:16.072Z"
+stopped_at: Completed 05-03-PLAN.md (single-stock screener)
+last_updated: "2026-04-12T21:41:54.818Z"
 last_activity: 2026-04-09 — Completed Phase 4 / 04-03 (backtest orchestrator + CLI)
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 22
-  completed_plans: 20
+  completed_plans: 21
   percent: 100
 ---
 
@@ -65,6 +65,7 @@ Progress: [██████████] 100%
 | Phase 04.1-data-integrity P03 | 8 | 2 tasks | 2 files |
 | Phase 05-allocation-signals P01 | 4min | 2 tasks | 9 files |
 | Phase 05-allocation-signals P02 | 3min | 2 tasks | 3 files |
+| Phase 05-allocation-signals P03 | 20min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -110,6 +111,8 @@ Recent decisions affecting current work:
 - [Phase 05-allocation-signals]: Staleness warning at >5 days: emits warn but does not throw
 - [Phase 05-allocation-signals]: FactorFeatureMatrix has no regimeLabel — joined regime_labels on nearest prior date via correlated subquery for historical calibration
 - [Phase 05-allocation-signals]: checkProbs upgraded from warn-only to ALLC-03 hard failure with >= 80% coverage enforcement
+- [Phase 05-allocation-signals]: RS Proxy uses weighted-ROC formula (labeled universe-relative within proxy list) — not IBD RS Rating; 420-day OHLCV window for ROC(252) computability
+- [Phase 05-allocation-signals]: smrProxy null in Plan 03; Plan 04 populates via FMP income statement data; earningsRevisionMomentum null for equities (FactorFeatureMatrix is ETF-only)
 
 ### Pending Todos
 
@@ -121,6 +124,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-12T21:33:16.069Z
-Stopped at: Completed 05-02-PLAN.md (probabilistic forecasts)
+Last session: 2026-04-12T21:41:54.815Z
+Stopped at: Completed 05-03-PLAN.md (single-stock screener)
 Resume file: None
