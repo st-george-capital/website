@@ -3,10 +3,12 @@
  * Calls scoreUniverse(), ranks entries, and upserts AllocationSignal rows.
  */
 
+import { Prisma } from '@prisma/client';
 import { prisma } from '../db';
 import { scoreUniverse } from './scoring';
 import { computeOutperformanceProbabilities } from './probabilities';
 import { screenEquities } from './single-stock';
+import { fetchAnalystConsensus, fetchSmrProxy } from './analyst';
 
 export interface DailySignalsResult {
   runDate: string;
@@ -115,7 +117,7 @@ export async function runDailySignals(asOfDate?: Date): Promise<DailySignalsResu
         institutionalSponsorshipTrend: eq.institutionalSponsorshipTrend,
         earningsRevisionMomentum: eq.earningsRevisionMomentum,
         compositeScore: eq.compositeScore,
-        analystConsensus: null,
+        analystConsensus: Prisma.DbNull,
       },
       update: {
         sectorEtf: eq.sectorEtf,
@@ -136,6 +138,49 @@ export async function runDailySignals(asOfDate?: Date): Promise<DailySignalsResu
     console.log(
       `runDailySignals: upserted ${screenedEquities.length} StockScreenResult rows`,
     );
+  }
+
+  // Enrich StockScreenResult rows with analyst consensus and SMR proxy (ALLC-04, ALLC-05)
+  // Both calls are enrichment-only: they log warnings and write null on error — never throw.
+  // Run sequentially (not parallel) to share the 800ms per-ticker rate-limit budget.
+  const screenedTickers = screenedEquities.map((e) => e.ticker);
+  if (screenedTickers.length > 0) {
+    const consensusMap = await fetchAnalystConsensus(screenedTickers);
+    const smrMap = await fetchSmrProxy(screenedTickers);
+
+    for (const ticker of screenedTickers) {
+      const consensus = consensusMap.get(ticker) ?? null;
+      const smr = smrMap.get(ticker) ?? null;
+      await prisma.stockScreenResult.update({
+        where: { runDate_ticker: { runDate, ticker } },
+        data: {
+          analystConsensus: consensus !== null
+            ? (consensus as unknown as Prisma.InputJsonValue)
+            : Prisma.DbNull,
+          smrProxy: smr,
+        },
+      });
+    }
+
+    const consensusPopulated = screenedTickers.filter(
+      (t) => consensusMap.get(t) !== null,
+    ).length;
+    const smrPopulated = screenedTickers.filter(
+      (t) => smrMap.get(t) !== null,
+    ).length;
+
+    console.log(
+      `runDailySignals: analystConsensus populated for ${consensusPopulated}/${screenedTickers.length} tickers`,
+    );
+    console.log(
+      `runDailySignals: smrProxy populated for ${smrPopulated}/${screenedTickers.length} tickers`,
+    );
+
+    if (smrPopulated === 0) {
+      console.warn(
+        'runDailySignals: smrProxy is null for all tickers — may indicate FMP tier issue or insufficient quarterly data',
+      );
+    }
   }
 
   return {

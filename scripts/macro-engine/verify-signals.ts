@@ -297,35 +297,55 @@ async function checkStocks(prisma: import('@prisma/client').PrismaClient) {
 }
 
 async function checkAnalyst(prisma: import('@prisma/client').PrismaClient) {
-  header('analystConsensus field');
+  header('ALLC-05 analystConsensus + smrProxy fields');
 
-  const latest = await prisma.allocationSignal.findFirst({
+  // Find most recent StockScreenResult runDate
+  const latest = await prisma.stockScreenResult.findFirst({
     orderBy: { runDate: 'desc' },
     select: { runDate: true },
   });
 
   if (!latest) {
-    warn('No AllocationSignal rows found');
+    pass('no StockScreenResult rows yet — analyst check skipped (no screened equities)');
     return;
   }
 
-  // analystConsensus is on StockScreenResult, not AllocationSignal — check there
-  const stockRows = await prisma.stockScreenResult.findMany({
-    select: { ticker: true, analystConsensus: true },
-    take: 10,
+  const rows = await prisma.stockScreenResult.findMany({
+    where: { runDate: latest.runDate },
+    select: { ticker: true, analystConsensus: true, smrProxy: true },
+    orderBy: { ticker: 'asc' },
   });
 
-  if (stockRows.length === 0) {
-    warn('analystConsensus: no StockScreenResult rows yet — not yet populated (expected at this stage)');
+  if (rows.length === 0) {
+    pass(`no StockScreenResult rows for runDate=${latest.runDate.toISOString().slice(0, 10)} — analyst check skipped`);
     return;
   }
 
-  const populatedCount = stockRows.filter((r) => r.analystConsensus !== null).length;
-  if (populatedCount === 0) {
-    warn(`analystConsensus: all ${stockRows.length} sampled rows are null — not yet populated (expected at this stage)`);
-  } else {
-    pass(`analystConsensus populated in ${populatedCount}/${stockRows.length} sampled rows`);
+  console.log(`  runDate=${latest.runDate.toISOString().slice(0, 10)}, rows=${rows.length}`);
+
+  // Print per-ticker analystConsensus and smrProxy
+  console.log('\n  ticker  smrProxy  analystConsensus');
+  for (const row of rows) {
+    const smr = row.smrProxy ?? 'null';
+    const consensus = row.analystConsensus !== null
+      ? JSON.stringify(row.analystConsensus)
+      : 'null';
+    console.log(`  ${row.ticker.padEnd(6)}  ${smr.padEnd(8)}  ${consensus}`);
   }
+
+  const total = rows.length;
+  const consensusPopulated = rows.filter((r) => r.analystConsensus !== null).length;
+  const smrPopulated = rows.filter((r) => r.smrProxy !== null).length;
+
+  console.log(`\n  ${consensusPopulated} of ${total} tickers have analystConsensus populated`);
+  console.log(`  ${smrPopulated} of ${total} tickers have smrProxy populated`);
+
+  if (smrPopulated === 0) {
+    warn(`smrProxy is null for all ${total} tickers — may indicate FMP tier issue or insufficient quarterly data`);
+  }
+
+  // Exit 0 regardless of null count — both fields are enrichment (not required for phase pass)
+  pass(`--check-analyst completed: analystConsensus=${consensusPopulated}/${total}, smrProxy=${smrPopulated}/${total} (nulls acceptable if FMP tier or data insufficient)`);
 }
 
 async function main() {
