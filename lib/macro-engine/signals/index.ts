@@ -6,6 +6,7 @@
 import { prisma } from '../db';
 import { scoreUniverse } from './scoring';
 import { computeOutperformanceProbabilities } from './probabilities';
+import { screenEquities } from './single-stock';
 
 export interface DailySignalsResult {
   runDate: string;
@@ -90,6 +91,52 @@ export async function runDailySignals(asOfDate?: Date): Promise<DailySignalsResu
   console.log(
     `runDailySignals: upserted ${ranked.length} signals for ${runDate.toISOString().slice(0, 10)}, regime=${regimeLabel}`,
   );
+
+  // Screen proxy equities for overweight sectors (ALLC-04)
+  const overweightSectors = ranked
+    .filter((s) => s.direction === 'overweight')
+    .map((s) => s.ticker);
+
+  const screenedEquities = await screenEquities(overweightSectors, runDate);
+
+  for (const eq of screenedEquities) {
+    await prisma.stockScreenResult.upsert({
+      where: { runDate_ticker: { runDate, ticker: eq.ticker } },
+      create: {
+        runDate,
+        ticker: eq.ticker,
+        sectorEtf: eq.sectorEtf,
+        rsRating: eq.rsRating,
+        epsRankProxy: eq.epsRankProxy,
+        smrProxy: eq.smrProxy,
+        dma50Position: eq.dma50Position,
+        dma100Position: eq.dma100Position,
+        dma200Position: eq.dma200Position,
+        institutionalSponsorshipTrend: eq.institutionalSponsorshipTrend,
+        earningsRevisionMomentum: eq.earningsRevisionMomentum,
+        compositeScore: eq.compositeScore,
+        analystConsensus: null,
+      },
+      update: {
+        sectorEtf: eq.sectorEtf,
+        rsRating: eq.rsRating,
+        epsRankProxy: eq.epsRankProxy,
+        smrProxy: eq.smrProxy,
+        dma50Position: eq.dma50Position,
+        dma100Position: eq.dma100Position,
+        dma200Position: eq.dma200Position,
+        institutionalSponsorshipTrend: eq.institutionalSponsorshipTrend,
+        earningsRevisionMomentum: eq.earningsRevisionMomentum,
+        compositeScore: eq.compositeScore,
+      },
+    });
+  }
+
+  if (screenedEquities.length > 0) {
+    console.log(
+      `runDailySignals: upserted ${screenedEquities.length} StockScreenResult rows`,
+    );
+  }
 
   return {
     runDate: runDate.toISOString().slice(0, 10),

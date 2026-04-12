@@ -204,27 +204,96 @@ async function checkProbs(prisma: import('@prisma/client').PrismaClient) {
 }
 
 async function checkStocks(prisma: import('@prisma/client').PrismaClient) {
-  header('StockScreenResult rows');
+  header('ALLC-04 StockScreenResult rows');
 
+  // Check if any overweight sectors exist for the most recent run
+  const latestSignal = await prisma.allocationSignal.findFirst({
+    orderBy: { runDate: 'desc' },
+    select: { runDate: true },
+  });
+
+  if (!latestSignal) {
+    warn('No AllocationSignal rows found — run `npm run signals:run` first');
+    return;
+  }
+
+  const overweightCount = await prisma.allocationSignal.count({
+    where: { runDate: latestSignal.runDate, direction: 'overweight' },
+  });
+
+  if (overweightCount === 0) {
+    pass('no overweight sectors today — stock screen empty, skipping');
+    return;
+  }
+
+  // Overweight sectors exist — StockScreenResult rows are required
   const latest = await prisma.stockScreenResult.findFirst({
     orderBy: { runDate: 'desc' },
     select: { runDate: true },
   });
 
   if (!latest) {
-    warn('No StockScreenResult rows found — stock screener not yet populated (expected at this stage)');
+    fail(
+      `${overweightCount} overweight sectors exist but no StockScreenResult rows found — run \`npm run signals:run\` to populate`,
+    );
     return;
   }
 
-  const count = await prisma.stockScreenResult.count({
+  const rows = await prisma.stockScreenResult.findMany({
     where: { runDate: latest.runDate },
+    orderBy: [{ sectorEtf: 'asc' }, { compositeScore: 'desc' }],
   });
 
-  if (count > 0) {
-    pass(`${count} StockScreenResult rows found for runDate=${latest.runDate.toISOString().slice(0, 10)}`);
-  } else {
-    warn('StockScreenResult table exists but has no rows — expected at this stage');
+  if (rows.length === 0) {
+    fail(
+      `StockScreenResult table exists but has no rows for runDate=${latest.runDate.toISOString().slice(0, 10)} — run \`npm run signals:run\` to populate`,
+    );
+    return;
   }
+
+  console.log(`  runDate=${latest.runDate.toISOString().slice(0, 10)}, rows=${rows.length}`);
+
+  // Per-field null counts (warn, do not fail — thin history may produce nulls)
+  const nullCounts = {
+    rsRating: 0,
+    dma50Position: 0,
+    dma100Position: 0,
+    dma200Position: 0,
+    earningsRevisionMomentum: 0,
+    smrProxy: 0,
+  };
+
+  for (const row of rows) {
+    if (row.rsRating === null) nullCounts.rsRating++;
+    if (row.dma50Position === null) nullCounts.dma50Position++;
+    if (row.dma100Position === null) nullCounts.dma100Position++;
+    if (row.dma200Position === null) nullCounts.dma200Position++;
+    if (row.earningsRevisionMomentum === null) nullCounts.earningsRevisionMomentum++;
+    if (row.smrProxy === null) nullCounts.smrProxy++;
+  }
+
+  const total = rows.length;
+  console.log(`  Null counts (out of ${total} rows):`);
+  console.log(`    rsRating:                  ${nullCounts.rsRating}`);
+  console.log(`    dma50Position:             ${nullCounts.dma50Position}`);
+  console.log(`    dma100Position:            ${nullCounts.dma100Position}`);
+  console.log(`    dma200Position:            ${nullCounts.dma200Position}`);
+  console.log(`    earningsRevisionMomentum:  ${nullCounts.earningsRevisionMomentum}`);
+  console.log(`    smrProxy:                  ${nullCounts.smrProxy} (populated in Plan 04)`);
+
+  // Print per-ticker compositeScore for inspection
+  console.log('\n  ticker  sectorEtf  rsRating  dma50   dma200  compositeScore');
+  for (const row of rows) {
+    const rs = row.rsRating !== null ? row.rsRating.toFixed(0).padStart(8) : '    null';
+    const d50 = row.dma50Position !== null ? row.dma50Position.toFixed(3).padStart(6) : '  null';
+    const d200 = row.dma200Position !== null ? row.dma200Position.toFixed(3).padStart(6) : '  null';
+    const comp = row.compositeScore.toFixed(3).padStart(13);
+    console.log(
+      `  ${row.ticker.padEnd(6)}  ${row.sectorEtf.padEnd(9)}  ${rs}  ${d50}  ${d200}  ${comp}`,
+    );
+  }
+
+  pass(`${rows.length} StockScreenResult rows found for runDate=${latest.runDate.toISOString().slice(0, 10)}`);
 }
 
 async function checkAnalyst(prisma: import('@prisma/client').PrismaClient) {
