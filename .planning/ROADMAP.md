@@ -129,7 +129,11 @@ Plans:
   3. A backtest stats panel shows OOS hit rate, Sharpe, and max drawdown vs benchmark — visible without navigating away
   4. A single-stock panel shows top picks per favored sector with O'Neil score components, technical setup summary, and external analyst consensus
   5. The Macro Allocation Engine appears as a card on `/dashboard/tools` consistent in style with existing tool cards, and clicking it navigates to `/dashboard/tools/macro-engine`
-**Plans**: TBD
+**Plans**: 2 plans (2 waves)
+
+Plans:
+- [ ] 06-01-PLAN.md — Aggregated API route (MacroEnginePayload) + tools page card (DASH-01..05 data layer, DASH-05)
+- [ ] 06-02-PLAN.md — Dashboard page with regime badge, allocation table, backtest stats, and single-stock panels (DASH-01..04)
 
 ## Progress
 
@@ -144,4 +148,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 4. Backtesting Engine | 3/3 | Complete    | 2026-04-09 |
 | 4.1. Data Integrity and Validation | 3/3 | Complete    | 2026-04-09 |
 | 5. Allocation Signals | 4/4 | Complete    | 2026-04-12 |
-| 6. Dashboard & Integration | 0/TBD | Not started | - |
+| 6. Dashboard & Integration | 0/2 | In progress | - |
