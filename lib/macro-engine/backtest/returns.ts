@@ -27,21 +27,23 @@ export async function computeForwardReturns(
   if (tickers.length === 0) return [];
 
   // Fetch prices for [startDate, endDate + buffer]
+  // Paginate by ticker (one at a time) to stay under Accelerate's 5MB response limit.
+  // A single ticker over a 10+ year window is ~2.5k rows (~200KB), well within limits.
   const fetchEnd = addDays(endDate, FORWARD_DAYS + BUFFER_DAYS);
-  const rows = await prisma.$queryRaw<{ ticker: string; date: Date; adjClose: number }[]>`
-    SELECT ticker, date, "adjClose"
-    FROM ohlcv_daily
-    WHERE ticker = ANY(${tickers})
-      AND date >= ${startDate}
-      AND date <= ${fetchEnd}
-    ORDER BY ticker, date ASC
-  `;
 
-  // Build lookup: ticker -> sorted [date, adjClose] pairs
   const priceMap = new Map<string, { date: Date; adjClose: number }[]>();
-  for (const r of rows) {
-    if (!priceMap.has(r.ticker)) priceMap.set(r.ticker, []);
-    priceMap.get(r.ticker)!.push({ date: r.date, adjClose: r.adjClose });
+  for (const ticker of tickers) {
+    const rows = await prisma.$queryRaw<{ ticker: string; date: Date; adjClose: number }[]>`
+      SELECT ticker, date, "adjClose"
+      FROM ohlcv_daily
+      WHERE ticker = ${ticker}
+        AND date >= ${startDate}
+        AND date <= ${fetchEnd}
+      ORDER BY date ASC
+    `;
+    if (rows.length > 0) {
+      priceMap.set(ticker, rows.map(r => ({ date: r.date, adjClose: r.adjClose })));
+    }
   }
 
   const results: ForwardReturn[] = [];

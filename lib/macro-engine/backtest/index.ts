@@ -99,8 +99,7 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
   console.log('runBacktest: starting walk-forward backtest');
   console.log(`  holdoutStart=${toDateKey(HOLDOUT_START)}`);
 
-  // Auto-detect dataStart from earliest feature row in DB — overrides hardcoded default
-  // if DB has older data than the config assumes (prevents silent empty-window skip)
+  // Auto-detect dataStart from earliest feature row in DB
   const earliestFeature = await prisma.factorFeatureMatrix.findFirst({
     orderBy: { featureDate: 'asc' },
     select: { featureDate: true },
@@ -129,6 +128,65 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
   }
   console.log(`  universe: ${tickers.length} tickers`);
 
+  // ── Preload all data into memory (avoids Accelerate 5MB limit per query) ──
+  // Fetch everything from dataStart to latest holdout date once, then filter in JS.
+  const latestFeature = await prisma.factorFeatureMatrix.findFirst({
+    orderBy: { featureDate: 'desc' },
+    select: { featureDate: true },
+  });
+  const allDataEnd = latestFeature?.featureDate ?? new Date();
+
+  console.log('  preloading feature matrix...');
+  // Paginate features by ticker (one at a time) to stay under Accelerate's 5MB response limit
+  const allFeatures: FeatureSliceRow[] = [];
+  for (const ticker of tickers) {
+    const rows = await prisma.$queryRaw<FeatureSliceRow[]>`
+      SELECT "featureDate", ticker, "zGrowth", "zInflation", "zMonetary", "zCredit", "zCarry", "zEarnings"
+      FROM factor_feature_matrix
+      WHERE ticker = ${ticker}
+        AND "featureDate" >= ${config.dataStart}
+        AND "featureDate" <= ${allDataEnd}
+      ORDER BY "featureDate" ASC
+    `;
+    allFeatures.push(...rows);
+  }
+  console.log(`  loaded ${allFeatures.length} feature rows`);
+
+  console.log('  preloading regime labels...');
+  const allRegimeRows = await prisma.regimeLabel.findMany({
+    where: { date: { gte: config.dataStart, lte: allDataEnd } },
+    select: { date: true, regimeLabel: true },
+    orderBy: { date: 'asc' },
+  });
+  const allRegimeMap = new Map(allRegimeRows.map((row) => [toDateKey(row.date), row.regimeLabel]));
+  console.log(`  loaded ${allRegimeRows.length} regime labels`);
+
+  console.log('  preloading forward returns (per ticker)...');
+  const allReturns = await computeForwardReturns(tickers, config.dataStart, allDataEnd);
+  const allReturnMap = toReturnMap(allReturns);
+  console.log(`  loaded ${allReturns.length} forward return observations`);
+
+  console.log('  preloading benchmark (SPY) returns...');
+  const allBenchmarkReturns = await computeForwardReturns(['SPY'], config.dataStart, allDataEnd);
+  const allBenchmarkReturnMap = toBenchmarkMap(allBenchmarkReturns, 'SPY');
+  console.log(`  loaded ${allBenchmarkReturns.length} SPY benchmark observations`);
+
+  // Build in-memory lookup: "TICKER|YYYY-MM-DD" → feature row
+  const featureByDateTicker = new Map<string, FeatureSliceRow>();
+  for (const row of allFeatures) {
+    featureByDateTicker.set(`${row.ticker}|${toDateKey(row.featureDate)}`, row);
+  }
+
+  // Helper: get all feature rows within a date range
+  function featuresInRange(start: Date, end: Date): FeatureSliceRow[] {
+    const startKey = toDateKey(start);
+    const endKey = toDateKey(end);
+    return allFeatures.filter((row) => {
+      const k = toDateKey(row.featureDate);
+      return k >= startKey && k < endKey;
+    });
+  }
+
   const windowResults: WindowResult[] = [];
   let finalWeightSets: ReturnType<typeof fitWeightSetsForWindow> = [];
 
@@ -141,46 +199,19 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
       )}) test [${toDateKey(window.testStart)}, ${toDateKey(window.testEnd)})`,
     );
 
-    const trainingFeatures = await prisma.factorFeatureMatrix.findMany({
-      where: {
-        featureDate: { gte: window.trainStart, lt: window.testStart },
-        ticker: { in: tickers },
-      },
-      select: {
-        featureDate: true,
-        ticker: true,
-        zGrowth: true,
-        zInflation: true,
-        zMonetary: true,
-        zCredit: true,
-        zCarry: true,
-        zEarnings: true,
-      },
-    });
+    const trainingFeatures = featuresInRange(window.trainStart, window.testStart);
     if (trainingFeatures.length === 0) {
       console.log(`    window ${index + 1}: no train features — skipping`);
       continue;
     }
 
-    const trainingRegimes = await prisma.regimeLabel.findMany({
-      where: { date: { gte: window.trainStart, lt: window.testStart } },
-      select: { date: true, regimeLabel: true },
-    });
-    const trainingRegimeMap = new Map(
-      trainingRegimes.map((row) => [toDateKey(row.date), row.regimeLabel]),
-    );
-
-    const trainingReturns = await computeForwardReturns(tickers, window.trainStart, window.trainEnd);
-    const trainingReturnMap = toReturnMap(trainingReturns);
-
     const trainRows: TrainRow[] = [];
     let excludedTrainRows = 0;
     for (const row of trainingFeatures) {
       const dateKey = toDateKey(row.featureDate);
-      const forwardReturn = trainingReturnMap.get(`${row.ticker}|${dateKey}`);
+      const forwardReturn = allReturnMap.get(`${row.ticker}|${dateKey}`);
       if (forwardReturn === undefined) continue;
 
-      // Exclude rows where >3 of 6 dimensions are null (would fabricate too much signal)
       if (countNullDimensions(row) > 3) {
         excludedTrainRows++;
         continue;
@@ -189,7 +220,7 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
       trainRows.push({
         ticker: row.ticker,
         featureDate: row.featureDate,
-        regimeLabel: trainingRegimeMap.get(dateKey) ?? 'global',
+        regimeLabel: allRegimeMap.get(dateKey) ?? 'global',
         features: toFeatureVector(row),
         fwdReturn: forwardReturn,
       });
@@ -210,43 +241,21 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
     );
     finalWeightSets = weightSets;
 
-    const testFeatures = await prisma.factorFeatureMatrix.findMany({
-      where: {
-        featureDate: { gte: window.testStart, lt: window.testEnd },
-        ticker: { in: tickers },
-      },
-      select: {
-        featureDate: true,
-        ticker: true,
-        zGrowth: true,
-        zInflation: true,
-        zMonetary: true,
-        zCredit: true,
-        zCarry: true,
-        zEarnings: true,
-      },
-    });
+    const testFeatures = featuresInRange(window.testStart, window.testEnd);
     if (testFeatures.length === 0) {
       console.log(`    window ${index + 1}: no test features — skipping`);
       continue;
     }
 
-    const testRegimes = await prisma.regimeLabel.findMany({
-      where: { date: { gte: window.testStart, lt: window.testEnd } },
-      select: { date: true, regimeLabel: true },
-    });
-    const testRegimeMap = new Map(testRegimes.map((row) => [toDateKey(row.date), row.regimeLabel]));
-
-    const testReturns = await computeForwardReturns(tickers, window.testStart, window.testEnd);
-    const testReturnMap = toReturnMap(testReturns);
-
-    const benchmarkReturns = await computeForwardReturns(['SPY'], window.testStart, window.testEnd);
-    const benchmarkReturnMap = toBenchmarkMap(benchmarkReturns, 'SPY');
-
-    // Pre-validate benchmark coverage: any date that has asset forward returns must also have SPY return.
-    // (Dates with no asset returns are market holidays — skip them, not a data error.)
-    const datesWithAssetReturns = new Set([...testReturnMap.keys()].map(k => k.split('|')[1]));
-    const missingBenchmarkDates = [...datesWithAssetReturns].filter(dk => !benchmarkReturnMap.has(dk));
+    // Pre-validate benchmark coverage
+    const testStartKey = toDateKey(window.testStart);
+    const testEndKey = toDateKey(window.testEnd);
+    const datesWithTestReturns = new Set(
+      [...allReturnMap.keys()]
+        .filter(k => { const d = k.split('|')[1]; return d >= testStartKey && d < testEndKey; })
+        .map(k => k.split('|')[1])
+    );
+    const missingBenchmarkDates = [...datesWithTestReturns].filter(dk => !allBenchmarkReturnMap.has(dk));
     if (missingBenchmarkDates.length > 0) {
       const sample = missingBenchmarkDates.slice(0, 3).join(', ');
       throw new Error(
@@ -265,9 +274,9 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
 
     const result = scoreWindowRows(
       testFeatures,
-      testRegimeMap,
-      testReturnMap,
-      benchmarkReturnMap,
+      allRegimeMap,
+      allReturnMap,
+      allBenchmarkReturnMap,
       weightSetMap,
       globalWeights,
       window,
@@ -293,40 +302,17 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
     throw new Error('No final weight sets available for holdout scoring');
   }
 
-  const latestFeature = await prisma.factorFeatureMatrix.findFirst({
-    orderBy: { featureDate: 'desc' },
-    select: { featureDate: true },
-  });
-  const holdoutEnd = latestFeature?.featureDate ?? new Date();
-
-  const holdoutFeatures = await prisma.factorFeatureMatrix.findMany({
-    where: {
-      featureDate: { gte: HOLDOUT_START, lt: holdoutEnd },
-      ticker: { in: tickers },
-    },
-    select: {
-      featureDate: true,
-      ticker: true,
-      zGrowth: true,
-      zInflation: true,
-      zMonetary: true,
-      zCredit: true,
-      zCarry: true,
-      zEarnings: true,
-    },
-  });
-  const holdoutRegimes = await prisma.regimeLabel.findMany({
-    where: { date: { gte: HOLDOUT_START, lt: holdoutEnd } },
-    select: { date: true, regimeLabel: true },
-  });
+  const holdoutEnd = allDataEnd;
+  const holdoutFeatures = featuresInRange(HOLDOUT_START, holdoutEnd);
   const holdoutRegimeMap = new Map(
-    holdoutRegimes.map((row) => [toDateKey(row.date), row.regimeLabel]),
+    [...allRegimeMap.entries()].filter(([k]) => k >= toDateKey(HOLDOUT_START)),
   );
-
-  const holdoutReturns = await computeForwardReturns(tickers, HOLDOUT_START, holdoutEnd);
-  const holdoutReturnMap = toReturnMap(holdoutReturns);
-  const holdoutBenchmarkReturns = await computeForwardReturns(['SPY'], HOLDOUT_START, holdoutEnd);
-  const holdoutBenchmarkMap = toBenchmarkMap(holdoutBenchmarkReturns, 'SPY');
+  const holdoutReturnMap = new Map(
+    [...allReturnMap.entries()].filter(([k]) => k.split('|')[1] >= toDateKey(HOLDOUT_START)),
+  );
+  const holdoutBenchmarkMap = new Map(
+    [...allBenchmarkReturnMap.entries()].filter(([k]) => k >= toDateKey(HOLDOUT_START)),
+  );
 
   const finalWeightMap = new Map(
     finalWeightSets.map((weightSet) => [weightSet.regimeLabel, weightSet.weights]),

@@ -9,24 +9,32 @@ import { createId } from '@paralleldrive/cuid2';
  * Query FactorFeatureMatrix and aggregate to one vector per date.
  * Z-score nulls are imputed to 0 (null = no data = average signal).
  * Returns vectors sorted by date ascending.
+ *
+ * Uses raw SQL with date-cursor pagination (2-year chunks) to stay under
+ * Prisma Accelerate's 5MB response limit when querying the full history.
  */
 export async function buildDailyFeatureVectors(
   startDate: Date,
   endDate: Date
 ): Promise<DailyFeatureVector[]> {
-  const rows = await prisma.factorFeatureMatrix.findMany({
-    where: { featureDate: { gte: startDate, lte: endDate } },
-    orderBy: { featureDate: 'asc' },
-    select: {
-      featureDate: true,
-      zGrowth: true,
-      zInflation: true,
-      zMonetary: true,
-      zCredit: true,
-      zCarry: true,
-      zEarnings: true,
-    },
-  });
+  const allRows: { featureDate: Date; zGrowth: number | null; zInflation: number | null; zMonetary: number | null; zCredit: number | null; zCarry: number | null; zEarnings: number | null }[] = [];
+
+  // Paginate in 2-year chunks to stay under Accelerate's 5MB response limit
+  const TWO_YEARS_MS = 2 * 365 * 24 * 60 * 60 * 1000;
+  let chunkStart = new Date(startDate);
+  while (chunkStart <= endDate) {
+    const chunkEnd = new Date(Math.min(chunkStart.getTime() + TWO_YEARS_MS, endDate.getTime()));
+    const chunk = await prisma.$queryRaw<{ featureDate: Date; zGrowth: number | null; zInflation: number | null; zMonetary: number | null; zCredit: number | null; zCarry: number | null; zEarnings: number | null }[]>`
+      SELECT "featureDate", "zGrowth", "zInflation", "zMonetary", "zCredit", "zCarry", "zEarnings"
+      FROM factor_feature_matrix
+      WHERE "featureDate" >= ${chunkStart} AND "featureDate" <= ${chunkEnd}
+      ORDER BY "featureDate" ASC
+    `;
+    allRows.push(...chunk);
+    chunkStart = new Date(chunkEnd.getTime() + 24 * 60 * 60 * 1000); // next day
+  }
+
+  const rows = allRows;
 
   // Group raw nullable values by featureDate
   const byDate = new Map<string, Array<(number | null)[]>>();
