@@ -164,18 +164,16 @@ export async function GET() {
       where: { runId: latestRun.id },
     });
 
-    const aggregate = (benchmark: string) => {
-      const rows = metricRows.filter((m) => m.benchmark === benchmark);
-      if (rows.length === 0) return null;
-      const hitRate = rows.reduce((sum, m) => sum + m.hitRate, 0) / rows.length;
-      const sharpeAnn = rows.reduce((sum, m) => sum + m.sharpeAnn, 0) / rows.length;
-      const maxDrawdown = Math.min(...rows.map((m) => m.maxDrawdown));
-      return { hitRate, sharpeAnn, maxDrawdown };
+    // Filter by window type ('oos' or 'holdout') and benchmark
+    const getMetric = (windowType: string, benchmark: string) => {
+      const row = metricRows.find((m) => m.window === windowType && m.benchmark === benchmark);
+      if (!row) return null;
+      return { hitRate: row.hitRate, sharpeAnn: row.sharpeAnn, maxDrawdown: row.maxDrawdown };
     };
 
     metrics = {
-      spy: aggregate('SPY'),
-      acwi: aggregate('ACWI'),
+      spy: getMetric('oos', 'SPY'),
+      acwi: getMetric('holdout', 'SPY'),   // reuse acwi slot for holdout metrics
       windowCount: latestRun.windowCount,
       dataStart: latestRun.dataStart,
       holdoutStart: latestRun.holdoutStart,

@@ -654,26 +654,20 @@ export default function MacroEnginePage() {
                 {data.metrics.spy && (
                   <div className="space-y-3">
                     <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                      Out-of-Sample vs SPY
+                      Out-of-Sample ({data.metrics.dataStart} – {data.metrics.holdoutStart})
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       <MetricCard
                         label="Hit Rate"
                         value={`${(data.metrics.spy.hitRate * 100).toFixed(1)}%`}
-                        subtext="Direction accuracy"
+                        subtext="Direction accuracy vs SPY"
                         color={hitRateColor(data.metrics.spy.hitRate)}
                       />
                       <MetricCard
-                        label="Sharpe"
+                        label="Sharpe (Ann.)"
                         value={data.metrics.spy.sharpeAnn.toFixed(2)}
-                        subtext="Ann. excess return/vol"
+                        subtext="Excess return / vol"
                         color={sharpeColor(data.metrics.spy.sharpeAnn)}
-                      />
-                      <MetricCard
-                        label="Max Drawdown"
-                        value={`${(data.metrics.spy.maxDrawdown * 100).toFixed(0)}%`}
-                        subtext="Peak-to-trough"
-                        color={drawdownColor(data.metrics.spy.maxDrawdown)}
                       />
                     </div>
                   </div>
@@ -683,26 +677,20 @@ export default function MacroEnginePage() {
                 {data.metrics.acwi && (
                   <div className="space-y-3">
                     <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                      Holdout Period ({data.metrics.holdoutStart} onward)
+                      Holdout ({data.metrics.holdoutStart} onward)
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       <MetricCard
                         label="Hit Rate"
                         value={`${(data.metrics.acwi.hitRate * 100).toFixed(1)}%`}
-                        subtext="Direction accuracy"
+                        subtext="Direction accuracy vs SPY"
                         color={hitRateColor(data.metrics.acwi.hitRate)}
                       />
                       <MetricCard
-                        label="Sharpe"
+                        label="Sharpe (Ann.)"
                         value={data.metrics.acwi.sharpeAnn.toFixed(2)}
-                        subtext="Ann. excess return/vol"
+                        subtext="Excess return / vol"
                         color={sharpeColor(data.metrics.acwi.sharpeAnn)}
-                      />
-                      <MetricCard
-                        label="Max Drawdown"
-                        value={`${(data.metrics.acwi.maxDrawdown * 100).toFixed(0)}%`}
-                        subtext="Peak-to-trough"
-                        color={drawdownColor(data.metrics.acwi.maxDrawdown)}
                       />
                     </div>
                   </div>
