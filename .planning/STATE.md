@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 05-04-PLAN.md (analyst consensus + SMR proxy)
-last_updated: "2026-04-12T21:51:43.004Z"
+stopped_at: Completed 06-01-PLAN.md (aggregated macro-engine API route + tools page card)
+last_updated: "2026-04-13T13:38:03.924Z"
 last_activity: 2026-04-09 — Completed Phase 4 / 04-03 (backtest orchestrator + CLI)
 progress:
   total_phases: 7
   completed_phases: 6
-  total_plans: 22
-  completed_plans: 22
+  total_plans: 24
+  completed_plans: 23
   percent: 100
 ---
 
@@ -67,6 +67,7 @@ Progress: [██████████] 100%
 | Phase 05-allocation-signals P02 | 3min | 2 tasks | 3 files |
 | Phase 05-allocation-signals P03 | 20min | 2 tasks | 4 files |
 | Phase 05-allocation-signals P04 | 25min | 2 tasks | 3 files |
+| Phase 06-dashboard-integration P01 | 8 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -117,6 +118,8 @@ Recent decisions affecting current work:
 - [Phase 05-allocation-signals]: FMP legacy v3/v4 endpoints discontinued post-Aug 2025 — adapted to /stable/grades and /stable/income-statement
 - [Phase 05-allocation-signals]: Analyst consensus aggregated from per-analyst grade rows (90-day window) — no pre-aggregated endpoint on current FMP tier
 - [Phase 05-allocation-signals]: SMR computation uses 5 quarterly rows (Starter tier limit=5); >= 4 required — condition met; net income/revenue used as ROE proxy
+- [Phase 06-dashboard-integration]: MacroEnginePayload exported from route.ts — dashboard page imports type directly from the API module
+- [Phase 06-dashboard-integration]: Two-step AllocationSignal query: findFirst for latest runDate, then findMany filtered to that date — prevents accumulation of historical rows
 
 ### Pending Todos
 
@@ -128,6 +131,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-12T21:47:53.337Z
-Stopped at: Completed 05-04-PLAN.md (analyst consensus + SMR proxy)
+Last session: 2026-04-13T13:38:03.921Z
+Stopped at: Completed 06-01-PLAN.md (aggregated macro-engine API route + tools page card)
 Resume file: None

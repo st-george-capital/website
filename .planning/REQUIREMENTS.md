@@ -46,11 +46,11 @@
 
 ### Dashboard & Integration
 
-- [ ] **DASH-01**: Dashboard displays current regime badge with factor breakdown (which factors are driving the regime, when it started, historical duration)
-- [ ] **DASH-02**: Allocation table shows all countries and sectors ranked by signal strength with conviction scores, factor attribution, and recommended ETF entry
-- [ ] **DASH-03**: Backtest stats panel displays OOS hit rate, Sharpe, max drawdown vs benchmark — visible model credibility
-- [ ] **DASH-04**: Single-stock recommendations panel shows top picks per favored sector with O'Neil scores, technical setup summary, and external analyst consensus
-- [ ] **DASH-05**: Macro Allocation Engine is added to `/dashboard/tools` page with a card entry consistent with existing tool cards
+- [x] **DASH-01**: Dashboard displays current regime badge with factor breakdown (which factors are driving the regime, when it started, historical duration)
+- [x] **DASH-02**: Allocation table shows all countries and sectors ranked by signal strength with conviction scores, factor attribution, and recommended ETF entry
+- [x] **DASH-03**: Backtest stats panel displays OOS hit rate, Sharpe, max drawdown vs benchmark — visible model credibility
+- [x] **DASH-04**: Single-stock recommendations panel shows top picks per favored sector with O'Neil scores, technical setup summary, and external analyst consensus
+- [x] **DASH-05**: Macro Allocation Engine is added to `/dashboard/tools` page with a card entry consistent with existing tool cards
 
 ## v2 Requirements
 
@@ -105,11 +105,11 @@
 | ALLC-03 | Phase 5 | Complete |
 | ALLC-04 | Phase 5 | Complete |
 | ALLC-05 | Phase 5 | Complete |
-| DASH-01 | Phase 6 | Pending |
-| DASH-02 | Phase 6 | Pending |
-| DASH-03 | Phase 6 | Pending |
-| DASH-04 | Phase 6 | Pending |
-| DASH-05 | Phase 6 | Pending |
+| DASH-01 | Phase 6 | Complete |
+| DASH-02 | Phase 6 | Complete |
+| DASH-03 | Phase 6 | Complete |
+| DASH-04 | Phase 6 | Complete |
+| DASH-05 | Phase 6 | Complete |
 
 **Coverage:**
 - v1 requirements: 29 total
