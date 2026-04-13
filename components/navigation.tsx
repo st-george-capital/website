@@ -34,6 +34,7 @@ const navItems = [
     submenu: [
       { name: 'Equity Research', href: '/equity-research' },
       { name: 'Our Take', href: '/research' },
+      { name: 'Learning Hub', href: '/learn' },
     ],
   },
   {

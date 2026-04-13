@@ -25,6 +25,7 @@ import {
   BookMarked,
   Newspaper,
   Megaphone,
+  GraduationCap,
 } from 'lucide-react';
 
 const navigation: Array<{
@@ -45,6 +46,7 @@ const navigation: Array<{
   { name: 'Resume Book', href: '/dashboard/resume-book', icon: BookMarked, adminOnly: true },
   { name: 'Newsletter', href: '/dashboard/newsletter', icon: Newspaper, adminOnly: true },
   { name: 'Marketing Studio', href: '/dashboard/tools/marketing', icon: Megaphone, adminOnly: true },
+  { name: 'Learning Tools', href: '/dashboard/learning', icon: GraduationCap, userMinRole: 'user' },
   { name: 'Tools', href: '/dashboard/tools', icon: Calculator, userMinRole: 'user' },
   { name: 'Users', href: '/dashboard/users', icon: Users, adminOnly: true },
   { name: 'Holdings', href: '/dashboard/holdings', icon: BarChart3, userMinRole: 'user' },
