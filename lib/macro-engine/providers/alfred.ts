@@ -122,7 +122,123 @@ export async function fetchFredAllVintages(
   return rows;
 }
 
-async function fetchFredCurrentObservations(
+/**
+ * Fetches FRED vintage data in yearly chunks to avoid the response size limit
+ * that FRED imposes on output_type=2 for wide-format daily series (DGS10, DGS2).
+ *
+ * Breaks startDate→today into 1-year windows and concatenates results.
+ * De-duplicates rows by (observationDate, realtimeStart) before returning.
+ */
+export async function fetchFredAllVintagesChunked(
+  seriesId: string,
+  startDate = '2000-01-01'
+): Promise<MacroSeriesVintageRow[]> {
+  const today = new Date().toISOString().slice(0, 10);
+  const allRows: MacroSeriesVintageRow[] = [];
+  const seen = new Set<string>();
+
+  // Break into 1-year chunks
+  const start = new Date(startDate);
+  const end = new Date(today);
+
+  for (let year = start.getFullYear(); year <= end.getFullYear(); year++) {
+    const chunkStart = year === start.getFullYear()
+      ? startDate
+      : `${year}-01-01`;
+    const chunkEnd = year === end.getFullYear()
+      ? today
+      : `${year}-12-31`;
+
+    const rows = await fetchFredAllVintagesWindow(seriesId, chunkStart, chunkEnd);
+    for (const row of rows) {
+      const key = `${row.observationDate.toISOString()}|${row.realtimeStart.toISOString()}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        allRows.push(row);
+      }
+    }
+  }
+
+  return allRows;
+}
+
+/**
+ * Fetches vintage data for a specific realtime window [windowStart, windowEnd].
+ * Used by fetchFredAllVintagesChunked internally.
+ */
+async function fetchFredAllVintagesWindow(
+  seriesId: string,
+  windowStart: string,
+  windowEnd: string
+): Promise<MacroSeriesVintageRow[]> {
+  const apiKey = process.env.FRED_API_KEY;
+  if (!apiKey) throw new Error('FRED_API_KEY is not set.');
+
+  const url = new URL(FRED_BASE);
+  url.searchParams.set('series_id', seriesId);
+  url.searchParams.set('output_type', '2');
+  url.searchParams.set('realtime_start', windowStart);
+  url.searchParams.set('realtime_end', windowEnd);
+  url.searchParams.set('observation_start', windowStart);
+  url.searchParams.set('observation_end', windowEnd);
+  url.searchParams.set('file_type', 'json');
+  url.searchParams.set('api_key', apiKey);
+
+  const response = await fetch(url.toString());
+  if (!response.ok) {
+    throw new Error(
+      `FRED vintage chunk for ${seriesId} [${windowStart}→${windowEnd}] failed HTTP ${response.status}`
+    );
+  }
+
+  const data = await response.json();
+  if (data.error_message) {
+    throw new Error(`FRED API error for ${seriesId}: ${data.error_message}`);
+  }
+
+  const observations: unknown[] = Array.isArray(data.observations) ? data.observations : [];
+  if (observations.length === 0) return [];
+
+  const rows: MacroSeriesVintageRow[] = [];
+  const prefix = `${seriesId}_`;
+
+  for (const obs of observations) {
+    const o = obs as Record<string, string>;
+    const observationDate = new Date(o.date);
+
+    const vintageEntries: Array<{ vintageDate: Date; value: number }> = [];
+
+    for (const [key, val] of Object.entries(o)) {
+      if (!key.startsWith(prefix)) continue;
+      if (val === '.' || val === '') continue;
+      const value = parseFloat(val);
+      if (!isFinite(value)) continue;
+
+      const datePart = key.slice(prefix.length);
+      const vintageDate = new Date(
+        `${datePart.slice(0, 4)}-${datePart.slice(4, 6)}-${datePart.slice(6, 8)}`
+      );
+      if (isNaN(vintageDate.getTime())) continue;
+      vintageEntries.push({ vintageDate, value });
+    }
+
+    vintageEntries.sort((a, b) => a.vintageDate.getTime() - b.vintageDate.getTime());
+
+    for (let i = 0; i < vintageEntries.length; i++) {
+      const { vintageDate, value } = vintageEntries[i];
+      const nextVintage = vintageEntries[i + 1]?.vintageDate;
+      const realtimeEnd = nextVintage
+        ? new Date(nextVintage.getTime() - 86400000)
+        : new Date('9999-12-31');
+
+      rows.push({ seriesId, observationDate, realtimeStart: vintageDate, realtimeEnd, value });
+    }
+  }
+
+  return rows;
+}
+
+export async function fetchFredCurrentObservations(
   seriesId: string,
   startDate: string,
 ): Promise<MacroSeriesVintageRow[]> {

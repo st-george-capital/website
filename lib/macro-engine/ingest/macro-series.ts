@@ -1,20 +1,71 @@
-import { prisma } from '../db';
-import { fetchFredAllVintages } from '../providers/alfred';
+import { prismaDirectUrl as prisma } from '../db';
+import { fetchFredAllVintages, fetchFredAllVintagesChunked, fetchFredCurrentObservations } from '../providers/alfred';
 import type { IngestResult } from './prices';
 
 /**
- * The six FRED series ingested for Phase 2 factor matrix.
- * GDP, UNRATE, CPIAUCSL, FEDFUNDS, T10Y2Y, INDPRO
+ * Series fetched via ALFRED output_type=2 vintage (full point-in-time history).
+ * These support the wide/pivot format from ALFRED and have long vintage histories.
  */
-export const FRED_SERIES_IDS = ['GDP', 'UNRATE', 'CPIAUCSL', 'FEDFUNDS', 'T10Y2Y', 'INDPRO', 'BAMLH0A0HYM2', 'BAMLC0A0CM'];
+const FRED_VINTAGE_SERIES = ['GDP', 'UNRATE', 'CPIAUCSL', 'FEDFUNDS'];
 
 /**
- * Fetches all vintages for each FRED series and upserts into macro_series_vintage.
- * Uses ALFRED output_type=2 so every row includes realtimeStart + realtimeEnd.
- *
- * Incremental: queries max(realtime_start) per series and uses it as the start date
- * for subsequent fetches.
+ * Daily series fetched via ALFRED output_type=2 in yearly chunks.
+ * These are high-frequency series where the full response would exceed FRED's limits.
+ * DGS10 and DGS2 are used to compute the 10Y-2Y yield curve spread.
  */
+const FRED_VINTAGE_CHUNKED_SERIES = ['DGS10', 'DGS2'];
+
+/**
+ * Series fetched as current observations (no vintage in ALFRED).
+ * These are stored with realtimeStart = observationDate — point-in-time accuracy
+ * is limited, but policy rates move slowly so look-ahead bias is minimal.
+ *
+ * - BAMLH0A0HYM2: ICE BofA HY OAS spread (daily, credit signal)
+ * - ECBDFR: ECB deposit facility rate (daily)
+ * - IRSTCB01JPM156N: Japan policy rate (monthly)
+ * - BOERUKM: Bank of England base rate (monthly)
+ * - IRSTCB01CAM156N: Canada overnight rate (monthly)
+ * - IRSTCB01BRM156N: Brazil SELIC rate (monthly)
+ */
+const FRED_CURRENT_OBS_SERIES = [
+  'BAMLH0A0HYM2',
+  'ECBDFR',
+  'IRSTCB01JPM156N',
+  'BOERUKM',
+  'IRSTCB01CAM156N',
+  'IRSTCB01BRM156N',
+];
+
+export const FRED_SERIES_IDS = [
+  ...FRED_VINTAGE_SERIES,
+  ...FRED_VINTAGE_CHUNKED_SERIES,
+  ...FRED_CURRENT_OBS_SERIES,
+];
+
+async function upsertRows(
+  rows: Array<{
+    seriesId: string;
+    observationDate: Date;
+    realtimeStart: Date;
+    realtimeEnd: Date;
+    value: number;
+  }>
+): Promise<number> {
+  let upserted = 0;
+  for (let start = 0; start < rows.length; start += 500) {
+    const batch = rows.slice(start, start + 500);
+    for (const row of batch) {
+      await prisma.$executeRaw`
+        INSERT INTO macro_series_vintage ("seriesId", "observationDate", "realtimeStart", "realtimeEnd", value)
+        VALUES (${row.seriesId}, ${row.observationDate}, ${row.realtimeStart}, ${row.realtimeEnd}, ${row.value})
+        ON CONFLICT ("seriesId", "observationDate", "realtimeStart") DO NOTHING
+      `;
+      upserted++;
+    }
+  }
+  return upserted;
+}
+
 export async function ingestMacroSeries(
   seriesIds: string[],
   opts: { dryRun: boolean }
@@ -22,7 +73,7 @@ export async function ingestMacroSeries(
   const errors: string[] = [];
   let rowsUpserted = 0;
 
-  // Build last realtime_start per series for incremental fetches
+  // Build last realtimeStart per series for incremental fetches
   const lastRtMap = new Map<string, string>();
   if (!opts.dryRun) {
     try {
@@ -39,39 +90,31 @@ export async function ingestMacroSeries(
     }
   }
 
-  for (const seriesId of seriesIds) {
+  const toFetch = seriesIds.filter(id => FRED_SERIES_IDS.includes(id));
+
+  for (const seriesId of toFetch) {
     try {
       const startDate = lastRtMap.get(seriesId) ?? '2000-01-01';
 
       if (opts.dryRun) {
-        console.log(`[dry-run] macro-series: ${seriesId} — incremental fetch since ${startDate} (skipping live API call)`);
-        // Estimate row count from typical FRED vintage density (no actual fetch in dry-run)
-        rowsUpserted += 0;
+        const mode = FRED_VINTAGE_CHUNKED_SERIES.includes(seriesId) ? 'chunked-vintage'
+          : FRED_CURRENT_OBS_SERIES.includes(seriesId) ? 'current-obs'
+          : 'vintage';
+        console.log(`[dry-run] macro-series: ${seriesId} — ${mode} fetch since ${startDate}`);
         continue;
       }
 
-      const rows = await fetchFredAllVintages(seriesId, startDate);
-
-      for (let start = 0; start < rows.length; start += 1000) {
-        const batch = rows.slice(start, start + 1000);
-        try {
-          const created = await prisma.macroSeriesVintage.createMany({
-            data: batch.map((row) => ({
-              seriesId: row.seriesId,
-              observationDate: row.observationDate,
-              realtimeStart: row.realtimeStart,
-              realtimeEnd: row.realtimeEnd,
-              value: row.value,
-            })),
-            skipDuplicates: true,
-          });
-          rowsUpserted += created.count;
-        } catch (err) {
-          errors.push(
-            `${seriesId} batch ${start / 1000 + 1}: ${err instanceof Error ? err.message : String(err)}`
-          );
-        }
+      let rows;
+      if (FRED_VINTAGE_CHUNKED_SERIES.includes(seriesId)) {
+        rows = await fetchFredAllVintagesChunked(seriesId, startDate);
+      } else if (FRED_CURRENT_OBS_SERIES.includes(seriesId)) {
+        rows = await fetchFredCurrentObservations(seriesId, startDate);
+      } else {
+        rows = await fetchFredAllVintages(seriesId, startDate);
       }
+
+      const count = await upsertRows(rows);
+      rowsUpserted += count;
     } catch (err) {
       errors.push(`${seriesId}: ${err instanceof Error ? err.message : String(err)}`);
     }

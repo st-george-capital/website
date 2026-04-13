@@ -2,9 +2,9 @@
  * lib/macro-engine/features/factors/credit.ts
  *
  * Compute credit factor z-score (point-in-time).
- * - Fetches UNRATE (unemployment rate) as credit proxy — vintage-available monthly series
- * - BAMLH0A0HYM2 (HY OAS) not available via ALFRED output_type=2 (HTTP 400)
- * - rollingZScore with MONTHLY_WINDOW=60
+ * - Primary: BAMLH0A0HYM2 (ICE BofA HY OAS spread) — stored as current obs
+ * - Secondary: UNRATE (unemployment, inverted credit risk proxy) — vintage-available
+ * - Uses HY OAS if available; blends both when both present; falls back to UNRATE
  */
 import { subMonths } from 'date-fns';
 import { getFredRangeAsOf } from '../../query';
@@ -15,13 +15,30 @@ export async function computeCreditFactor(
 ): Promise<{ value: number | null; sourceMaxDate: Date | null }> {
   const obsStart = subMonths(asOfDate, 65);
 
-  // Use UNRATE as credit conditions proxy (vintage-available; inverted risk signal)
-  const rows = await getFredRangeAsOf('UNRATE', obsStart, asOfDate, asOfDate);
+  const [hyRows, unrateRows] = await Promise.all([
+    getFredRangeAsOf('BAMLH0A0HYM2', obsStart, asOfDate, asOfDate),
+    getFredRangeAsOf('UNRATE', obsStart, asOfDate, asOfDate),
+  ]);
 
-  if (rows.length === 0) return { value: null, sourceMaxDate: null };
+  const hySeries = hyRows.map(r => ({ date: r.observationDate, value: r.value }));
+  const unrateSeries = unrateRows.map(r => ({ date: r.observationDate, value: r.value }));
 
-  const series = rows.map(r => ({ date: r.observationDate, value: r.value }));
-  const sourceMaxDate = rows[rows.length - 1].observationDate;
+  const zHY = rollingZScore(hySeries, MONTHLY_WINDOW, asOfDate);
+  const zUnrate = rollingZScore(unrateSeries, MONTHLY_WINDOW, asOfDate);
 
-  return { value: rollingZScore(series, MONTHLY_WINDOW, asOfDate), sourceMaxDate };
+  const sourceMaxDate = hyRows.length > 0
+    ? hyRows[hyRows.length - 1].observationDate
+    : unrateRows.length > 0
+    ? unrateRows[unrateRows.length - 1].observationDate
+    : null;
+
+  // HY OAS is the true credit signal; UNRATE is a proxy — weight 60/40
+  let value: number | null;
+  if (zHY !== null && zUnrate !== null) {
+    value = 0.6 * zHY + 0.4 * zUnrate;
+  } else {
+    value = zHY ?? zUnrate;
+  }
+
+  return { value, sourceMaxDate };
 }
