@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { Brain, Calculator, BarChart3, FileText, GitBranch, Globe, MessageSquareText, Sparkles } from 'lucide-react';
+import { Brain, Calculator, BarChart3, FileText, GitBranch, Globe, MessageSquareText, Sparkles, TrendingUp } from 'lucide-react';
 
 const tools = [
   {
@@ -101,6 +101,20 @@ const tools = [
       'Forward estimate context',
       'Upcoming earnings calendar',
       'Dashboard-only research desk',
+    ],
+  },
+  {
+    id: 'macro-engine',
+    name: 'Macro Allocation Engine',
+    description: 'Current macro regime, ranked country/sector allocation signals with backtested OOS accuracy, and top single-stock picks per favored sector',
+    href: '/dashboard/tools/macro-engine',
+    icon: TrendingUp,
+    features: [
+      'Current regime badge with factor breakdown',
+      'Ranked overweight/underweight allocation signals',
+      'Probabilistic 6m/12m outperformance forecasts',
+      'OOS backtest hit rate, Sharpe, and max drawdown',
+      "Top single-stock picks with O'Neil scores and analyst consensus",
     ],
   },
 ];
