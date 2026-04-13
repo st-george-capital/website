@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 
 export type MacroEnginePayload = {
+  asOfDate: string | null;       // ISO date string — date of latest signal run
   regime: {
     regimeLabel: string;
     labelIndex: number;
@@ -216,6 +217,7 @@ export async function GET() {
   }
 
   const payload: MacroEnginePayload = {
+    asOfDate: latestRunDate ? latestRunDate.toISOString() : null,
     regime,
     signals,
     metrics,
