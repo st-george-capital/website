@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Backtesting Engine** - Walk-forward train/test with regime-conditioned weight optimization, holdout OOS validation, and Sharpe/hit-rate reporting (completed 2026-04-09)
 - [x] **Phase 4.1: Data Integrity and Validation** (INSERTED) - Fix silent null imputation, FRED vintage fallbacks, missing price gaps, and add pre-flight data quality checks before models run (completed 2026-04-09)
 - [x] **Phase 5: Allocation Signals** - Daily scoring cron, conviction scores with factor attribution, probabilistic forecasts, O'Neil single-stock screening, and analyst consensus overlay (completed 2026-04-12)
-- [ ] **Phase 6: Dashboard & Integration** - Regime badge, allocation table, backtest stats panel, single-stock picks panel, and tools-page card
+- [x] **Phase 6: Dashboard & Integration** - Regime badge, allocation table, backtest stats panel, single-stock picks panel, and tools-page card (completed 2026-04-13)
 
 ## Phase Details
 
@@ -148,4 +148,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 4. Backtesting Engine | 3/3 | Complete    | 2026-04-09 |
 | 4.1. Data Integrity and Validation | 3/3 | Complete    | 2026-04-09 |
 | 5. Allocation Signals | 4/4 | Complete    | 2026-04-12 |
-| 6. Dashboard & Integration | 1/2 | In Progress|  |
+| 6. Dashboard & Integration | 1/2 | Complete    | 2026-04-13 |
