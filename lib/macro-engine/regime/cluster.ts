@@ -106,18 +106,23 @@ export function fitClusters(
 }
 
 /**
- * Auto-name a regime based on its dominant z-score dimension.
- * Returns the FEATURE_DIMENSIONS name with the highest absolute centroid value.
- * Used when no canonical name has been assigned to a label yet.
+ * Auto-name a regime using its cluster index as the primary key, with the
+ * dominant factor dimension appended for human readability.
+ *
+ * Using positional "Regime-{idx}" guarantees uniqueness across k clusters,
+ * preventing the previous bug where two clusters with the same dominant
+ * dimension (e.g. both "zCredit") collapsed to a single label downstream.
+ *
+ * @param centroid  - The cluster centroid vector
+ * @param clusterIdx - The 0-based cluster index (ensures label uniqueness)
  */
-export function autoNameRegime(centroid: number[]): string {
+export function autoNameRegime(centroid: number[], clusterIdx: number): string {
   let maxAbs = -Infinity;
   let dominantIdx = 0;
   for (let i = 0; i < centroid.length; i++) {
     const abs = Math.abs(centroid[i]);
     if (abs > maxAbs) { maxAbs = abs; dominantIdx = i; }
   }
-  // If all values near zero, call it "neutral"
-  if (maxAbs < 0.3) return 'neutral';
-  return FEATURE_DIMENSIONS[dominantIdx];
+  const suffix = maxAbs < 0.3 ? 'neutral' : FEATURE_DIMENSIONS[dominantIdx];
+  return `Regime-${clusterIdx}-${suffix}`;
 }

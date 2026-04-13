@@ -5,7 +5,7 @@
 import { prisma } from '../db';
 import { addDays } from 'date-fns';
 
-const FORWARD_DAYS = 21; // ~1 trading month
+const FORWARD_DAYS = 63; // ~3 trading months — longer horizon reduces noise in regime-conditional returns
 const BUFFER_DAYS  = 10; // extra buffer for weekends/holidays when fetching
 
 export interface ForwardReturn {
@@ -15,7 +15,7 @@ export interface ForwardReturn {
 }
 
 /**
- * Computes 21-trading-day forward returns for all tickers in a date range.
+ * Computes ~63-trading-day (3-month) forward returns for all tickers in a date range.
  * Returns only observations where both base price and forward price exist.
  * IMPORTANT: always uses adjClose — never close — for split/dividend accuracy.
  */

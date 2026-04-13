@@ -58,7 +58,7 @@ export async function classifyRegimes(
   if (existingTemplates.length === 0) {
     // First run: auto-name and save as canonical templates
     nameMap = Object.fromEntries(
-      fitResult.centroids.map((centroid, idx) => [idx, autoNameRegime(centroid)])
+      fitResult.centroids.map((centroid, idx) => [idx, autoNameRegime(centroid, idx)])
     );
     await saveTemplates(fitResult, nameMap);
     console.log('First run: saved canonical templates -', Object.values(nameMap).join(', '));

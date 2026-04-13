@@ -30,7 +30,7 @@ const DEFAULT_CONFIG: BacktestConfig = {
   trainMinYears: 3,
   lambdaRidge: 0.05,
   minRegimeSamples: 30,
-  forwardDays: 21,
+  forwardDays: 63,
 };
 
 function toDateKey(date: Date): string {
