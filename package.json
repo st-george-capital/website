@@ -14,6 +14,7 @@
     "prisma:migrations:check": "node scripts/check-prisma-migrations.js",
     "create-admin": "node scripts/create-admin.js",
     "seed-team": "node scripts/seed-team.js",
+    "seed-learning": "node scripts/seed-learning.js",
     "init-settings": "node scripts/init-settings.js",
     "create-admin-user": "node scripts/create-admin.js",
     "ingest": "npx tsx scripts/macro-engine/run-ingest.ts",
@@ -29,7 +30,8 @@
     "build:features": "npx tsx scripts/macro-engine/run-feature-build.ts",
     "signals:run": "npx tsx scripts/macro-engine/run-signals.ts",
     "signals:dry": "npx tsx scripts/macro-engine/run-signals.ts --dry-run",
-    "verify:signals": "npx tsx scripts/macro-engine/verify-signals.ts"
+    "verify:signals": "npx tsx scripts/macro-engine/verify-signals.ts",
+    "backfill:momentum": "npx tsx scripts/macro-engine/backfill-momentum.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -67,6 +69,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@tailwindcss/typography": "^0.5.19",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.10.2",
     "@types/react": "^18.3.17",

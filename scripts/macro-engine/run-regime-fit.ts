@@ -36,6 +36,15 @@ async function modalLabel(windowStart: Date, windowEnd: Date): Promise<string> {
 
 async function main() {
   try {
+    // ─── Optional: reset templates so next fit treats itself as first-run ──
+    if (process.env.RESET_TEMPLATES === '1') {
+      const deactivated = await prisma.regimeTemplate.updateMany({
+        where: { isActive: true },
+        data: { isActive: false },
+      });
+      console.log(`RESET_TEMPLATES: deactivated ${deactivated.count} template(s) — next fit will be treated as first-run.`);
+    }
+
     // ─── Auto-detect start date from DB ────────────────────────────────────
     const earliestFeature = await prisma.factorFeatureMatrix.findFirst({
       orderBy: { featureDate: 'asc' },

@@ -124,6 +124,16 @@ export function fitClusters(
  * @param centroid  - The cluster centroid vector
  * @param clusterIdx - The 0-based cluster index (ensures label uniqueness)
  */
+// Human-readable suffix for each dimension index (zCarry is now momentum)
+const REGIME_SUFFIX: Record<string, string> = {
+  zGrowth:    'growth',
+  zInflation: 'inflation',
+  zMonetary:  'monetary',
+  zCredit:    'credit',
+  zCarry:     'momentum',
+  zEarnings:  'earnings',
+};
+
 export function autoNameRegime(centroid: number[], clusterIdx: number): string {
   let maxAbs = -Infinity;
   let dominantIdx = 0;
@@ -131,6 +141,7 @@ export function autoNameRegime(centroid: number[], clusterIdx: number): string {
     const abs = Math.abs(centroid[i]);
     if (abs > maxAbs) { maxAbs = abs; dominantIdx = i; }
   }
-  const suffix = maxAbs < 0.3 ? 'neutral' : FEATURE_DIMENSIONS[dominantIdx];
+  const dimName = FEATURE_DIMENSIONS[dominantIdx];
+  const suffix = maxAbs < 0.3 ? 'neutral' : (REGIME_SUFFIX[dimName] ?? dimName);
   return `Regime-${clusterIdx}-${suffix}`;
 }

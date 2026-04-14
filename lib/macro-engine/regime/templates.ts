@@ -57,8 +57,11 @@ export async function saveTemplates(
  * Uses greedy minimum-Euclidean-distance assignment (no duplicate assignments).
  * Returns permutation: permutation[newIdx] = canonicalLabelIndex
  *
+ * When k_new > k_templates (e.g. k increased from 4→6), excess centroids that
+ * cannot be matched to any template are assigned synthetic indices starting at
+ * max(existing labelIndex) + 1, so they get valid labels instead of -1.
+ *
  * Euclidean centroid matching is sufficient for template stabilization.
- * (Wasserstein distance deferred to v2 — no TypeScript library available.)
  */
 export function matchToTemplates(
   newCentroids: number[][],
@@ -81,7 +84,17 @@ export function matchToTemplates(
       }
     }
     permutation[ni] = bestTemplateIdx;
-    used.add(bestTemplateIdx);
+    if (bestTemplateIdx !== -1) used.add(bestTemplateIdx);
   }
+
+  // Assign synthetic indices to any unmatched centroids (k_new > k_templates)
+  const maxExisting = templates.reduce((m, t) => Math.max(m, t.labelIndex), -1);
+  let nextIdx = maxExisting + 1;
+  for (let ni = 0; ni < k; ni++) {
+    if (permutation[ni] === -1) {
+      permutation[ni] = nextIdx++;
+    }
+  }
+
   return permutation;
 }

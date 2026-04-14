@@ -52,3 +52,16 @@ export interface RegimeTemplateRow {
 /** Dimension ordering for feature vectors — must be consistent everywhere. */
 export const FEATURE_DIMENSIONS = ['zGrowth', 'zInflation', 'zMonetary', 'zCredit', 'zCarry', 'zEarnings'] as const;
 export type FeatureDimension = typeof FEATURE_DIMENSIONS[number];
+
+/**
+ * Human-readable display names for each feature dimension.
+ * Note: zCarry column is repurposed to store 6m cross-sectional price momentum.
+ */
+export const FEATURE_DIMENSION_LABELS: Record<string, string> = {
+  zGrowth:    'Growth',
+  zInflation: 'Inflation',
+  zMonetary:  'Monetary',
+  zCredit:    'Credit',
+  zCarry:     'Momentum',   // 6m cross-sectional price momentum (stored in zCarry column)
+  zEarnings:  'Earnings',
+};

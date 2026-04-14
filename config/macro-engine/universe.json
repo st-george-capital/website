@@ -1,17 +1,6 @@
 {
   "universe": [
     {
-      "ticker": "SPY",
-      "name": "SPDR S&P 500 ETF Trust",
-      "type": "etf",
-      "sector": null,
-      "country": "US",
-      "inceptionDate": "1993-01-22",
-      "proxySeries": "SPY",
-      "currency": "USD",
-      "exchange": "NYSE"
-    },
-    {
       "ticker": "EWJ",
       "name": "iShares MSCI Japan ETF",
       "type": "etf",

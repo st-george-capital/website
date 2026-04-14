@@ -44,13 +44,13 @@ function tickerLabel(ticker: string) {
 // ─── Regime colors ─────────────────────────────────────────────────────────────
 
 const REGIME_PALETTE: Record<string, string> = {
-  zCredit:    '#ef4444',
-  zMonetary:  '#f59e0b',
-  zGrowth:    '#10b981',
-  zInflation: '#f97316',
-  zEarnings:  '#6366f1',
-  zCarry:     '#0ea5e9',
-  neutral:    '#64748b',
+  credit:    '#ef4444',
+  monetary:  '#f59e0b',
+  growth:    '#10b981',
+  inflation: '#f97316',
+  earnings:  '#6366f1',
+  momentum:  '#0ea5e9',
+  neutral:   '#64748b',
 };
 
 function regimeColor(label: string): string {
@@ -63,9 +63,17 @@ function regimeDisplayName(label: string): string {
   const m = label.match(/^Regime-(\d+)-(.+)$/);
   if (!m) return label;
   const MAP: Record<string, string> = {
-    zCredit: 'Credit Stress', zMonetary: 'Monetary Tightening',
-    zGrowth: 'Growth', zInflation: 'Inflation', zEarnings: 'Earnings-Led', zCarry: 'Carry',
-    neutral: 'Neutral',
+    credit:    'Credit Stress',
+    monetary:  'Monetary Tightening',
+    growth:    'Growth',
+    inflation: 'Inflation',
+    earnings:  'Earnings-Led',
+    momentum:  'Momentum',
+    neutral:   'Neutral',
+    // legacy labels before rename
+    zCredit:   'Credit Stress', zMonetary: 'Monetary Tightening',
+    zGrowth:   'Growth',        zInflation: 'Inflation',
+    zEarnings: 'Earnings-Led',  zCarry: 'Momentum',
   };
   return `${MAP[m[2]] ?? m[2]} (R${m[1]})`;
 }
@@ -542,7 +550,7 @@ export default function MacroEnginePage() {
     { key: 'zInflation', label: 'Inflation', desc: 'CPI / PPI trend',       color: '#f97316' },
     { key: 'zMonetary',  label: 'Monetary',  desc: 'Rate path (Fed Funds)', color: '#f59e0b' },
     { key: 'zCredit',    label: 'Credit',    desc: 'Spread dynamics',        color: '#ef4444' },
-    { key: 'zCarry',     label: 'Carry',     desc: 'Rate differential',      color: '#0ea5e9' },
+    { key: 'zCarry',     label: 'Momentum',  desc: '6m price vs universe',   color: '#0ea5e9' },
     { key: 'zEarnings',  label: 'Earnings',  desc: 'EPS revision momentum',  color: '#6366f1' },
   ] as const;
 
@@ -955,8 +963,8 @@ export default function MacroEnginePage() {
             {[
               { title: '1. Data', body: 'Daily OHLCV, FRED macro (FEDFUNDS, CPI, credit spreads), OECD leading indicators, AV earnings revisions. Z-scored vs 20yr rolling history.' },
               { title: '2. Regime Detection', body: 'k-means on 6 macro factor z-scores finds 4 regimes. Centroid template matching ensures stable labels across refits (2008/2020/2022 shocks correctly classified).' },
-              { title: '3. Walk-Forward Backtest', body: 'Ridge regression trained on excess returns (ETF − SPY) per regime. Expanding training window, quarterly test steps. Never fits on test data.' },
-              { title: '4. Signal Scoring', body: "Today's factor z-scores × regime weights → conviction score. Top-half ETFs = overweight. Empirical decile calibration gives P(outperform SPY) at 6m / 12m." },
+              { title: '3. Walk-Forward Backtest', body: 'Ridge regression trained on excess returns (ETF − SPY) per regime. 6 factors including 6m cross-sectional price momentum. Expanding training window, quarterly test steps. Never fits on test data.' },
+              { title: '4. Signal Scoring', body: "Today's macro z-scores + momentum × regime weights → conviction score. Top-half ETFs = overweight. Empirical decile calibration gives P(outperform SPY) at 6m / 12m." },
             ].map(s => (
               <div key={s.title} className="space-y-1">
                 <div className="font-semibold text-slate-700">{s.title}</div>

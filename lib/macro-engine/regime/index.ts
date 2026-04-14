@@ -69,9 +69,18 @@ export async function classifyRegimes(
     fitResult.clusterAssignments = fitResult.clusterAssignments.map(
       newIdx => permutation[newIdx]
     );
+    // Build nameMap: existing templates + auto-name any synthetic new indices
     nameMap = Object.fromEntries(
       existingTemplates.map(t => [t.labelIndex, t.regimeLabel])
     );
+    // Assign names for synthetic indices (k_new > k_templates)
+    const maxExisting = existingTemplates.reduce((m, t) => Math.max(m, t.labelIndex), -1);
+    for (let ni = 0; ni < fitResult.centroids.length; ni++) {
+      const canonIdx = permutation[ni];
+      if (canonIdx > maxExisting) {
+        nameMap[canonIdx] = autoNameRegime(fitResult.centroids[ni], canonIdx);
+      }
+    }
     console.log('Re-fit: stabilized labels using template matching');
   }
 
