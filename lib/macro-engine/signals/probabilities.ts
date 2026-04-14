@@ -118,42 +118,67 @@ export async function computeOutperformanceProbabilities(
   ];
 
   // ── Step 2: Fetch historical FactorFeatureMatrix rows (pre-HOLDOUT_START) ──
-  // Join with regime_labels on the nearest available regime date to get regimeLabel per observation.
-  // We do a LEFT JOIN so rows without a regime are still included (regime defaults to 'global').
-  const historicalFeatureRows = await prismaDirectUrl.$queryRaw<
-    Array<{
-      ticker: string;
-      featureDate: Date;
-      regimeLabel: string | null;
-      zGrowth: number | null;
-      zInflation: number | null;
-      zMonetary: number | null;
-      zCredit: number | null;
-      zCarry: number | null;
-      zEarnings: number | null;
-    }>
-  >`
-    SELECT
-      f.ticker,
-      f."featureDate",
-      r."regimeLabel",
-      f."zGrowth",
-      f."zInflation",
-      f."zMonetary",
-      f."zCredit",
-      f."zCarry",
-      f."zEarnings"
-    FROM factor_feature_matrix f
-    LEFT JOIN regime_labels r
-      ON r.date = (
-        SELECT date FROM regime_labels
-        WHERE date <= f."featureDate"
-        ORDER BY date DESC
-        LIMIT 1
-      )
-    WHERE f."featureDate" < ${HOLDOUT_START}
-    ORDER BY f."featureDate" ASC
+  // Paginate per-ticker to stay under Accelerate's 5MB response limit.
+  // Then join regime labels in memory using a sorted lookup (nearest date ≤ featureDate).
+  type RawFeatureRow = {
+    ticker: string;
+    featureDate: Date;
+    zGrowth: number | null;
+    zInflation: number | null;
+    zMonetary: number | null;
+    zCredit: number | null;
+    zCarry: number | null;
+    zEarnings: number | null;
+  };
+
+  // Get distinct tickers that have pre-holdout data
+  const tickerRows = await prismaDirectUrl.$queryRaw<{ ticker: string }[]>`
+    SELECT DISTINCT ticker FROM factor_feature_matrix
+    WHERE "featureDate" < ${HOLDOUT_START}
+    ORDER BY ticker
   `;
+  const historicalTickers = tickerRows.map(r => r.ticker);
+
+  const rawFeatureRows: RawFeatureRow[] = [];
+  for (const ticker of historicalTickers) {
+    const rows = await prismaDirectUrl.$queryRaw<RawFeatureRow[]>`
+      SELECT ticker, "featureDate", "zGrowth", "zInflation", "zMonetary", "zCredit", "zCarry", "zEarnings"
+      FROM factor_feature_matrix
+      WHERE ticker = ${ticker}
+        AND "featureDate" < ${HOLDOUT_START}
+      ORDER BY "featureDate" ASC
+    `;
+    rawFeatureRows.push(...rows);
+  }
+
+  // Fetch all regime labels pre-holdout, sorted ascending for binary search lookup
+  const regimeLabelRows = await prismaDirectUrl.regimeLabel.findMany({
+    where: { date: { lt: HOLDOUT_START } },
+    orderBy: { date: 'asc' },
+    select: { date: true, regimeLabel: true },
+  });
+  // Build sorted array for nearest-prior lookup
+  const sortedRegimes = regimeLabelRows.map(r => ({
+    date: r.date.getTime(),
+    regimeLabel: r.regimeLabel,
+  }));
+
+  function findNearestPriorRegime(featureDate: Date): string {
+    const ms = featureDate.getTime();
+    // Binary search: find last entry with date <= featureDate
+    let lo = 0; let hi = sortedRegimes.length - 1; let result = -1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (sortedRegimes[mid].date <= ms) { result = mid; lo = mid + 1; }
+      else { hi = mid - 1; }
+    }
+    return result >= 0 ? sortedRegimes[result].regimeLabel : 'global';
+  }
+
+  const historicalFeatureRows = rawFeatureRows.map(row => ({
+    ...row,
+    regimeLabel: findNearestPriorRegime(row.featureDate),
+  }));
 
   if (historicalFeatureRows.length === 0) {
     console.warn(

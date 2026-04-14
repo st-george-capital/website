@@ -111,12 +111,13 @@ function scoreWindowRows(
     const portfolioReturn = longTickers.reduce((s, t) => s + t.actualReturn, 0) / longCount;
     const portfolioExcess = portfolioReturn - benchmarkReturn;
 
-    // For hit-rate: was the top-ranked ticker's return positive?
-    const topScore = scored[0].score;
-    const topReturn = scored[0].actualReturn;
-
-    predictedSigns.push(topScore);
-    actualReturns.push(topReturn);
+    // Hit-rate: fraction of periods where our ranked portfolio beat SPY.
+    // Record portfolioExcess as both predicted and actual — hitRate() then
+    // computes sign(pred)==sign(actual) which = 1 always; instead we want the
+    // fraction of periods excess > 0. Encode as pred=+1 (we always "predict" outperform),
+    // actual=portfolioExcess (the outcome). Hit = (portfolioExcess > 0).
+    predictedSigns.push(1);
+    actualReturns.push(portfolioExcess);
     excessReturns.push(portfolioExcess);
   }
 
@@ -247,6 +248,13 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
       const forwardReturn = allReturnMap.get(`${row.ticker}|${dateKey}`);
       if (forwardReturn === undefined) continue;
 
+      // Train on EXCESS return (ETF − SPY): the model should learn alpha, not beta.
+      // Raw returns just teach the model to prefer high-beta ETFs in bull markets,
+      // which adds no value over buying SPY. Excess returns teach regime-conditional alpha.
+      const benchmarkReturn = allBenchmarkReturnMap.get(dateKey);
+      if (benchmarkReturn === undefined) continue;
+      const excessReturn = forwardReturn - benchmarkReturn;
+
       if (countNullDimensions(row) > 3) {
         excludedTrainRows++;
         continue;
@@ -257,7 +265,7 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
         featureDate: row.featureDate,
         regimeLabel: allRegimeMap.get(dateKey) ?? 'global',
         features: toFeatureVector(row),
-        fwdReturn: forwardReturn,
+        fwdReturn: excessReturn,
       });
     }
     if (excludedTrainRows > 0) {
