@@ -57,6 +57,13 @@ function toBenchmarkMap(rows: ForwardReturn[], benchmarkTicker: string): Map<str
   );
 }
 
+/**
+ * Builds per-date portfolio returns by ranking tickers on each date and
+ * taking an equal-weighted long position in the top half of the universe.
+ *
+ * This gives a meaningful Sharpe: the model's actual "portfolio" return vs SPY
+ * rather than the unconditional excess return of every (ticker, date) pair.
+ */
 function scoreWindowRows(
   featureRows: FeatureSliceRow[],
   regimeMap: Map<string, string>,
@@ -66,23 +73,51 @@ function scoreWindowRows(
   globalWeights: number[],
   window: WindowResult['window'],
 ): WindowResult | null {
+  // Group feature rows by date — score all tickers on each date, then build portfolio
+  const byDate = new Map<string, FeatureSliceRow[]>();
+  for (const row of featureRows) {
+    const dk = toDateKey(row.featureDate);
+    if (!byDate.has(dk)) byDate.set(dk, []);
+    byDate.get(dk)!.push(row);
+  }
+
   const predictedSigns: number[] = [];
   const actualReturns: number[] = [];
   const excessReturns: number[] = [];
 
-  for (const row of featureRows) {
-    const dateKey = toDateKey(row.featureDate);
-    const actualReturn = assetReturnMap.get(`${row.ticker}|${dateKey}`);
-    if (actualReturn === undefined) continue;
+  for (const [dateKey, rows] of Array.from(byDate.entries()).sort()) {
+    const benchmarkReturn = benchmarkReturnMap.get(dateKey) ?? null;
+    if (benchmarkReturn === null) continue; // no SPY return for this date — skip
 
-    const benchmarkReturn = benchmarkReturnMap.get(dateKey) ?? 0;
     const regimeLabel = regimeMap.get(dateKey) ?? 'global';
     const weights = weightSetMap.get(regimeLabel) ?? globalWeights;
-    const score = toFeatureVector(row).reduce((sum, value, index) => sum + value * weights[index], 0);
 
-    predictedSigns.push(score);
-    actualReturns.push(actualReturn);
-    excessReturns.push(actualReturn - benchmarkReturn);
+    // Score every ticker on this date
+    const scored: Array<{ ticker: string; score: number; actualReturn: number }> = [];
+    for (const row of rows) {
+      const actualReturn = assetReturnMap.get(`${row.ticker}|${dateKey}`);
+      if (actualReturn === undefined) continue;
+      const score = toFeatureVector(row).reduce((sum, v, i) => sum + v * weights[i], 0);
+      scored.push({ ticker: row.ticker, score, actualReturn });
+    }
+    if (scored.length < 2) continue; // need at least 2 tickers to rank
+
+    // Rank by score descending — long top half (overweight), avoid bottom half
+    scored.sort((a, b) => b.score - a.score);
+    const longCount = Math.ceil(scored.length / 2);
+    const longTickers = scored.slice(0, longCount);
+
+    // Equal-weighted long portfolio return
+    const portfolioReturn = longTickers.reduce((s, t) => s + t.actualReturn, 0) / longCount;
+    const portfolioExcess = portfolioReturn - benchmarkReturn;
+
+    // For hit-rate: was the top-ranked ticker's return positive?
+    const topScore = scored[0].score;
+    const topReturn = scored[0].actualReturn;
+
+    predictedSigns.push(topScore);
+    actualReturns.push(topReturn);
+    excessReturns.push(portfolioExcess);
   }
 
   if (predictedSigns.length === 0) return null;
