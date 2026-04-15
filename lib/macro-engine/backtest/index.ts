@@ -58,6 +58,26 @@ function toBenchmarkMap(rows: ForwardReturn[], benchmarkTicker: string): Map<str
 }
 
 /**
+ * Returns ordinal ranks for an array of values (0-indexed, ascending).
+ * Equal values get averaged rank (fractional). Higher value = higher rank index.
+ * Example: [3, 1, 2] → [2, 0, 1]
+ */
+function rankAscending(values: number[]): number[] {
+  const n = values.length;
+  const indexed = values.map((v, i) => ({ v, i })).sort((a, b) => a.v - b.v);
+  const ranks = new Array(n).fill(0);
+  let i = 0;
+  while (i < n) {
+    let j = i;
+    while (j < n - 1 && indexed[j + 1].v === indexed[j].v) j++;
+    const avgRank = (i + j) / 2;
+    for (let k = i; k <= j; k++) ranks[indexed[k].i] = avgRank;
+    i = j + 1;
+  }
+  return ranks;
+}
+
+/**
  * Builds per-date portfolio returns by ranking tickers on each date and
  * taking an equal-weighted long position in the top half of the universe.
  *
@@ -90,32 +110,61 @@ function scoreWindowRows(
     if (benchmarkReturn === null) continue; // no SPY return for this date — skip
 
     const regimeLabel = regimeMap.get(dateKey) ?? 'global';
+
+    // ── Regime gate: go flat in acute credit-stress regimes ────────────────
+    // Credit-stress regimes have high correlation and risk-off drawdowns where
+    // cross-sectional ranking adds no alpha — everything goes down together.
+    // In these regimes we hold SPY (excess = 0) rather than a ranked long book.
+    // The gate fires on any regime whose label contains 'credit' (covers both
+    // Regime-3-credit and Regime-4-credit generically).
+    const isCreditStress = regimeLabel.toLowerCase().includes('credit');
+    if (isCreditStress) {
+      // Flat position: hold SPY, excess = 0. Don't count in hit rate (skip).
+      excessReturns.push(0);
+      continue;
+    }
+
     const weights = weightSetMap.get(regimeLabel) ?? globalWeights;
 
-    // Score every ticker on this date
-    const scored: Array<{ ticker: string; score: number; actualReturn: number }> = [];
+    // Build (ticker, featureVec, actualReturn) for all tickers with data on this date
+    type ScoredRow = { ticker: string; fv: number[]; actualReturn: number; score: number };
+    const candidates: ScoredRow[] = [];
     for (const row of rows) {
       const actualReturn = assetReturnMap.get(`${row.ticker}|${dateKey}`);
       if (actualReturn === undefined) continue;
-      const score = toFeatureVector(row).reduce((sum, v, i) => sum + v * weights[i], 0);
-      scored.push({ ticker: row.ticker, score, actualReturn });
+      candidates.push({ ticker: row.ticker, fv: toFeatureVector(row), actualReturn, score: 0 });
     }
-    if (scored.length < 2) continue; // need at least 2 tickers to rank
+    if (candidates.length < 2) continue;
 
-    // Rank by score descending — long top half (overweight), avoid bottom half
-    scored.sort((a, b) => b.score - a.score);
-    const longCount = Math.ceil(scored.length / 2);
-    const longTickers = scored.slice(0, longCount);
+    // IC-weighted rank scoring:
+    // Cross-sectionally rank each ticker on momentum (zCarry) and earnings (zEarnings)
+    // — the only two features with meaningful CS variance (std≈1 across tickers).
+    // Combine ranks weighted by the magnitude of the ridge weight for each feature
+    // (larger weight = stronger historical IC for that feature in this regime).
+    // Using ranks instead of raw z-scores: robust to outliers, scale-invariant,
+    // no matrix inversion, no look-ahead in the combining step.
+    const carryIdx    = BACKTEST_FEATURE_DIMS.indexOf('zCarry');
+    const earningsIdx = BACKTEST_FEATURE_DIMS.indexOf('zEarnings');
+    const wCarry    = Math.abs(weights[carryIdx]);
+    const wEarnings = Math.abs(weights[earningsIdx]);
+    const wTotal    = wCarry + wEarnings || 1;
+
+    const carryRanks    = rankAscending(candidates.map(c => c.fv[carryIdx]));
+    const earningsRanks = rankAscending(candidates.map(c => c.fv[earningsIdx]));
+
+    for (let i = 0; i < candidates.length; i++) {
+      candidates[i].score = (wCarry / wTotal) * carryRanks[i] + (wEarnings / wTotal) * earningsRanks[i];
+    }
+
+    // Long top half by combined rank score
+    candidates.sort((a, b) => b.score - a.score);
+    const longCount = Math.ceil(candidates.length / 2);
+    const longTickers = candidates.slice(0, longCount);
 
     // Equal-weighted long portfolio return
     const portfolioReturn = longTickers.reduce((s, t) => s + t.actualReturn, 0) / longCount;
     const portfolioExcess = portfolioReturn - benchmarkReturn;
 
-    // Hit-rate: fraction of periods where our ranked portfolio beat SPY.
-    // Record portfolioExcess as both predicted and actual — hitRate() then
-    // computes sign(pred)==sign(actual) which = 1 always; instead we want the
-    // fraction of periods excess > 0. Encode as pred=+1 (we always "predict" outperform),
-    // actual=portfolioExcess (the outcome). Hit = (portfolioExcess > 0).
     predictedSigns.push(1);
     actualReturns.push(portfolioExcess);
     excessReturns.push(portfolioExcess);
