@@ -198,12 +198,12 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
   console.log(`  loaded ${allRegimeRows.length} regime labels`);
 
   console.log('  preloading forward returns (per ticker)...');
-  const allReturns = await computeForwardReturns(tickers, config.dataStart, allDataEnd);
+  const allReturns = await computeForwardReturns(tickers, config.dataStart, allDataEnd, config.forwardDays);
   const allReturnMap = toReturnMap(allReturns);
   console.log(`  loaded ${allReturns.length} forward return observations`);
 
   console.log('  preloading benchmark (SPY) returns...');
-  const allBenchmarkReturns = await computeForwardReturns(['SPY'], config.dataStart, allDataEnd);
+  const allBenchmarkReturns = await computeForwardReturns(['SPY'], config.dataStart, allDataEnd, config.forwardDays);
   const allBenchmarkReturnMap = toBenchmarkMap(allBenchmarkReturns, 'SPY');
   console.log(`  loaded ${allBenchmarkReturns.length} SPY benchmark observations`);
 
@@ -399,7 +399,7 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
       stepMonths: config.stepMonths,
       lambdaRidge: config.lambdaRidge,
       minRegimeSamples: config.minRegimeSamples,
-      notes: `forwardDays=${config.forwardDays}; benchmark=SPY`,
+      notes: `forwardDays=${config.forwardDays}; benchmark=SPY; nonOverlapping=true`,
     },
   });
 
@@ -407,6 +407,8 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
     data: finalWeightSets.map((weightSet) => ({
       runId: run.id,
       regimeLabel: weightSet.regimeLabel,
+      // BACKTEST_FEATURE_DIMS = ['zCarry', 'zEarnings'] — only CS-varying features.
+      // DB schema stores all 6 columns; zero out the unused macro dimensions.
       wGrowth: weightSet.weights[0] ?? 0,
       wInflation: weightSet.weights[1] ?? 0,
       wMonetary: weightSet.weights[2] ?? 0,
