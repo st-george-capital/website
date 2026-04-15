@@ -1,21 +1,23 @@
 /**
  * scripts/macro-engine/backfill-momentum.ts
  *
- * Backfills zCarry column with 6-month cross-sectional price momentum z-score.
+ * Backfills zCarry column with 12m-1m skip-month cross-sectional momentum z-score.
  *
- * Why: zCarry is 100% null for US sector ETFs (carry = policy rate differential
- * which is undefined for sectors). Momentum is sector-specific and one of the most
- * robust cross-sectional return predictors. We repurpose the zCarry column.
+ * Why skip-1m? Raw 6m momentum includes the last month which exhibits short-term
+ * reversal (bid-ask bounce, earnings drift mean-reversion). The standard academic
+ * factor (Jegadeesh & Titman 1993, Fama-French) uses 12m lookback, skip last month:
+ *   momentum = return from D-252 to D-21 (12 months ago to 1 month ago)
+ * This eliminates the reversal and produces a cleaner, more persistent signal.
  *
  * Algorithm:
  *   For each feature date D:
- *     1. Find nearest OHLCV price at D and D-126 trading days (~6 months)
- *     2. 6m return = (price[D] / price[D-126]) - 1
+ *     1. Find nearest OHLCV at D-21 (1m ago) and D-252 (12m ago)
+ *     2. skip-mom return = price[D-21] / price[D-252] - 1
  *     3. Cross-sectionally z-score: (ret - mean) / std across universe for this date
  *     4. Store z-score in zCarry column
  *
  * No look-ahead bias: prices are point-in-time (never revised).
- * Bulk updates via unnest() for speed — one round-trip per 200-date batch.
+ * Bulk updates via unnest() for speed — one round-trip per 500-row batch.
  *
  * Usage:
  *   DIRECT_URL="" npx tsx scripts/macro-engine/backfill-momentum.ts
@@ -23,14 +25,16 @@
  */
 
 import { prismaDirectUrl as prisma } from '../../lib/macro-engine/db';
-import { Prisma } from '@prisma/client';
 
-const MOMENTUM_DAYS = 126;
-const PRICE_BUFFER  = 5;
+const LOOKBACK_DAYS = 252; // 12 months
+const SKIP_DAYS     = 21;  // skip last month (reversal removal)
+const PRICE_BUFFER  = 5;   // ±5 calendar days to find nearest trading day
 
+// All ETFs in the ranking universe (includes new cross-asset ETFs)
 const ETF_TICKERS = [
   'EWJ', 'EWG', 'EWU', 'MCHI', 'EWZ', 'EWC', 'EWA',
   'XLK', 'XLF', 'XLE', 'XLV', 'XLI', 'XLY',
+  'TLT', 'GLD', 'IWM', 'HYG',
 ];
 
 async function main() {
@@ -44,7 +48,8 @@ async function main() {
   console.log(`backfill-momentum: starting from ${fromDate.toISOString().slice(0, 10)}`);
 
   // 1. Fetch all OHLCV prices for ETFs
-  const priceStart = new Date(fromDate.getTime() - (MOMENTUM_DAYS + 30) * 24 * 60 * 60 * 1000);
+  // Need prices from (fromDate - 252 - 30) to cover the 12m lookback plus buffer
+  const priceStart = new Date(fromDate.getTime() - (LOOKBACK_DAYS + 30) * 24 * 60 * 60 * 1000);
   console.log(`  fetching OHLCV from ${priceStart.toISOString().slice(0, 10)}...`);
 
   const priceMap = new Map<string, { date: Date; adjClose: number }[]>();
@@ -92,16 +97,18 @@ async function main() {
 
   for (const { featureDate: rawDate } of featureDates) {
     const featureDate = new Date(rawDate);
-    const lookbackDate = new Date(featureDate.getTime() - MOMENTUM_DAYS * 86400_000);
+    // Skip-month momentum: return from 12m ago to 1m ago (skip last month)
+    const skipDate     = new Date(featureDate.getTime() - SKIP_DAYS     * 86400_000); // D-21 (1m ago)
+    const lookbackDate = new Date(featureDate.getTime() - LOOKBACK_DAYS * 86400_000); // D-252 (12m ago)
 
     const returns: { ticker: string; ret: number }[] = [];
     for (const ticker of ETF_TICKERS) {
       const prices = priceMap.get(ticker);
       if (!prices) continue;
-      const p0 = findPrice(prices, featureDate);
-      const p1 = findPrice(prices, lookbackDate);
-      if (p0 === null || p1 === null || p1 <= 0) continue;
-      returns.push({ ticker, ret: p0 / p1 - 1 });
+      const pSkip     = findPrice(prices, skipDate);     // price 1 month ago
+      const pLookback = findPrice(prices, lookbackDate); // price 12 months ago
+      if (pSkip === null || pLookback === null || pLookback <= 0) continue;
+      returns.push({ ticker, ret: pSkip / pLookback - 1 }); // 12m-1m return
     }
 
     if (returns.length < 3) { skipped++; continue; }

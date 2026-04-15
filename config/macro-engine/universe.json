@@ -78,6 +78,50 @@
       "exchange": "NYSE"
     },
     {
+      "ticker": "TLT",
+      "name": "iShares 20+ Year Treasury Bond ETF",
+      "type": "etf",
+      "sector": null,
+      "country": null,
+      "inceptionDate": "2002-07-22",
+      "proxySeries": "TLT",
+      "currency": "USD",
+      "exchange": "NASDAQ"
+    },
+    {
+      "ticker": "GLD",
+      "name": "SPDR Gold Shares",
+      "type": "etf",
+      "sector": null,
+      "country": null,
+      "inceptionDate": "2004-11-18",
+      "proxySeries": "GLD",
+      "currency": "USD",
+      "exchange": "NYSE"
+    },
+    {
+      "ticker": "IWM",
+      "name": "iShares Russell 2000 ETF",
+      "type": "etf",
+      "sector": null,
+      "country": null,
+      "inceptionDate": "2000-05-22",
+      "proxySeries": "IWM",
+      "currency": "USD",
+      "exchange": "NYSE"
+    },
+    {
+      "ticker": "HYG",
+      "name": "iShares iBoxx High Yield Corporate Bond ETF",
+      "type": "etf",
+      "sector": null,
+      "country": null,
+      "inceptionDate": "2007-04-04",
+      "proxySeries": "HYG",
+      "currency": "USD",
+      "exchange": "NYSE"
+    },
+    {
       "ticker": "XLK",
       "name": "Technology Select Sector SPDR Fund",
       "type": "etf",
