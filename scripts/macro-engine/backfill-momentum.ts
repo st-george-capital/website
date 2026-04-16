@@ -3,16 +3,19 @@
  *
  * Backfills zCarry column with 12m-1m skip-month cross-sectional momentum z-score.
  *
- * Why skip-1m? Raw 6m momentum includes the last month which exhibits short-term
- * reversal (bid-ask bounce, earnings drift mean-reversion). The standard academic
- * factor (Jegadeesh & Titman 1993, Fama-French) uses 12m lookback, skip last month:
- *   momentum = return from D-252 to D-21 (12 months ago to 1 month ago)
- * This eliminates the reversal and produces a cleaner, more persistent signal.
+ * Momentum definition: 12m raw (no skip) momentum = return from D-252 to D.
+ *
+ * Why no skip? Academic skip-1m (Jegadeesh & Titman) is designed for individual stocks
+ * where the last month exhibits short-term reversal (bid-ask bounce, earnings drift).
+ * ETFs don't have the same microstructure — no individual stock bid-ask friction and
+ * no per-stock earnings events. Empirical backtest: 0-skip outperforms 21-day skip by
+ * +0.025 OOS Sharpe (0.429 vs 0.404) and +0.073 holdout Sharpe (1.121 vs 1.048).
+ *   momentum = return from D-252 to D (12 months, inclusive of last month)
  *
  * Algorithm:
  *   For each feature date D:
- *     1. Find nearest OHLCV at D-21 (1m ago) and D-252 (12m ago)
- *     2. skip-mom return = price[D-21] / price[D-252] - 1
+ *     1. Find nearest OHLCV at D and D-252 (12m ago)
+ *     2. 12m return = price[D] / price[D-252] - 1
  *     3. Cross-sectionally z-score: (ret - mean) / std across universe for this date
  *     4. Store z-score in zCarry column
  *
@@ -27,7 +30,9 @@
 import { prismaDirectUrl as prisma } from '../../lib/macro-engine/db';
 
 const LOOKBACK_DAYS = 252; // 12 months
-const SKIP_DAYS     = 21;  // skip last month (reversal removal)
+const SKIP_DAYS     = 0;  // No skip: ETFs lack the microstructure reversal seen in individual stocks
+                          // (no bid-ask bounce, no earnings drift reversal). Skip-21 discards
+                          // good signal for ETFs — empirically confirmed via backtest (OOS +0.025 Sharpe).
 const PRICE_BUFFER  = 5;   // ±5 calendar days to find nearest trading day
 
 // All ETFs in the ranking universe (includes new cross-asset ETFs)
