@@ -93,6 +93,7 @@ function scoreWindowRows(
   globalWeights: number[],
   window: WindowResult['window'],
   creditStressLabels: Set<string>,
+  confidenceMap: Map<string, number>,
 ): WindowResult | null {
   // Group feature rows by date — score all tickers on each date, then build portfolio
   const byDate = new Map<string, FeatureSliceRow[]>();
@@ -148,9 +149,15 @@ function scoreWindowRows(
     const longCount = Math.ceil(candidates.length / 2);
     const longTickers = candidates.slice(0, longCount);
 
-    // Equal-weighted long portfolio return
+    // Equal-weighted long portfolio return, scaled by regime confidence.
+    // High confidence (regime clearly identified) → full position.
+    // Low confidence (transition/ambiguous) → reduced position size.
+    // Scale: position = min(1, confidence * 2) maps [0→0.5]→[0→1], [0.5→1]→capped at 1.
+    // Average confidence (0.46) → ~0.92 position, low (0.18) → 0.36 position.
+    const confidence = confidenceMap.get(dateKey) ?? 0.5;
+    const positionSize = Math.min(1.0, confidence * 2); // scales linearly from 0 to 1
     const portfolioReturn = longTickers.reduce((s, t) => s + t.actualReturn, 0) / longCount;
-    const portfolioExcess = portfolioReturn - benchmarkReturn;
+    const portfolioExcess = (portfolioReturn - benchmarkReturn) * positionSize;
 
     predictedSigns.push(1);
     actualReturns.push(portfolioExcess);
@@ -227,10 +234,14 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
   console.log('  preloading regime labels...');
   const allRegimeRows = await prisma.regimeLabel.findMany({
     where: { date: { gte: config.dataStart, lte: allDataEnd } },
-    select: { date: true, regimeLabel: true },
+    select: { date: true, regimeLabel: true, confidence: true },
     orderBy: { date: 'asc' },
   });
   const allRegimeMap = new Map(allRegimeRows.map((row) => [toDateKey(row.date), row.regimeLabel]));
+  // Regime confidence map: dateKey → confidence [0,1]. Used for position sizing.
+  const allConfidenceMap = new Map(
+    allRegimeRows.map((row) => [toDateKey(row.date), row.confidence ?? 0.5])
+  );
   console.log(`  loaded ${allRegimeRows.length} regime labels`);
 
   // Build credit-stress label set: any regime whose label contains 'credit'.
@@ -370,6 +381,7 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
       globalWeights,
       window,
       creditStressLabels,
+      allConfidenceMap,
     );
 
     if (result) {
@@ -417,6 +429,9 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
     testEnd: holdoutEnd,
   };
 
+  const holdoutConfidenceMap = new Map(
+    [...allConfidenceMap.entries()].filter(([k]) => k >= toDateKey(HOLDOUT_START)),
+  );
   const holdoutResult = scoreWindowRows(
     holdoutFeatures,
     holdoutRegimeMap,
@@ -426,6 +441,7 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
     finalGlobalWeights,
     holdoutWindow,
     creditStressLabels,
+    holdoutConfidenceMap,
   );
 
   if (!holdoutResult) {
