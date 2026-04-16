@@ -26,11 +26,11 @@ type FeatureSliceRow = {
 
 const DEFAULT_CONFIG: BacktestConfig = {
   dataStart: new Date('2004-01-01'),
-  stepMonths: 3,
+  stepMonths: 1,  // Monthly rebalancing aligned with 21-day forward return period
   trainMinYears: 3,
   lambdaRidge: 0.05,
   minRegimeSamples: 30,
-  forwardDays: 63,
+  forwardDays: 21,
 };
 
 function toDateKey(date: Date): string {
@@ -115,8 +115,6 @@ function scoreWindowRows(
     // Credit-stress regimes have high correlation and risk-off drawdowns where
     // cross-sectional ranking adds no alpha — everything goes down together.
     // In these regimes we hold SPY (excess = 0) rather than a ranked long book.
-    // The gate fires on any regime whose label contains 'credit' (covers both
-    // Regime-3-credit and Regime-4-credit generically).
     const isCreditStress = regimeLabel.toLowerCase().includes('credit');
     if (isCreditStress) {
       // Flat position: hold SPY, excess = 0. Don't count in hit rate (skip).
