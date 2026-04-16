@@ -33,7 +33,7 @@ const DEFAULT_CONFIG: BacktestConfig = {
   forwardDays: 21,
   longFraction: 0.33,          // top third of universe — joint sweep with vol=18: lf=0.25→0.568/1.161, lf=0.33→0.560/1.295, lf=0.50→0.536/1.210
   volLookbackPeriods: 18,      // trailing months for inverse-vol weighting — joint sweep: vol=12→0.551/1.220, vol=18→0.560/1.295, vol=24→0.532/1.280
-  confidenceExp: 1,            // confidence scaling exponent: 1=linear min(1,c*2), <1=softer, >1=more aggressive
+  confidenceExp: 0.5,          // confidence scaling exponent: sweep 0.5→0.563/1.298, 0.75→0.562/1.297, 1→0.560/1.295, 2→0.536/1.280
 };
 
 function toDateKey(date: Date): string {
