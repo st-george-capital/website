@@ -42,6 +42,8 @@ export interface BacktestConfig {
   lambdaRidge:      number; // ridge regularization parameter, e.g. 0.05
   minRegimeSamples: number; // minimum (ticker, date) observations for regime-specific fit, e.g. 30
   forwardDays:      number; // trading days for forward return computation, e.g. 21
+  longFraction:     number; // fraction of universe to go long, e.g. 0.5 (top half) or 0.33 (top third)
+  skipPersist?:     boolean; // if true, skip DB writes (for experiment sweeps — results logged only)
 }
 
 // ─── Training Data ────────────────────────────────────────────────────────────

@@ -31,6 +31,7 @@ const DEFAULT_CONFIG: BacktestConfig = {
   lambdaRidge: 0.05,
   minRegimeSamples: 30,
   forwardDays: 21,
+  longFraction: 0.25, // top quarter of universe (sweep: 0.20→0.334, 0.25→0.460, 0.30→0.448, 0.33→0.440, 0.50→0.425)
 };
 
 function toDateKey(date: Date): string {
@@ -79,7 +80,8 @@ function rankAscending(values: number[]): number[] {
 
 /**
  * Builds per-date portfolio returns by ranking tickers on each date and
- * taking an equal-weighted long position in the top half of the universe.
+ * taking an equal-weighted long position in the top `longFraction` of the universe.
+ * Default longFraction=0.25 (top quarter) was selected via sweep over [0.20, 0.25, 0.30, 0.33, 0.40, 0.50].
  *
  * This gives a meaningful Sharpe: the model's actual "portfolio" return vs SPY
  * rather than the unconditional excess return of every (ticker, date) pair.
@@ -94,6 +96,7 @@ function scoreWindowRows(
   window: WindowResult['window'],
   creditStressLabels: Set<string>,
   confidenceMap: Map<string, number>,
+  longFraction: number,
 ): WindowResult | null {
   // Group feature rows by date — score all tickers on each date, then build portfolio
   const byDate = new Map<string, FeatureSliceRow[]>();
@@ -144,9 +147,9 @@ function scoreWindowRows(
       candidates[i].score = carryRanks[i];
     }
 
-    // Long top half by momentum rank score
+    // Long top fraction by momentum rank score
     candidates.sort((a, b) => b.score - a.score);
-    const longCount = Math.ceil(candidates.length / 2);
+    const longCount = Math.max(1, Math.ceil(candidates.length * longFraction));
     const longTickers = candidates.slice(0, longCount);
 
     // Equal-weighted long portfolio return, scaled by regime confidence.
@@ -382,6 +385,7 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
       window,
       creditStressLabels,
       allConfidenceMap,
+      config.longFraction,
     );
 
     if (result) {
@@ -442,6 +446,7 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
     holdoutWindow,
     creditStressLabels,
     holdoutConfidenceMap,
+    config.longFraction,
   );
 
   if (!holdoutResult) {
@@ -454,6 +459,12 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
       3,
     )}, sharpe=${holdoutMetrics.sharpeAnn.toFixed(3)}, maxDD=${holdoutMetrics.maxDrawdown?.toFixed(3) ?? 'null'}`,
   );
+
+  // Skip DB writes during experiment sweeps — results are logged to console only
+  if (config.skipPersist) {
+    console.log('runBacktest: skipPersist=true — skipping DB writes');
+    return 'dry-run';
+  }
 
   const run = await prisma.backtestRun.create({
     data: {
