@@ -45,6 +45,8 @@ export interface BacktestConfig {
   longFraction:          number;  // fraction of universe to go long, e.g. 0.5 (top half) or 0.33 (top third)
   volLookbackPeriods:    number;  // trailing periods for inverse-vol position sizing, 0 = equal-weight
   confidenceExp:         number;  // exponent for confidence scaling: 1=linear min(1,c*2), <1=softer, >1=harder
+  shortMomPeriods:       number;  // periods for short-term momentum blend (0 = disabled); blended with zCarry
+  shortMomWeight:        number;  // weight of short-term momentum in blended score [0,1]; 0 = long-term only
   creditGateEnabled?:    boolean; // if false, skip the credit-stress flat regime gate (default: true)
   skipPersist?:          boolean; // if true, skip DB writes (for experiment sweeps — results logged only)
 }

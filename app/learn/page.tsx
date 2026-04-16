@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
-import { Book, Rss, Youtube, ExternalLink, GraduationCap, ArrowRight, BookOpen } from 'lucide-react';
+import { Book, Rss, Youtube, ExternalLink, GraduationCap, ArrowRight, BookOpen, Headphones } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,10 +11,11 @@ const KIND_META: Record<string, { label: string; Icon: any; color: string }> = {
   book: { label: 'Books', Icon: Book, color: 'bg-amber-100 text-amber-700' },
   newsletter: { label: 'Newsletters', Icon: Rss, color: 'bg-green-100 text-green-700' },
   youtube: { label: 'YouTube', Icon: Youtube, color: 'bg-red-100 text-red-700' },
-  external_course: { label: 'External Courses', Icon: ExternalLink, color: 'bg-blue-100 text-blue-700' },
+  podcast: { label: 'Podcasts', Icon: Headphones, color: 'bg-purple-100 text-purple-700' },
+  external_course: { label: 'Research & Courses', Icon: ExternalLink, color: 'bg-blue-100 text-blue-700' },
 };
 
-const KIND_ORDER = ['book', 'newsletter', 'youtube', 'external_course'];
+const KIND_ORDER = ['book', 'newsletter', 'youtube', 'podcast', 'external_course'];
 
 export default async function LearnPage() {
   const session = await getServerSession(authOptions);
@@ -51,8 +52,8 @@ export default async function LearnPage() {
       {/* Hero */}
       <div className="pt-28 pb-16 px-6 max-w-5xl mx-auto">
         <div className="flex items-center gap-3 mb-4">
-          <GraduationCap className="w-8 h-8 text-primary opacity-80" />
-          <span className="text-primary text-sm font-medium uppercase tracking-widest">SGC Members</span>
+          <GraduationCap className="w-8 h-8 text-white/70" />
+          <span className="text-white/60 text-sm font-medium uppercase tracking-widest">SGC Members</span>
         </div>
         <h1 className="font-serif text-5xl md:text-6xl font-bold mb-4">Learning Hub</h1>
         <p className="text-white/70 text-xl max-w-2xl">
@@ -72,8 +73,8 @@ export default async function LearnPage() {
                 className="group block bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl p-6 transition-all"
               >
                 <div className="flex items-start justify-between mb-3">
-                  <div className="p-2 rounded-lg bg-primary/20">
-                    <GraduationCap className="w-5 h-5 text-primary" />
+                  <div className="p-2 rounded-lg bg-white/10">
+                    <GraduationCap className="w-5 h-5 text-white" />
                   </div>
                   <ArrowRight className="w-5 h-5 text-white/30 group-hover:text-white/70 transition-colors" />
                 </div>
@@ -84,7 +85,7 @@ export default async function LearnPage() {
                     <BookOpen className="w-3.5 h-3.5" />
                     {course.lessons.length} lesson{course.lessons.length !== 1 ? 's' : ''}
                   </span>
-                  {course.tags && <span className="text-primary/60">{course.tags}</span>}
+                  {course.tags && <span className="text-white/40">{course.tags}</span>}
                 </div>
               </Link>
             ))}

@@ -34,6 +34,8 @@ const DEFAULT_CONFIG: BacktestConfig = {
   longFraction: 0.33,          // top third of universe — joint sweep with vol=18: lf=0.25→0.568/1.161, lf=0.33→0.560/1.295, lf=0.50→0.536/1.210
   volLookbackPeriods: 18,      // trailing months for inverse-vol weighting — joint sweep: vol=12→0.551/1.220, vol=18→0.560/1.295, vol=24→0.532/1.280
   confidenceExp: 0.5,          // confidence scaling exponent: sweep 0.5→0.563/1.298, 0.75→0.562/1.297, 1→0.560/1.295, 2→0.536/1.280
+  shortMomPeriods: 0,          // short-term momentum lookback (0=disabled); blended with zCarry
+  shortMomWeight: 0.3,         // weight of short-term momentum in blended score (only active when shortMomPeriods>0)
 };
 
 function toDateKey(date: Date): string {
@@ -94,21 +96,109 @@ function rankAscending(values: number[]): number[] {
  * so there is no look-ahead bias. Volatility = population std of those returns.
  * If fewer than 3 periods are available, returns null (equal-weight fallback).
  */
+/**
+ * Computes trailing N-period compounded return for each (ticker, date).
+ * Uses N non-overlapping monthly returns, collected by stepping backwards
+ * forwardDays at a time from D-forwardDays (no look-ahead).
+ *
+ * Same algorithm as buildVolMap: picks nearest available monthly return
+ * at D-1*forwardDays, D-2*forwardDays, ..., D-N*forwardDays.
+ */
+function buildShortMomMap(
+  assetReturnMap: Map<string, number>,
+  tickers: string[],
+  sortedDateKeys: string[],
+  lookbackPeriods: number,
+  forwardDays: number,
+): Map<string, number | null> {
+  const momMap = new Map<string, number | null>();
+  for (const ticker of tickers) {
+    const tickerDateSet = new Set(sortedDateKeys.filter(dk => assetReturnMap.has(`${ticker}|${dk}`)));
+    const tickerDates = sortedDateKeys.filter(dk => tickerDateSet.has(dk));
+
+    for (let i = 0; i < tickerDates.length; i++) {
+      const dk = tickerDates[i];
+      const dMs = new Date(dk).getTime();
+
+      const window: number[] = [];
+      let stepTargetMs = dMs - forwardDays * 86400_000;
+
+      for (let step = 0; step < lookbackPeriods && window.length < lookbackPeriods; step++) {
+        const targetKey = new Date(stepTargetMs).toISOString().slice(0, 10);
+        let lo = 0, hi = tickerDates.length - 1;
+        while (lo <= hi) {
+          const mid = (lo + hi) >> 1;
+          if (tickerDates[mid] <= targetKey) { lo = mid + 1; } else { hi = mid - 1; }
+        }
+        if (hi >= 0 && tickerDates[hi] < tickerDates[i]) {
+          const r = assetReturnMap.get(`${ticker}|${tickerDates[hi]}`);
+          if (r !== undefined) window.push(r);
+        }
+        stepTargetMs -= forwardDays * 86400_000;
+      }
+
+      if (window.length < lookbackPeriods) {
+        momMap.set(`${ticker}|${dk}`, null);
+        continue;
+      }
+      const compounded = window.reduce((product, r) => product * (1 + r), 1) - 1;
+      momMap.set(`${ticker}|${dk}`, compounded);
+    }
+  }
+  return momMap;
+}
+
+/**
+ * Pre-compute trailing N-period volatility for each (ticker, date).
+ * Selects N non-overlapping monthly returns (spaced forwardDays apart) strictly
+ * before D - forwardDays to avoid look-ahead bias.
+ *
+ * Selection strategy: working backwards from D-forwardDays, picks the nearest
+ * available trading day at each monthly step (D-forwardDays, D-2*forwardDays, etc.).
+ * This gives N truly non-overlapping forward-return windows.
+ *
+ * If fewer than 3 non-overlapping periods are available, returns null (equal-weight fallback).
+ */
 function buildVolMap(
   assetReturnMap: Map<string, number>,
   tickers: string[],
   sortedDateKeys: string[],
   volLookbackPeriods: number,
+  forwardDays: number,
 ): Map<string, number | null> {
   const volMap = new Map<string, number | null>();
-  // For each (ticker, date), compute vol from the previous N returns
   for (const ticker of tickers) {
-    const tickerDates = sortedDateKeys.filter(dk => assetReturnMap.has(`${ticker}|${dk}`));
+    // Pre-build sorted list of dates where this ticker has a return
+    const tickerDateSet = new Set(sortedDateKeys.filter(dk => assetReturnMap.has(`${ticker}|${dk}`)));
+    const tickerDates = sortedDateKeys.filter(dk => tickerDateSet.has(dk));
+
     for (let i = 0; i < tickerDates.length; i++) {
       const dk = tickerDates[i];
-      // Use up to volLookbackPeriods returns strictly BEFORE this period (no look-ahead)
-      const start = Math.max(0, i - volLookbackPeriods);
-      const window = tickerDates.slice(start, i).map(d => assetReturnMap.get(`${ticker}|${d}`)!);
+      const dMs = new Date(dk).getTime();
+
+      // Collect N non-overlapping monthly returns by stepping backwards forwardDays at a time
+      const window: number[] = [];
+      let stepTargetMs = dMs - forwardDays * 86400_000; // start at D - 1 period
+
+      for (let step = 0; step < volLookbackPeriods && window.length < volLookbackPeriods; step++) {
+        // Find nearest available date at or before stepTargetMs
+        const targetKey = new Date(stepTargetMs).toISOString().slice(0, 10);
+        // Search backward from targetKey for nearest available ticker date
+        let found: number | null = null;
+        // Binary search for position <= targetKey
+        let lo = 0, hi = tickerDates.length - 1;
+        while (lo <= hi) {
+          const mid = (lo + hi) >> 1;
+          if (tickerDates[mid] <= targetKey) { lo = mid + 1; } else { hi = mid - 1; }
+        }
+        // hi is the rightmost index with tickerDates[hi] <= targetKey
+        if (hi >= 0 && tickerDates[hi] < tickerDates[i]) {
+          found = assetReturnMap.get(`${ticker}|${tickerDates[hi]}`) ?? null;
+        }
+        if (found !== null) window.push(found);
+        stepTargetMs -= forwardDays * 86400_000; // go back another period
+      }
+
       if (window.length < 3) {
         volMap.set(`${ticker}|${dk}`, null);
         continue;
@@ -134,6 +224,8 @@ function scoreWindowRows(
   longFraction: number,
   volMap: Map<string, number | null>,
   confidenceExp: number,
+  shortMomMap: Map<string, number | null>,
+  shortMomWeight: number,
 ): WindowResult | null {
   // Group feature rows by date — score all tickers on each date, then build portfolio
   const byDate = new Map<string, FeatureSliceRow[]>();
@@ -174,14 +266,31 @@ function scoreWindowRows(
     }
     if (candidates.length < 2) continue;
 
-    // Pure momentum scoring: rank all candidates on zCarry (12m-1m skip momentum).
-    // IC-weighted rank was tested but found to be insensitive to weights (ridge
-    // weights effectively zero at this scale), so pure momentum is cleaner and
-    // consistently matches or beats the IC-weighted version.
+    // Scoring: rank on zCarry (12m momentum) optionally blended with short-term momentum.
+    // Short-term momentum uses trailing N-period compounded returns (from assetReturnMap).
+    // Blend formula: score = (1-w)*longRank + w*shortRank (both 0-indexed ordinal ranks).
     const carryIdx = BACKTEST_FEATURE_DIMS.indexOf('zCarry');
     const carryRanks = rankAscending(candidates.map(c => c.fv[carryIdx]));
-    for (let i = 0; i < candidates.length; i++) {
-      candidates[i].score = carryRanks[i];
+
+    if (shortMomWeight > 0) {
+      // Compute short-term ranks from shortMomMap; fall back to longRank if data missing
+      const shortMoms = candidates.map(c => shortMomMap.get(`${c.ticker}|${dateKey}`) ?? null);
+      const validShortMoms = shortMoms.filter(v => v !== null) as number[];
+      if (validShortMoms.length >= 2) {
+        const shortRanks = rankAscending(shortMoms.map(v => v ?? 0)); // impute median(0) for missing
+        for (let i = 0; i < candidates.length; i++) {
+          candidates[i].score = (1 - shortMomWeight) * carryRanks[i] + shortMomWeight * shortRanks[i];
+        }
+      } else {
+        // Not enough short-term data — fall back to pure long-term
+        for (let i = 0; i < candidates.length; i++) {
+          candidates[i].score = carryRanks[i];
+        }
+      }
+    } else {
+      for (let i = 0; i < candidates.length; i++) {
+        candidates[i].score = carryRanks[i];
+      }
     }
 
     // Long top fraction by momentum rank score
@@ -327,8 +436,17 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
   // Pre-compute trailing 6-period (6-month) volatility for inverse-vol position sizing.
   // buildVolMap is fast (in-memory, no DB) — computed once over the full date range.
   const allSortedDateKeys = [...new Set(allReturns.map(r => toDateKey(r.featureDate)))].sort();
-  const allVolMap = buildVolMap(allReturnMap, tickers, allSortedDateKeys, config.volLookbackPeriods);
+  const allVolMap = buildVolMap(allReturnMap, tickers, allSortedDateKeys, config.volLookbackPeriods, config.forwardDays);
   console.log(`  computed trailing-vol map for ${allVolMap.size} (ticker, date) entries`);
+
+  // Pre-compute short-term momentum map for optional blending with zCarry.
+  // shortMomPeriods=0 disables blending (returns empty map, falls back to pure zCarry).
+  const allShortMomMap = config.shortMomPeriods > 0
+    ? buildShortMomMap(allReturnMap, tickers, allSortedDateKeys, config.shortMomPeriods, config.forwardDays)
+    : new Map<string, number | null>();
+  if (config.shortMomPeriods > 0) {
+    console.log(`  computed short-term momentum map (${config.shortMomPeriods}p) for ${allShortMomMap.size} entries`);
+  }
 
   // Build in-memory lookup: "TICKER|YYYY-MM-DD" → feature row
   const featureByDateTicker = new Map<string, FeatureSliceRow>();
@@ -451,6 +569,8 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
       config.longFraction,
       allVolMap,
       config.confidenceExp,
+      allShortMomMap,
+      config.shortMomWeight,
     );
 
     if (result) {
@@ -514,6 +634,8 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
     config.longFraction,
     allVolMap,
     config.confidenceExp,
+    allShortMomMap,
+    config.shortMomWeight,
   );
 
   if (!holdoutResult) {

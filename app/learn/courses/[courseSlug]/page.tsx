@@ -44,10 +44,10 @@ export default async function CourseOverviewPage({
         </Link>
 
         <div className="flex items-center gap-2 mb-4">
-          <div className="p-2 rounded-lg bg-primary/20">
-            <GraduationCap className="w-5 h-5 text-primary" />
+          <div className="p-2 rounded-lg bg-white/10">
+            <GraduationCap className="w-5 h-5 text-white" />
           </div>
-          <span className="text-primary text-sm font-medium uppercase tracking-widest">SGC Course</span>
+          <span className="text-white/60 text-sm font-medium uppercase tracking-widest">SGC Course</span>
         </div>
 
         <h1 className="font-serif text-4xl md:text-5xl font-bold mb-4">{course.title}</h1>
@@ -98,12 +98,12 @@ export default async function CourseOverviewPage({
 
         {course.lessons.length > 0 && (
           <div className="mt-8">
-            <Link
-              href={`/learn/courses/${course.slug}/${course.lessons[0].slug}`}
-              className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold px-6 py-3 rounded-xl transition-colors"
-            >
-              Start Course <ArrowRight className="w-4 h-4" />
-            </Link>
+          <Link
+            href={`/learn/courses/${course.slug}/${course.lessons[0].slug}`}
+            className="inline-flex items-center gap-2 bg-white text-[#030116] hover:bg-white/90 font-semibold px-6 py-3 rounded-xl transition-colors"
+          >
+            Start Course <ArrowRight className="w-4 h-4" />
+          </Link>
           </div>
         )}
       </div>

@@ -16,9 +16,10 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
+  Headphones,
 } from 'lucide-react';
 
-type Kind = 'book' | 'newsletter' | 'youtube' | 'external_course';
+type Kind = 'book' | 'newsletter' | 'youtube' | 'podcast' | 'external_course';
 
 interface CuratedItem {
   id: string;
@@ -36,17 +37,19 @@ const KIND_LABELS: Record<Kind, string> = {
   book: 'Book',
   newsletter: 'Newsletter',
   youtube: 'YouTube Channel',
-  external_course: 'External Course',
+  podcast: 'Podcast',
+  external_course: 'Research / Course',
 };
 
 const KIND_ICONS: Record<Kind, React.ElementType> = {
   book: Book,
   newsletter: Rss,
   youtube: Youtube,
+  podcast: Headphones,
   external_course: ExternalLink,
 };
 
-const KINDS: Kind[] = ['book', 'newsletter', 'youtube', 'external_course'];
+const KINDS: Kind[] = ['book', 'newsletter', 'youtube', 'podcast', 'external_course'];
 
 const EMPTY_FORM = {
   kind: 'book' as Kind,
@@ -197,8 +200,8 @@ export default function CuratedPage() {
 
       {/* Form modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 space-y-4">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 space-y-4 my-8">
             <h2 className="text-lg font-bold">{editingId ? 'Edit Resource' : 'Add Resource'}</h2>
 
             <div>

@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { ArrowLeft, ArrowRight, BookOpen } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import rehypeRaw from 'rehype-raw';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,26 +41,33 @@ export default async function LessonPage({
 
   return (
     <div className="min-h-screen bg-[#030116] text-white">
-      {/* Top nav */}
-      <div className="fixed top-0 left-0 right-0 z-40 bg-[#030116]/95 backdrop-blur border-b border-white/10">
-        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center gap-4">
+      {/*
+        Site nav is fixed top-0 z-50 h-20 (80px).
+        This lesson sub-nav sits fixed at top-20 z-40 h-14 (56px).
+        Total fixed area = 144px → main content uses pt-[144px].
+      */}
+      <div className="fixed top-20 left-0 right-0 z-40 bg-[#030116]/95 backdrop-blur border-b border-white/10">
+        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center gap-3">
           <Link
             href={`/learn/courses/${course.slug}`}
-            className="inline-flex items-center text-white/60 hover:text-white text-sm transition-colors"
+            className="inline-flex items-center gap-1 text-white/60 hover:text-white text-sm transition-colors shrink-0"
           >
-            <ArrowLeft className="w-4 h-4 mr-1" /> {course.title}
+            <ArrowLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">{course.title}</span>
+            <span className="sm:hidden">Back</span>
           </Link>
-          <span className="text-white/20 text-lg">/</span>
-          <span className="text-white/80 text-sm truncate">{lesson.title}</span>
-          <div className="ml-auto text-xs text-white/40">
+          <span className="text-white/20">/</span>
+          <span className="text-white/80 text-sm truncate flex-1">{lesson.title}</span>
+          <span className="text-xs text-white/40 shrink-0">
             {lessonIndex + 1} / {course.lessons.length}
-          </div>
+          </span>
         </div>
       </div>
 
-      <div className="flex max-w-5xl mx-auto pt-16">
+      {/* pt-[144px] = 80px site nav + 64px (h-14=56px lesson nav, rounded up with border) */}
+      <div className="flex max-w-5xl mx-auto pt-[144px]">
         {/* Sidebar — lesson list */}
-        <aside className="hidden lg:block w-64 flex-shrink-0 border-r border-white/10 min-h-[calc(100vh-4rem)] p-6 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto">
+        <aside className="hidden lg:block w-64 flex-shrink-0 border-r border-white/10 min-h-[calc(100vh-144px)] p-6 sticky top-[144px] h-[calc(100vh-144px)] overflow-y-auto">
           <p className="text-xs font-medium text-white/40 uppercase tracking-widest mb-4">
             Course Content
           </p>
@@ -72,7 +78,7 @@ export default async function LessonPage({
                 href={`/learn/courses/${course.slug}/${l.slug}`}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
                   l.slug === params.lessonSlug
-                    ? 'bg-primary/20 text-white'
+                    ? 'bg-white/15 text-white'
                     : 'text-white/50 hover:text-white hover:bg-white/5'
                 }`}
               >
@@ -95,23 +101,24 @@ export default async function LessonPage({
             <h1 className="font-serif text-3xl md:text-4xl font-bold mb-8">{lesson.title}</h1>
 
             {/* Markdown content */}
-            <div className="prose prose-invert prose-lg max-w-none
-              prose-headings:font-serif
-              prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-4
-              prose-h3:text-xl prose-h3:mt-8 prose-h3:mb-3
+            <div className="prose prose-invert prose-base max-w-none
+              prose-headings:font-semibold prose-headings:text-white
+              prose-h2:text-xl prose-h2:mt-10 prose-h2:mb-4 prose-h2:pb-2 prose-h2:border-b prose-h2:border-white/10
+              prose-h3:text-lg prose-h3:mt-8 prose-h3:mb-3
               prose-p:text-white/80 prose-p:leading-relaxed
               prose-strong:text-white
-              prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-              prose-code:bg-white/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm
-              prose-pre:bg-white/5 prose-pre:border prose-pre:border-white/10
-              prose-blockquote:border-l-primary prose-blockquote:text-white/60
+              prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline
+              prose-code:bg-white/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:text-emerald-300 prose-code:before:content-none prose-code:after:content-none
+              prose-pre:bg-white/5 prose-pre:border prose-pre:border-white/10 prose-pre:rounded-xl
+              prose-blockquote:border-l-4 prose-blockquote:border-white/30 prose-blockquote:text-white/60 prose-blockquote:not-italic
               prose-li:text-white/80
               prose-hr:border-white/10
+              prose-table:text-sm
+              prose-thead:border-white/20
+              prose-th:text-white prose-th:font-semibold prose-th:bg-white/5 prose-th:px-3 prose-th:py-2
+              prose-td:text-white/75 prose-td:px-3 prose-td:py-2 prose-td:border-white/10
             ">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeRaw]}
-              >
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {lesson.content}
               </ReactMarkdown>
             </div>
@@ -147,9 +154,9 @@ export default async function LessonPage({
               ) : (
                 <Link
                   href={`/learn/courses/${course.slug}`}
-                  className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors text-sm font-medium"
+                  className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/20 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
                 >
-                  Course Complete <ArrowLeft className="w-4 h-4 rotate-180" />
+                  Course Complete <ArrowRight className="w-4 h-4" />
                 </Link>
               )}
             </div>
