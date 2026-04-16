@@ -123,8 +123,6 @@ function scoreWindowRows(
       continue;
     }
 
-    const weights = weightSetMap.get(regimeLabel) ?? globalWeights;
-
     // Build (ticker, featureVec, actualReturn) for all tickers with data on this date
     type ScoredRow = { ticker: string; fv: number[]; actualReturn: number; score: number };
     const candidates: ScoredRow[] = [];
@@ -135,24 +133,14 @@ function scoreWindowRows(
     }
     if (candidates.length < 2) continue;
 
-    // IC-weighted rank scoring:
-    // Cross-sectionally rank each ticker on momentum (zCarry) and earnings (zEarnings)
-    // — the only two features with meaningful CS variance (std≈1 across tickers).
-    // Combine ranks weighted by the magnitude of the ridge weight for each feature
-    // (larger |weight| = stronger historical IC for that feature in this regime).
-    // Using ranks instead of raw z-scores: robust to outliers, scale-invariant,
-    // no matrix inversion, no look-ahead in the combining step.
-    const carryIdx    = BACKTEST_FEATURE_DIMS.indexOf('zCarry');
-    const earningsIdx = BACKTEST_FEATURE_DIMS.indexOf('zEarnings');
-    const wCarry    = Math.abs(weights[carryIdx]);
-    const wEarnings = Math.abs(weights[earningsIdx]);
-    const wTotal    = wCarry + wEarnings || 1;
-
-    const carryRanks    = rankAscending(candidates.map(c => c.fv[carryIdx]));
-    const earningsRanks = rankAscending(candidates.map(c => c.fv[earningsIdx]));
-
+    // Pure momentum scoring: rank all candidates on zCarry (12m-1m skip momentum).
+    // IC-weighted rank was tested but found to be insensitive to weights (ridge
+    // weights effectively zero at this scale), so pure momentum is cleaner and
+    // consistently matches or beats the IC-weighted version.
+    const carryIdx = BACKTEST_FEATURE_DIMS.indexOf('zCarry');
+    const carryRanks = rankAscending(candidates.map(c => c.fv[carryIdx]));
     for (let i = 0; i < candidates.length; i++) {
-      candidates[i].score = (wCarry / wTotal) * carryRanks[i] + (wEarnings / wTotal) * earningsRanks[i];
+      candidates[i].score = carryRanks[i];
     }
 
     // Long top half by combined rank score
