@@ -143,7 +143,7 @@ function scoreWindowRows(
       candidates[i].score = carryRanks[i];
     }
 
-    // Long top half by combined rank score
+    // Long top half by momentum rank score
     candidates.sort((a, b) => b.score - a.score);
     const longCount = Math.ceil(candidates.length / 2);
     const longTickers = candidates.slice(0, longCount);

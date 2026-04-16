@@ -30,7 +30,7 @@
 import { prismaDirectUrl as prisma } from '../../lib/macro-engine/db';
 
 const LOOKBACK_DAYS = 252; // 12 months
-const SKIP_DAYS     = 0;  // No skip: ETFs lack the microstructure reversal seen in individual stocks
+const SKIP_DAYS     = 0;  // No skip: ETFs lack the microstructure reversal seen in individual stocks.
                           // (no bid-ask bounce, no earnings drift reversal). Skip-21 discards
                           // good signal for ETFs — empirically confirmed via backtest (OOS +0.025 Sharpe).
 const PRICE_BUFFER  = 5;   // ±5 calendar days to find nearest trading day
