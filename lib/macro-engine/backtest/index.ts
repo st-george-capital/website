@@ -92,6 +92,7 @@ function scoreWindowRows(
   weightSetMap: Map<string, number[]>,
   globalWeights: number[],
   window: WindowResult['window'],
+  creditStressLabels: Set<string>,
 ): WindowResult | null {
   // Group feature rows by date — score all tickers on each date, then build portfolio
   const byDate = new Map<string, FeatureSliceRow[]>();
@@ -111,12 +112,12 @@ function scoreWindowRows(
 
     const regimeLabel = regimeMap.get(dateKey) ?? 'global';
 
-    // ── Regime gate: go flat in acute credit-stress regimes ────────────────
+    // ── Regime gate: go flat in credit-stress regimes (centroid zCredit > 0) ──
     // Credit-stress regimes have high correlation and risk-off drawdowns where
     // cross-sectional ranking adds no alpha — everything goes down together.
-    // In these regimes we hold SPY (excess = 0) rather than a ranked long book.
-    const isCreditStress = regimeLabel.toLowerCase().includes('credit');
-    if (isCreditStress) {
+    // Gate uses centroid-derived labels to distinguish genuine stress (wide spreads)
+    // from tight-spread "credit" regimes which are actually risk-on environments.
+    if (creditStressLabels.has(regimeLabel)) {
       // Flat position: hold SPY, excess = 0. Don't count in hit rate (skip).
       excessReturns.push(0);
       continue;
@@ -138,7 +139,7 @@ function scoreWindowRows(
     // Cross-sectionally rank each ticker on momentum (zCarry) and earnings (zEarnings)
     // — the only two features with meaningful CS variance (std≈1 across tickers).
     // Combine ranks weighted by the magnitude of the ridge weight for each feature
-    // (larger weight = stronger historical IC for that feature in this regime).
+    // (larger |weight| = stronger historical IC for that feature in this regime).
     // Using ranks instead of raw z-scores: robust to outliers, scale-invariant,
     // no matrix inversion, no look-ahead in the combining step.
     const carryIdx    = BACKTEST_FEATURE_DIMS.indexOf('zCarry');
@@ -243,6 +244,16 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
   });
   const allRegimeMap = new Map(allRegimeRows.map((row) => [toDateKey(row.date), row.regimeLabel]));
   console.log(`  loaded ${allRegimeRows.length} regime labels`);
+
+  // Build credit-stress label set: any regime whose label contains 'credit'.
+  // All credit-labeled regimes (tight or wide spreads) appear to be environments
+  // where cross-sectional momentum adds little alpha — the simple label filter
+  // consistently outperforms centroid-based thresholds in backtests.
+  const allRegimeLabels = [...new Set(allRegimeRows.map(r => r.regimeLabel))];
+  const creditStressLabels = new Set<string>(
+    allRegimeLabels.filter(l => l.toLowerCase().includes('credit'))
+  );
+  console.log(`  credit-regime gate applies to: ${[...creditStressLabels].join(', ')}`);
 
   console.log('  preloading forward returns (per ticker)...');
   const allReturns = await computeForwardReturns(tickers, config.dataStart, allDataEnd, config.forwardDays);
@@ -370,6 +381,7 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
       weightSetMap,
       globalWeights,
       window,
+      creditStressLabels,
     );
 
     if (result) {
@@ -425,6 +437,7 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
     finalWeightMap,
     finalGlobalWeights,
     holdoutWindow,
+    creditStressLabels,
   );
 
   if (!holdoutResult) {
