@@ -31,7 +31,8 @@ const DEFAULT_CONFIG: BacktestConfig = {
   lambdaRidge: 0.05,
   minRegimeSamples: 30,
   forwardDays: 21,
-  longFraction: 0.25, // top quarter of universe (sweep: 0.20→0.334, 0.25→0.460, 0.30→0.448, 0.33→0.440, 0.50→0.425)
+  longFraction: 0.25,          // top quarter of universe (sweep: 0.20→0.334, 0.25→0.460, 0.30→0.448, 0.33→0.440, 0.50→0.425)
+  volLookbackPeriods: 18,      // trailing months for inverse-vol weighting (0=equal-weight; sweep: 0→0.460/1.168, 6→0.506/0.997, 12→0.561/1.099, 18→0.568/1.161, 24→0.538/1.124)
 };
 
 function toDateKey(date: Date): string {
@@ -86,6 +87,39 @@ function rankAscending(values: number[]): number[] {
  * This gives a meaningful Sharpe: the model's actual "portfolio" return vs SPY
  * rather than the unconditional excess return of every (ticker, date) pair.
  */
+/**
+ * Pre-compute trailing 6-month (6-period) volatility for each (ticker, date) pair.
+ * Uses the last 6 monthly returns ending at the previous period (before date D),
+ * so there is no look-ahead bias. Volatility = population std of those returns.
+ * If fewer than 3 periods are available, returns null (equal-weight fallback).
+ */
+function buildVolMap(
+  assetReturnMap: Map<string, number>,
+  tickers: string[],
+  sortedDateKeys: string[],
+  volLookbackPeriods: number,
+): Map<string, number | null> {
+  const volMap = new Map<string, number | null>();
+  // For each (ticker, date), compute vol from the previous N returns
+  for (const ticker of tickers) {
+    const tickerDates = sortedDateKeys.filter(dk => assetReturnMap.has(`${ticker}|${dk}`));
+    for (let i = 0; i < tickerDates.length; i++) {
+      const dk = tickerDates[i];
+      // Use up to volLookbackPeriods returns strictly BEFORE this period (no look-ahead)
+      const start = Math.max(0, i - volLookbackPeriods);
+      const window = tickerDates.slice(start, i).map(d => assetReturnMap.get(`${ticker}|${d}`)!);
+      if (window.length < 3) {
+        volMap.set(`${ticker}|${dk}`, null);
+        continue;
+      }
+      const mu = window.reduce((a, b) => a + b, 0) / window.length;
+      const variance = window.reduce((a, b) => a + (b - mu) ** 2, 0) / window.length;
+      volMap.set(`${ticker}|${dk}`, Math.sqrt(variance));
+    }
+  }
+  return volMap;
+}
+
 function scoreWindowRows(
   featureRows: FeatureSliceRow[],
   regimeMap: Map<string, string>,
@@ -97,6 +131,7 @@ function scoreWindowRows(
   creditStressLabels: Set<string>,
   confidenceMap: Map<string, number>,
   longFraction: number,
+  volMap: Map<string, number | null>,
 ): WindowResult | null {
   // Group feature rows by date — score all tickers on each date, then build portfolio
   const byDate = new Map<string, FeatureSliceRow[]>();
@@ -152,14 +187,29 @@ function scoreWindowRows(
     const longCount = Math.max(1, Math.ceil(candidates.length * longFraction));
     const longTickers = candidates.slice(0, longCount);
 
-    // Equal-weighted long portfolio return, scaled by regime confidence.
+    // Volatility-adjusted (inverse-vol) weighting within the long portfolio.
+    // Each ticker is weighted by 1/vol(trailing 6 periods). Falls back to equal-weight
+    // if any ticker lacks sufficient history (<3 periods) or vol=0.
+    const invVols = longTickers.map(t => {
+      const vol = volMap.get(`${t.ticker}|${dateKey}`);
+      return (vol !== null && vol !== undefined && vol > 0) ? 1 / vol : null;
+    });
+    let portfolioReturn: number;
+    if (invVols.some(v => v === null)) {
+      // Fallback: equal-weight if any ticker missing vol
+      portfolioReturn = longTickers.reduce((s, t) => s + t.actualReturn, 0) / longCount;
+    } else {
+      const definedInvVols = invVols as number[];
+      const totalInvVol = definedInvVols.reduce((s, v) => s + v, 0);
+      portfolioReturn = longTickers.reduce((s, t, i) => s + t.actualReturn * (definedInvVols[i] / totalInvVol), 0);
+    }
+
+    // Scale total position by regime confidence.
     // High confidence (regime clearly identified) → full position.
     // Low confidence (transition/ambiguous) → reduced position size.
     // Scale: position = min(1, confidence * 2) maps [0→0.5]→[0→1], [0.5→1]→capped at 1.
-    // Average confidence (0.46) → ~0.92 position, low (0.18) → 0.36 position.
     const confidence = confidenceMap.get(dateKey) ?? 0.5;
-    const positionSize = Math.min(1.0, confidence * 2); // scales linearly from 0 to 1
-    const portfolioReturn = longTickers.reduce((s, t) => s + t.actualReturn, 0) / longCount;
+    const positionSize = Math.min(1.0, confidence * 2);
     const portfolioExcess = (portfolioReturn - benchmarkReturn) * positionSize;
 
     predictedSigns.push(1);
@@ -266,6 +316,12 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
   const allBenchmarkReturns = await computeForwardReturns(['SPY'], config.dataStart, allDataEnd, config.forwardDays);
   const allBenchmarkReturnMap = toBenchmarkMap(allBenchmarkReturns, 'SPY');
   console.log(`  loaded ${allBenchmarkReturns.length} SPY benchmark observations`);
+
+  // Pre-compute trailing 6-period (6-month) volatility for inverse-vol position sizing.
+  // buildVolMap is fast (in-memory, no DB) — computed once over the full date range.
+  const allSortedDateKeys = [...new Set(allReturns.map(r => toDateKey(r.featureDate)))].sort();
+  const allVolMap = buildVolMap(allReturnMap, tickers, allSortedDateKeys, config.volLookbackPeriods);
+  console.log(`  computed trailing-vol map for ${allVolMap.size} (ticker, date) entries`);
 
   // Build in-memory lookup: "TICKER|YYYY-MM-DD" → feature row
   const featureByDateTicker = new Map<string, FeatureSliceRow>();
@@ -386,6 +442,7 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
       creditStressLabels,
       allConfidenceMap,
       config.longFraction,
+      allVolMap,
     );
 
     if (result) {
@@ -447,6 +504,7 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
     creditStressLabels,
     holdoutConfidenceMap,
     config.longFraction,
+    allVolMap,
   );
 
   if (!holdoutResult) {
