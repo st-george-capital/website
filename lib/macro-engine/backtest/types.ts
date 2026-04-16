@@ -44,6 +44,8 @@ export interface BacktestConfig {
   forwardDays:      number; // trading days for forward return computation, e.g. 21
   longFraction:          number;  // fraction of universe to go long, e.g. 0.5 (top half) or 0.33 (top third)
   volLookbackPeriods:    number;  // trailing periods for inverse-vol position sizing, 0 = equal-weight
+  confidenceExp:         number;  // exponent for confidence scaling: 1=linear min(1,c*2), <1=softer, >1=harder
+  creditGateEnabled?:    boolean; // if false, skip the credit-stress flat regime gate (default: true)
   skipPersist?:          boolean; // if true, skip DB writes (for experiment sweeps — results logged only)
 }
 

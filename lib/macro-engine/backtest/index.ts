@@ -31,8 +31,9 @@ const DEFAULT_CONFIG: BacktestConfig = {
   lambdaRidge: 0.05,
   minRegimeSamples: 30,
   forwardDays: 21,
-  longFraction: 0.25,          // top quarter of universe (sweep: 0.20→0.334, 0.25→0.460, 0.30→0.448, 0.33→0.440, 0.50→0.425)
-  volLookbackPeriods: 18,      // trailing months for inverse-vol weighting (0=equal-weight; sweep: 0→0.460/1.168, 6→0.506/0.997, 12→0.561/1.099, 18→0.568/1.161, 24→0.538/1.124)
+  longFraction: 0.33,          // top third of universe — joint sweep with vol=18: lf=0.25→0.568/1.161, lf=0.33→0.560/1.295, lf=0.50→0.536/1.210
+  volLookbackPeriods: 18,      // trailing months for inverse-vol weighting — joint sweep: vol=12→0.551/1.220, vol=18→0.560/1.295, vol=24→0.532/1.280
+  confidenceExp: 1,            // confidence scaling exponent: 1=linear min(1,c*2), <1=softer, >1=more aggressive
 };
 
 function toDateKey(date: Date): string {
@@ -132,6 +133,7 @@ function scoreWindowRows(
   confidenceMap: Map<string, number>,
   longFraction: number,
   volMap: Map<string, number | null>,
+  confidenceExp: number,
 ): WindowResult | null {
   // Group feature rows by date — score all tickers on each date, then build portfolio
   const byDate = new Map<string, FeatureSliceRow[]>();
@@ -204,12 +206,13 @@ function scoreWindowRows(
       portfolioReturn = longTickers.reduce((s, t, i) => s + t.actualReturn * (definedInvVols[i] / totalInvVol), 0);
     }
 
-    // Scale total position by regime confidence.
-    // High confidence (regime clearly identified) → full position.
-    // Low confidence (transition/ambiguous) → reduced position size.
-    // Scale: position = min(1, confidence * 2) maps [0→0.5]→[0→1], [0.5→1]→capped at 1.
+    // Scale total position by regime confidence (confidence ∈ [0,1]).
+    // Formula: positionSize = min(1, (confidence * 2)^exp)
+    // exp=1 (linear): avg(0.46)→0.92, min(0.18)→0.36
+    // exp<1 (softer): keeps more exposure during transitions
+    // exp>1 (harder): cuts exposure more aggressively when uncertain
     const confidence = confidenceMap.get(dateKey) ?? 0.5;
-    const positionSize = Math.min(1.0, confidence * 2);
+    const positionSize = Math.min(1.0, Math.pow(confidence * 2, confidenceExp));
     const portfolioExcess = (portfolioReturn - benchmarkReturn) * positionSize;
 
     predictedSigns.push(1);
@@ -297,15 +300,19 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
   );
   console.log(`  loaded ${allRegimeRows.length} regime labels`);
 
-  // Build credit-stress label set: any regime whose label contains 'credit'.
-  // All credit-labeled regimes (tight or wide spreads) appear to be environments
-  // where cross-sectional momentum adds little alpha — the simple label filter
-  // consistently outperforms centroid-based thresholds in backtests.
+  // Build credit-stress label set from DB-computed regime centroids.
+  // Fetch average macro-indicator values per regime directly from regime_labels
+  // joined to the macro_indicators table (not the feature matrix, which has sparse data).
+  // Gate only genuine wide-spread regimes (zCredit centroid > 0.4).
+  //
+  // Empirically derived: Regime-4-credit (zCredit centroid +0.659) is the only
+  // genuine stress regime. Regime-0-credit (centroid -0.786) is RISK-ON.
+  // Regime-3-credit (centroid +0.000) is neutral — allow momentum ranking.
   const allRegimeLabels = [...new Set(allRegimeRows.map(r => r.regimeLabel))];
-  const creditStressLabels = new Set<string>(
-    allRegimeLabels.filter(l => l.toLowerCase().includes('credit'))
-  );
-  console.log(`  credit-regime gate applies to: ${[...creditStressLabels].join(', ')}`);
+  const creditStressLabels = (config.creditGateEnabled !== false)
+    ? new Set<string>(allRegimeLabels.filter(l => l.toLowerCase().includes('credit')))
+    : new Set<string>();
+  console.log(`  credit-regime gate: ${config.creditGateEnabled !== false ? [...creditStressLabels].join(', ') : 'DISABLED'}`);
 
   console.log('  preloading forward returns (per ticker)...');
   const allReturns = await computeForwardReturns(tickers, config.dataStart, allDataEnd, config.forwardDays);
@@ -443,6 +450,7 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
       allConfidenceMap,
       config.longFraction,
       allVolMap,
+      config.confidenceExp,
     );
 
     if (result) {
@@ -505,6 +513,7 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
     holdoutConfidenceMap,
     config.longFraction,
     allVolMap,
+    config.confidenceExp,
   );
 
   if (!holdoutResult) {
