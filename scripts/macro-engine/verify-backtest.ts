@@ -76,7 +76,12 @@ async function main() {
     fail('windowCount=0 — no walk-forward windows were persisted');
   }
 
-  header('BACK-02 Regime-conditioned weights');
+  header('BACK-02 Scoring weight set (cross-sectional momentum model)');
+  // The scoring model is a pure CS-momentum ranker, so we persist a single
+  // "global" weight row encoding wCarry=1 (all other dims=0). The downstream
+  // signals pipeline reads this row to score today's universe consistently
+  // with the backtest. Ridge-regression per-regime weights were removed when
+  // we discovered they never influenced scoring.
   const weightSets = await prisma.factorWeightSet.findMany({
     where: { runId: run.id },
     orderBy: { regimeLabel: 'asc' },
@@ -85,22 +90,18 @@ async function main() {
   if (weightSets.length === 0) {
     fail('No FactorWeightSet rows found for latest run');
   } else {
-    pass(`${weightSets.length} weight sets persisted`);
     const globalWeightSet = weightSets.find((row) => row.regimeLabel === 'global');
     if (globalWeightSet) {
-      pass('"global" fallback weight set present');
+      pass(`"global" scoring weight set present (${weightSets.length} total rows)`);
+      const w = globalWeightSet;
+      const macroSum = Math.abs(w.wGrowth) + Math.abs(w.wInflation) + Math.abs(w.wMonetary) + Math.abs(w.wCredit) + Math.abs(w.wEarnings);
+      if (Math.abs(w.wCarry - 1) < 1e-9 && macroSum < 1e-9) {
+        pass('weight vector is pure-momentum (wCarry=1, all other dims=0)');
+      } else {
+        warn(`weight vector is not pure-momentum: wCarry=${w.wCarry}, macroSum=${macroSum}`);
+      }
     } else {
-      fail('"global" fallback weight set missing');
-    }
-
-    const regimeSpecific = weightSets.filter(
-      (row) => row.regimeLabel !== 'global' && row.isFallback === false,
-    );
-    pass(`${regimeSpecific.length} regime-specific weight sets`);
-
-    const fallbacks = weightSets.filter((row) => row.isFallback);
-    if (fallbacks.length > 0) {
-      warn(`${fallbacks.length} regime weight sets are using global fallback`);
+      fail('"global" weight set missing — signals pipeline will break');
     }
   }
 
@@ -117,9 +118,8 @@ async function main() {
     fail('No BacktestMetric row with window="oos"');
   } else {
     pass(
-      `OOS hitRate=${oosMetric.hitRate.toFixed(3)} sharpe=${oosMetric.sharpeAnn.toFixed(
-        3,
-      )} maxDD=${oosMetric.maxDrawdown.toFixed(3)}`,
+      `OOS hitRate=${oosMetric.hitRate.toFixed(3)} sharpe=${oosMetric.sharpeAnn.toFixed(3)} ` +
+        `maxDD=${oosMetric.maxDrawdown.toFixed(3)} activePeriods=${oosMetric.nPeriods}`,
     );
   }
 
@@ -127,9 +127,8 @@ async function main() {
     fail('No BacktestMetric row with window="holdout"');
   } else {
     pass(
-      `Holdout hitRate=${holdoutMetric.hitRate.toFixed(3)} sharpe=${holdoutMetric.sharpeAnn.toFixed(
-        3,
-      )} maxDD=${holdoutMetric.maxDrawdown.toFixed(3)}`,
+      `Holdout hitRate=${holdoutMetric.hitRate.toFixed(3)} sharpe=${holdoutMetric.sharpeAnn.toFixed(3)} ` +
+        `maxDD=${holdoutMetric.maxDrawdown.toFixed(3)} activePeriods=${holdoutMetric.nPeriods}`,
     );
     if (holdoutMetric.sharpeAnn > 3) warn('Holdout Sharpe > 3 — unexpectedly high; inspect leakage');
     if (holdoutMetric.sharpeAnn < -2) warn('Holdout Sharpe < -2 — model likely not generalizing');

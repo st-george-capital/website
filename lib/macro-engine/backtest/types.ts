@@ -48,59 +48,59 @@ export interface BacktestConfig {
   shortMomPeriods:       number;  // periods for short-term momentum blend (0 = disabled); blended with zCarry
   shortMomWeight:        number;  // weight of short-term momentum in blended score [0,1]; 0 = long-term only
   creditGateEnabled?:    boolean; // if false, skip the credit-stress flat regime gate (default: true)
+  creditGateLabels?:     string[]; // if set, gate ONLY these specific regime labels (instead of all 'credit' labels)
   skipPersist?:          boolean; // if true, skip DB writes (for experiment sweeps — results logged only)
-}
-
-// ─── Training Data ────────────────────────────────────────────────────────────
-
-/**
- * One (ticker, featureDate) observation in a training window.
- * features follows FEATURE_DIMENSIONS order: [zGrowth, zInflation, zMonetary, zCredit, zCarry, zEarnings]
- */
-export interface TrainRow {
-  ticker:      string;
-  featureDate: Date;
-  regimeLabel: string;
-  features:    number[]; // length 6, nulls imputed to 0 (addressed in Phase 4.1)
-  fwdReturn:   number;   // (adjClose[featureDate+forwardDays] / adjClose[featureDate]) - 1, excess over SPY
-}
-
-// ─── Weight Sets ──────────────────────────────────────────────────────────────
-
-/** Factor weights for one regime (or global fallback). Mirrors FactorWeightSet Prisma model. */
-export interface WeightSet {
-  regimeLabel: string;   // regime label string, or "global" for fallback
-  weights:     number[]; // length 6 — [wGrowth, wInflation, wMonetary, wCredit, wCarry, wEarnings]
-  sampleCount: number;
-  isFallback:  boolean;
 }
 
 // ─── Window Result ────────────────────────────────────────────────────────────
 
-/** Aggregated result for one walk-forward test step (OOS, not holdout). */
+/**
+ * Aggregated result for one walk-forward test step (OOS, not holdout).
+ *
+ * `excessReturns` contains only ACTIVE periods — credit-gated (flat) periods are
+ * counted in `flatDays` and excluded from the series. Sharpe and maxDD are
+ * computed only on active periods; including gated zeros would biased-deflate
+ * both the mean and the stdev.
+ */
 export interface WindowResult {
   window:          BacktestWindow;
-  predictedSigns:  number[];  // sign(score) for each (ticker, date) in test window
-  actualReturns:   number[];  // actual forward returns for same observations
-  excessReturns:   number[];  // portfolio return - SPY return for each test period
+  predictedSigns:  number[];  // sign(score) for each ACTIVE (ticker, date) in test window
+  actualReturns:   number[];  // actual portfolio-excess returns for same observations
+  excessReturns:   number[];  // portfolio return - SPY return for each ACTIVE period
+  flatDays:        number;    // count of dates gated flat by the credit-regime filter
 }
 
 // ─── Metrics ──────────────────────────────────────────────────────────────────
 
-/** Performance metrics for one evaluation window (OOS aggregate or holdout). */
+/**
+ * Performance metrics for one evaluation window (OOS aggregate or holdout).
+ *
+ * `nPeriods` is the number of ACTIVE periods used to compute Sharpe/maxDD.
+ * `flatDays` is the number of gated (zero-exposure) dates over the same span.
+ * `activeFraction = nPeriods / (nPeriods + flatDays)` — useful for interpreting
+ * Sharpe (a high Sharpe with activeFraction=0.3 means the model is only
+ * "on" 30% of the time but performs well when it is).
+ */
 export interface MetricsResult {
-  window:      'oos' | 'holdout';
-  benchmark:   'SPY' | 'ACWI';
-  hitRate:     number; // 0-1
-  sharpeAnn:   number; // annualized Sharpe on excess returns
-  maxDrawdown: number | null; // negative fraction, e.g. -0.35; null when no excess return data
-  startDate:   Date;
-  endDate:     Date;
-  nPeriods:    number;
+  window:         'oos' | 'holdout';
+  benchmark:      'SPY' | 'ACWI';
+  hitRate:        number; // 0-1, computed on active periods only
+  sharpeAnn:      number; // annualized Sharpe on excess returns, active periods only
+  maxDrawdown:    number | null; // negative fraction, null when no excess return data
+  startDate:      Date;
+  endDate:        Date;
+  nPeriods:       number;  // active periods
+  flatDays:       number;  // gated (flat) periods, excluded from Sharpe/maxDD
+  activeFraction: number;  // nPeriods / (nPeriods + flatDays); 1 if never gated
 }
 
 // ─── Feature Dimension Order ──────────────────────────────────────────────────
 
-/** Must match FactorFeatureMatrix column order and TrainRow.features index. */
+/**
+ * Must match FactorFeatureMatrix column order and FactorWeightSet column order.
+ * In the current scoring model only `zCarry` has cross-sectional variance per date;
+ * the other five are date-level macro broadcasts kept for regime classification
+ * and for downstream attribution display.
+ */
 export const BACKTEST_FEATURE_DIMS = ['zGrowth', 'zInflation', 'zMonetary', 'zCredit', 'zCarry', 'zEarnings'] as const;
 export type BacktestFeatureDim = typeof BACKTEST_FEATURE_DIMS[number];

@@ -27,8 +27,8 @@ export type MacroEnginePayload = {
     regimeLabel: string;
   }>;
   metrics: {
-    spy: { hitRate: number; sharpeAnn: number; maxDrawdown: number } | null;
-    acwi: { hitRate: number; sharpeAnn: number; maxDrawdown: number } | null;
+    oos: { hitRate: number; sharpeAnn: number; maxDrawdown: number } | null;
+    holdout: { hitRate: number; sharpeAnn: number; maxDrawdown: number } | null;
     windowCount: number;
     dataStart: string;
     holdoutStart: string;
@@ -172,8 +172,8 @@ export async function GET() {
     };
 
     metrics = {
-      spy: getMetric('oos', 'SPY'),
-      acwi: getMetric('holdout', 'SPY'),   // reuse acwi slot for holdout metrics
+      oos: getMetric('oos', 'SPY'),
+      holdout: getMetric('holdout', 'SPY'),
       windowCount: latestRun.windowCount,
       dataStart: latestRun.dataStart,
       holdoutStart: latestRun.holdoutStart,

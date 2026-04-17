@@ -60,7 +60,12 @@ export function maxDrawdown(periodReturns: number[]): number | null {
 /**
  * Aggregates across all walk-forward WindowResults to produce one MetricsResult.
  * periodDays: the step size in trading days (e.g. 21 for monthly steps).
- * Excess returns are concatenated in chronological order before computing Sharpe/drawdown.
+ *
+ * Sharpe and maxDD are computed on ACTIVE periods only — credit-gated (flat)
+ * days are counted via `flatDays` but are NOT zero-injected into the return
+ * series. This is the honest computation: gate days have no position, so they
+ * contribute no return and no risk, rather than artificially compressing the
+ * stdev of the active-period Sharpe.
  */
 export function aggregateMetrics(
   windowResults:  WindowResult[],
@@ -72,27 +77,34 @@ export function aggregateMetrics(
     throw new Error('aggregateMetrics: no window results to aggregate');
   }
 
-  // Concatenate in order — drawdown must be computed on full cumulative series
+  // Concatenate active periods in order — drawdown is on the cumulative active series
   const allPredicted: number[] = [];
   const allActual:    number[] = [];
   const allExcess:    number[] = [];
+  let flatDays = 0;
 
   for (const wr of windowResults) {
     allPredicted.push(...wr.predictedSigns);
     allActual.push(...wr.actualReturns);
     allExcess.push(...wr.excessReturns);
+    flatDays += wr.flatDays;
   }
 
   const periodsPerYear = 252 / periodDays;
+  const nPeriods = allExcess.length;
+  const totalObs = nPeriods + flatDays;
+  const activeFraction = totalObs > 0 ? nPeriods / totalObs : 1;
 
   return {
-    window:      windowType,
+    window:         windowType,
     benchmark,
-    hitRate:     hitRate(allPredicted, allActual),
-    sharpeAnn:   annualizedSharpe(allExcess, periodsPerYear),
-    maxDrawdown: maxDrawdown(allExcess),
-    startDate:   windowResults[0].window.testStart,
-    endDate:     windowResults[windowResults.length - 1].window.testEnd,
-    nPeriods:    allExcess.length,
+    hitRate:        hitRate(allPredicted, allActual),
+    sharpeAnn:      annualizedSharpe(allExcess, periodsPerYear),
+    maxDrawdown:    maxDrawdown(allExcess),
+    startDate:      windowResults[0].window.testStart,
+    endDate:        windowResults[windowResults.length - 1].window.testEnd,
+    nPeriods,
+    flatDays,
+    activeFraction,
   };
 }

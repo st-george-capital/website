@@ -4,13 +4,11 @@ import {
   BACKTEST_FEATURE_DIMS,
   BacktestConfig,
   HOLDOUT_START,
-  TrainRow,
   WindowResult,
   assertNotHoldout,
 } from './types';
 import { aggregateMetrics } from './metrics';
 import { ForwardReturn, computeForwardReturns } from './returns';
-import { fitWeightSetsForWindow } from './weights';
 import { generateWindows } from './windows';
 
 type FeatureSliceRow = {
@@ -24,30 +22,32 @@ type FeatureSliceRow = {
   zEarnings: number | null;
 };
 
+/**
+ * The backtest model is a regime-gated cross-sectional momentum ranker:
+ *   - Each date, rank tickers by zCarry (12-month CS momentum).
+ *   - Go long the top `longFraction` equally (or inv-vol weighted).
+ *   - Zero exposure (flat, excluded from Sharpe) during credit-stress regimes.
+ *   - Scale basket size by min(1, (confidence*2)^confidenceExp).
+ *
+ * `lambdaRidge` and `minRegimeSamples` are kept for schema/config compatibility
+ * with downstream scripts but are no longer consulted — no ridge fit happens.
+ */
 const DEFAULT_CONFIG: BacktestConfig = {
   dataStart: new Date('2004-01-01'),
-  stepMonths: 1,  // Monthly rebalancing aligned with 21-day forward return period
-  trainMinYears: 3,
-  lambdaRidge: 0.05,
-  minRegimeSamples: 30,
+  stepMonths: 1,               // monthly rebalancing aligned with 21-day forward return
+  trainMinYears: 3,            // minimum pre-test period before first OOS window
+  lambdaRidge: 0.05,           // retained for schema compat; unused in scoring
+  minRegimeSamples: 30,        // retained for schema compat; unused in scoring
   forwardDays: 21,
-  longFraction: 0.33,          // top third of universe — joint sweep with vol=18: lf=0.25→0.568/1.161, lf=0.33→0.560/1.295, lf=0.50→0.536/1.210
-  volLookbackPeriods: 18,      // trailing months for inverse-vol weighting — joint sweep: vol=12→0.551/1.220, vol=18→0.560/1.295, vol=24→0.532/1.280
-  confidenceExp: 0.5,          // confidence scaling exponent: sweep 0.5→0.563/1.298, 0.75→0.562/1.297, 1→0.560/1.295, 2→0.536/1.280
-  shortMomPeriods: 0,          // short-term momentum lookback (0=disabled); blended with zCarry
-  shortMomWeight: 0.3,         // weight of short-term momentum in blended score (only active when shortMomPeriods>0)
+  longFraction: 0.25,          // top quarter of universe — tuned via sweep
+  volLookbackPeriods: 0,       // 0 = equal-weight within basket (inv-vol hurt holdout)
+  confidenceExp: 1,            // linear: min(1, (confidence*2)^exp)
+  shortMomPeriods: 0,          // 0 = disabled; short-term mom blend
+  shortMomWeight: 0.3,         // weight of short-term momentum when enabled
 };
 
 function toDateKey(date: Date): string {
   return date.toISOString().slice(0, 10);
-}
-
-function countNullDimensions(row: FeatureSliceRow): number {
-  return BACKTEST_FEATURE_DIMS.filter((dim) => row[dim] === null).length;
-}
-
-function toFeatureVector(row: FeatureSliceRow): number[] {
-  return BACKTEST_FEATURE_DIMS.map((dim) => row[dim] ?? 0);
 }
 
 function toReturnMap(rows: ForwardReturn[]): Map<string, number> {
@@ -216,8 +216,6 @@ function scoreWindowRows(
   regimeMap: Map<string, string>,
   assetReturnMap: Map<string, number>,
   benchmarkReturnMap: Map<string, number>,
-  weightSetMap: Map<string, number[]>,
-  globalWeights: number[],
   window: WindowResult['window'],
   creditStressLabels: Set<string>,
   confidenceMap: Map<string, number>,
@@ -238,6 +236,7 @@ function scoreWindowRows(
   const predictedSigns: number[] = [];
   const actualReturns: number[] = [];
   const excessReturns: number[] = [];
+  let flatDays = 0;
 
   for (const [dateKey, rows] of Array.from(byDate.entries()).sort()) {
     const benchmarkReturn = benchmarkReturnMap.get(dateKey) ?? null;
@@ -245,32 +244,37 @@ function scoreWindowRows(
 
     const regimeLabel = regimeMap.get(dateKey) ?? 'global';
 
-    // ── Regime gate: go flat in credit-stress regimes (centroid zCredit > 0) ──
-    // Credit-stress regimes have high correlation and risk-off drawdowns where
-    // cross-sectional ranking adds no alpha — everything goes down together.
-    // Gate uses centroid-derived labels to distinguish genuine stress (wide spreads)
-    // from tight-spread "credit" regimes which are actually risk-on environments.
+    // ── Regime gate: go flat in credit-stress regimes ─────────────────────────
+    // Credit-stress regimes have elevated cross-asset correlation and risk-off
+    // drawdowns where momentum ranking adds no alpha. Flat days are NOT injected
+    // as zeros into the return series (that would biased-deflate Sharpe); they
+    // are counted separately and excluded from the Sharpe denominator entirely.
+    // `activeFraction` in the final metrics shows how often the model is engaged.
     if (creditStressLabels.has(regimeLabel)) {
-      // Flat position: hold SPY, excess = 0. Don't count in hit rate (skip).
-      excessReturns.push(0);
+      flatDays++;
       continue;
     }
 
-    // Build (ticker, featureVec, actualReturn) for all tickers with data on this date
-    type ScoredRow = { ticker: string; fv: number[]; actualReturn: number; score: number };
+    // Build (ticker, zCarry, actualReturn) for all tickers with data on this date.
+    // zCarry is the only ticker-varying factor in the scoring model.
+    type ScoredRow = { ticker: string; zCarry: number; actualReturn: number; score: number };
     const candidates: ScoredRow[] = [];
     for (const row of rows) {
       const actualReturn = assetReturnMap.get(`${row.ticker}|${dateKey}`);
       if (actualReturn === undefined) continue;
-      candidates.push({ ticker: row.ticker, fv: toFeatureVector(row), actualReturn, score: 0 });
+      candidates.push({
+        ticker: row.ticker,
+        zCarry: row.zCarry ?? 0,
+        actualReturn,
+        score: 0,
+      });
     }
     if (candidates.length < 2) continue;
 
     // Scoring: rank on zCarry (12m momentum) optionally blended with short-term momentum.
     // Short-term momentum uses trailing N-period compounded returns (from assetReturnMap).
     // Blend formula: score = (1-w)*longRank + w*shortRank (both 0-indexed ordinal ranks).
-    const carryIdx = BACKTEST_FEATURE_DIMS.indexOf('zCarry');
-    const carryRanks = rankAscending(candidates.map(c => c.fv[carryIdx]));
+    const carryRanks = rankAscending(candidates.map(c => c.zCarry));
 
     if (shortMomWeight > 0) {
       // Compute short-term ranks from shortMomMap; fall back to longRank if data missing
@@ -329,13 +333,14 @@ function scoreWindowRows(
     excessReturns.push(portfolioExcess);
   }
 
-  if (predictedSigns.length === 0) return null;
+  if (predictedSigns.length === 0 && flatDays === 0) return null;
 
   return {
     window,
     predictedSigns,
     actualReturns,
     excessReturns,
+    flatDays,
   };
 }
 
@@ -418,10 +423,19 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
   // genuine stress regime. Regime-0-credit (centroid -0.786) is RISK-ON.
   // Regime-3-credit (centroid +0.000) is neutral — allow momentum ranking.
   const allRegimeLabels = [...new Set(allRegimeRows.map(r => r.regimeLabel))];
-  const creditStressLabels = (config.creditGateEnabled !== false)
-    ? new Set<string>(allRegimeLabels.filter(l => l.toLowerCase().includes('credit')))
-    : new Set<string>();
-  console.log(`  credit-regime gate: ${config.creditGateEnabled !== false ? [...creditStressLabels].join(', ') : 'DISABLED'}`);
+  let creditStressLabels: Set<string>;
+  if (config.creditGateEnabled === false) {
+    creditStressLabels = new Set<string>();
+    console.log('  credit-regime gate: DISABLED');
+  } else if (config.creditGateLabels && config.creditGateLabels.length > 0) {
+    // Selective gate: only specified labels — allows gating genuine stress (zCredit>0) but not risk-ON 'credit' regimes
+    creditStressLabels = new Set<string>(config.creditGateLabels);
+    console.log(`  credit-regime gate: SELECTIVE — ${[...creditStressLabels].join(', ')}`);
+  } else {
+    // Default: gate ALL labels containing 'credit'
+    creditStressLabels = new Set<string>(allRegimeLabels.filter(l => l.toLowerCase().includes('credit')));
+    console.log(`  credit-regime gate: ALL-CREDIT — ${[...creditStressLabels].join(', ')}`);
+  }
 
   console.log('  preloading forward returns (per ticker)...');
   const allReturns = await computeForwardReturns(tickers, config.dataStart, allDataEnd, config.forwardDays);
@@ -465,65 +479,13 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
   }
 
   const windowResults: WindowResult[] = [];
-  let finalWeightSets: ReturnType<typeof fitWeightSetsForWindow> = [];
 
   for (const [index, window] of windows.entries()) {
     assertNotHoldout(window.testStart);
 
     console.log(
-      `  window ${index + 1}/${windows.length}: train [${toDateKey(window.trainStart)}, ${toDateKey(
-        window.trainEnd,
-      )}) test [${toDateKey(window.testStart)}, ${toDateKey(window.testEnd)})`,
+      `  window ${index + 1}/${windows.length}: test [${toDateKey(window.testStart)}, ${toDateKey(window.testEnd)})`,
     );
-
-    const trainingFeatures = featuresInRange(window.trainStart, window.testStart);
-    if (trainingFeatures.length === 0) {
-      console.log(`    window ${index + 1}: no train features — skipping`);
-      continue;
-    }
-
-    const trainRows: TrainRow[] = [];
-    let excludedTrainRows = 0;
-    for (const row of trainingFeatures) {
-      const dateKey = toDateKey(row.featureDate);
-      const forwardReturn = allReturnMap.get(`${row.ticker}|${dateKey}`);
-      if (forwardReturn === undefined) continue;
-
-      // Train on EXCESS return (ETF − SPY): the model should learn alpha, not beta.
-      // Raw returns just teach the model to prefer high-beta ETFs in bull markets,
-      // which adds no value over buying SPY. Excess returns teach regime-conditional alpha.
-      const benchmarkReturn = allBenchmarkReturnMap.get(dateKey);
-      if (benchmarkReturn === undefined) continue;
-      const excessReturn = forwardReturn - benchmarkReturn;
-
-      if (countNullDimensions(row) > 3) {
-        excludedTrainRows++;
-        continue;
-      }
-
-      trainRows.push({
-        ticker: row.ticker,
-        featureDate: row.featureDate,
-        regimeLabel: allRegimeMap.get(dateKey) ?? 'global',
-        features: toFeatureVector(row),
-        fwdReturn: excessReturn,
-      });
-    }
-    if (excludedTrainRows > 0) {
-      console.warn(`    window ${index + 1}: excluded ${excludedTrainRows} train rows with >3 null dimensions`);
-    }
-
-    if (trainRows.length === 0) {
-      console.log(`    window ${index + 1}: no train rows — skipping`);
-      continue;
-    }
-
-    const weightSets = fitWeightSetsForWindow(
-      trainRows,
-      config.lambdaRidge,
-      config.minRegimeSamples,
-    );
-    finalWeightSets = weightSets;
 
     const testFeatures = featuresInRange(window.testStart, window.testEnd);
     if (testFeatures.length === 0) {
@@ -531,7 +493,7 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
       continue;
     }
 
-    // Pre-validate benchmark coverage
+    // Pre-validate benchmark coverage within this test window
     const testStartKey = toDateKey(window.testStart);
     const testEndKey = toDateKey(window.testEnd);
     const datesWithTestReturns = new Set(
@@ -549,20 +511,11 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
       );
     }
 
-    const weightSetMap = new Map(weightSets.map((weightSet) => [weightSet.regimeLabel, weightSet.weights]));
-    const globalWeights = weightSetMap.get('global') ?? weightSets[0]?.weights;
-
-    if (!globalWeights) {
-      throw new Error('No weight sets fitted for test scoring');
-    }
-
     const result = scoreWindowRows(
       testFeatures,
       allRegimeMap,
       allReturnMap,
       allBenchmarkReturnMap,
-      weightSetMap,
-      globalWeights,
       window,
       creditStressLabels,
       allConfidenceMap,
@@ -584,14 +537,11 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
 
   const oosMetrics = aggregateMetrics(windowResults, config.forwardDays, 'oos', 'SPY');
   console.log(
-    `OOS metrics: hitRate=${oosMetrics.hitRate.toFixed(3)}, sharpe=${oosMetrics.sharpeAnn.toFixed(
-      3,
-    )}, maxDD=${oosMetrics.maxDrawdown?.toFixed(3) ?? 'null'}`,
+    `OOS metrics: hitRate=${oosMetrics.hitRate.toFixed(3)}, sharpe=${oosMetrics.sharpeAnn.toFixed(3)}, ` +
+    `maxDD=${oosMetrics.maxDrawdown?.toFixed(3) ?? 'null'}, ` +
+    `active=${oosMetrics.nPeriods}, flat=${oosMetrics.flatDays}, ` +
+    `activeFrac=${oosMetrics.activeFraction.toFixed(3)}`,
   );
-
-  if (finalWeightSets.length === 0) {
-    throw new Error('No final weight sets available for holdout scoring');
-  }
 
   const holdoutEnd = allDataEnd;
   const holdoutFeatures = featuresInRange(HOLDOUT_START, holdoutEnd);
@@ -604,12 +554,6 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
   const holdoutBenchmarkMap = new Map(
     [...allBenchmarkReturnMap.entries()].filter(([k]) => k >= toDateKey(HOLDOUT_START)),
   );
-
-  const finalWeightMap = new Map(
-    finalWeightSets.map((weightSet) => [weightSet.regimeLabel, weightSet.weights]),
-  );
-  const finalGlobalWeights =
-    finalWeightMap.get('global') ?? finalWeightSets[0]?.weights ?? new Array(6).fill(0);
 
   const holdoutWindow = {
     trainStart: HOLDOUT_START,
@@ -626,8 +570,6 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
     holdoutRegimeMap,
     holdoutReturnMap,
     holdoutBenchmarkMap,
-    finalWeightMap,
-    finalGlobalWeights,
     holdoutWindow,
     creditStressLabels,
     holdoutConfidenceMap,
@@ -644,9 +586,10 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
 
   const holdoutMetrics = aggregateMetrics([holdoutResult], config.forwardDays, 'holdout', 'SPY');
   console.log(
-    `Holdout metrics: hitRate=${holdoutMetrics.hitRate.toFixed(
-      3,
-    )}, sharpe=${holdoutMetrics.sharpeAnn.toFixed(3)}, maxDD=${holdoutMetrics.maxDrawdown?.toFixed(3) ?? 'null'}`,
+    `Holdout metrics: hitRate=${holdoutMetrics.hitRate.toFixed(3)}, sharpe=${holdoutMetrics.sharpeAnn.toFixed(3)}, ` +
+    `maxDD=${holdoutMetrics.maxDrawdown?.toFixed(3) ?? 'null'}, ` +
+    `active=${holdoutMetrics.nPeriods}, flat=${holdoutMetrics.flatDays}, ` +
+    `activeFrac=${holdoutMetrics.activeFraction.toFixed(3)}`,
   );
 
   // Skip DB writes during experiment sweeps — results are logged to console only
@@ -663,25 +606,35 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
       stepMonths: config.stepMonths,
       lambdaRidge: config.lambdaRidge,
       minRegimeSamples: config.minRegimeSamples,
-      notes: `forwardDays=${config.forwardDays}; benchmark=SPY; nonOverlapping=true`,
+      notes:
+        `model=cs-momentum-rank; forwardDays=${config.forwardDays}; benchmark=SPY; nonOverlapping=true; ` +
+        `longFraction=${config.longFraction}; creditGate=${config.creditGateEnabled !== false ? 'on' : 'off'}; ` +
+        `oosActiveFrac=${oosMetrics.activeFraction.toFixed(3)}; holdoutActiveFrac=${holdoutMetrics.activeFraction.toFixed(3)}`,
     },
   });
 
-  await prisma.factorWeightSet.createMany({
-    data: finalWeightSets.map((weightSet) => ({
+  // The scoring model is a pure cross-sectional momentum ranker — zCarry is the
+  // only ticker-varying factor. The five macro dimensions are date-level broadcasts
+  // with no cross-sectional variance, so they contribute a constant offset that
+  // vanishes in rank-based scoring. We persist a single "global" weight row
+  // encoding this truth (wCarry=1, all others=0) so that the downstream signals
+  // pipeline (signals/scoring.ts, signals/probabilities.ts, dashboard history
+  // route) produces rankings consistent with the backtest.
+  const carryIdx = BACKTEST_FEATURE_DIMS.indexOf('zCarry');
+  const stubWeights = BACKTEST_FEATURE_DIMS.map((_, i) => (i === carryIdx ? 1 : 0));
+  await prisma.factorWeightSet.create({
+    data: {
       runId: run.id,
-      regimeLabel: weightSet.regimeLabel,
-      // BACKTEST_FEATURE_DIMS = ['zCarry', 'zEarnings'] — only CS-varying features.
-      // DB schema stores all 6 columns; zero out the unused macro dimensions.
-      wGrowth: weightSet.weights[0] ?? 0,
-      wInflation: weightSet.weights[1] ?? 0,
-      wMonetary: weightSet.weights[2] ?? 0,
-      wCredit: weightSet.weights[3] ?? 0,
-      wCarry: weightSet.weights[4] ?? 0,
-      wEarnings: weightSet.weights[5] ?? 0,
-      sampleCount: weightSet.sampleCount,
-      isFallback: weightSet.isFallback,
-    })),
+      regimeLabel: 'global',
+      wGrowth: stubWeights[0],
+      wInflation: stubWeights[1],
+      wMonetary: stubWeights[2],
+      wCredit: stubWeights[3],
+      wCarry: stubWeights[4],
+      wEarnings: stubWeights[5],
+      sampleCount: oosMetrics.nPeriods + holdoutMetrics.nPeriods,
+      isFallback: true,
+    },
   });
 
   const toMetricRow = (metric: typeof oosMetrics) => ({

@@ -463,7 +463,7 @@ function PerformanceChart() {
               </div>
             ))}
           </div>
-          <div className="text-[10px] text-slate-400">Click a different point to explore any date. Overweight (green) = model ranked top-half.</div>
+          <div className="text-[10px] text-slate-400">Click a different point to explore any date. Overweight (green) = model ranked in the top quartile (long basket).</div>
         </div>
       )}
     </div>
@@ -570,7 +570,7 @@ export default function MacroEnginePage() {
             Macro Allocation Engine
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Regime-conditional factor model · 14 global ETFs · Walk-forward backtested · 63-day horizon
+            Regime-gated cross-sectional momentum · 17 global ETFs · Walk-forward backtested · 21-day (monthly) horizon
           </p>
         </div>
         {asOfDate && (
@@ -626,7 +626,7 @@ export default function MacroEnginePage() {
                   </div>
                   <div className="flex items-start gap-2 text-[11px] text-slate-400">
                     <Info className="h-3 w-3 shrink-0 mt-0.5" />
-                    4 regimes via k-means on 20yr of macro factor z-scores. Each implies different sector weights.
+                    6 regimes via k-means on 20yr of macro factor z-scores. Credit-stress regimes gate the portfolio flat; other regimes drive cross-sectional momentum ranking.
                   </div>
                 </div>
               )}
@@ -805,7 +805,7 @@ export default function MacroEnginePage() {
         <CardHeader>
           <CardTitle className="text-sm font-semibold">Historical Performance</CardTitle>
           <CardDescription className="text-[11px]">
-            Equal-weight long of top-half ranked ETFs each period vs SPY benchmark · Click any point to explore that date
+            Equal-weight long of top-25% ETFs by 12-month momentum vs SPY benchmark · Click any point to explore that date
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -818,7 +818,7 @@ export default function MacroEnginePage() {
         <CardHeader>
           <CardTitle className="text-sm font-semibold">Backtest Performance</CardTitle>
           <CardDescription className="text-[11px]">
-            Walk-forward OOS · {data?.metrics?.windowCount ?? '—'} quarterly windows · 63-day holding periods · Trained on excess returns vs SPY
+            Walk-forward OOS · {data?.metrics?.windowCount ?? '—'} monthly windows · 21-day holding periods · Excess returns vs SPY, credit-gate flat days excluded
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -827,7 +827,7 @@ export default function MacroEnginePage() {
           ) : (
             <div className="space-y-5">
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                {data.metrics.spy && (
+                {data.metrics.oos && (
                   <div className="space-y-2">
                     <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                       Out-of-Sample · {data.metrics.dataStart} → {data.metrics.holdoutStart}
@@ -835,20 +835,20 @@ export default function MacroEnginePage() {
                     <div className="grid grid-cols-2 gap-2">
                       <MetricCard
                         label="Beat-SPY Rate"
-                        value={`${(data.metrics.spy.hitRate * 100).toFixed(1)}%`}
-                        sub="Periods portfolio beat SPY"
-                        good={data.metrics.spy.hitRate >= 0.55}
+                        value={`${(data.metrics.oos.hitRate * 100).toFixed(1)}%`}
+                        sub="Active periods portfolio beat SPY"
+                        good={data.metrics.oos.hitRate >= 0.55}
                       />
                       <MetricCard
                         label="Sharpe (Ann.)"
-                        value={data.metrics.spy.sharpeAnn.toFixed(2)}
-                        sub="Portfolio excess return / vol"
-                        good={data.metrics.spy.sharpeAnn >= 0.3 ? true : data.metrics.spy.sharpeAnn < 0 ? false : null}
+                        value={data.metrics.oos.sharpeAnn.toFixed(2)}
+                        sub="Excess return / vol, active periods only"
+                        good={data.metrics.oos.sharpeAnn >= 0.3 ? true : data.metrics.oos.sharpeAnn < 0 ? false : null}
                       />
                     </div>
                   </div>
                 )}
-                {data.metrics.acwi && (
+                {data.metrics.holdout && (
                   <div className="space-y-2">
                     <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                       Holdout · {data.metrics.holdoutStart} → present
@@ -856,15 +856,15 @@ export default function MacroEnginePage() {
                     <div className="grid grid-cols-2 gap-2">
                       <MetricCard
                         label="Beat-SPY Rate"
-                        value={`${(data.metrics.acwi.hitRate * 100).toFixed(1)}%`}
-                        sub="Periods portfolio beat SPY"
-                        good={data.metrics.acwi.hitRate >= 0.55}
+                        value={`${(data.metrics.holdout.hitRate * 100).toFixed(1)}%`}
+                        sub="Active periods portfolio beat SPY"
+                        good={data.metrics.holdout.hitRate >= 0.55}
                       />
                       <MetricCard
                         label="Sharpe (Ann.)"
-                        value={data.metrics.acwi.sharpeAnn.toFixed(2)}
-                        sub="Portfolio excess return / vol"
-                        good={data.metrics.acwi.sharpeAnn >= 0.3 ? true : data.metrics.acwi.sharpeAnn < 0 ? false : null}
+                        value={data.metrics.holdout.sharpeAnn.toFixed(2)}
+                        sub="Excess return / vol, active periods only"
+                        good={data.metrics.holdout.sharpeAnn >= 0.3 ? true : data.metrics.holdout.sharpeAnn < 0 ? false : null}
                       />
                     </div>
                   </div>
@@ -873,9 +873,9 @@ export default function MacroEnginePage() {
 
               <CollapsibleSection title="What these numbers mean">
                 <div className="rounded-lg bg-slate-50 border border-slate-100 p-4 space-y-2 text-[12px] text-slate-600">
-                  <p><strong>Beat-SPY Rate</strong> — fraction of 63-day periods where the equal-weight long portfolio (top-half ranked ETFs) beat SPY. &gt;55% means the ranking is consistently adding value.</p>
-                  <p><strong>Sharpe Ratio</strong> — annualized excess return of the long portfolio divided by its volatility. Computed on excess-over-SPY returns so beta is subtracted. &gt;0.3 is good; &gt;0.5 is strong for sector rotation.</p>
-                  <p><strong>Walk-forward</strong> — the model trained on excess returns per regime. Each quarterly window was tested strictly OOS. The OOS period is 2007–2022; holdout is 2022–present (model was never trained on this data).</p>
+                  <p><strong>Beat-SPY Rate</strong> — fraction of 21-day (monthly) periods where the equal-weight long portfolio (top 25% ranked ETFs by 12-month cross-sectional momentum) beat SPY. &gt;55% means the ranking is consistently adding value.</p>
+                  <p><strong>Sharpe Ratio</strong> — annualized excess return of the long portfolio divided by its volatility. Computed on excess-over-SPY returns so beta is subtracted. Credit-gated (flat) days are excluded from the Sharpe denominator entirely — an "on-when-active" Sharpe rather than a zero-polluted one. &gt;0.3 is good; &gt;0.5 is strong for sector rotation.</p>
+                  <p><strong>Walk-forward</strong> — the model ranks the 17-ETF universe monthly by zCarry (12-month momentum) and longs the top 25%, gated flat during credit-stress regimes (6-regime system). Each monthly window was evaluated strictly OOS. The OOS period is 2007–2022; holdout is 2022–present (model never saw this data).</p>
                 </div>
               </CollapsibleSection>
             </div>
@@ -962,9 +962,9 @@ export default function MacroEnginePage() {
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-4 text-[12px] text-slate-600">
             {[
               { title: '1. Data', body: 'Daily OHLCV, FRED macro (FEDFUNDS, CPI, credit spreads), OECD leading indicators, AV earnings revisions. Z-scored vs 20yr rolling history.' },
-              { title: '2. Regime Detection', body: 'k-means on 6 macro factor z-scores finds 4 regimes. Centroid template matching ensures stable labels across refits (2008/2020/2022 shocks correctly classified).' },
-              { title: '3. Walk-Forward Backtest', body: 'Ridge regression trained on excess returns (ETF − SPY) per regime. 6 factors including 6m cross-sectional price momentum. Expanding training window, quarterly test steps. Never fits on test data.' },
-              { title: '4. Signal Scoring', body: "Today's macro z-scores + momentum × regime weights → conviction score. Top-half ETFs = overweight. Empirical decile calibration gives P(outperform SPY) at 6m / 12m." },
+              { title: '2. Regime Detection', body: 'k-means on 6 macro factor z-scores finds 6 regimes. Credit-stress regimes gate the model flat (no exposure). Centroid template matching keeps labels stable across refits (2008 / 2020 / 2022 shocks classified consistently).' },
+              { title: '3. Walk-Forward Backtest', body: 'Cross-sectional 12-month momentum ranker, gated flat during credit-stress regimes, sized by regime confidence. Expanding training window, monthly test steps, 21-day forward horizon. Hard holdout boundary at 2022-01-01; holdout data never touched during design.' },
+              { title: '4. Signal Scoring', body: "Today's zCarry rankings drive conviction; top 25% of the universe = overweight, scaled by regime confidence. Empirical decile calibration on OOS data gives P(outperform SPY) at 6m / 12m." },
             ].map(s => (
               <div key={s.title} className="space-y-1">
                 <div className="font-semibold text-slate-700">{s.title}</div>
