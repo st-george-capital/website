@@ -44,8 +44,8 @@ async function main() {
     return;
   }
 
-  const runId = await runBacktest();
-  console.log(`\nBacktest complete. runId: ${runId}`);
+  const result = await runBacktest();
+  console.log(`\nBacktest complete. runId: ${result.runId ?? '(skipPersist)'}`);
   console.log('Run `npm run verify:backtest` to validate persisted metrics.');
 }
 

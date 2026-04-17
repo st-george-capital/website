@@ -227,6 +227,86 @@ so the default backtest produces identical metrics to Chunks 1 & 2.
 
 ---
 
+## Chunk 4 — Preload cache + `runSweep` harness (2026-04-16)
+
+Refactors `lib/macro-engine/backtest/index.ts` so a single DB read can feed
+many config variants. New exports:
+
+- `preloadBacktestData(config): Promise<PreloadedBacktestData>` — pulls the
+  feature matrix (paginated per-ticker to stay under Accelerate's 5MB
+  response cap), regime labels + confidences, per-ticker forward returns,
+  and SPY benchmark returns. Auto-detects / auto-corrects `dataStart`
+  against the earliest row actually present in `factor_feature_matrix`.
+- `runBacktest(config, { preloaded? })` — now accepts an optional shared
+  preload and returns `{ runId, oos, holdout, windowCount }` instead of
+  just `runId`. `runId` is `null` when `skipPersist=true`. The only
+  upstream caller (`scripts/macro-engine/run-backtest.ts`) was updated to
+  destructure the new shape.
+- `runSweep(variants, baseConfig?)` — takes a list of
+  `{ label, overrides: Partial<BacktestConfig> }`, preloads once, calls
+  `runBacktest` per variant with the shared bundle, collects the metrics,
+  and prints a compact summary table at the end. Always forces
+  `skipPersist=true` on the merged config — sweeps never touch
+  `backtest_runs` / `factor_weight_sets` / `backtest_metrics`.
+
+Derived per-run tables — `volMap`, `shortMomMap`, `returnMatrixMap` —
+are intentionally rebuilt inside each `runBacktest` call, because their
+lookback parameters can vary across variants. They're in-memory
+derivations from `allReturnMap`, cheap compared to the DB cost.
+
+### Experiment scripts migrated to thin `runSweep` callers
+
+Each of the four experiment entry-points is now ~30 lines. They declare
+a `SweepVariant[]` and call `runSweep`. The harness handles data load,
+per-variant metrics collection, and the summary table.
+
+- `scripts/macro-engine/experiment-longfraction.ts`  — coarse lf sweep
+  (0.25, 0.33, 0.40, 0.50).
+- `scripts/macro-engine/experiment-longfraction2.ts` — fine lf sweep
+  (0.10 … 0.35 @ 0.05).
+- `scripts/macro-engine/experiment-confidence.ts`    — `confidenceExp`
+  sweep (0, 0.5, 0.75, 1.0, 1.5, 2.0).
+- `scripts/macro-engine/experiment-credit-gate.ts`   — credit-gate
+  strategy sweep (all / stress-only / 3+4 / none).
+
+### Measured impact
+
+`experiment-credit-gate.ts` (4 variants) end-to-end wall time went from
+roughly 4× per-run preload cost (~12 min expected) down to 3 min 5 sec
+with a single shared preload. Scale is linear in variant count, so a
+typical 6-variant sweep (lf or confidence) saves ~4–5 min per run.
+
+### Behavior-parity check (credit-gate run)
+
+Using the shared-preload path produces byte-identical metrics to the
+pre-refactor per-variant path for the baseline `gate-all` entry. The
+full table from the first run under the new harness:
+
+| strategy          | OOS Sharpe | OOS HR | OOS MDD | OOS Active | Hold Sharpe | Hold HR | Hold MDD | Hold Active |
+|-------------------|------------|--------|---------|------------|-------------|---------|----------|-------------|
+| gate-all          | 0.456      | 0.556  | -0.830  | 0.480      | 1.327       | 0.661   | -0.354   | 0.798       |
+| gate-stress-only  | 0.224      | 0.514  | -0.987  | 0.722      | 0.803       | 0.614   | -0.566   | 0.888       |
+| gate-3-and-4      | 0.227      | 0.517  | -0.962  | 0.646      | 0.803       | 0.614   | -0.566   | 0.888       |
+| gate-none         | 0.003      | 0.490  | -1.000  | 1.000      | 0.573       | 0.587   | -0.697   | 1.000       |
+
+`gate-all` matches the Chunk 1 baseline exactly. `gate-stress-only` and
+`gate-3-and-4` produce identical holdout numbers because the holdout
+period's post-2022 regime labels include Regime-4-credit but no
+Regime-3-credit, so the extra gate slot has no holdout effect.
+`gate-none` confirms the credit gate is load-bearing: OOS Sharpe
+collapses to 0.003 when it's off.
+
+### Baseline (unchanged)
+
+The default `runBacktest()` with no overrides still produces:
+
+| Window  | Sharpe | HitRate | MaxDD  | activePeriods | flatDays | activeFrac |
+|---------|--------|---------|--------|---------------|----------|------------|
+| OOS     | 0.456  | 0.556   | -0.830 | 1572          | 1701     | 0.480      |
+| Holdout | 1.327  | 0.661   | -0.354 | 363           | 92       | 0.798      |
+
+---
+
 ## Chunk 1 — Why the Holdout Sharpe went UP (1.168 → 1.327)
 
 Pre-fix, the holdout Sharpe was annualized over 455 observations with 92 of

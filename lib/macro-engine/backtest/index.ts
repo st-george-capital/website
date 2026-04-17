@@ -4,6 +4,7 @@ import {
   BACKTEST_FEATURE_DIMS,
   BacktestConfig,
   HOLDOUT_START,
+  MetricsResult,
   WindowResult,
   assertNotHoldout,
 } from './types';
@@ -17,7 +18,7 @@ import {
 } from './risk';
 import { generateWindows } from './windows';
 
-type FeatureSliceRow = {
+export type FeatureSliceRow = {
   featureDate: Date;
   ticker: string;
   zGrowth: number | null;
@@ -27,6 +28,34 @@ type FeatureSliceRow = {
   zCarry: number | null;
   zEarnings: number | null;
 };
+
+/**
+ * Everything the backtest needs after DB reads complete. Produced once by
+ * `preloadBacktestData` and reusable across a sweep of configs — the only
+ * per-config derivations (volMap / shortMomMap / returnMatrixMap) live inside
+ * `runBacktest` because they depend on lookback parameters that may vary.
+ */
+export interface PreloadedBacktestData {
+  /** Config that produced this preload, with `dataStart` auto-corrected to DB coverage. */
+  config: BacktestConfig;
+  tickers: string[];
+  allFeatures: FeatureSliceRow[];
+  allRegimeMap: Map<string, string>;
+  allConfidenceMap: Map<string, number>;
+  allRegimeLabels: string[];
+  allReturnMap: Map<string, number>;
+  allBenchmarkReturnMap: Map<string, number>;
+  allSortedDateKeys: string[];
+  allDataEnd: Date;
+}
+
+/** Returned by `runBacktest`. `runId` is null when `config.skipPersist` is true. */
+export interface BacktestRunResult {
+  runId: string | null;
+  oos: MetricsResult;
+  holdout: MetricsResult;
+  windowCount: number;
+}
 
 /**
  * The backtest model is a regime-gated cross-sectional momentum ranker:
@@ -487,8 +516,17 @@ function scoreWindowRows(
   };
 }
 
-export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Promise<string> {
-  console.log('runBacktest: starting walk-forward backtest');
+/**
+ * Preloads everything the backtest needs from Postgres: feature matrix, regime
+ * labels + confidence, per-ticker forward returns, and SPY benchmark returns.
+ * Produces a reusable bundle so a parameter sweep (`runSweep`) can hit the DB
+ * exactly once. Auto-extends / auto-corrects `dataStart` to match DB coverage.
+ */
+export async function preloadBacktestData(
+  inputConfig: BacktestConfig = DEFAULT_CONFIG,
+): Promise<PreloadedBacktestData> {
+  let config = { ...inputConfig };
+  console.log('preloadBacktestData: loading DB-backed datasets');
   console.log(`  holdoutStart=${toDateKey(HOLDOUT_START)}`);
 
   // Auto-detect dataStart from earliest feature row in DB
@@ -504,15 +542,6 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
     config = { ...config, dataStart: earliestFeature.featureDate };
   }
 
-  console.log(`  dataStart=${toDateKey(config.dataStart)}`);
-  console.log(`  stepMonths=${config.stepMonths}, trainMinYears=${config.trainMinYears}`);
-
-  const windows = generateWindows(config);
-  if (windows.length === 0) {
-    throw new Error('No walk-forward windows generated — check dataStart and trainMinYears');
-  }
-  console.log(`  generated ${windows.length} walk-forward windows`);
-
   const universe = getUniverse();
   const tickers = [...new Set(universe.map((entry) => entry.ticker))];
   if (tickers.length === 0) {
@@ -520,8 +549,6 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
   }
   console.log(`  universe: ${tickers.length} tickers`);
 
-  // ── Preload all data into memory (avoids Accelerate 5MB limit per query) ──
-  // Fetch everything from dataStart to latest holdout date once, then filter in JS.
   const latestFeature = await prisma.factorFeatureMatrix.findFirst({
     orderBy: { featureDate: 'desc' },
     select: { featureDate: true },
@@ -551,34 +578,11 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
     orderBy: { date: 'asc' },
   });
   const allRegimeMap = new Map(allRegimeRows.map((row) => [toDateKey(row.date), row.regimeLabel]));
-  // Regime confidence map: dateKey → confidence [0,1]. Used for position sizing.
   const allConfidenceMap = new Map(
     allRegimeRows.map((row) => [toDateKey(row.date), row.confidence ?? 0.5])
   );
-  console.log(`  loaded ${allRegimeRows.length} regime labels`);
-
-  // Build credit-stress label set from DB-computed regime centroids.
-  // Fetch average macro-indicator values per regime directly from regime_labels
-  // joined to the macro_indicators table (not the feature matrix, which has sparse data).
-  // Gate only genuine wide-spread regimes (zCredit centroid > 0.4).
-  //
-  // Empirically derived: Regime-4-credit (zCredit centroid +0.659) is the only
-  // genuine stress regime. Regime-0-credit (centroid -0.786) is RISK-ON.
-  // Regime-3-credit (centroid +0.000) is neutral — allow momentum ranking.
   const allRegimeLabels = [...new Set(allRegimeRows.map(r => r.regimeLabel))];
-  let creditStressLabels: Set<string>;
-  if (config.creditGateEnabled === false) {
-    creditStressLabels = new Set<string>();
-    console.log('  credit-regime gate: DISABLED');
-  } else if (config.creditGateLabels && config.creditGateLabels.length > 0) {
-    // Selective gate: only specified labels — allows gating genuine stress (zCredit>0) but not risk-ON 'credit' regimes
-    creditStressLabels = new Set<string>(config.creditGateLabels);
-    console.log(`  credit-regime gate: SELECTIVE — ${[...creditStressLabels].join(', ')}`);
-  } else {
-    // Default: gate ALL labels containing 'credit'
-    creditStressLabels = new Set<string>(allRegimeLabels.filter(l => l.toLowerCase().includes('credit')));
-    console.log(`  credit-regime gate: ALL-CREDIT — ${[...creditStressLabels].join(', ')}`);
-  }
+  console.log(`  loaded ${allRegimeRows.length} regime labels`);
 
   console.log('  preloading forward returns (per ticker)...');
   const allReturns = await computeForwardReturns(tickers, config.dataStart, allDataEnd, config.forwardDays);
@@ -590,9 +594,82 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
   const allBenchmarkReturnMap = toBenchmarkMap(allBenchmarkReturns, 'SPY');
   console.log(`  loaded ${allBenchmarkReturns.length} SPY benchmark observations`);
 
-  // Pre-compute trailing 6-period (6-month) volatility for inverse-vol position sizing.
-  // buildVolMap is fast (in-memory, no DB) — computed once over the full date range.
   const allSortedDateKeys = [...new Set(allReturns.map(r => toDateKey(r.featureDate)))].sort();
+
+  return {
+    config,
+    tickers,
+    allFeatures,
+    allRegimeMap,
+    allConfidenceMap,
+    allRegimeLabels,
+    allReturnMap,
+    allBenchmarkReturnMap,
+    allSortedDateKeys,
+    allDataEnd,
+  };
+}
+
+/**
+ * Resolve the credit-stress label set from the preloaded regime labels and the
+ * config's gate toggles. Pulled out so sweeps that vary the credit gate don't
+ * have to re-derive the set inline.
+ */
+function resolveCreditGate(
+  config: BacktestConfig,
+  regimeLabels: string[],
+): Set<string> {
+  if (config.creditGateEnabled === false) {
+    console.log('  credit-regime gate: DISABLED');
+    return new Set<string>();
+  }
+  if (config.creditGateLabels && config.creditGateLabels.length > 0) {
+    const labels = new Set<string>(config.creditGateLabels);
+    console.log(`  credit-regime gate: SELECTIVE — ${[...labels].join(', ')}`);
+    return labels;
+  }
+  const labels = new Set<string>(regimeLabels.filter(l => l.toLowerCase().includes('credit')));
+  console.log(`  credit-regime gate: ALL-CREDIT — ${[...labels].join(', ')}`);
+  return labels;
+}
+
+export async function runBacktest(
+  config: BacktestConfig = DEFAULT_CONFIG,
+  opts: { preloaded?: PreloadedBacktestData } = {},
+): Promise<BacktestRunResult> {
+  console.log('runBacktest: starting walk-forward backtest');
+
+  // ── Preload (or reuse shared preload from a sweep) ───────────────────────
+  const preloaded: PreloadedBacktestData = opts.preloaded ?? (await preloadBacktestData(config));
+  // If the caller passed a preload, its auto-corrected dataStart supersedes theirs.
+  const effectiveConfig: BacktestConfig = opts.preloaded
+    ? { ...config, dataStart: preloaded.config.dataStart }
+    : preloaded.config;
+  config = effectiveConfig;
+
+  const {
+    tickers,
+    allFeatures,
+    allRegimeMap,
+    allConfidenceMap,
+    allRegimeLabels,
+    allReturnMap,
+    allBenchmarkReturnMap,
+    allSortedDateKeys,
+    allDataEnd,
+  } = preloaded;
+
+  console.log(`  dataStart=${toDateKey(config.dataStart)}`);
+  console.log(`  stepMonths=${config.stepMonths}, trainMinYears=${config.trainMinYears}`);
+
+  const windows = generateWindows(config);
+  if (windows.length === 0) {
+    throw new Error('No walk-forward windows generated — check dataStart and trainMinYears');
+  }
+  console.log(`  generated ${windows.length} walk-forward windows`);
+  console.log(`  universe: ${tickers.length} tickers (from preload)`);
+
+  const creditStressLabels = resolveCreditGate(config, allRegimeLabels);
   const allVolMap = buildVolMap(allReturnMap, tickers, allSortedDateKeys, config.volLookbackPeriods, config.forwardDays);
   console.log(`  computed trailing-vol map for ${allVolMap.size} (ticker, date) entries`);
 
@@ -776,7 +853,12 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
   // Skip DB writes during experiment sweeps — results are logged to console only
   if (config.skipPersist) {
     console.log('runBacktest: skipPersist=true — skipping DB writes');
-    return 'dry-run';
+    return {
+      runId: null,
+      oos: oosMetrics,
+      holdout: holdoutMetrics,
+      windowCount: windowResults.length,
+    };
   }
 
   const run = await prisma.backtestRun.create({
@@ -835,7 +917,95 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
   });
 
   console.log(`runBacktest: complete — runId=${run.id}`);
-  return run.id;
+  return {
+    runId: run.id,
+    oos: oosMetrics,
+    holdout: holdoutMetrics,
+    windowCount: windowResults.length,
+  };
+}
+
+// ─── Sweep harness ──────────────────────────────────────────────────────────
+
+/**
+ * A labeled configuration override to run through the backtest engine.
+ * The `overrides` are merged on top of the base config; `skipPersist` is
+ * always forced true for sweep runs (no DB writes, logs + returned metrics
+ * are the source of truth).
+ */
+export interface SweepVariant {
+  label:     string;
+  overrides: Partial<BacktestConfig>;
+}
+
+export interface SweepVariantResult {
+  label:   string;
+  oos:     MetricsResult;
+  holdout: MetricsResult;
+}
+
+/**
+ * Runs a list of labeled config variants against a single shared DB preload
+ * and prints a compact summary table at the end. Cuts sweep runtime roughly
+ * N× for N variants versus calling `runBacktest` in a loop, since the DB
+ * reads (feature matrix + regimes + per-ticker returns) happen once.
+ *
+ * Derived tables that depend on per-config lookbacks — `volMap`, `shortMomMap`,
+ * `returnMatrixMap` — are STILL recomputed inside each `runBacktest` call.
+ * That's intentional: it keeps sweeps over `volLookbackPeriods`,
+ * `shortMomPeriods`, `portfolioVolLookbackPeriods`, `corrLookbackPeriods`, or
+ * `forwardDays` correct by construction. Those in-memory recomputes are fast
+ * relative to the DB cost.
+ */
+export async function runSweep(
+  variants: SweepVariant[],
+  baseConfig: BacktestConfig = DEFAULT_CONFIG,
+): Promise<SweepVariantResult[]> {
+  if (variants.length === 0) {
+    console.log('runSweep: no variants provided — nothing to run');
+    return [];
+  }
+
+  console.log(`\nrunSweep: ${variants.length} variant(s), shared preload`);
+  const preloaded = await preloadBacktestData(baseConfig);
+
+  const results: SweepVariantResult[] = [];
+  for (const variant of variants) {
+    console.log(`\n--- ${variant.label} ---`);
+    try {
+      const merged: BacktestConfig = { ...baseConfig, ...variant.overrides, skipPersist: true };
+      const res = await runBacktest(merged, { preloaded });
+      results.push({ label: variant.label, oos: res.oos, holdout: res.holdout });
+    } catch (e) {
+      console.error(`FAILED (${variant.label}): ${e instanceof Error ? e.message : e}`);
+    }
+  }
+
+  printSweepTable(results);
+  return results;
+}
+
+function printSweepTable(results: SweepVariantResult[]): void {
+  if (results.length === 0) return;
+  const labelWidth = Math.max(5, ...results.map(r => r.label.length));
+  const fmt = (n: number) => n.toFixed(3);
+  const fmtNull = (n: number | null) => (n === null ? '   —  ' : n.toFixed(3));
+
+  const hdr =
+    `${'label'.padEnd(labelWidth)} | ` +
+    'OOS Sh  OOS HR  OOS MDD  OOS Active | Hold Sh Hold HR Hold MDD Hold Active';
+  const sep = '-'.repeat(hdr.length);
+  console.log(`\n=== sweep summary ===`);
+  console.log(hdr);
+  console.log(sep);
+  for (const r of results) {
+    console.log(
+      `${r.label.padEnd(labelWidth)} | ` +
+        `${fmt(r.oos.sharpeAnn)}   ${fmt(r.oos.hitRate)}   ${fmtNull(r.oos.maxDrawdown)}   ${fmt(r.oos.activeFraction)}      | ` +
+        `${fmt(r.holdout.sharpeAnn)}   ${fmt(r.holdout.hitRate)}   ${fmtNull(r.holdout.maxDrawdown)}   ${fmt(r.holdout.activeFraction)}`,
+    );
+  }
+  console.log(sep);
 }
 
 export { DEFAULT_CONFIG };
