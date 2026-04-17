@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/card';
 import type { MacroEnginePayload } from '@/app/api/dashboard/macro-engine/route';
-import type { HistoryPayload, HistoryPoint, RegimeAttribution } from '@/app/api/dashboard/macro-engine/history/route';
+import type { HistoryPayload, HistoryPoint, RegimeAttribution, RegimeRun } from '@/app/api/dashboard/macro-engine/history/route';
 
 // ─── Universe metadata ─────────────────────────────────────────────────────────
 
@@ -811,6 +811,325 @@ function RegimeOutlookCard() {
   );
 }
 
+// ─── Regime Timeline panel (Gantt-style history of regime runs) ───────────────
+
+/**
+ * Browse the holdout as a sequence of regime runs rather than a single equity
+ * curve. The horizontal Gantt bar is the full holdout window; each segment is
+ * a contiguous regime run with width proportional to its duration. Clicking a
+ * segment (or a table row) reveals per-run stats and the top 5 ticker
+ * contributors — a quick way to answer "what did the model do last time we
+ * were in Regime-X?".
+ *
+ * Net/Gross toggle flips the shown metrics between pre- and post-cost numbers.
+ * Sharpe is null for runs with fewer than 4 active days (noise guard).
+ */
+function RegimeTimelinePanel() {
+  const [data, setData] = useState<HistoryPayload | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState<ReturnMode>('net');
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [sortKey, setSortKey] = useState<'date' | 'sharpe' | 'cum' | 'duration'>('date');
+
+  useEffect(() => {
+    fetch('/api/dashboard/macro-engine/history')
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then((d: HistoryPayload) => setData(d))
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="text-sm text-slate-400 py-4">Loading regime history…</div>;
+  if (error)   return <div className="text-sm text-red-600 py-4">Timeline failed: {error}</div>;
+  if (!data || data.runs.length === 0) return <div className="text-sm text-slate-400 py-4">No regime runs.</div>;
+
+  const runs = data.runs;
+
+  // Total span in days for the Gantt bar (runs.nDays approximates calendar days).
+  const totalDays = runs.reduce((a, r) => a + r.nDays, 0);
+
+  const fmtShort = (iso: string) => fmtDateShort(iso.length === 10 ? iso : iso.slice(0, 10));
+
+  const cumPct = (run: RegimeRun) => (mode === 'gross' ? run.cumReturnGross : run.cumReturnNet) - 1;
+  const sharpeOf = (run: RegimeRun) => (mode === 'gross' ? run.sharpeGross : run.sharpeNet);
+
+  const sortedIdx = [...runs.map((_, i) => i)].sort((a, b) => {
+    const A = runs[a]; const B = runs[b];
+    if (sortKey === 'sharpe') return (sharpeOf(B) ?? -99) - (sharpeOf(A) ?? -99);
+    if (sortKey === 'cum')    return cumPct(B) - cumPct(A);
+    if (sortKey === 'duration') return B.nDays - A.nDays;
+    return a - b;
+  });
+
+  const selected = selectedIdx != null ? runs[selectedIdx] : null;
+
+  return (
+    <div className="space-y-5">
+      {/* Header controls */}
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div className="text-[11px] text-slate-500">
+          <span className="font-semibold text-slate-700">{runs.length}</span> regime runs ·{' '}
+          <span className="font-semibold text-slate-700">{totalDays}</span> days ·{' '}
+          {fmtShort(runs[0].startDate)} → {fmtShort(runs[runs.length - 1].endDate)}
+        </div>
+        <div className="flex gap-2 text-[11px]">
+          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
+            <button type="button"
+              onClick={() => setMode('net')}
+              className={`px-2 py-1 rounded-md font-mono transition-colors ${
+                mode === 'net' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-700'
+              }`}>Net</button>
+            <button type="button"
+              onClick={() => setMode('gross')}
+              className={`px-2 py-1 rounded-md font-mono transition-colors ${
+                mode === 'gross' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-700'
+              }`}>Gross</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Gantt strip */}
+      <div>
+        <div className="flex w-full h-8 rounded overflow-hidden border border-slate-200">
+          {runs.map((run, i) => {
+            const widthPct = (run.nDays / totalDays) * 100;
+            const color = regimeColor(run.regime);
+            const isSel = selectedIdx === i;
+            return (
+              <button
+                type="button"
+                key={`${run.regime}-${run.startDate}`}
+                onClick={() => setSelectedIdx(isSel ? null : i)}
+                title={`${regimeDisplayName(run.regime)} · ${fmtShort(run.startDate)}–${fmtShort(run.endDate)} · ${run.nDays}d`}
+                className="relative transition-opacity hover:opacity-100 focus:outline-none"
+                style={{
+                  width: `${widthPct}%`,
+                  backgroundColor: color,
+                  opacity: isSel ? 1 : (selectedIdx == null ? 0.9 : 0.35),
+                  borderRight: '1px solid rgba(255,255,255,0.4)',
+                }}
+              />
+            );
+          })}
+        </div>
+        {/* Date ticks — show year boundaries */}
+        <DateAxis runs={runs} totalDays={totalDays} />
+      </div>
+
+      {/* Selected run detail */}
+      {selected && (
+        <div
+          className="rounded-lg border p-4"
+          style={{
+            borderColor: regimeColor(selected.regime) + '44',
+            backgroundColor: regimeColor(selected.regime) + '08',
+          }}
+        >
+          <div className="flex items-start justify-between flex-wrap gap-2 mb-3">
+            <div>
+              <div
+                className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold"
+                style={{ backgroundColor: regimeColor(selected.regime) + '22', color: regimeColor(selected.regime) }}
+              >
+                {regimeDisplayName(selected.regime)}
+              </div>
+              <div className="text-[11px] text-slate-500 mt-1">
+                {fmtShort(selected.startDate)} → {fmtShort(selected.endDate)} ·{' '}
+                <span className="font-semibold text-slate-700">{selected.nDays}d</span> ·{' '}
+                {selected.nActive} active · {selected.nGated} gated
+                {selected.avgConfidence != null && (
+                  <> · avg conf {(selected.avgConfidence * 100).toFixed(0)}%</>
+                )}
+              </div>
+            </div>
+            <button type="button" onClick={() => setSelectedIdx(null)}
+              className="text-[11px] text-slate-400 hover:text-slate-700">Close</button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+            <StatTile
+              label={`Sharpe (${mode})`}
+              value={sharpeOf(selected) != null ? sharpeOf(selected)!.toFixed(2) : '—'}
+              tone={sharpeOf(selected) ?? 0}
+            />
+            <StatTile
+              label={`Cum return (${mode})`}
+              value={pct(cumPct(selected))}
+              tone={cumPct(selected)}
+            />
+            <StatTile
+              label="vs SPY"
+              value={pct(
+                (mode === 'gross' ? selected.cumReturnGross : selected.cumReturnNet) - selected.cumSpy
+              )}
+              tone={(mode === 'gross' ? selected.cumReturnGross : selected.cumReturnNet) - selected.cumSpy}
+            />
+            <StatTile
+              label="Hit rate"
+              value={selected.hitRate != null ? `${(selected.hitRate * 100).toFixed(0)}%` : '—'}
+              tone={(selected.hitRate ?? 0.5) - 0.5}
+            />
+          </div>
+
+          {selected.topContributors.length > 0 ? (
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-2">
+                Top Contributors (weight × return × size, summed across run)
+              </div>
+              <div className="space-y-1">
+                {selected.topContributors.map((c) => (
+                  <div key={c.ticker} className="flex items-center gap-3 text-[11px]">
+                    <div className="w-14 font-mono font-bold text-slate-800">{c.ticker}</div>
+                    <div className="flex-1 text-slate-500 truncate">
+                      {TICKER_META[c.ticker]?.flag} {TICKER_META[c.ticker]?.name ?? c.ticker}
+                    </div>
+                    <div className="w-16 text-right text-slate-400 font-mono">{c.appearances}d</div>
+                    <div className={`w-16 text-right font-mono font-semibold ${colorClass(c.contribution, 0)}`}>
+                      {pct(c.contribution)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="text-[11px] text-slate-500">
+              All days gated — portfolio was flat, no contributors.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Runs table */}
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">
+            Runs (click any row)
+          </div>
+          <div className="flex gap-1 text-[10px]">
+            {(['date', 'duration', 'sharpe', 'cum'] as const).map(k => (
+              <button key={k} type="button" onClick={() => setSortKey(k)}
+                className={`px-2 py-0.5 rounded border font-mono ${
+                  sortKey === k ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                }`}
+              >Sort by {k}</button>
+            ))}
+          </div>
+        </div>
+        <div className="rounded border border-slate-200 overflow-hidden">
+          <table className="w-full text-[11px]">
+            <thead className="bg-slate-50">
+              <tr className="text-left text-slate-500">
+                <th className="px-2 py-1.5 font-semibold">#</th>
+                <th className="px-2 py-1.5 font-semibold">Regime</th>
+                <th className="px-2 py-1.5 font-semibold">Start</th>
+                <th className="px-2 py-1.5 font-semibold">End</th>
+                <th className="px-2 py-1.5 text-right font-semibold">Days</th>
+                <th className="px-2 py-1.5 text-right font-semibold">Sharpe</th>
+                <th className="px-2 py-1.5 text-right font-semibold">Cum ret</th>
+                <th className="px-2 py-1.5 text-right font-semibold">vs SPY</th>
+                <th className="px-2 py-1.5 text-right font-semibold">Hit</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {sortedIdx.map((i) => {
+                const run = runs[i];
+                const sh = sharpeOf(run);
+                const cr = cumPct(run);
+                const cSpy = run.cumSpy - 1;
+                const vsSpy = cr - cSpy;
+                const isSel = selectedIdx === i;
+                return (
+                  <tr key={`${run.regime}-${run.startDate}`}
+                    onClick={() => setSelectedIdx(isSel ? null : i)}
+                    className={`cursor-pointer transition-colors ${
+                      isSel ? 'bg-slate-100' : 'hover:bg-slate-50'
+                    }`}
+                  >
+                    <td className="px-2 py-1.5 text-slate-400 font-mono">{i + 1}</td>
+                    <td className="px-2 py-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: regimeColor(run.regime) }} />
+                        <span className="text-slate-700">{regimeDisplayName(run.regime)}</span>
+                      </div>
+                    </td>
+                    <td className="px-2 py-1.5 font-mono text-slate-500">{fmtShort(run.startDate)}</td>
+                    <td className="px-2 py-1.5 font-mono text-slate-500">{fmtShort(run.endDate)}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-slate-700">
+                      {run.nDays}
+                      {run.nGated > 0 && (
+                        <span className="text-red-500 text-[9px] ml-0.5">({run.nGated}g)</span>
+                      )}
+                    </td>
+                    <td className={`px-2 py-1.5 text-right font-mono font-semibold ${sh != null ? colorClass(sh) : 'text-slate-300'}`}>
+                      {sh != null ? sh.toFixed(2) : '—'}
+                    </td>
+                    <td className={`px-2 py-1.5 text-right font-mono ${colorClass(cr)}`}>
+                      {pct(cr)}
+                    </td>
+                    <td className={`px-2 py-1.5 text-right font-mono ${colorClass(vsSpy)}`}>
+                      {pct(vsSpy)}
+                    </td>
+                    <td className="px-2 py-1.5 text-right font-mono text-slate-600">
+                      {run.hitRate != null ? `${(run.hitRate * 100).toFixed(0)}%` : '—'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="text-[10px] text-slate-400 leading-relaxed">
+        Each row is one contiguous stint in a regime. Cum ret compounds per-day basket returns on
+        active days only (gated days contribute 0). &quot;vs SPY&quot; subtracts the same-window SPY
+        return. Sharpe annualizes using PPY = 252/21 so numbers are comparable to the main backtest.
+      </div>
+    </div>
+  );
+}
+
+/** Small number tile used inside the selected-run detail panel. */
+function StatTile({ label, value, tone }: { label: string; value: string; tone: number }) {
+  return (
+    <div className="rounded border border-slate-200 bg-white px-2.5 py-1.5">
+      <div className="text-[10px] text-slate-400">{label}</div>
+      <div className={`text-base font-bold font-mono ${colorClass(tone)}`}>{value}</div>
+    </div>
+  );
+}
+
+/**
+ * Thin date axis under the Gantt bar. Marks each year boundary visible in the
+ * run sequence, positioned proportionally to its cumulative day-offset.
+ */
+function DateAxis({ runs, totalDays }: { runs: RegimeRun[]; totalDays: number }) {
+  const ticks: Array<{ label: string; leftPct: number }> = [];
+  let offset = 0;
+  let lastYear = '';
+  for (const run of runs) {
+    const yr = run.startDate.slice(0, 4);
+    if (yr !== lastYear) {
+      ticks.push({ label: yr, leftPct: (offset / totalDays) * 100 });
+      lastYear = yr;
+    }
+    offset += run.nDays;
+  }
+  return (
+    <div className="relative h-4 mt-1">
+      {ticks.map((t) => (
+        <div key={t.label}
+          className="absolute top-0 text-[9px] font-mono text-slate-400"
+          style={{ left: `${t.leftPct}%`, transform: 'translateX(-50%)' }}
+        >
+          {t.label}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Backtest Metrics panel (with Net/Gross toggle) ───────────────────────────
 
 /**
@@ -1474,6 +1793,19 @@ export default function MacroEnginePage() {
         </CardHeader>
         <CardContent>
           <RegimeAttributionPanel />
+        </CardContent>
+      </Card>
+
+      {/* ── Panel: Regime Timeline (Gantt + per-run drilldown) ───────────── */}
+      <Card hover={false}>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold">Regime Timeline · Holdout History</CardTitle>
+          <CardDescription className="text-[11px]">
+            Every contiguous regime stint since 2022-01-01 · Click any segment or row to inspect stats + top contributors
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RegimeTimelinePanel />
         </CardContent>
       </Card>
 

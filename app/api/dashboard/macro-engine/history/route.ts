@@ -42,6 +42,27 @@ export type HistoryPoint = {
   cumulativePortfolio:  number;    // = cumulativePortfolioNet
 };
 
+export type RegimeRun = {
+  regime:          string;
+  startDate:       string;       // YYYY-MM-DD, first day of this regime run
+  endDate:         string;       // YYYY-MM-DD, last day (inclusive)
+  nDays:           number;       // total days in this run
+  nActive:         number;       // non-gated days (contributed to returns)
+  nGated:          number;       // credit-gate flat days
+  meanExcessNet:   number;       // mean daily excess over SPY (post-cost)
+  meanExcessGross: number;
+  sharpeNet:       number | null;// annualized, null when <4 active days
+  sharpeGross:     number | null;
+  hitRate:         number | null;
+  cumReturnNet:    number;       // portfolio equity multiple across the run (1.0 = flat)
+  cumReturnGross:  number;
+  cumSpy:          number;       // SPY equity multiple across the run
+  avgConfidence:   number | null;// mean regime-classifier confidence during this run
+  avgTurnover:     number;       // mean L1 basket turnover on active days
+  // Top 5 tickers by cumulative net contribution (weight * actualReturn * size)
+  topContributors: Array<{ ticker: string; contribution: number; appearances: number }>;
+};
+
 export type RegimeAttribution = {
   regime:           string;
   nDays:            number;      // total days in this regime (active + gated)
@@ -93,6 +114,7 @@ export type HistoryPayload = {
     finalSpy:            number;
   };
   byRegime:     RegimeAttribution[];
+  runs:         RegimeRun[];
   config: {
     longFraction:       number;
     transactionCostBps: number;
@@ -203,6 +225,7 @@ async function buildFullReplay(): Promise<HistoryPayload> {
   const m = replay.metrics;
 
   const byRegime = buildRegimeAttribution(replay.points);
+  const runs     = buildRegimeRuns(replay.points);
 
   return {
     points,
@@ -211,6 +234,7 @@ async function buildFullReplay(): Promise<HistoryPayload> {
     holdoutStart: replay.holdoutStart,
     asOfDate:     replay.asOfDate,
     byRegime,
+    runs,
     summary: {
       sharpeNet:         m.sharpeAnn,
       sharpeGross:       m.sharpeAnnGross,
@@ -332,4 +356,122 @@ function buildRegimeAttribution(points: ScoredDayRecord[]): RegimeAttribution[] 
   // actually driving the strategy.
   rows.sort((a, b) => b.alphaShareNet - a.alphaShareNet);
   return rows;
+}
+
+/**
+ * Groups the holdout replay into contiguous regime runs (a "run" = the
+ * consecutive days the model spent in the same regime) and computes
+ * per-run performance.
+ *
+ * A regime like Regime-5-inflation that appears in five separate stints
+ * over the holdout yields five `RegimeRun` rows — one per stint — vs the
+ * one aggregated `RegimeAttribution` row you get from `buildRegimeAttribution`.
+ *
+ * `topContributors` ranks tickers by sum(weight * actualReturn * finalSize)
+ * across the run's active days. `appearances` = number of active days the
+ * ticker was in the basket.
+ */
+function buildRegimeRuns(points: ScoredDayRecord[]): RegimeRun[] {
+  if (points.length === 0) return [];
+
+  const PPY = 252 / 21;
+
+  type RunAccum = {
+    regime:        string;
+    startDate:     string;
+    endDate:       string;
+    rows:          ScoredDayRecord[];
+  };
+
+  const runs: RunAccum[] = [];
+  let current: RunAccum | null = null;
+  for (const p of points) {
+    if (!current || current.regime !== p.regime) {
+      if (current) runs.push(current);
+      current = { regime: p.regime, startDate: p.date, endDate: p.date, rows: [p] };
+    } else {
+      current.endDate = p.date;
+      current.rows.push(p);
+    }
+  }
+  if (current) runs.push(current);
+
+  const std = (xs: number[], mean: number) => {
+    if (xs.length < 2) return 0;
+    const v = xs.reduce((a, b) => a + (b - mean) ** 2, 0) / xs.length;
+    return Math.sqrt(v);
+  };
+
+  return runs.map((run): RegimeRun => {
+    const active = run.rows.filter(r => !r.gated);
+    const gated  = run.rows.length - active.length;
+
+    const nets    = active.map(r => r.netExcess   ?? 0);
+    const grosses = active.map(r => r.grossExcess ?? 0);
+    const meanNet   = nets.length    ? nets.reduce((a, b) => a + b, 0)    / nets.length    : 0;
+    const meanGross = grosses.length ? grosses.reduce((a, b) => a + b, 0) / grosses.length : 0;
+
+    const sdNet   = std(nets,    meanNet);
+    const sdGross = std(grosses, meanGross);
+    const sharpeNet   = nets.length >= 4 && sdNet   > 0 ? (meanNet   / sdNet  ) * Math.sqrt(PPY) : null;
+    const sharpeGross = nets.length >= 4 && sdGross > 0 ? (meanGross / sdGross) * Math.sqrt(PPY) : null;
+    const hitRate     = nets.length > 0 ? nets.filter(x => x > 0).length / nets.length : null;
+
+    let cumNet   = 1;
+    let cumGross = 1;
+    let cumSpy   = 1;
+    let turnoverSum = 0;
+    for (const r of active) {
+      const spy   = r.benchmarkReturn ?? 0;
+      const gross = r.grossExcess     ?? 0;
+      const net   = r.netExcess       ?? 0;
+      cumSpy   *= 1 + spy;
+      cumGross *= 1 + spy + gross;
+      cumNet   *= 1 + spy + net;
+      turnoverSum += (r.turnover ?? 0);
+    }
+
+    // Ticker contribution: weight * actualReturn * finalSize per active day.
+    // Scaling by finalSize makes this comparable across regimes where the
+    // portfolio vol-target adjusts total exposure.
+    const tickerAgg = new Map<string, { contribution: number; appearances: number }>();
+    for (const r of active) {
+      const size = r.finalSize ?? 0;
+      for (const b of r.basket) {
+        const c = (b.weight * b.actualReturn * size);
+        const agg = tickerAgg.get(b.ticker);
+        if (agg) { agg.contribution += c; agg.appearances += 1; }
+        else { tickerAgg.set(b.ticker, { contribution: c, appearances: 1 }); }
+      }
+    }
+    const topContributors = [...tickerAgg.entries()]
+      .map(([ticker, v]) => ({ ticker, contribution: v.contribution, appearances: v.appearances }))
+      .sort((a, b) => b.contribution - a.contribution)
+      .slice(0, 5);
+
+    const confidences = run.rows.map(r => r.regimeConfidence).filter(c => c != null && !Number.isNaN(c));
+    const avgConfidence = confidences.length
+      ? confidences.reduce((a, b) => a + b, 0) / confidences.length
+      : null;
+
+    return {
+      regime:          run.regime,
+      startDate:       run.startDate,
+      endDate:         run.endDate,
+      nDays:           run.rows.length,
+      nActive:         active.length,
+      nGated:          gated,
+      meanExcessNet:   meanNet,
+      meanExcessGross: meanGross,
+      sharpeNet,
+      sharpeGross,
+      hitRate,
+      cumReturnNet:    cumNet,
+      cumReturnGross:  cumGross,
+      cumSpy,
+      avgConfidence,
+      avgTurnover:     active.length > 0 ? turnoverSum / active.length : 0,
+      topContributors,
+    };
+  });
 }
