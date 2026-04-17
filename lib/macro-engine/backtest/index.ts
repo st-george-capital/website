@@ -30,6 +30,27 @@ export type FeatureSliceRow = {
 };
 
 /**
+ * Per-date scoring record emitted by `scoreWindowRows` when an optional
+ * `perDateRecords` sink array is passed. Populated for BOTH active and
+ * credit-gated (flat) dates so the full daily history can be reconstructed
+ * for the live-equity replay / Today's Trades UI (Chunk 6).
+ */
+export interface ScoredDayRecord {
+  date:               string;              // YYYY-MM-DD
+  regime:             string;
+  regimeConfidence:   number;
+  gated:              boolean;              // true when credit-stress gate triggered
+  basket:             Array<{ ticker: string; weight: number; score: number; actualReturn: number }>;
+  benchmarkReturn:    number | null;        // SPY fwd return; null when gated
+  portfolioReturn:    number | null;        // weighted basket fwd return; null when gated
+  grossExcess:        number | null;        // (portfolio - SPY) * finalSize; null when gated
+  netExcess:          number | null;        // gross - cost
+  finalSize:          number | null;        // regime confidence × vol-target scale
+  turnover:           number | null;        // L1 weight change vs prior active day; null when gated
+  cost:               number | null;        // turnover * tcBps / 10_000; null when gated
+}
+
+/**
  * Everything the backtest needs after DB reads complete. Produced once by
  * `preloadBacktestData` and reusable across a sweep of configs — the only
  * per-config derivations (volMap / shortMomMap / returnMatrixMap) live inside
@@ -328,6 +349,7 @@ function scoreWindowRows(
   corrLookbackPeriods: number,
   corrOversampleMult: number,
   transactionCostBps: number,
+  perDateRecords?: ScoredDayRecord[],
 ): WindowResult | null {
   // Group feature rows by date — score all tickers on each date, then build portfolio
   const byDate = new Map<string, FeatureSliceRow[]>();
@@ -370,6 +392,22 @@ function scoreWindowRows(
     // `activeFraction` in the final metrics shows how often the model is engaged.
     if (creditStressLabels.has(regimeLabel)) {
       flatDays++;
+      if (perDateRecords) {
+        perDateRecords.push({
+          date:             dateKey,
+          regime:           regimeLabel,
+          regimeConfidence: confidenceMap.get(dateKey) ?? 0.5,
+          gated:            true,
+          basket:           [],
+          benchmarkReturn:  benchmarkReturn,
+          portfolioReturn:  null,
+          grossExcess:      null,
+          netExcess:        null,
+          finalSize:        null,
+          turnover:         null,
+          cost:             null,
+        });
+      }
       continue;
     }
 
@@ -540,6 +578,28 @@ function scoreWindowRows(
     grossReturns.push(grossExcess);
     turnovers.push(l1);
     costs.push(periodCost);
+
+    if (perDateRecords) {
+      perDateRecords.push({
+        date:             dateKey,
+        regime:           regimeLabel,
+        regimeConfidence: confidence,
+        gated:            false,
+        basket:           longTickers.map((t, i) => ({
+          ticker:       t.ticker,
+          weight:       basketWeights[i],
+          score:        t.score,
+          actualReturn: t.actualReturn,
+        })),
+        benchmarkReturn: benchmarkReturn,
+        portfolioReturn,
+        grossExcess,
+        netExcess,
+        finalSize,
+        turnover: l1,
+        cost:     periodCost,
+      });
+    }
   }
 
   if (predictedSigns.length === 0 && flatDays === 0) return null;
@@ -974,6 +1034,146 @@ export async function runBacktest(
     oos: oosMetrics,
     holdout: holdoutMetrics,
     windowCount: windowResults.length,
+  };
+}
+
+// ─── Live-equity holdout replay (Chunk 6) ───────────────────────────────────
+
+export interface ReplayHoldoutResult {
+  points:     ScoredDayRecord[];
+  metrics:    MetricsResult;
+  config: {
+    longFraction:       number;
+    transactionCostBps: number;
+    creditGate:         'on' | 'off' | 'selective';
+    forwardDays:        number;
+  };
+  dataStart:   string;
+  holdoutStart: string;
+  asOfDate:    string;  // latest date present in the replay (last point)
+}
+
+/**
+ * Scores the holdout window day-by-day using the live backtest config and
+ * returns per-date records (basket, weights, returns, cost) alongside the
+ * honest holdout metrics. Drives the dashboard's live-equity chart and the
+ * "Today's Trades" card. Accepts an optional shared preload so the
+ * dashboard API can cache the expensive DB reads across requests.
+ */
+export async function replayHoldout(
+  config:   BacktestConfig = DEFAULT_CONFIG,
+  opts:     { preloaded?: PreloadedBacktestData } = {},
+): Promise<ReplayHoldoutResult> {
+  const preloaded = opts.preloaded ?? (await preloadBacktestData(config));
+  const effective: BacktestConfig = opts.preloaded
+    ? { ...config, dataStart: preloaded.config.dataStart }
+    : preloaded.config;
+
+  const {
+    tickers,
+    allRegimeMap,
+    allConfidenceMap,
+    allRegimeLabels,
+    allReturnMap,
+    allBenchmarkReturnMap,
+    allSortedDateKeys,
+    allDataEnd,
+  } = preloaded;
+
+  const creditStressLabels = resolveCreditGate(effective, allRegimeLabels);
+
+  // Derived lookback maps (same as runBacktest but scoped to full data set —
+  // the holdout slice needs trailing lookbacks to extend before 2022-01-01).
+  const allVolMap = buildVolMap(allReturnMap, tickers, allSortedDateKeys, effective.volLookbackPeriods, effective.forwardDays);
+  const allShortMomMap = effective.shortMomPeriods > 0
+    ? buildShortMomMap(allReturnMap, tickers, allSortedDateKeys, effective.shortMomPeriods, effective.forwardDays)
+    : new Map<string, number | null>();
+
+  const portfolioVolTarget     = effective.portfolioVolTarget ?? 0;
+  const portfolioVolLookback   = effective.portfolioVolLookbackPeriods ?? 12;
+  const corrPenaltyLambda      = effective.corrPenaltyLambda ?? 0;
+  const corrLookbackPeriods    = effective.corrLookbackPeriods ?? 12;
+  const corrOversampleMult     = effective.corrOversampleMult ?? 2;
+  const transactionCostBps     = effective.transactionCostBps ?? 0;
+  const retMatrixEnabled       = portfolioVolTarget > 0 || corrPenaltyLambda > 0;
+  const retMatrixLookback      = Math.max(
+    portfolioVolTarget > 0 ? portfolioVolLookback : 0,
+    corrPenaltyLambda > 0 ? corrLookbackPeriods : 0,
+  );
+  const allReturnMatrixMap = retMatrixEnabled
+    ? buildReturnMatrixMap(allReturnMap, tickers, allSortedDateKeys, retMatrixLookback, effective.forwardDays)
+    : new Map<string, number[] | null>();
+  const periodsPerYear = 252 / effective.forwardDays;
+
+  const holdoutEnd = allDataEnd;
+  const holdoutKey = toDateKey(HOLDOUT_START);
+  const holdoutFeatures = preloaded.allFeatures.filter((row) => {
+    const k = toDateKey(row.featureDate);
+    return k >= holdoutKey && k < toDateKey(holdoutEnd);
+  });
+  const holdoutRegimeMap   = new Map([...allRegimeMap.entries()].filter(([k]) => k >= holdoutKey));
+  const holdoutReturnMap   = new Map([...allReturnMap.entries()].filter(([k]) => k.split('|')[1] >= holdoutKey));
+  const holdoutBenchMap    = new Map([...allBenchmarkReturnMap.entries()].filter(([k]) => k >= holdoutKey));
+  const holdoutConfMap     = new Map([...allConfidenceMap.entries()].filter(([k]) => k >= holdoutKey));
+
+  const holdoutWindow = {
+    trainStart: HOLDOUT_START,
+    trainEnd:   holdoutEnd,
+    testStart:  HOLDOUT_START,
+    testEnd:    holdoutEnd,
+  };
+
+  const perDateRecords: ScoredDayRecord[] = [];
+  const holdoutResult = scoreWindowRows(
+    holdoutFeatures,
+    holdoutRegimeMap,
+    holdoutReturnMap,
+    holdoutBenchMap,
+    holdoutWindow,
+    creditStressLabels,
+    holdoutConfMap,
+    effective.longFraction,
+    allVolMap,
+    effective.confidenceExp,
+    allShortMomMap,
+    effective.shortMomWeight,
+    allReturnMatrixMap,
+    portfolioVolTarget,
+    periodsPerYear,
+    corrPenaltyLambda,
+    corrLookbackPeriods,
+    corrOversampleMult,
+    transactionCostBps,
+    perDateRecords,
+  );
+
+  if (!holdoutResult) {
+    throw new Error('replayHoldout: no holdout points produced — check post-2022 coverage');
+  }
+
+  const metrics = aggregateMetrics([holdoutResult], effective.forwardDays, 'holdout', 'SPY');
+
+  const lastDate = perDateRecords.length > 0
+    ? perDateRecords[perDateRecords.length - 1].date
+    : toDateKey(HOLDOUT_START);
+
+  const creditGateMode: 'on' | 'off' | 'selective' =
+    effective.creditGateEnabled === false
+      ? 'off'
+      : (effective.creditGateLabels && effective.creditGateLabels.length > 0 ? 'selective' : 'on');
+
+  return {
+    points:  perDateRecords,
+    metrics,
+    config: {
+      longFraction:       effective.longFraction,
+      transactionCostBps: transactionCostBps,
+      creditGate:         creditGateMode,
+      forwardDays:        effective.forwardDays,
+    },
+    dataStart:    toDateKey(effective.dataStart),
+    holdoutStart: holdoutKey,
+    asOfDate:     lastDate,
   };
 }
 

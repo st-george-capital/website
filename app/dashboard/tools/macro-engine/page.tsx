@@ -98,25 +98,34 @@ function colorClass(v: number, goodThreshold = 0): string {
   return 'text-slate-500';
 }
 
-/** Rolling Sharpe over last N observations of an excess return series */
-function rollingStats(points: HistoryPoint[], window = 12): { date: string; rollingSharpe: number | null; excess: number }[] {
+/**
+ * Rolling Sharpe over last N active (non-gated) observations of an excess return series.
+ * Gated days are excluded so credit-stress flats don't pollute the rolling metric.
+ */
+function rollingStats(
+  points: HistoryPoint[],
+  window = 12,
+  mode: 'net' | 'gross' = 'net',
+): { date: string; rollingSharpe: number | null; excess: number }[] {
+  // Periods-per-year implied by the engine's 21-day forward horizon.
+  const PPY = 252 / 21;
   return points.map((p, i) => {
-    const slice = points.slice(Math.max(0, i - window + 1), i + 1);
+    const slice = points.slice(Math.max(0, i - window + 1), i + 1).filter(s => !s.gated);
     let rollingSharpe: number | null = null;
     if (slice.length >= 4) {
-      const xs = slice.map(s => s.excessReturn);
+      const xs = slice.map(s => (mode === 'gross' ? s.excessReturnGross : s.excessReturnNet));
       const mean = xs.reduce((a, b) => a + b, 0) / xs.length;
       const variance = xs.reduce((a, b) => a + (b - mean) ** 2, 0) / xs.length;
       const std = Math.sqrt(variance);
       if (std > 0) {
-        // Annualize: each point is ~63 trading days, ~4 per year
-        rollingSharpe = +(mean / std * Math.sqrt(4)).toFixed(3);
+        rollingSharpe = +(mean / std * Math.sqrt(PPY)).toFixed(3);
       }
     }
+    const excessRaw = mode === 'gross' ? p.excessReturnGross : p.excessReturnNet;
     return {
       date: p.date,
       rollingSharpe,
-      excess: +((p.excessReturn * 100).toFixed(2)),
+      excess: +((excessRaw * 100).toFixed(2)),
     };
   });
 }
@@ -224,13 +233,15 @@ const RANGE_OPTIONS = [
 ];
 
 type ChartTab = 'cumulative' | 'excess' | 'sharpe';
+type ReturnMode = 'net' | 'gross';
 
 function PerformanceChart() {
-  const [range, setRange] = useState(24);
+  const [range, setRange] = useState(48);
   const [data, setData] = useState<HistoryPayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedPoint, setSelectedPoint] = useState<HistoryPoint | null>(null);
   const [tab, setTab] = useState<ChartTab>('cumulative');
+  const [mode, setMode] = useState<ReturnMode>('net');
 
   const load = useCallback(() => {
     setLoading(true);
@@ -253,25 +264,32 @@ function PerformanceChart() {
     return points.filter((_, i) => i === 0 || i === points.length - 1 || i % step === 0);
   }, [points]);
 
-  const chartData = useMemo(() => subsample.map(p => ({
-    date: p.date,
-    portfolio: +((p.cumulativePortfolio - 1) * 100).toFixed(2),
-    spy: +((p.cumulativeSpy - 1) * 100).toFixed(2),
-    excess: +((p.excessReturn * 100).toFixed(2)),
-    regime: p.regime,
-  })), [subsample]);
+  const chartData = useMemo(() => subsample.map(p => {
+    const cumPortfolio = mode === 'gross' ? p.cumulativePortfolioGross : p.cumulativePortfolioNet;
+    const excess       = mode === 'gross' ? p.excessReturnGross         : p.excessReturnNet;
+    return {
+      date: p.date,
+      portfolio: +((cumPortfolio - 1) * 100).toFixed(2),
+      spy:       +((p.cumulativeSpy - 1) * 100).toFixed(2),
+      excess:    +(excess * 100).toFixed(2),
+      regime:    p.regime,
+      gated:     p.gated,
+    };
+  }), [subsample, mode]);
 
-  const rollingData = useMemo(() => {
-    // Compute rolling stats on subsampled points (window = 12 observations ≈ 3yr)
-    return rollingStats(subsample, 12);
-  }, [subsample]);
+  const rollingData = useMemo(() => rollingStats(subsample, 12, mode), [subsample, mode]);
 
   const finalPt = points[points.length - 1];
-  const finalPortfolio = finalPt?.cumulativePortfolio ?? 1;
+  const finalPortfolio = mode === 'gross'
+    ? (finalPt?.cumulativePortfolioGross ?? 1)
+    : (finalPt?.cumulativePortfolioNet   ?? 1);
   const finalSpy = finalPt?.cumulativeSpy ?? 1;
   const totalExcess = finalPortfolio - finalSpy;
-  const winRate = points.length > 0
-    ? points.filter(p => p.excessReturn > 0).length / points.length
+  // Win rate over active (non-gated) points only — gated days are 0 by construction
+  // and shouldn't count for or against the strategy's hit rate.
+  const activePoints = points.filter(p => !p.gated);
+  const winRate = activePoints.length > 0
+    ? activePoints.filter(p => (mode === 'gross' ? p.excessReturnGross : p.excessReturnNet) > 0).length / activePoints.length
     : null;
 
   const handleClick = (e: { activePayload?: { payload: { date: string } }[] } | null) => {
@@ -293,7 +311,7 @@ function PerformanceChart() {
     </button>
   );
 
-  type ChartRow = { date: string; portfolio?: number; spy?: number; excess?: number; rollingSharpe?: number | null };
+  type ChartRow = { date: string; portfolio?: number; spy?: number; excess?: number; rollingSharpe?: number | null; gated?: boolean };
   const tooltipContent = ({ active, payload }: TooltipProps<ValueType, NameType>) => {
     if (!active || !payload?.length) return null;
     const d = payload[0].payload as ChartRow;
@@ -303,12 +321,12 @@ function PerformanceChart() {
         <div className="font-semibold text-slate-700 mb-1.5">{fmtDate(d.date)}</div>
         {tab === 'cumulative' && (
           <div className="space-y-0.5">
-            <div className="flex justify-between gap-4"><span className="text-slate-500">Portfolio</span><span className={colorClass(d.portfolio ?? 0, 0.01)}>{(d.portfolio ?? 0) > 0 ? '+' : ''}{d.portfolio}%</span></div>
+            <div className="flex justify-between gap-4"><span className="text-slate-500">Portfolio {mode === 'gross' ? '(gross)' : '(net)'}</span><span className={colorClass(d.portfolio ?? 0, 0.01)}>{(d.portfolio ?? 0) > 0 ? '+' : ''}{d.portfolio}%</span></div>
             <div className="flex justify-between gap-4"><span className="text-slate-500">SPY</span><span className={colorClass(d.spy ?? 0, 0.01)}>{(d.spy ?? 0) > 0 ? '+' : ''}{d.spy}%</span></div>
           </div>
         )}
         {tab === 'excess' && (
-          <div className="flex justify-between gap-4"><span className="text-slate-500">Excess</span><span className={colorClass(d.excess ?? 0, 0)}>{pct((d.excess ?? 0) / 100)}</span></div>
+          <div className="flex justify-between gap-4"><span className="text-slate-500">Excess {mode === 'gross' ? '(gross)' : '(net)'}</span><span className={colorClass(d.excess ?? 0, 0)}>{pct((d.excess ?? 0) / 100)}</span></div>
         )}
         {tab === 'sharpe' && (
           <div className="flex justify-between gap-4">
@@ -317,8 +335,9 @@ function PerformanceChart() {
           </div>
         )}
         {ptFull && (
-          <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[10px]" style={{ color: regimeColor(ptFull.regime) }}>
-            {regimeDisplayName(ptFull.regime)}
+          <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[10px] flex items-center justify-between gap-2" style={{ color: regimeColor(ptFull.regime) }}>
+            <span>{regimeDisplayName(ptFull.regime)}</span>
+            {ptFull.gated && <span className="rounded bg-red-100 text-red-700 px-1 py-0.5 text-[9px] font-semibold">FLAT</span>}
           </div>
         )}
       </div>
@@ -335,6 +354,26 @@ function PerformanceChart() {
           {tabBtn('sharpe', <TrendingUp className="h-3 w-3" />, 'Rolling Sharpe')}
         </div>
         <div className="flex gap-1 items-center">
+          <div className="flex bg-slate-100 rounded overflow-hidden mr-1">
+            <button
+              type="button"
+              onClick={() => setMode('net')}
+              title={data?.config
+                ? `After ${data.config.transactionCostBps}bps one-way transaction costs`
+                : 'After transaction costs'}
+              className={`px-2 py-1 text-[11px] font-semibold ${mode === 'net' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-200'}`}
+            >
+              Net
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('gross')}
+              title="Before transaction costs"
+              className={`px-2 py-1 text-[11px] font-semibold ${mode === 'gross' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-200'}`}
+            >
+              Gross
+            </button>
+          </div>
           {RANGE_OPTIONS.map(opt => (
             <button key={opt.label} type="button" onClick={() => setRange(opt.months)}
               className={`px-2.5 py-1 rounded text-[11px] font-semibold ${range === opt.months ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
@@ -349,9 +388,11 @@ function PerformanceChart() {
 
       {/* Summary stats */}
       {points.length > 0 && (
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-2">
           <div className="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2 text-center">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Portfolio</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+              Portfolio {mode === 'gross' ? '(Gross)' : '(Net)'}
+            </div>
             <div className={`text-sm font-bold mt-0.5 ${colorClass(finalPortfolio - 1, 0)}`}>{pct(finalPortfolio - 1)}</div>
           </div>
           <div className="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2 text-center">
@@ -363,6 +404,20 @@ function PerformanceChart() {
             <div className={`text-sm font-bold mt-0.5 ${colorClass(totalExcess, 0)}`}>
               {pct(totalExcess)}
               {winRate !== null && <span className="text-[10px] font-normal text-slate-400 ml-1">({(winRate * 100).toFixed(0)}%↑)</span>}
+            </div>
+          </div>
+          <div className="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2 text-center">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Sharpe (Holdout)</div>
+            <div className={`text-sm font-bold mt-0.5 ${colorClass(
+              (mode === 'gross' ? (data?.summary.sharpeGross ?? 0) : (data?.summary.sharpeNet ?? 0)) - 0.3,
+              0,
+            )}`}>
+              {(mode === 'gross' ? data?.summary.sharpeGross : data?.summary.sharpeNet)?.toFixed(2) ?? '—'}
+              {data && (
+                <span className="text-[10px] font-normal text-slate-400 ml-1">
+                  · {data.summary.nGated} flat
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -441,31 +496,157 @@ function PerformanceChart() {
                 Regime: <span style={{ color: regimeColor(selectedPoint.regime) }} className="font-medium">
                   {regimeDisplayName(selectedPoint.regime)}
                 </span>
+                {selectedPoint.gated && <span className="ml-2 rounded bg-red-100 text-red-700 px-1.5 py-0.5 text-[10px] font-semibold">CREDIT-GATE FLAT</span>}
+                {!selectedPoint.gated && (
+                  <span className="ml-2 text-slate-400">
+                    · size {(selectedPoint.finalSize * 100).toFixed(0)}% · turnover {(selectedPoint.turnover * 100).toFixed(0)}%
+                  </span>
+                )}
               </div>
             </div>
             <div className="text-right text-xs space-y-0.5">
-              <div>Portfolio: <strong className={colorClass(selectedPoint.portfolioReturn)}>{pct(selectedPoint.portfolioReturn)}</strong></div>
+              <div>Portfolio: <strong className={colorClass(
+                mode === 'gross' ? selectedPoint.portfolioReturnGross : selectedPoint.portfolioReturnNet
+              )}>{pct(mode === 'gross' ? selectedPoint.portfolioReturnGross : selectedPoint.portfolioReturnNet)}</strong></div>
               <div>SPY: <strong className={colorClass(selectedPoint.spyReturn)}>{pct(selectedPoint.spyReturn)}</strong></div>
-              <div>Excess: <strong className={colorClass(selectedPoint.excessReturn, 0.002)}>{pct(selectedPoint.excessReturn)}</strong></div>
+              <div>Excess: <strong className={colorClass(
+                mode === 'gross' ? selectedPoint.excessReturnGross : selectedPoint.excessReturnNet, 0.002
+              )}>{pct(mode === 'gross' ? selectedPoint.excessReturnGross : selectedPoint.excessReturnNet)}</strong></div>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-            {selectedPoint.rankings.map(r => (
-              <div key={r.ticker} className="flex items-center gap-2 text-[12px]">
-                <span className="w-4 text-slate-300 font-mono text-[10px]">{r.rank}</span>
-                <span className={`w-10 font-mono font-bold ${r.direction === 'overweight' ? 'text-emerald-700' : 'text-red-500'}`}>
-                  {r.ticker}
-                </span>
-                <span className="text-slate-400 truncate">
-                  {TICKER_META[r.ticker]?.flag} {TICKER_META[r.ticker]?.name ?? ''}
-                </span>
-                <span className="ml-auto text-slate-300 font-mono text-[10px]">{r.score.toFixed(3)}</span>
-              </div>
-            ))}
-          </div>
-          <div className="text-[10px] text-slate-400">Click a different point to explore any date. Overweight (green) = model ranked in the top quartile (long basket).</div>
+          {selectedPoint.basket.length > 0 ? (
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+              {selectedPoint.basket.map((r, i) => (
+                <div key={r.ticker} className="flex items-center gap-2 text-[12px]">
+                  <span className="w-4 text-slate-300 font-mono text-[10px]">{i + 1}</span>
+                  <span className="w-10 font-mono font-bold text-emerald-700">{r.ticker}</span>
+                  <span className="text-slate-400 truncate">
+                    {TICKER_META[r.ticker]?.flag} {TICKER_META[r.ticker]?.name ?? ''}
+                  </span>
+                  <span className="ml-auto text-slate-400 font-mono text-[10px]">{(r.weight * 100).toFixed(0)}%</span>
+                  <span className="w-10 text-right text-slate-300 font-mono text-[10px]">{r.score.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded bg-white border border-slate-100 px-3 py-2 text-[11px] text-slate-500">
+              Portfolio was flat on this day (credit-stress regime gated exposure to 0%).
+            </div>
+          )}
+          <div className="text-[10px] text-slate-400">Click a different point to explore any date. Green tickers are in the long basket (top quartile by 12-month momentum).</div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Today's Trades card ──────────────────────────────────────────────────────
+
+/**
+ * Shows the model's current positioning — the freshest basket from the
+ * holdout replay — so "what signals says right now" and "what the equity
+ * chart was built from" are guaranteed to match. Consumes the last point
+ * in /api/dashboard/macro-engine/history, which is produced by the same
+ * backtest scoring path used for OOS / holdout metrics.
+ */
+function TodaysTradesCard() {
+  const [data, setData] = useState<HistoryPayload | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Pull a narrow window so the handoff is cheap; the server's cache serves
+    // the full replay once warm either way.
+    const end   = new Date();
+    const start = new Date(end.getTime() - 400 * 24 * 60 * 60 * 1000);
+    fetch(`/api/dashboard/macro-engine/history?start=${start.toISOString().slice(0, 10)}&end=${end.toISOString().slice(0, 10)}`)
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then((d: HistoryPayload) => setData(d))
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="text-sm text-slate-400 py-4">Replaying holdout…</div>;
+  if (error)   return <div className="text-sm text-red-600 py-4">Live replay failed: {error}</div>;
+  if (!data || data.points.length === 0) return <div className="text-sm text-slate-400 py-4">No live replay data.</div>;
+
+  const last = data.points[data.points.length - 1];
+  const rColor = regimeColor(last.regime);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <div
+              className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold"
+              style={{ backgroundColor: rColor + '22', color: rColor }}
+            >
+              {regimeDisplayName(last.regime)}
+            </div>
+            {last.gated && (
+              <div className="inline-flex items-center rounded-full bg-red-100 text-red-700 px-2.5 py-0.5 text-xs font-bold">
+                CREDIT-GATE FLAT
+              </div>
+            )}
+          </div>
+          <div className="text-[11px] text-slate-400 mt-1">
+            As of {fmtDate(last.date)} · size {(last.finalSize * 100).toFixed(0)}% ·
+            {' '}transaction cost {data.config.transactionCostBps}bps/side
+          </div>
+        </div>
+        <div className="flex gap-2 text-[11px]">
+          <div className="rounded border border-slate-200 px-2.5 py-1.5 bg-white min-w-[88px]">
+            <div className="text-slate-400">Holdout Sharpe (Net)</div>
+            <div className={`text-base font-bold ${colorClass(data.summary.sharpeNet - 0.3, 0)}`}>
+              {data.summary.sharpeNet.toFixed(2)}
+            </div>
+          </div>
+          <div className="rounded border border-slate-200 px-2.5 py-1.5 bg-white min-w-[88px]">
+            <div className="text-slate-400">Gross</div>
+            <div className="text-base font-bold text-slate-700">{data.summary.sharpeGross.toFixed(2)}</div>
+          </div>
+          <div className="rounded border border-slate-200 px-2.5 py-1.5 bg-white min-w-[88px]">
+            <div className="text-slate-400">Cost Drag (ann.)</div>
+            <div className="text-base font-bold text-slate-700">{data.summary.annualizedCostBps.toFixed(0)}bps</div>
+          </div>
+        </div>
+      </div>
+
+      {last.basket.length === 0 ? (
+        <div className="rounded-lg border border-red-100 bg-red-50/30 px-4 py-6 text-center">
+          <div className="text-sm font-semibold text-red-700">Portfolio is flat</div>
+          <div className="text-[11px] text-slate-500 mt-1">
+            Credit-stress regime is active — exposure gated to 0% until the macro regime shifts.
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+          {last.basket.map((b, i) => (
+            <div key={b.ticker}
+              className="flex items-center gap-3 rounded-lg border border-emerald-100 bg-emerald-50/40 px-3 py-2">
+              <div className="w-4 text-[11px] text-slate-400 font-mono">{i + 1}</div>
+              <div className="w-12 font-mono font-bold text-slate-900 text-sm">{b.ticker}</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[12px] font-medium text-slate-700 truncate">
+                  {TICKER_META[b.ticker]?.flag} {TICKER_META[b.ticker]?.name ?? b.ticker}
+                </div>
+                <div className="text-[10px] text-slate-400 truncate">{TICKER_META[b.ticker]?.description}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-[11px] font-semibold text-emerald-700 font-mono">{(b.weight * 100).toFixed(0)}%</div>
+                <div className="text-[10px] text-slate-400 font-mono">z {b.score.toFixed(2)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="text-[10px] text-slate-400">
+        Today&apos;s basket is the equal-weight long of the top {Math.round(data.config.longFraction * 100)}% of the
+        universe by 12-month cross-sectional momentum (same ranker driving the {data.summary.nActive}-period
+        holdout replay, {(data.summary.activeFraction * 100).toFixed(0)}% active).
+      </div>
     </div>
   );
 }
@@ -800,12 +981,25 @@ export default function MacroEnginePage() {
         </CardContent>
       </Card>
 
+      {/* ── Panel: Today's Trades (live holdout replay) ─────────────────── */}
+      <Card hover={false}>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold">Today&apos;s Trades · Live Model Replay</CardTitle>
+          <CardDescription className="text-[11px]">
+            Current-day basket produced by replaying the backtest engine day-by-day from 2022-01-01 · Same scoring path as Holdout Sharpe below · Net of transaction costs
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TodaysTradesCard />
+        </CardContent>
+      </Card>
+
       {/* ── Panel: Historical Performance + Explorer ──────────────────── */}
       <Card hover={false}>
         <CardHeader>
-          <CardTitle className="text-sm font-semibold">Historical Performance</CardTitle>
+          <CardTitle className="text-sm font-semibold">Historical Performance · Holdout Equity</CardTitle>
           <CardDescription className="text-[11px]">
-            Equal-weight long of top-25% ETFs by 12-month momentum vs SPY benchmark · Click any point to explore that date
+            Live model replay from 2022-01-01 · Equal-weight long of top-25% ETFs by 12-month momentum, credit-gate flats honored · Net toggle includes transaction costs · Click any point to explore that date
           </CardDescription>
         </CardHeader>
         <CardContent>

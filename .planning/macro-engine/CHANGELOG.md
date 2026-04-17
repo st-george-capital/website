@@ -384,6 +384,78 @@ dashboard so users can see both at a glance.
 
 ---
 
+## Chunk 6 — Live holdout replay + Today's Trades card (2026-04-16)
+
+Goal of this chunk was wiring the dashboard into the honest model, not
+producing new performance numbers. The headline metrics for the holdout
+window come straight from the backtest engine and match Chunk 5's NET
+baseline exactly:
+
+| Window  | Net Sharpe | Gross Sharpe | HitRate | Active | Flat | activeFrac | Turnover | CostDrag bps/yr |
+|---------|------------|--------------|---------|--------|------|------------|----------|-----------------|
+| Holdout | **1.311**  | 1.327        | 0.661   | 363    | 92   | 0.798      | 0.125    | 7.5             |
+
+Last replay point is 2026-03-20 (most recent DB feature row), Regime-5-inflation,
+basket = XLE / GLD / EWZ / EWJ / EWC / EWU / AAPL / MSFT / NVDA / AVGO / META / JPM
+at 8% equal weight, sized to 73% gross via regime-confidence scaling.
+
+### Why we replay instead of serving `AllocationSignal`
+
+The old `/history` endpoint served a 63-day top-half synthetic curve from
+`AllocationSignal` / portfolio records. That was inconsistent with the
+21-day top-25% model the backtest actually runs (inherited from earlier
+prototypes; called out as "still stale" in Chunk 1). Worse, the
+`AllocationSignal` table has only ~5 days of data post-mid-April-2026,
+so any attempt to reconstruct a multi-year live curve from it would be
+full of gaps.
+
+The fix is to rebuild the live curve from the same `scoreWindowRows`
+function that produces the Holdout Sharpe. That way the chart, the
+"today's trades" card, and the Backtest Metrics panel can never disagree
+by construction.
+
+### Code changes
+
+1. `ScoredDayRecord` emitted per date. New interface on `WindowResult`
+   carries `date`, `regime`, `confidence`, `gated`, `basket[]` (ticker,
+   weight, score, actualReturn), `benchmarkReturn`, `portfolioReturn`,
+   `grossExcess`, `netExcess`, `finalSize`, `turnover`, `cost`. Populated
+   inside `scoreWindowRows` on both credit-gated and active branches so
+   the replay stream has a row for every holdout day.
+2. `replayHoldout()` in `lib/macro-engine/backtest/index.ts`. Preloads
+   once, then invokes `scoreWindowRows` over the full holdout slice
+   (`HOLDOUT_START → dataEnd`) with a `perDateRecords` buffer. Returns
+   `{ points, metrics, config, dataStart, holdoutStart, asOfDate }`.
+3. `/api/dashboard/macro-engine/history` rewritten. Calls `replayHoldout`
+   (through an in-memory 15-minute cache; replay is ~90s cold), computes
+   cumulative portfolio / SPY curves for both net and gross series, emits
+   per-date `basket` + `regime` + `gated` + turnover + cost. Range
+   filtering (`?start`, `?end`) is applied on the cached full replay so
+   `sharpeNet/sharpeGross/maxDD` in the summary stay pinned to the
+   authoritative metrics and don't drift with the visible window.
+4. Dashboard UI refactor. `PerformanceChart`:
+   - New **Net / Gross toggle** (transaction cost badge in tooltip shows
+     current bps setting).
+   - Summary row now shows 4 cards (Portfolio / SPY / Excess · WinRate /
+     Holdout Sharpe + flat-day count).
+   - Selected-point view shows regime + size% + turnover%, replaces the
+     old two-column rank grid with the actual basket (ticker, weight,
+     score), and surfaces a "CREDIT-GATE FLAT" badge on gated days
+     instead of rendering a ghost basket.
+   - Rolling Sharpe is computed over active days only (window=12)
+     and uses PPY=252/21 to match the engine's annualization.
+5. New **Today's Trades** card on the dashboard. Shows current regime,
+   gated status, size %, headline holdout sharpe (net + gross), annualized
+   cost drag, and the current basket with per-ticker z-rank / weight.
+
+### Follow-ups deferred to Chunk 7
+
+- Per-regime attribution (split of holdout alpha by regime label).
+- Gross / net toggle on the Backtest Metrics panel (history chart has it,
+  the OOS / Holdout cards still show one number each).
+
+---
+
 ## Chunk 1 — Why the Holdout Sharpe went UP (1.168 → 1.327)
 
 Pre-fix, the holdout Sharpe was annualized over 455 observations with 92 of

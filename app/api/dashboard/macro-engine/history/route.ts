@@ -1,33 +1,81 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { replayHoldout, DEFAULT_CONFIG } from '@/lib/macro-engine/backtest';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Serves the honest model trajectory for the dashboard's equity chart and
+ * "Today's Trades" card. Replays the current backtest model day-by-day over
+ * the holdout window (HOLDOUT_START → latest), applying credit-gate flats
+ * and transaction costs identically to the canonical backtest.
+ *
+ * `?start=YYYY-MM-DD` / `?end=YYYY-MM-DD` filter the returned points; the
+ * model is always replayed from HOLDOUT_START so cumulative equity is
+ * consistent regardless of the visible range.
+ *
+ * Replaces the prior 63-day top-half synthetic curve (inconsistent with the
+ * 21-day top-25% model actually running). See CHANGELOG Chunk 6.
+ */
+
 export type HistoryPoint = {
-  date: string;          // YYYY-MM-DD
-  regime: string;
-  portfolioReturn: number;  // equal-weight long-top-half 63-day return
-  spyReturn: number;
-  excessReturn: number;     // portfolio - SPY
-  cumulativePortfolio: number; // cumulative from start (1.0 = baseline)
-  cumulativeSpy: number;
-  rankings: Array<{
-    ticker: string;
-    rank: number;
-    score: number;
-    direction: 'overweight' | 'underweight';
-  }>;
+  date:                 string;    // YYYY-MM-DD
+  regime:               string;
+  gated:                boolean;   // true when credit-gated (flat)
+  portfolioReturnNet:   number;    // 0 when gated
+  portfolioReturnGross: number;    // 0 when gated
+  spyReturn:            number;    // always present (SPY has coverage every active day)
+  excessReturnNet:      number;    // (portfolio - SPY) * finalSize - cost; 0 when gated
+  excessReturnGross:    number;    // same without cost; 0 when gated
+  cumulativePortfolioNet:   number;   // (1 + rtn_t)·…·(1 + rtn_T) starting at 1
+  cumulativePortfolioGross: number;
+  cumulativeSpy:        number;
+  turnover:             number;    // 0 when gated
+  cost:                 number;    // 0 when gated
+  finalSize:            number;    // 0 when gated
+  basket: Array<{ ticker: string; weight: number; score: number }>;
+  // Back-compat mirror fields (old API names used elsewhere in UI)
+  portfolioReturn:      number;    // = portfolioReturnNet
+  excessReturn:         number;    // = excessReturnNet
+  cumulativePortfolio:  number;    // = cumulativePortfolioNet
 };
 
 export type HistoryPayload = {
-  points: HistoryPoint[];
-  runId: string;
-  dataStart: string;
+  points:       HistoryPoint[];
+  runId:        string;
+  dataStart:    string;
+  holdoutStart: string;
+  asOfDate:     string;
+  summary: {
+    sharpeNet:         number;
+    sharpeGross:       number;
+    maxDrawdownNet:    number | null;
+    maxDrawdownGross:  number | null;
+    avgTurnover:       number;
+    annualizedCostBps: number;
+    hitRate:           number;
+    nActive:           number;
+    nGated:            number;
+    activeFraction:    number;
+    // Cumulative return at the last visible point
+    finalPortfolioNet:   number;
+    finalPortfolioGross: number;
+    finalSpy:            number;
+  };
+  config: {
+    longFraction:       number;
+    transactionCostBps: number;
+    creditGate:         'on' | 'off' | 'selective';
+    forwardDays:        number;
+  };
 };
 
-const FEATURE_DIMS = ['zGrowth', 'zInflation', 'zMonetary', 'zCredit', 'zCarry', 'zEarnings'] as const;
+// Small in-memory cache keyed by the latest regime date. Replays are expensive
+// (~60-90s) and the underlying inputs only change when new daily feature rows
+// land, so this cuts typical dashboard hits to ~50ms once warm.
+let CACHE: { key: string; ts: number; payload: HistoryPayload } | null = null;
+const TTL_MS = 15 * 60 * 1000;
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -35,166 +83,116 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const startParam = searchParams.get('start');
-  const endParam = searchParams.get('end');
+  const endParam   = searchParams.get('end');
 
-  // Default: last 4 years
-  const endDate = endParam ? new Date(endParam) : new Date();
-  const startDate = startParam
-    ? new Date(startParam)
-    : new Date(endDate.getTime() - 4 * 365 * 24 * 60 * 60 * 1000);
+  const now = Date.now();
+  let full: HistoryPayload;
+  if (CACHE && (now - CACHE.ts) < TTL_MS) {
+    full = CACHE.payload;
+  } else {
+    full = await buildFullReplay();
+    CACHE = { key: full.asOfDate, ts: now, payload: full };
+  }
 
-  // 1. Get latest backtest run + weights
-  const latestRun = await prisma.backtestRun.findFirst({ orderBy: { runAt: 'desc' } });
-  if (!latestRun) return NextResponse.json({ points: [], runId: '', dataStart: '' });
+  // Apply range filter on top of the cached full replay
+  if (!startParam && !endParam) {
+    return NextResponse.json(full);
+  }
 
-  const weightRows = await prisma.factorWeightSet.findMany({
-    where: { runId: latestRun.id },
+  const filtered: HistoryPoint[] = full.points.filter((p) => {
+    if (startParam && p.date < startParam) return false;
+    if (endParam   && p.date > endParam)   return false;
+    return true;
   });
-  const weightMap = new Map(
-    weightRows.map((w) => [
-      w.regimeLabel,
-      [w.wGrowth, w.wInflation, w.wMonetary, w.wCredit, w.wCarry, w.wEarnings],
-    ]),
-  );
-  const globalWeights = weightMap.get('global') ?? new Array(6).fill(0);
 
-  // 2. Get regime labels for the date range
-  const regimeRows = await prisma.regimeLabel.findMany({
-    where: { date: { gte: startDate, lte: endDate } },
-    orderBy: { date: 'asc' },
-    select: { date: true, regimeLabel: true },
-  });
-  const regimeMap = new Map(regimeRows.map((r) => [r.date.toISOString().slice(0, 10), r.regimeLabel]));
+  // Recompute summary "finalX" on the filtered slice — but keep Sharpe/MDD
+  // pinned to the full holdout replay so the summary card numbers match the
+  // backtest tables exactly regardless of the zoom level.
+  const last = filtered[filtered.length - 1];
+  const summary: HistoryPayload['summary'] = {
+    ...full.summary,
+    finalPortfolioNet:   last?.cumulativePortfolioNet   ?? 1,
+    finalPortfolioGross: last?.cumulativePortfolioGross ?? 1,
+    finalSpy:            last?.cumulativeSpy            ?? 1,
+  };
 
-  // 3. Get feature matrix — paginate by ticker to stay under 5MB
-  type FeatureRow = { featureDate: Date; ticker: string; zGrowth: number | null; zInflation: number | null; zMonetary: number | null; zCredit: number | null; zCarry: number | null; zEarnings: number | null };
-  const allFeatures: FeatureRow[] = [];
+  return NextResponse.json({ ...full, points: filtered, summary } satisfies HistoryPayload);
+}
 
-  // Get tickers that exist in this date range
-  const tickerRows = await prisma.$queryRaw<{ ticker: string }[]>`
-    SELECT DISTINCT ticker FROM factor_feature_matrix
-    WHERE "featureDate" >= ${startDate} AND "featureDate" <= ${endDate}
-    AND ticker NOT IN ('SPY') -- SPY is benchmark, not a portfolio candidate
-    ORDER BY ticker
-  `;
-  const tickers = tickerRows.map((r) => r.ticker);
+async function buildFullReplay(): Promise<HistoryPayload> {
+  const replay = await replayHoldout(DEFAULT_CONFIG);
 
-  for (const ticker of tickers) {
-    const rows = await prisma.$queryRaw<FeatureRow[]>`
-      SELECT "featureDate", ticker, "zGrowth", "zInflation", "zMonetary", "zCredit", "zCarry", "zEarnings"
-      FROM factor_feature_matrix
-      WHERE ticker = ${ticker}
-        AND "featureDate" >= ${startDate}
-        AND "featureDate" <= ${endDate}
-      ORDER BY "featureDate" ASC
-    `;
-    allFeatures.push(...rows);
-  }
-
-  // 4. Get SPY prices for forward returns (need FORWARD_DAYS=63 ahead)
-  const FORWARD_DAYS = 63;
-  const priceEnd = new Date(endDate.getTime() + (FORWARD_DAYS + 15) * 24 * 60 * 60 * 1000);
-
-  type PriceRow = { ticker: string; date: Date; adjClose: number };
-  const allPriceRows: PriceRow[] = [];
-  const allTickers = [...tickers, 'SPY'];
-
-  for (const ticker of allTickers) {
-    const rows = await prisma.$queryRaw<PriceRow[]>`
-      SELECT ticker, date, "adjClose"
-      FROM ohlcv_daily
-      WHERE ticker = ${ticker}
-        AND date >= ${startDate}
-        AND date <= ${priceEnd}
-      ORDER BY date ASC
-    `;
-    allPriceRows.push(...rows);
-  }
-
-  // Build price lookup: ticker → sorted prices
-  const priceByTicker = new Map<string, { date: Date; adjClose: number }[]>();
-  for (const r of allPriceRows) {
-    if (!priceByTicker.has(r.ticker)) priceByTicker.set(r.ticker, []);
-    priceByTicker.get(r.ticker)!.push({ date: r.date, adjClose: r.adjClose });
-  }
-
-  function forwardReturn(ticker: string, baseDate: Date): number | null {
-    const prices = priceByTicker.get(ticker);
-    if (!prices) return null;
-    const base = prices.find((p) => p.date.getTime() === baseDate.getTime());
-    if (!base) return null;
-    const targetMs = baseDate.getTime() + FORWARD_DAYS * 24 * 60 * 60 * 1000;
-    const fwd = prices.find(
-      (p) => p.date.getTime() >= targetMs && p.date.getTime() <= targetMs + 15 * 24 * 60 * 60 * 1000,
-    );
-    if (!fwd) return null;
-    return fwd.adjClose / base.adjClose - 1;
-  }
-
-  // 5. Group features by date, score, rank, compute portfolio return
-  const byDate = new Map<string, FeatureRow[]>();
-  for (const row of allFeatures) {
-    const dk = row.featureDate.toISOString().slice(0, 10);
-    if (!byDate.has(dk)) byDate.set(dk, []);
-    byDate.get(dk)!.push(row);
-  }
-
+  let cumNet   = 1;
+  let cumGross = 1;
+  let cumSpy   = 1;
   const points: HistoryPoint[] = [];
-  let cumPortfolio = 1.0;
-  let cumSpy = 1.0;
 
-  for (const [dateKey, rows] of Array.from(byDate.entries()).sort()) {
-    const regime = regimeMap.get(dateKey) ?? 'unknown';
-    const weights = weightMap.get(regime) ?? globalWeights;
-
-    // Score each ticker
-    const scored: Array<{ ticker: string; score: number; fwdReturn: number | null }> = [];
-    for (const row of rows) {
-      const vec = FEATURE_DIMS.map((d) => (row[d] as number | null) ?? 0);
-      const score = vec.reduce((s, v, i) => s + v * weights[i], 0);
-      const fwdRet = forwardReturn(row.ticker, row.featureDate);
-      scored.push({ ticker: row.ticker, score, fwdReturn: fwdRet });
-    }
-
-    // Filter to tickers with valid forward returns
-    const withReturns = scored.filter((s) => s.fwdReturn !== null);
-    if (withReturns.length < 2) continue;
-
-    const spyReturn = forwardReturn('SPY', new Date(dateKey));
-    if (spyReturn === null) continue;
-
-    // Rank descending by score
-    withReturns.sort((a, b) => b.score - a.score);
-    const longCount = Math.ceil(withReturns.length / 2);
-    const portfolioReturn =
-      withReturns.slice(0, longCount).reduce((s, t) => s + t.fwdReturn!, 0) / longCount;
-
-    const excessReturn = portfolioReturn - spyReturn;
-    cumPortfolio *= 1 + portfolioReturn;
+  for (const p of replay.points) {
+    // SPY accrues every day where SPY has a forward return, regardless of
+    // whether we were in the market — it's the benchmark curve.
+    const spyReturn = p.benchmarkReturn ?? 0;
     cumSpy *= 1 + spyReturn;
 
-    const rankings = withReturns.map((t, i) => ({
-      ticker: t.ticker,
-      rank: i + 1,
-      score: t.score,
-      direction: (i < longCount ? 'overweight' : 'underweight') as 'overweight' | 'underweight',
-    }));
+    const pfGross = p.grossExcess ?? 0;   // (basket - spy) * size; 0 when gated
+    const pfNet   = p.netExcess   ?? 0;   // gross - cost; 0 when gated
+
+    // Backtest convention: on ACTIVE days the "uninvested" slice (1-size)
+    // tracks SPY, so actual portfolio return = spy + (basket-spy)*size =
+    // spy + grossExcess. On GATED days the whole point of the credit gate
+    // is to be OUT of the market; we flat the portfolio to 0 return (cash)
+    // so the equity curve honestly shows the drawdown the gate avoided.
+    const pfReturnGross = p.gated ? 0 : (spyReturn + pfGross);
+    const pfReturnNet   = p.gated ? 0 : (spyReturn + pfNet);
+
+    cumGross *= 1 + pfReturnGross;
+    cumNet   *= 1 + pfReturnNet;
 
     points.push({
-      date: dateKey,
-      regime,
-      portfolioReturn,
+      date:                    p.date,
+      regime:                  p.regime,
+      gated:                   p.gated,
+      portfolioReturnNet:      pfReturnNet,
+      portfolioReturnGross:    pfReturnGross,
       spyReturn,
-      excessReturn,
-      cumulativePortfolio: cumPortfolio,
-      cumulativeSpy: cumSpy,
-      rankings,
+      excessReturnNet:         pfNet,
+      excessReturnGross:       pfGross,
+      cumulativePortfolioNet:   cumNet,
+      cumulativePortfolioGross: cumGross,
+      cumulativeSpy:            cumSpy,
+      turnover:  p.turnover ?? 0,
+      cost:      p.cost     ?? 0,
+      finalSize: p.finalSize ?? 0,
+      basket:    p.basket.map((b) => ({ ticker: b.ticker, weight: b.weight, score: b.score })),
+
+      portfolioReturn:     pfReturnNet,
+      excessReturn:        pfNet,
+      cumulativePortfolio: cumNet,
     });
   }
 
-  return NextResponse.json({
+  const m = replay.metrics;
+
+  return {
     points,
-    runId: latestRun.id,
-    dataStart: latestRun.dataStart,
-  } satisfies HistoryPayload);
+    runId:        'live-replay',
+    dataStart:    replay.dataStart,
+    holdoutStart: replay.holdoutStart,
+    asOfDate:     replay.asOfDate,
+    summary: {
+      sharpeNet:         m.sharpeAnn,
+      sharpeGross:       m.sharpeAnnGross,
+      maxDrawdownNet:    m.maxDrawdown,
+      maxDrawdownGross:  m.maxDrawdownGross,
+      avgTurnover:       m.avgTurnover,
+      annualizedCostBps: m.annualizedCostBps,
+      hitRate:           m.hitRate,
+      nActive:           m.nPeriods,
+      nGated:            m.flatDays,
+      activeFraction:    m.activeFraction,
+      finalPortfolioNet:   cumNet,
+      finalPortfolioGross: cumGross,
+      finalSpy:            cumSpy,
+    },
+    config: replay.config,
+  };
 }
