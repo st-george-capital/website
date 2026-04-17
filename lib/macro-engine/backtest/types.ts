@@ -64,6 +64,19 @@ export interface BacktestConfig {
   corrLookbackPeriods?:  number;
   /** Multiplier on k to form the oversample pool, e.g. 2 → consider top 2k candidates. */
   corrOversampleMult?:   number;
+
+  // ── Transaction costs (Chunk 5) ────────────────────────────────────────────
+  /**
+   * One-way transaction cost in basis points applied per unit of traded
+   * notional. 5 bps (= 0.05%) is the default — reasonable for the 17-ETF
+   * universe on a major US broker. Each rebalance applies
+   *   cost = (Σ_i |w_t(i) - w_{t-1}(i)|) · tcBps / 10_000
+   * which correctly double-counts buys + sells (L1 weight change already
+   * includes both sides). 0 / undefined disables cost accounting (gross
+   * numbers only). Positions carry across credit-gated flat days — we
+   * only charge costs on the dates the model actually rebalances.
+   */
+  transactionCostBps?: number;
 }
 
 // ─── Window Result ────────────────────────────────────────────────────────────
@@ -75,12 +88,20 @@ export interface BacktestConfig {
  * counted in `flatDays` and excluded from the series. Sharpe and maxDD are
  * computed only on active periods; including gated zeros would biased-deflate
  * both the mean and the stdev.
+ *
+ * `excessReturns` is the NET (post-transaction-cost) series — the honest
+ * headline number. `grossReturns` holds the pre-cost counterpart, and
+ * `turnovers`/`costs` record the per-active-period L1 trade size and its
+ * dollar-cost, aligned index-wise with `excessReturns`.
  */
 export interface WindowResult {
   window:          BacktestWindow;
   predictedSigns:  number[];  // sign(score) for each ACTIVE (ticker, date) in test window
-  actualReturns:   number[];  // actual portfolio-excess returns for same observations
-  excessReturns:   number[];  // portfolio return - SPY return for each ACTIVE period
+  actualReturns:   number[];  // actual portfolio-excess returns for same observations (NET)
+  excessReturns:   number[];  // NET portfolio-excess per ACTIVE period (after transaction costs)
+  grossReturns:    number[];  // same active periods, BEFORE costs — gross counterpart
+  turnovers:       number[];  // L1 weight change per active period (0..~2)
+  costs:           number[];  // per-period cost in decimal (already subtracted from excessReturns)
   flatDays:        number;    // count of dates gated flat by the credit-regime filter
 }
 
@@ -99,8 +120,12 @@ export interface MetricsResult {
   window:         'oos' | 'holdout';
   benchmark:      'SPY' | 'ACWI';
   hitRate:        number; // 0-1, computed on active periods only
-  sharpeAnn:      number; // annualized Sharpe on excess returns, active periods only
-  maxDrawdown:    number | null; // negative fraction, null when no excess return data
+  sharpeAnn:      number; // NET annualized Sharpe (headline; after transaction costs)
+  sharpeAnnGross: number; // pre-cost counterpart of `sharpeAnn`
+  maxDrawdown:    number | null;      // NET max drawdown (negative fraction)
+  maxDrawdownGross: number | null;    // pre-cost counterpart
+  avgTurnover:    number; // mean L1 weight-change per active rebalance (0..~2)
+  annualizedCostBps: number; // annualized cost drag in basis points of NAV
   startDate:      Date;
   endDate:        Date;
   nPeriods:       number;  // active periods

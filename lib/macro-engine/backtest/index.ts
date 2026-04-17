@@ -84,6 +84,7 @@ const DEFAULT_CONFIG: BacktestConfig = {
   corrPenaltyLambda: 0,        // 0 = disabled; tuned via Chunk 3 sweep
   corrLookbackPeriods: 12,
   corrOversampleMult: 2,
+  transactionCostBps: 5,       // one-way 5 bps per unit of traded notional (Chunk 5)
 };
 
 function toDateKey(date: Date): string {
@@ -326,6 +327,7 @@ function scoreWindowRows(
   corrPenaltyLambda: number,
   corrLookbackPeriods: number,
   corrOversampleMult: number,
+  transactionCostBps: number,
 ): WindowResult | null {
   // Group feature rows by date — score all tickers on each date, then build portfolio
   const byDate = new Map<string, FeatureSliceRow[]>();
@@ -338,7 +340,21 @@ function scoreWindowRows(
   const predictedSigns: number[] = [];
   const actualReturns: number[] = [];
   const excessReturns: number[] = [];
+  const grossReturns:  number[] = [];
+  const turnovers:     number[] = [];
+  const costs:         number[] = [];
   let flatDays = 0;
+
+  // ── Transaction cost accounting (Chunk 5) ────────────────────────────────
+  // Track the previous active-day's per-ticker position (size * weight), in
+  // NAV units. L1 change between consecutive active days captures the total
+  // rebalance trade — buys and sells both count. Positions persist across
+  // credit-gated flat days: the model is assumed to hold its basket through
+  // gaps (no trading implied by transitioning in/out of flat), which is the
+  // cheapest and cleanest accounting model and avoids double-charging
+  // phantom exit/re-enter cycles on gated streaks.
+  const tcDecimal = Math.max(0, transactionCostBps) / 10_000;
+  let prevPositions: Map<string, number> = new Map();
 
   for (const [dateKey, rows] of Array.from(byDate.entries()).sort()) {
     const benchmarkReturn = benchmarkReturnMap.get(dateKey) ?? null;
@@ -498,11 +514,32 @@ function scoreWindowRows(
     }
 
     const finalSize = positionSize * volScale;
-    const portfolioExcess = (portfolioReturn - benchmarkReturn) * finalSize;
+    const grossExcess = (portfolioReturn - benchmarkReturn) * finalSize;
+
+    // ── Turnover + cost ───────────────────────────────────────────────────
+    // newPositions maps ticker → finalSize * basketWeight (NAV-scaled).
+    // L1 = Σ |newPos - prevPos| over the union of tickers.
+    const newPositions = new Map<string, number>();
+    for (let i = 0; i < longTickers.length; i++) {
+      newPositions.set(longTickers[i].ticker, finalSize * basketWeights[i]);
+    }
+    let l1 = 0;
+    const union = new Set<string>([...prevPositions.keys(), ...newPositions.keys()]);
+    for (const ticker of union) {
+      const prev = prevPositions.get(ticker) ?? 0;
+      const curr = newPositions.get(ticker) ?? 0;
+      l1 += Math.abs(curr - prev);
+    }
+    const periodCost = l1 * tcDecimal;
+    const netExcess  = grossExcess - periodCost;
+    prevPositions = newPositions;
 
     predictedSigns.push(1);
-    actualReturns.push(portfolioExcess);
-    excessReturns.push(portfolioExcess);
+    actualReturns.push(netExcess);
+    excessReturns.push(netExcess);
+    grossReturns.push(grossExcess);
+    turnovers.push(l1);
+    costs.push(periodCost);
   }
 
   if (predictedSigns.length === 0 && flatDays === 0) return null;
@@ -512,6 +549,9 @@ function scoreWindowRows(
     predictedSigns,
     actualReturns,
     excessReturns,
+    grossReturns,
+    turnovers,
+    costs,
     flatDays,
   };
 }
@@ -610,6 +650,17 @@ export async function preloadBacktestData(
   };
 }
 
+function logMetricsLine(label: string, m: ReturnType<typeof aggregateMetrics>): void {
+  console.log(
+    `${label} metrics: hitRate=${m.hitRate.toFixed(3)}, ` +
+    `sharpeNet=${m.sharpeAnn.toFixed(3)}, sharpeGross=${m.sharpeAnnGross.toFixed(3)}, ` +
+    `maxDD=${m.maxDrawdown?.toFixed(3) ?? 'null'}, ` +
+    `avgTurnover=${m.avgTurnover.toFixed(3)}, ` +
+    `costDrag=${m.annualizedCostBps.toFixed(1)}bps/yr, ` +
+    `active=${m.nPeriods}, flat=${m.flatDays}, activeFrac=${m.activeFraction.toFixed(3)}`,
+  );
+}
+
 /**
  * Resolve the credit-stress label set from the preloaded regime labels and the
  * config's gate toggles. Pulled out so sweeps that vary the credit gate don't
@@ -691,6 +742,7 @@ export async function runBacktest(
   const corrPenaltyLambda      = config.corrPenaltyLambda ?? 0;
   const corrLookbackPeriods    = config.corrLookbackPeriods ?? 12;
   const corrOversampleMult     = config.corrOversampleMult ?? 2;
+  const transactionCostBps     = config.transactionCostBps ?? 0;
   const retMatrixEnabled       = portfolioVolTarget > 0 || corrPenaltyLambda > 0;
   const retMatrixLookback      = Math.max(
     portfolioVolTarget > 0 ? portfolioVolLookback : 0,
@@ -705,6 +757,9 @@ export async function runBacktest(
         `[volTarget=${portfolioVolTarget.toFixed(2)}, corrLambda=${corrPenaltyLambda.toFixed(2)}, ` +
         `corrOversample=${corrOversampleMult}]`,
     );
+  }
+  if (transactionCostBps > 0) {
+    console.log(`  transaction costs: ${transactionCostBps} bps one-way per L1 unit`);
   }
   const periodsPerYear = 252 / config.forwardDays;
 
@@ -776,6 +831,7 @@ export async function runBacktest(
       corrPenaltyLambda,
       corrLookbackPeriods,
       corrOversampleMult,
+      transactionCostBps,
     );
 
     if (result) {
@@ -788,12 +844,7 @@ export async function runBacktest(
   }
 
   const oosMetrics = aggregateMetrics(windowResults, config.forwardDays, 'oos', 'SPY');
-  console.log(
-    `OOS metrics: hitRate=${oosMetrics.hitRate.toFixed(3)}, sharpe=${oosMetrics.sharpeAnn.toFixed(3)}, ` +
-    `maxDD=${oosMetrics.maxDrawdown?.toFixed(3) ?? 'null'}, ` +
-    `active=${oosMetrics.nPeriods}, flat=${oosMetrics.flatDays}, ` +
-    `activeFrac=${oosMetrics.activeFraction.toFixed(3)}`,
-  );
+  logMetricsLine('OOS', oosMetrics);
 
   const holdoutEnd = allDataEnd;
   const holdoutFeatures = featuresInRange(HOLDOUT_START, holdoutEnd);
@@ -836,6 +887,7 @@ export async function runBacktest(
     corrPenaltyLambda,
     corrLookbackPeriods,
     corrOversampleMult,
+    transactionCostBps,
   );
 
   if (!holdoutResult) {
@@ -843,12 +895,7 @@ export async function runBacktest(
   }
 
   const holdoutMetrics = aggregateMetrics([holdoutResult], config.forwardDays, 'holdout', 'SPY');
-  console.log(
-    `Holdout metrics: hitRate=${holdoutMetrics.hitRate.toFixed(3)}, sharpe=${holdoutMetrics.sharpeAnn.toFixed(3)}, ` +
-    `maxDD=${holdoutMetrics.maxDrawdown?.toFixed(3) ?? 'null'}, ` +
-    `active=${holdoutMetrics.nPeriods}, flat=${holdoutMetrics.flatDays}, ` +
-    `activeFrac=${holdoutMetrics.activeFraction.toFixed(3)}`,
-  );
+  logMetricsLine('Holdout', holdoutMetrics);
 
   // Skip DB writes during experiment sweeps — results are logged to console only
   if (config.skipPersist) {
@@ -872,7 +919,12 @@ export async function runBacktest(
       notes:
         `model=cs-momentum-rank; forwardDays=${config.forwardDays}; benchmark=SPY; nonOverlapping=true; ` +
         `longFraction=${config.longFraction}; creditGate=${config.creditGateEnabled !== false ? 'on' : 'off'}; ` +
-        `oosActiveFrac=${oosMetrics.activeFraction.toFixed(3)}; holdoutActiveFrac=${holdoutMetrics.activeFraction.toFixed(3)}`,
+        `oosActiveFrac=${oosMetrics.activeFraction.toFixed(3)}; holdoutActiveFrac=${holdoutMetrics.activeFraction.toFixed(3)}; ` +
+        `tcBps=${transactionCostBps}; ` +
+        `oosSharpeGross=${oosMetrics.sharpeAnnGross.toFixed(3)}; oosSharpeNet=${oosMetrics.sharpeAnn.toFixed(3)}; ` +
+        `oosAvgTurnover=${oosMetrics.avgTurnover.toFixed(3)}; oosCostDragBps=${oosMetrics.annualizedCostBps.toFixed(1)}; ` +
+        `holdoutSharpeGross=${holdoutMetrics.sharpeAnnGross.toFixed(3)}; holdoutSharpeNet=${holdoutMetrics.sharpeAnn.toFixed(3)}; ` +
+        `holdoutAvgTurnover=${holdoutMetrics.avgTurnover.toFixed(3)}; holdoutCostDragBps=${holdoutMetrics.annualizedCostBps.toFixed(1)}`,
     },
   });
 
@@ -988,12 +1040,14 @@ export async function runSweep(
 function printSweepTable(results: SweepVariantResult[]): void {
   if (results.length === 0) return;
   const labelWidth = Math.max(5, ...results.map(r => r.label.length));
-  const fmt = (n: number) => n.toFixed(3);
+  const fmt    = (n: number) => n.toFixed(3);
+  const fmt1   = (n: number) => n.toFixed(1);
   const fmtNull = (n: number | null) => (n === null ? '   —  ' : n.toFixed(3));
 
   const hdr =
     `${'label'.padEnd(labelWidth)} | ` +
-    'OOS Sh  OOS HR  OOS MDD  OOS Active | Hold Sh Hold HR Hold MDD Hold Active';
+    'OOS Net  OOS Gr   OOS HR  OOS MDD  OOS TO  OOS $bps | ' +
+    'Hold Net Hold Gr  Hold HR Hold MDD Hold TO Hold $bps';
   const sep = '-'.repeat(hdr.length);
   console.log(`\n=== sweep summary ===`);
   console.log(hdr);
@@ -1001,8 +1055,8 @@ function printSweepTable(results: SweepVariantResult[]): void {
   for (const r of results) {
     console.log(
       `${r.label.padEnd(labelWidth)} | ` +
-        `${fmt(r.oos.sharpeAnn)}   ${fmt(r.oos.hitRate)}   ${fmtNull(r.oos.maxDrawdown)}   ${fmt(r.oos.activeFraction)}      | ` +
-        `${fmt(r.holdout.sharpeAnn)}   ${fmt(r.holdout.hitRate)}   ${fmtNull(r.holdout.maxDrawdown)}   ${fmt(r.holdout.activeFraction)}`,
+        `${fmt(r.oos.sharpeAnn)}    ${fmt(r.oos.sharpeAnnGross)}    ${fmt(r.oos.hitRate)}   ${fmtNull(r.oos.maxDrawdown)}   ${fmt(r.oos.avgTurnover)}   ${fmt1(r.oos.annualizedCostBps).padStart(6)} | ` +
+        `${fmt(r.holdout.sharpeAnn)}    ${fmt(r.holdout.sharpeAnnGross)}    ${fmt(r.holdout.hitRate)}   ${fmtNull(r.holdout.maxDrawdown)}   ${fmt(r.holdout.avgTurnover)}   ${fmt1(r.holdout.annualizedCostBps).padStart(6)}`,
     );
   }
   console.log(sep);

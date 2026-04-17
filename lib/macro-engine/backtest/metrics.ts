@@ -80,13 +80,19 @@ export function aggregateMetrics(
   // Concatenate active periods in order — drawdown is on the cumulative active series
   const allPredicted: number[] = [];
   const allActual:    number[] = [];
-  const allExcess:    number[] = [];
+  const allExcess:    number[] = []; // NET returns
+  const allGross:     number[] = [];
+  const allTurnover:  number[] = [];
+  const allCosts:     number[] = [];
   let flatDays = 0;
 
   for (const wr of windowResults) {
     allPredicted.push(...wr.predictedSigns);
     allActual.push(...wr.actualReturns);
     allExcess.push(...wr.excessReturns);
+    allGross.push(...wr.grossReturns);
+    allTurnover.push(...wr.turnovers);
+    allCosts.push(...wr.costs);
     flatDays += wr.flatDays;
   }
 
@@ -95,14 +101,30 @@ export function aggregateMetrics(
   const totalObs = nPeriods + flatDays;
   const activeFraction = totalObs > 0 ? nPeriods / totalObs : 1;
 
+  // Mean per-period cost, annualized and rescaled to bps of NAV. Uses the
+  // ACTIVE-period count for annualization, matching the Sharpe convention:
+  // both "how good" and "how expensive" numbers are on-when-active.
+  const meanCost = allCosts.length > 0
+    ? allCosts.reduce((a, b) => a + b, 0) / allCosts.length
+    : 0;
+  const annualizedCostBps = meanCost * periodsPerYear * 10_000;
+
+  const avgTurnover = allTurnover.length > 0
+    ? allTurnover.reduce((a, b) => a + b, 0) / allTurnover.length
+    : 0;
+
   return {
-    window:         windowType,
+    window:            windowType,
     benchmark,
-    hitRate:        hitRate(allPredicted, allActual),
-    sharpeAnn:      annualizedSharpe(allExcess, periodsPerYear),
-    maxDrawdown:    maxDrawdown(allExcess),
-    startDate:      windowResults[0].window.testStart,
-    endDate:        windowResults[windowResults.length - 1].window.testEnd,
+    hitRate:           hitRate(allPredicted, allActual),
+    sharpeAnn:         annualizedSharpe(allExcess, periodsPerYear),
+    sharpeAnnGross:    annualizedSharpe(allGross, periodsPerYear),
+    maxDrawdown:       maxDrawdown(allExcess),
+    maxDrawdownGross:  maxDrawdown(allGross),
+    avgTurnover,
+    annualizedCostBps,
+    startDate:         windowResults[0].window.testStart,
+    endDate:           windowResults[windowResults.length - 1].window.testEnd,
     nPeriods,
     flatDays,
     activeFraction,

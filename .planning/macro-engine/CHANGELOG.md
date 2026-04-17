@@ -307,6 +307,83 @@ The default `runBacktest()` with no overrides still produces:
 
 ---
 
+## Chunk 5 — Transaction costs, turnover, gross / net Sharpe (2026-04-16)
+
+The backtest now accounts for trading frictions. Every active rebalance
+charges a proportional cost based on the L1 change in per-ticker NAV
+weights between consecutive active days:
+
+```
+cost_t = (Σ_i |w_t(i) * finalSize_t − w_{t-1}(i) * finalSize_{t-1}|) · tcBps / 10_000
+net_t  = gross_t − cost_t
+```
+
+Positions persist across credit-gated flat days — the model is assumed
+to hold through gaps rather than exit-and-re-enter on every regime
+blip. This is the cheapest fair accounting and avoids double-charging
+phantom transitions; a real-money implementation could be stricter,
+and that's an opt-in knob for later.
+
+### API changes
+
+- `BacktestConfig` gains `transactionCostBps?: number` (default **5**).
+  Legacy runs can force 0 to match old gross numbers exactly.
+- `WindowResult` gains `grossReturns`, `turnovers`, `costs` alongside
+  the existing `excessReturns` (now the NET series — honest headline).
+- `MetricsResult` gains `sharpeAnnGross`, `maxDrawdownGross`,
+  `avgTurnover`, `annualizedCostBps`. `sharpeAnn` is NET.
+- `BacktestRun.notes` now records the full gross/net/turnover/cost
+  tuple for both OOS and holdout — zero schema migration, full audit
+  trail available via `select notes from backtest_runs`.
+- `runSweep` summary table updated with Net / Gross / turnover / cost
+  columns per window.
+
+### Transaction-cost sweep (3 variants, one shared preload)
+
+| setting      | OOS Net  | OOS Gross | OOS Turn | OOS $bps/yr | Hold Net | Hold Gross | Hold Turn | Hold $bps/yr |
+|--------------|----------|-----------|----------|-------------|----------|------------|-----------|--------------|
+| tc=0 (gross) | 0.456    | 0.456     | 0.172    | 0.0         | 1.327    | 1.327      | 0.125     | 0.0          |
+| tc=5 (dflt)  | **0.445**| 0.456     | 0.172    | 10.3        | **1.311**| 1.327      | 0.125     | 7.5          |
+| tc=10        | 0.434    | 0.456     | 0.172    | 20.6        | 1.296    | 1.327      | 0.125     | 15.1         |
+
+Observations worth recording:
+
+- Avg turnover = 17.2% of NAV per active rebalance on OOS, 12.5% on
+  holdout. Holdout is stickier because Regime-4-credit eats a larger
+  share of the window; the model tends to carry the same basket out
+  of gates in the "on" stretches between credit events.
+- Sharpe drag scales linearly with tcBps, as expected for fixed
+  turnover. At tc=5 the annualized cost drag is ~10 bps on OOS and
+  ~7.5 bps on holdout, costing ~0.011 Sharpe OOS and ~0.016 Sharpe
+  holdout. Real, not catastrophic.
+- `gross` column is invariant across tc — useful as a sanity check
+  (costs are additive, don't change selection / sizing).
+
+### New NET baseline
+
+Default `runBacktest()` with the new `transactionCostBps=5`:
+
+| Window  | Net Sharpe | Gross Sharpe | HitRate | MaxDD  | Turnover | CostDrag bps/yr | activeFrac |
+|---------|------------|--------------|---------|--------|----------|-----------------|------------|
+| OOS     | 0.445      | 0.456        | 0.555   | -0.830 | 0.172    | 10.3            | 0.480      |
+| Holdout | 1.311      | 1.327        | 0.661   | -0.358 | 0.125    | 7.5             | 0.798      |
+
+From here forward, the headline numbers in this file are NET unless
+explicitly labeled GROSS. Chunk 7 will add a net/gross toggle in the
+dashboard so users can see both at a glance.
+
+### Known limitations carried into subsequent chunks
+
+- Positions carried "for free" through flat streaks. For very long
+  flat periods a stricter model would mark-to-market the carry (SPY
+  returns during that window) and pay exit + re-enter costs. Low
+  priority until flat-day Sharpe accounting becomes a research topic.
+- Single flat cost rate across the universe. A per-ticker bps table
+  (e.g. 3 bps for top-5 ETF volume, 10 bps for EWA/EWZ) could land as
+  a one-liner via a ticker→bps map in the config; deferred.
+
+---
+
 ## Chunk 1 — Why the Holdout Sharpe went UP (1.168 → 1.327)
 
 Pre-fix, the holdout Sharpe was annualized over 455 observations with 92 of
