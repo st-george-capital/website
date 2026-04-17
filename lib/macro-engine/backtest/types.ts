@@ -56,6 +56,14 @@ export interface BacktestConfig {
   portfolioVolTarget?:         number;
   /** Non-overlapping period count used to estimate the long-basket covariance matrix. */
   portfolioVolLookbackPeriods?: number;
+
+  // ── Correlation-aware selection (Chunk 3) ──────────────────────────────────
+  /** Penalty λ on Σ|corr(i,j)| over selected pairs. 0 / undefined = pure zCarry top-k. */
+  corrPenaltyLambda?:    number;
+  /** Non-overlapping period count used to estimate the oversample pool correlation. */
+  corrLookbackPeriods?:  number;
+  /** Multiplier on k to form the oversample pool, e.g. 2 → consider top 2k candidates. */
+  corrOversampleMult?:   number;
 }
 
 // ─── Window Result ────────────────────────────────────────────────────────────

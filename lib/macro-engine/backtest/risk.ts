@@ -69,6 +69,128 @@ export function portfolioVolFromReturns(
 }
 
 /**
+ * Pairwise Pearson correlation matrix from an N×K return matrix.
+ * Returns a symmetric K×K matrix with 1 on the diagonal; degenerate columns
+ * (zero stdev) are masked to 0 to keep downstream penalty terms finite.
+ */
+export function pairwiseCorrelation(returnMatrix: number[][]): number[][] {
+  const N = returnMatrix.length;
+  if (N === 0) return [];
+  const K = returnMatrix[0].length;
+  if (K === 0) return [];
+
+  const means = new Array(K).fill(0);
+  for (let t = 0; t < N; t++) {
+    const row = returnMatrix[t];
+    for (let k = 0; k < K; k++) means[k] += row[k];
+  }
+  for (let k = 0; k < K; k++) means[k] /= N;
+
+  const stds = new Array(K).fill(0);
+  for (let t = 0; t < N; t++) {
+    const row = returnMatrix[t];
+    for (let k = 0; k < K; k++) {
+      const d = row[k] - means[k];
+      stds[k] += d * d;
+    }
+  }
+  for (let k = 0; k < K; k++) stds[k] = Math.sqrt(stds[k] / N);
+
+  const corr: number[][] = Array.from({ length: K }, () => new Array(K).fill(0));
+  for (let i = 0; i < K; i++) {
+    corr[i][i] = 1;
+    for (let j = i + 1; j < K; j++) {
+      if (stds[i] === 0 || stds[j] === 0) {
+        corr[i][j] = 0;
+        corr[j][i] = 0;
+        continue;
+      }
+      let cov = 0;
+      for (let t = 0; t < N; t++) {
+        cov += (returnMatrix[t][i] - means[i]) * (returnMatrix[t][j] - means[j]);
+      }
+      cov /= N;
+      const c = Math.max(-1, Math.min(1, cov / (stds[i] * stds[j])));
+      corr[i][j] = c;
+      corr[j][i] = c;
+    }
+  }
+  return corr;
+}
+
+/**
+ * Greedy correlation-aware selection over a larger candidate pool.
+ *
+ * Objective for a selection S ⊂ {0..n-1}, |S|=k:
+ *     J(S) = Σ_{i∈S} scores[i] − λ · Σ_{i<j, i,j∈S} |corr[i][j]|
+ *
+ * Strategy: start from the top-k by score, then repeatedly evaluate every
+ * (in, out) swap and apply the single best improving swap per pass. Terminate
+ * when no swap improves J by more than 1e-12. Iteration order is fixed, so the
+ * routine is deterministic. Hard-capped at n·k iterations to guarantee
+ * termination under any pathological edge case.
+ *
+ * Returns the indices of the selected members, sorted ascending.
+ */
+export function greedyCorrSelect(
+  scores:   number[],
+  corr:     number[][],
+  k:        number,
+  lambda:   number,
+): number[] {
+  const n = scores.length;
+  if (k >= n) return scores.map((_, i) => i);
+  if (k <= 0) return [];
+
+  const ranked = scores
+    .map((s, i) => ({ s, i }))
+    .sort((a, b) => b.s - a.s || a.i - b.i);
+  const sel = new Set<number>(ranked.slice(0, k).map((r) => r.i));
+
+  const objective = (selIdx: Set<number>): number => {
+    let scoreSum = 0;
+    for (const i of selIdx) scoreSum += scores[i];
+    let corrSum = 0;
+    const arr = [...selIdx];
+    for (let a = 0; a < arr.length; a++) {
+      for (let b = a + 1; b < arr.length; b++) {
+        corrSum += Math.abs(corr[arr[a]][arr[b]]);
+      }
+    }
+    return scoreSum - lambda * corrSum;
+  };
+
+  let currentObj = objective(sel);
+  const maxIters = Math.max(1, n * k);
+  for (let iter = 0; iter < maxIters; iter++) {
+    const inList: number[] = [...sel].sort((a, b) => a - b);
+    const outList: number[] = [];
+    for (let i = 0; i < n; i++) if (!sel.has(i)) outList.push(i);
+
+    let bestSwap: { out: number; inn: number; obj: number } | null = null;
+    for (const out of inList) {
+      for (const inn of outList) {
+        sel.delete(out);
+        sel.add(inn);
+        const obj = objective(sel);
+        if (obj > currentObj + 1e-12 && (!bestSwap || obj > bestSwap.obj)) {
+          bestSwap = { out, inn, obj };
+        }
+        sel.delete(inn);
+        sel.add(out);
+      }
+    }
+
+    if (!bestSwap) break;
+    sel.delete(bestSwap.out);
+    sel.add(bestSwap.inn);
+    currentObj = bestSwap.obj;
+  }
+
+  return [...sel].sort((a, b) => a - b);
+}
+
+/**
  * Scale factor for the ex-ante vol-target overlay:
  *   - If no target set, returns 1 (no scaling).
  *   - If ex-ante vol is null / zero / non-finite, returns 1 (fail-open: trust

@@ -146,6 +146,87 @@ short-circuits when the target is 0).
 
 ---
 
+## Chunk 3 — Correlation-aware selection (2026-04-16)
+
+New pure utilities in `lib/macro-engine/backtest/risk.ts`:
+`pairwiseCorrelation(returnMatrix)` produces a K×K Pearson correlation
+matrix from the same aligned trailing-return panel that Chunk 2 built;
+`greedyCorrSelect(scores, corr, k, lambda)` runs a deterministic
+best-swap greedy that starts from the top-`k` by score and evaluates
+every (in, out) pair until no swap improves
+`Σ scores − λ · Σ|corr|`. Hard-capped at `n·k` iterations so pathological
+inputs still terminate.
+
+Selection path in `scoreWindowRows`: when `corrPenaltyLambda > 0` and
+the candidate pool ≥ `k × oversampleMult`, we take the top
+`k × oversampleMult` by `zCarry` rank, build a K_pool × N return matrix
+from the precomputed `returnMatrixMap`, compute pairwise correlations,
+and call `greedyCorrSelect` to choose the final `k` tickers. When
+lambda is 0 or the pool is too small, we keep the prior top-`k`-by-rank
+path — identical to the Chunk 2 baseline.
+
+Three new config fields:
+
+```ts
+corrPenaltyLambda?:   number; // 0 = disabled (default)
+corrLookbackPeriods?: number; // default 12
+corrOversampleMult?:  number; // default 2 (pool = k × 2)
+```
+
+The return-matrix precompute now triggers if **either** portfolio vol
+targeting or correlation penalty is enabled; the lookback is the max
+of the two so both overlays see consistent data.
+
+### Sweep (lookback=12 periods, non-overlapping)
+
+| lambda | oversample | OOS Sharpe | OOS MaxDD | Holdout Sharpe | Holdout MaxDD |
+|--------|------------|------------|-----------|----------------|---------------|
+| 0      | —          | 0.456      | -0.830    | 1.327          | -0.354        |
+| 0.5    | 2          | **0.485**  | -0.830    | 1.141          | -0.373        |
+| 1      | 2          | 0.481      | -0.830    | 1.151          | -0.373        |
+| 2      | 2          | 0.457      | -0.824    | 1.138          | -0.373        |
+| 4      | 2          | 0.425      | -0.833    | 1.139          | -0.373        |
+| 8      | 2          | 0.429      | -0.835    | 1.123          | -0.373        |
+| 0.5    | 3          | 0.460      | -0.830    | 1.085          | -0.515        |
+| 1      | 3          | 0.457      | -0.830    | 1.094          | -0.515        |
+| 2      | 3          | 0.431      | -0.824    | 1.079          | -0.515        |
+| 4      | 3          | 0.391      | -0.817    | 1.088          | -0.515        |
+| 8      | 3          | 0.377      | -0.796    | 1.123          | -0.499        |
+
+Selection rule: tune on OOS only. Best OOS is `lambda=0.5, oversample=2`
+at **0.485** — a +0.029 Sharpe lift on OOS (6.4% relative).
+
+**Default stays at `corrPenaltyLambda=0` (disabled).** The OOS gain is
+real but marginal; holdout pays for it in every row (best case at the
+OOS-winner: 1.327 → 1.141, -0.19 Sharpe, 14% relative). Since holdout
+is the harder out-of-sample period and the OOS lift is inside noise at
+one decimal place, committing to the overlay as default would be
+tuning to OOS at holdout's expense. The overlay ships opt-in; a user
+who wants the diversification tilt can set
+`{ corrPenaltyLambda: 0.5, corrOversampleMult: 2 }`. Oversample=3
+degrades both OOS and holdout across every lambda tested, so no
+narrative in the sweep supports widening the pool beyond 2×.
+
+Secondary observation worth recording: varying lambda at fixed
+oversample leaves `activePeriods`, `flatDays`, and `activeFrac`
+identical (1572 / 1701 / 0.480 OOS; 363 / 92 / 0.798 holdout). This is
+the expected behavior — the correlation penalty re-arranges *which*
+tickers trade, never *whether* the basket trades, so credit-gate logic
+and the volume of engaged days are unaffected.
+
+### Baseline (unchanged)
+
+runId: `cmo26yarh00006uk3w5imcbry`. With `corrPenaltyLambda=0` the
+corr-aware path short-circuits (no precompute, no selection change),
+so the default backtest produces identical metrics to Chunks 1 & 2.
+
+| Window  | Sharpe | HitRate | MaxDD  | activePeriods | flatDays | activeFrac |
+|---------|--------|---------|--------|---------------|----------|------------|
+| OOS     | 0.456  | 0.556   | -0.830 | 1572          | 1701     | 0.480      |
+| Holdout | 1.327  | 0.661   | -0.354 | 363           | 92       | 0.798      |
+
+---
+
 ## Chunk 1 — Why the Holdout Sharpe went UP (1.168 → 1.327)
 
 Pre-fix, the holdout Sharpe was annualized over 455 observations with 92 of

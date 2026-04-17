@@ -9,7 +9,12 @@ import {
 } from './types';
 import { aggregateMetrics } from './metrics';
 import { ForwardReturn, computeForwardReturns } from './returns';
-import { portfolioVolFromReturns, volTargetScale } from './risk';
+import {
+  greedyCorrSelect,
+  pairwiseCorrelation,
+  portfolioVolFromReturns,
+  volTargetScale,
+} from './risk';
 import { generateWindows } from './windows';
 
 type FeatureSliceRow = {
@@ -47,6 +52,9 @@ const DEFAULT_CONFIG: BacktestConfig = {
   shortMomWeight: 0.3,         // weight of short-term momentum when enabled
   portfolioVolTarget: 0,       // 0 = disabled; tuned via Chunk 2 sweep
   portfolioVolLookbackPeriods: 12,
+  corrPenaltyLambda: 0,        // 0 = disabled; tuned via Chunk 3 sweep
+  corrLookbackPeriods: 12,
+  corrOversampleMult: 2,
 };
 
 function toDateKey(date: Date): string {
@@ -286,6 +294,9 @@ function scoreWindowRows(
   returnMatrixMap: Map<string, number[] | null>,
   portfolioVolTarget: number,
   periodsPerYear: number,
+  corrPenaltyLambda: number,
+  corrLookbackPeriods: number,
+  corrOversampleMult: number,
 ): WindowResult | null {
   // Group feature rows by date — score all tickers on each date, then build portfolio
   const byDate = new Map<string, FeatureSliceRow[]>();
@@ -362,7 +373,42 @@ function scoreWindowRows(
     // Long top fraction by momentum rank score
     candidates.sort((a, b) => b.score - a.score);
     const longCount = Math.max(1, Math.ceil(candidates.length * longFraction));
-    const longTickers = candidates.slice(0, longCount);
+    let longTickers = candidates.slice(0, longCount);
+
+    // ── Correlation-aware selection (Chunk 3) ─────────────────────────────────
+    // When enabled, replace the naive top-k with a greedy selection that trades
+    // rank loss for diversification. Look-ahead-safe: correlations are computed
+    // from the same non-overlapping trailing return matrix used by vol-targeting.
+    if (corrPenaltyLambda > 0 && longCount >= 2) {
+      const poolSize = Math.min(
+        candidates.length,
+        Math.max(longCount, Math.ceil(longCount * corrOversampleMult)),
+      );
+      if (poolSize > longCount) {
+        const pool = candidates.slice(0, poolSize);
+        const lookback = corrLookbackPeriods;
+        const returnVecs: (number[] | null)[] = pool.map((t) => {
+          const full = returnMatrixMap.get(`${t.ticker}|${dateKey}`);
+          if (!full || full.length < lookback) return null;
+          return full.slice(0, lookback);
+        });
+        if (returnVecs.every((v) => v !== null)) {
+          // Build N×K matrix (rows = lookback periods, cols = pool tickers)
+          const matrix: number[][] = [];
+          const K = pool.length;
+          for (let t = 0; t < lookback; t++) {
+            const row = new Array(K);
+            for (let k = 0; k < K; k++) row[k] = (returnVecs[k] as number[])[t];
+            matrix.push(row);
+          }
+          const corr = pairwiseCorrelation(matrix);
+          const poolScores = pool.map((c) => c.score);
+          const selected = greedyCorrSelect(poolScores, corr, longCount, corrPenaltyLambda);
+          longTickers = selected.map((i) => pool[i]);
+        }
+        // else: fall back to naive top-k (longTickers already set)
+      }
+    }
 
     // Volatility-adjusted (inverse-vol) weighting within the long portfolio.
     // Each ticker is weighted by 1/vol(trailing 6 periods). Falls back to equal-weight
@@ -559,18 +605,28 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
     console.log(`  computed short-term momentum map (${config.shortMomPeriods}p) for ${allShortMomMap.size} entries`);
   }
 
-  // Pre-compute aligned trailing-return matrix for portfolio vol targeting.
-  // Skipped entirely when the overlay is disabled (portfolioVolTarget <= 0) to
-  // keep baseline runs as fast as before.
-  const portfolioVolTarget = config.portfolioVolTarget ?? 0;
-  const portfolioVolLookback = config.portfolioVolLookbackPeriods ?? 12;
-  const allReturnMatrixMap = portfolioVolTarget > 0
-    ? buildReturnMatrixMap(allReturnMap, tickers, allSortedDateKeys, portfolioVolLookback, config.forwardDays)
+  // Pre-compute aligned trailing-return matrix. Shared by vol-targeting (Chunk 2)
+  // and correlation-aware selection (Chunk 3). Built once with the larger of the
+  // two lookback requirements; consumers slice what they need. Skipped entirely
+  // when both overlays are disabled, keeping baseline runs as fast as before.
+  const portfolioVolTarget     = config.portfolioVolTarget ?? 0;
+  const portfolioVolLookback   = config.portfolioVolLookbackPeriods ?? 12;
+  const corrPenaltyLambda      = config.corrPenaltyLambda ?? 0;
+  const corrLookbackPeriods    = config.corrLookbackPeriods ?? 12;
+  const corrOversampleMult     = config.corrOversampleMult ?? 2;
+  const retMatrixEnabled       = portfolioVolTarget > 0 || corrPenaltyLambda > 0;
+  const retMatrixLookback      = Math.max(
+    portfolioVolTarget > 0 ? portfolioVolLookback : 0,
+    corrPenaltyLambda > 0 ? corrLookbackPeriods : 0,
+  );
+  const allReturnMatrixMap = retMatrixEnabled
+    ? buildReturnMatrixMap(allReturnMap, tickers, allSortedDateKeys, retMatrixLookback, config.forwardDays)
     : new Map<string, number[] | null>();
-  if (portfolioVolTarget > 0) {
+  if (retMatrixEnabled) {
     console.log(
-      `  computed portfolio return-matrix map (${portfolioVolLookback}p) for ` +
-        `${allReturnMatrixMap.size} entries; volTarget=${(portfolioVolTarget * 100).toFixed(1)}% ann`,
+      `  computed return-matrix map (${retMatrixLookback}p) for ${allReturnMatrixMap.size} entries ` +
+        `[volTarget=${portfolioVolTarget.toFixed(2)}, corrLambda=${corrPenaltyLambda.toFixed(2)}, ` +
+        `corrOversample=${corrOversampleMult}]`,
     );
   }
   const periodsPerYear = 252 / config.forwardDays;
@@ -640,6 +696,9 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
       allReturnMatrixMap,
       portfolioVolTarget,
       periodsPerYear,
+      corrPenaltyLambda,
+      corrLookbackPeriods,
+      corrOversampleMult,
     );
 
     if (result) {
@@ -697,6 +756,9 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
     allReturnMatrixMap,
     portfolioVolTarget,
     periodsPerYear,
+    corrPenaltyLambda,
+    corrLookbackPeriods,
+    corrOversampleMult,
   );
 
   if (!holdoutResult) {
