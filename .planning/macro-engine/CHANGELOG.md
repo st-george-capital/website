@@ -545,3 +545,102 @@ recovers faster than the denominator shrinks. The new 1.327 is the
 `activeFrac=0.798` makes it clear the model is engaged on ~80% of holdout
 days, not perpetually. Total realized return is roughly unchanged; what
 changes is how we report the risk-adjusted version.
+
+---
+
+## Chunk 8 — Regime Outlook (Markov forecast card)
+
+No numbers — UI/API addition only. Baseline unchanged.
+
+Exposes k-step-ahead transition probabilities from the already-persisted
+`regime_transitions` 1-day matrix. The card surfaces (a) the current
+regime + classifier confidence, (b) a 21/63/126/252-day horizon toggle
+with the probability bar per regime, and (c) a "sticky vs transitioning"
+banner keyed off `stayProb > 50%`.
+
+Observation at time of shipping: Regime-5-inflation is the current
+regime at 37% confidence. 21-day stayProb is 41% — flagged as
+**transitioning**. This matters downstream: low classifier confidence
+means the regime-conditional recommendations from Chunk 11 should be
+treated as lower conviction than they otherwise would be.
+
+Files: `lib/macro-engine/regime/forecast.ts`,
+`app/api/dashboard/macro-engine/forecast/route.ts`,
+`app/dashboard/tools/macro-engine/page.tsx` (RegimeOutlookCard).
+
+---
+
+## Chunk 9 — Regime Timeline (per-run history browser)
+
+No numbers — UI/API addition. Baseline unchanged.
+
+Previously the dashboard collapsed holdout performance to aggregates
+("Regime-5-inflation delivered 87% of alpha"). Chunk 9 exposes the
+run-by-run sequence: every contiguous stint in a regime, its dates,
+duration, Sharpe, cum return vs SPY, hit rate, and the top-5 tickers by
+contribution (`weight × actualReturn × finalSize` summed across the
+run's active days).
+
+The `/history` payload now ships a `runs: RegimeRun[]` array; the panel
+renders a Gantt strip + sortable table with a net/gross toggle. Enables
+forensics like "what did the model buy the LAST time we were in
+Regime-5-inflation" — which informs Chunk 12's ticker-level guidance.
+
+Total runs on the current holdout: 22 (Regime-5-inflation 8, Regime-4-credit
+8, Regime-0-credit 3, Regime-1-inflation 2, plus a stray 1-day `global`
+legacy label).
+
+Files: `app/api/dashboard/macro-engine/history/route.ts` (RegimeRun type,
+buildRegimeRuns helper), `app/dashboard/tools/macro-engine/page.tsx`
+(RegimeTimelinePanel).
+
+---
+
+## Chunk 10 — Per-regime parameter sweep
+
+No baseline change yet — results are used by Chunk 11. Adds a stratified
+sweep harness `runPerRegimeSweep` that reuses the shared preload from
+Chunk 4 and evaluates per-regime Sharpe / hit rate / cum return for each
+variant in a grid.
+
+Grid: 4 × 4 × 3 = 48 variants across `longFraction ∈ {0.15, 0.20, 0.25,
+0.30}`, `confidenceExp ∈ {0.5, 1.0, 1.5, 2.0}`, and `volLookbackPeriods
+∈ {0, 6, 12}`. Per-variant cost is ~400ms (preload amortized once to
+~90s), so the whole sweep finishes in ≈2 minutes.
+
+### Findings (holdout, net of 5 bps/side)
+
+- **Regime-5-inflation** (n=328 active days): best at `lf=0.25, ce=0.5,
+  vl=0` → Sharpe **1.56** (vs baseline 1.31 at ce=1.0). The dominant
+  regime by far — it drives ~87% of holdout alpha.
+- **Regime-1-inflation** (n=34 — thin): best at `lf=0.30, ce=0.5, vl=0`
+  → Sharpe 0.16, hit 41%. Still barely alpha-positive; matches the
+  CHANGELOG Chunk 7 note that this regime is the open problem.
+- **Regime-0/3/4-credit**: 0 active days — credit-gate flats the
+  portfolio, as designed. Overrides fall back to the overall-best
+  variant for consistency, but they never get exercised.
+- `volLookbackPeriods = 0` (no vol weighting) is strictly best in every
+  cell tested. Post-cost, inverse-vol weighting drags Sharpe by 0.2-0.4.
+  Confirms the default (vol weighting off) and closes the door on
+  re-enabling it at the current horizon.
+- Lower `confidenceExp` (0.5) is weakly dominant — the exp=1 baseline
+  is nearly indistinguishable (≤0.02 Sharpe gap) but 0.5 is the clear
+  pick for Regime-5-inflation specifically.
+
+### Artifact
+
+`config/macro-engine/per-regime-overrides.json` — canonical pick map:
+
+```json
+{
+  "Regime-5-inflation": { "longFraction": 0.25, "confidenceExp": 0.5, "volLookbackPeriods": 0 },
+  "Regime-1-inflation": { "longFraction": 0.30, "confidenceExp": 0.5, "volLookbackPeriods": 0 }
+}
+```
+
+Consumed by Chunk 11 (regime-conditional execution).
+
+Files: `lib/macro-engine/backtest/index.ts` (runPerRegimeSweep,
+PerRegimeMetric, PerRegimeVariantResult), `scripts/macro-engine/sweep-per-regime.ts`,
+`config/macro-engine/per-regime-overrides.json`.
+

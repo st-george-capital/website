@@ -1262,4 +1262,144 @@ function printSweepTable(results: SweepVariantResult[]): void {
   console.log(sep);
 }
 
+// ─── Per-regime sweep harness ───────────────────────────────────────────────
+
+/**
+ * Per-regime performance of one variant on the holdout window. Values are
+ * conditional on being in `regime` on an ACTIVE day (gated days excluded
+ * from returns stats).
+ *
+ * `sharpeNet` is null when `nActive < 4` — avoids reporting noisy Sharpes
+ * on thin-sample regimes (consistent with `buildRegimeAttribution` in the
+ * /history API).
+ */
+export interface PerRegimeMetric {
+  regime:         string;
+  nActive:        number;
+  nGated:         number;
+  meanExcessNet:  number;
+  sharpeNet:      number | null;
+  hitRate:        number | null;
+  cumReturnNet:   number;      // equity multiple over run (1 = flat)
+  avgTurnover:    number;
+}
+
+/** One variant's result in a per-regime sweep. */
+export interface PerRegimeVariantResult {
+  label:       string;
+  overrides:   Partial<BacktestConfig>;
+  byRegime:    PerRegimeMetric[];
+  overall:     { sharpeNet: number; nActive: number; hitRate: number };
+}
+
+/**
+ * Runs a set of config variants against a shared DB preload and, for each
+ * variant, computes per-regime Sharpe / hit rate / cum return on the holdout
+ * window. Complements `runSweep`, which reports only OOS/Holdout aggregates.
+ *
+ * Intended for Chunk 10's "what params work IN each regime?" question. The
+ * output is consumed by `scripts/macro-engine/sweep-per-regime.ts`, which
+ * pivots the table to emit a per-regime recommendation:
+ *     { "Regime-5-inflation": { longFraction: 0.25, confidenceExp: 1.5, ... } }
+ * Those recommendations feed Chunk 11 (regime-conditional execution).
+ */
+export async function runPerRegimeSweep(
+  variants:   SweepVariant[],
+  baseConfig: BacktestConfig = DEFAULT_CONFIG,
+): Promise<PerRegimeVariantResult[]> {
+  if (variants.length === 0) {
+    console.log('runPerRegimeSweep: no variants provided');
+    return [];
+  }
+
+  console.log(`\nrunPerRegimeSweep: ${variants.length} variant(s), shared preload`);
+  const preloaded = await preloadBacktestData(baseConfig);
+
+  const PPY = 252 / baseConfig.forwardDays;
+
+  const results: PerRegimeVariantResult[] = [];
+  for (const variant of variants) {
+    try {
+      const merged: BacktestConfig = { ...baseConfig, ...variant.overrides };
+      const replay = await replayHoldout(merged, { preloaded });
+
+      const byRegimeMap = new Map<string, ScoredDayRecord[]>();
+      for (const p of replay.points) {
+        const arr = byRegimeMap.get(p.regime);
+        if (arr) arr.push(p); else byRegimeMap.set(p.regime, [p]);
+      }
+
+      const byRegime: PerRegimeMetric[] = [];
+      const allActiveNets: number[] = [];
+      for (const [regime, recs] of byRegimeMap) {
+        const active = recs.filter(r => !r.gated);
+        const gated  = recs.length - active.length;
+        const nets   = active.map(r => r.netExcess ?? 0);
+        allActiveNets.push(...nets);
+
+        const mean = nets.length ? nets.reduce((a, b) => a + b, 0) / nets.length : 0;
+        const sd =
+          nets.length >= 2
+            ? Math.sqrt(nets.reduce((a, b) => a + (b - mean) ** 2, 0) / nets.length)
+            : 0;
+        const sharpe = nets.length >= 4 && sd > 0 ? (mean / sd) * Math.sqrt(PPY) : null;
+        const hit    = nets.length > 0 ? nets.filter(x => x > 0).length / nets.length : null;
+
+        let cum = 1;
+        let turnoverSum = 0;
+        for (const r of active) {
+          const spy = r.benchmarkReturn ?? 0;
+          const net = r.netExcess       ?? 0;
+          cum *= 1 + spy + net;
+          turnoverSum += r.turnover ?? 0;
+        }
+
+        byRegime.push({
+          regime,
+          nActive:       active.length,
+          nGated:        gated,
+          meanExcessNet: mean,
+          sharpeNet:     sharpe,
+          hitRate:       hit,
+          cumReturnNet:  cum,
+          avgTurnover:   active.length > 0 ? turnoverSum / active.length : 0,
+        });
+      }
+
+      const overallMean = allActiveNets.length
+        ? allActiveNets.reduce((a, b) => a + b, 0) / allActiveNets.length
+        : 0;
+      const overallSd =
+        allActiveNets.length >= 2
+          ? Math.sqrt(
+              allActiveNets.reduce((a, b) => a + (b - overallMean) ** 2, 0) / allActiveNets.length,
+            )
+          : 0;
+
+      results.push({
+        label:     variant.label,
+        overrides: variant.overrides,
+        byRegime:  byRegime.sort((a, b) => a.regime.localeCompare(b.regime)),
+        overall: {
+          sharpeNet: allActiveNets.length >= 4 && overallSd > 0
+            ? (overallMean / overallSd) * Math.sqrt(PPY)
+            : 0,
+          nActive:  allActiveNets.length,
+          hitRate:  allActiveNets.length > 0
+            ? allActiveNets.filter(x => x > 0).length / allActiveNets.length
+            : 0,
+        },
+      });
+      console.log(
+        `  [${variant.label.padEnd(28)}] overall Sharpe=${results[results.length - 1].overall.sharpeNet.toFixed(2)}` +
+        ` · ${byRegime.length} regimes scored`,
+      );
+    } catch (e) {
+      console.error(`FAILED (${variant.label}): ${e instanceof Error ? e.message : e}`);
+    }
+  }
+
+  return results;
+}
+
 export { DEFAULT_CONFIG };

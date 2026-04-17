@@ -1,0 +1,90 @@
+{
+  "computedAt": "2026-04-17T03:30:22.865Z",
+  "baseConfig": {
+    "longFraction": 0.25,
+    "confidenceExp": 1,
+    "volLookbackPeriods": 0
+  },
+  "grid": {
+    "LONG_FRACTIONS": [
+      0.15,
+      0.2,
+      0.25,
+      0.3
+    ],
+    "CONFIDENCE_EXPS": [
+      0.5,
+      1,
+      1.5,
+      2
+    ],
+    "VOL_LOOKBACKS": [
+      0,
+      6,
+      12
+    ]
+  },
+  "minActiveDaysForPick": 20,
+  "perRegime": {
+    "Regime-0-credit": {
+      "variant": "lf=0.25|ce=1.0|vl=0 (fallback — thin sample)",
+      "overrides": {
+        "longFraction": 0.25,
+        "confidenceExp": 1,
+        "volLookbackPeriods": 0
+      },
+      "sharpeNet": null,
+      "nActive": 0,
+      "hitRate": null,
+      "cumReturnNet": 1
+    },
+    "Regime-1-inflation": {
+      "variant": "lf=0.30|ce=0.5|vl=0",
+      "overrides": {
+        "longFraction": 0.3,
+        "confidenceExp": 0.5,
+        "volLookbackPeriods": 0
+      },
+      "sharpeNet": 0.1617558693955248,
+      "nActive": 34,
+      "hitRate": 0.4117647058823529,
+      "cumReturnNet": 1.08776165417256
+    },
+    "Regime-4-credit": {
+      "variant": "lf=0.25|ce=1.0|vl=0 (fallback — thin sample)",
+      "overrides": {
+        "longFraction": 0.25,
+        "confidenceExp": 1,
+        "volLookbackPeriods": 0
+      },
+      "sharpeNet": null,
+      "nActive": 0,
+      "hitRate": null,
+      "cumReturnNet": 1
+    },
+    "Regime-5-inflation": {
+      "variant": "lf=0.25|ce=0.5|vl=0",
+      "overrides": {
+        "longFraction": 0.25,
+        "confidenceExp": 0.5,
+        "volLookbackPeriods": 0
+      },
+      "sharpeNet": 1.5630499283812898,
+      "nActive": 328,
+      "hitRate": 0.6859756097560976,
+      "cumReturnNet": 48.74236504012423
+    },
+    "global": {
+      "variant": "lf=0.25|ce=1.0|vl=0 (fallback — thin sample)",
+      "overrides": {
+        "longFraction": 0.25,
+        "confidenceExp": 1,
+        "volLookbackPeriods": 0
+      },
+      "sharpeNet": null,
+      "nActive": 1,
+      "hitRate": 1,
+      "cumReturnNet": 1.0165701966901544
+    }
+  }
+}
