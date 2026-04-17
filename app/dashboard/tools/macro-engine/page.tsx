@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/card';
 import type { MacroEnginePayload } from '@/app/api/dashboard/macro-engine/route';
-import type { HistoryPayload, HistoryPoint } from '@/app/api/dashboard/macro-engine/history/route';
+import type { HistoryPayload, HistoryPoint, RegimeAttribution } from '@/app/api/dashboard/macro-engine/history/route';
 
 // ─── Universe metadata ─────────────────────────────────────────────────────────
 
@@ -651,6 +651,273 @@ function TodaysTradesCard() {
   );
 }
 
+// ─── Backtest Metrics panel (with Net/Gross toggle) ───────────────────────────
+
+/**
+ * Dashboard card that surfaces the canonical OOS / Holdout Sharpe numbers
+ * from the latest persisted `BacktestRun`. Net vs Gross toggle flips
+ * between post-cost (`sharpeAnn`) and pre-cost (`sharpeAnnGross`) Sharpe
+ * so the user can see the cost drag directly. Turnover + annualized cost
+ * drag are shown as small diagnostic lines under the metric cards.
+ */
+function BacktestMetricsPanel({ metrics }: { metrics: NonNullable<MacroEnginePayload['metrics']> }) {
+  const [mode, setMode] = useState<ReturnMode>('net');
+
+  const hasGross = metrics.oos?.sharpeAnnGross != null || metrics.holdout?.sharpeAnnGross != null;
+  const sharpe = (row: { sharpeAnn: number; sharpeAnnGross: number | null } | null) =>
+    row == null ? null : (mode === 'gross' ? (row.sharpeAnnGross ?? row.sharpeAnn) : row.sharpeAnn);
+
+  const tc = metrics.transactionCostBps ?? null;
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="text-[11px] text-slate-400">
+          Walk-forward · {metrics.windowCount} monthly windows · 21-day holding periods · Excess vs SPY ·
+          {tc != null ? ` ${mode === 'gross' ? 'gross of' : `net of ${tc}bps`} costs` : ''}
+        </div>
+        {hasGross && (
+          <div className="flex bg-slate-100 rounded overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setMode('net')}
+              title={tc != null ? `After ${tc}bps one-way transaction costs` : 'After transaction costs'}
+              className={`px-2.5 py-1 text-[11px] font-semibold ${mode === 'net' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-200'}`}
+            >
+              Net
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('gross')}
+              title="Before transaction costs"
+              className={`px-2.5 py-1 text-[11px] font-semibold ${mode === 'gross' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-200'}`}
+            >
+              Gross
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        {metrics.oos && (
+          <div className="space-y-2">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              Out-of-Sample · {metrics.dataStart} → {metrics.holdoutStart}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <MetricCard
+                label="Beat-SPY Rate"
+                value={`${(metrics.oos.hitRate * 100).toFixed(1)}%`}
+                sub="Active periods portfolio beat SPY"
+                good={metrics.oos.hitRate >= 0.55}
+              />
+              <MetricCard
+                label={`Sharpe (${mode === 'gross' ? 'Gross' : 'Net'}, Ann.)`}
+                value={sharpe(metrics.oos)?.toFixed(2) ?? '—'}
+                sub="Excess / vol, active periods only"
+                good={(sharpe(metrics.oos) ?? 0) >= 0.3 ? true : (sharpe(metrics.oos) ?? 0) < 0 ? false : null}
+              />
+            </div>
+            {(metrics.oos.avgTurnover != null || metrics.oos.annualizedCostBps != null) && (
+              <div className="text-[10px] text-slate-400 flex gap-4">
+                {metrics.oos.avgTurnover != null && (
+                  <span>turnover {(metrics.oos.avgTurnover * 100).toFixed(1)}%/period</span>
+                )}
+                {metrics.oos.annualizedCostBps != null && (
+                  <span>cost drag {metrics.oos.annualizedCostBps.toFixed(1)}bps/yr</span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        {metrics.holdout && (
+          <div className="space-y-2">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              Holdout · {metrics.holdoutStart} → present
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <MetricCard
+                label="Beat-SPY Rate"
+                value={`${(metrics.holdout.hitRate * 100).toFixed(1)}%`}
+                sub="Active periods portfolio beat SPY"
+                good={metrics.holdout.hitRate >= 0.55}
+              />
+              <MetricCard
+                label={`Sharpe (${mode === 'gross' ? 'Gross' : 'Net'}, Ann.)`}
+                value={sharpe(metrics.holdout)?.toFixed(2) ?? '—'}
+                sub="Excess / vol, active periods only"
+                good={(sharpe(metrics.holdout) ?? 0) >= 0.3 ? true : (sharpe(metrics.holdout) ?? 0) < 0 ? false : null}
+              />
+            </div>
+            {(metrics.holdout.avgTurnover != null || metrics.holdout.annualizedCostBps != null) && (
+              <div className="text-[10px] text-slate-400 flex gap-4">
+                {metrics.holdout.avgTurnover != null && (
+                  <span>turnover {(metrics.holdout.avgTurnover * 100).toFixed(1)}%/period</span>
+                )}
+                {metrics.holdout.annualizedCostBps != null && (
+                  <span>cost drag {metrics.holdout.annualizedCostBps.toFixed(1)}bps/yr</span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <CollapsibleSection title="What these numbers mean">
+        <div className="rounded-lg bg-slate-50 border border-slate-100 p-4 space-y-2 text-[12px] text-slate-600">
+          <p><strong>Beat-SPY Rate</strong> — fraction of 21-day (monthly) periods where the equal-weight long portfolio (top 25% ranked ETFs by 12-month cross-sectional momentum) beat SPY. &gt;55% means the ranking is consistently adding value.</p>
+          <p><strong>Sharpe Ratio</strong> — annualized excess return / vol, computed on active periods only. Credit-gated flat days are excluded from both numerator and denominator (an honest "on-when-active" Sharpe, not a zero-polluted one). The Net / Gross toggle flips between post- and pre-transaction-cost series; at 5 bps/side the cost drag works out to ~10 bps/yr OOS and ~7 bps/yr holdout.</p>
+          <p><strong>Walk-forward</strong> — the model ranks the 17-ETF universe monthly by zCarry (12-month momentum) and longs the top 25%, gated flat during credit-stress regimes (6-regime k-means system). Each monthly window was evaluated strictly OOS. The OOS period is 2007–2022; holdout is 2022–present (never seen during design).</p>
+        </div>
+      </CollapsibleSection>
+    </div>
+  );
+}
+
+// ─── Regime Attribution panel ─────────────────────────────────────────────────
+
+/**
+ * Decomposes the holdout alpha by regime: how much time we spent in each
+ * regime, how often we were gated flat in it, and the conditional Sharpe /
+ * alpha share. Useful for answering "which macro environment does this
+ * strategy actually make money in?" and spotting if any single regime is
+ * carrying the whole number.
+ *
+ * Gated regimes show up as "100% gated / 0% alpha share" — that's the
+ * correct behavior (the credit gate is designed to make them zero).
+ */
+function RegimeAttributionPanel() {
+  const [byRegime, setByRegime] = useState<RegimeAttribution[] | null>(null);
+  const [asOf,     setAsOf]     = useState<string | null>(null);
+  const [error,    setError]    = useState<string | null>(null);
+  const [loading,  setLoading]  = useState(true);
+  const [mode,     setMode]     = useState<ReturnMode>('net');
+
+  useEffect(() => {
+    fetch('/api/dashboard/macro-engine/history')
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then((d: HistoryPayload) => { setByRegime(d.byRegime); setAsOf(d.asOfDate); })
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading)           return <div className="text-sm text-slate-400 py-4">Computing attribution…</div>;
+  if (error)             return <div className="text-sm text-red-600 py-4">Attribution failed: {error}</div>;
+  if (!byRegime?.length) return <div className="text-sm text-slate-400 py-4">No attribution data.</div>;
+
+  const sharpe = (r: RegimeAttribution) => mode === 'gross' ? r.sharpeGross : r.sharpeNet;
+  const alphaShare = (r: RegimeAttribution) => mode === 'gross' ? r.alphaShareGross : r.alphaShareNet;
+  const cumReturn = (r: RegimeAttribution) => mode === 'gross' ? r.cumReturnGross : r.cumReturnNet;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="text-[11px] text-slate-400">
+          Per-regime Sharpe, hit rate, and alpha share over the live holdout replay
+          {asOf ? ` (through ${fmtDate(asOf)})` : ''}.
+        </div>
+        <div className="flex bg-slate-100 rounded overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setMode('net')}
+            className={`px-2.5 py-1 text-[11px] font-semibold ${mode === 'net' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-200'}`}
+          >
+            Net
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('gross')}
+            className={`px-2.5 py-1 text-[11px] font-semibold ${mode === 'gross' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-200'}`}
+          >
+            Gross
+          </button>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-[12px]">
+          <thead>
+            <tr className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-200">
+              <th className="py-2 text-left">Regime</th>
+              <th className="py-2 text-right">% of time</th>
+              <th className="py-2 text-right">Active / Gated</th>
+              <th className="py-2 text-right">Sharpe</th>
+              <th className="py-2 text-right">Hit Rate</th>
+              <th className="py-2 text-right">Turnover</th>
+              <th className="py-2 text-right">Cum Return</th>
+              <th className="py-2 text-right">α share</th>
+            </tr>
+          </thead>
+          <tbody>
+            {byRegime.map(r => {
+              const sh    = sharpe(r);
+              const hr    = r.hitRate;
+              const cumPf = cumReturn(r);
+              const share = alphaShare(r);
+              // Visual hint for "all-gated" regimes: these are the credit-stress
+              // labels the model is designed to avoid; they should have 0% active.
+              const allGated = r.nActive === 0;
+              return (
+                <tr key={r.regime} className="border-b border-slate-100 last:border-b-0">
+                  <td className="py-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: regimeColor(r.regime) }} />
+                      <span className="font-medium text-slate-700">{regimeDisplayName(r.regime)}</span>
+                      {allGated && <span className="rounded bg-red-100 text-red-700 px-1.5 py-0.5 text-[9px] font-bold">GATED</span>}
+                    </div>
+                  </td>
+                  <td className="py-2.5 text-right font-mono text-slate-600">
+                    {(r.shareOfTime * 100).toFixed(1)}%
+                  </td>
+                  <td className="py-2.5 text-right font-mono text-slate-500 text-[11px]">
+                    {r.nActive} / {r.nGated}
+                  </td>
+                  <td className={`py-2.5 text-right font-mono font-semibold ${
+                    sh == null ? 'text-slate-300' : colorClass(sh - 0.3, 0)
+                  }`}>
+                    {sh == null ? '—' : sh.toFixed(2)}
+                  </td>
+                  <td className={`py-2.5 text-right font-mono ${
+                    hr == null ? 'text-slate-300' : colorClass((hr ?? 0.5) - 0.5, 0.05)
+                  }`}>
+                    {hr == null ? '—' : `${(hr * 100).toFixed(0)}%`}
+                  </td>
+                  <td className="py-2.5 text-right font-mono text-slate-500">
+                    {allGated ? '—' : `${(r.avgTurnover * 100).toFixed(0)}%`}
+                  </td>
+                  <td className={`py-2.5 text-right font-mono ${colorClass(cumPf - 1, 0)}`}>
+                    {pct(cumPf - 1)}
+                  </td>
+                  <td className="py-2.5 text-right font-mono text-slate-600">
+                    <div className="flex items-center justify-end gap-2">
+                      <div className="w-12 h-1 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full"
+                          style={{ width: `${Math.min(100, share * 100)}%`, backgroundColor: regimeColor(r.regime) }}
+                        />
+                      </div>
+                      <span className="w-10 text-right">{(share * 100).toFixed(0)}%</span>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="text-[10px] text-slate-400 leading-relaxed">
+        <strong>Alpha share</strong> is the fraction of total |excess return| delivered in each regime —
+        a regime with 40% share has driven 40% of the strategy&apos;s signal (positive or negative).
+        Credit-stress regimes show up gated (0 active days, 0 share) by design. Sharpe uses only a regime&apos;s
+        active days and is nulled below 4 observations. <strong>Cum return</strong> compounds overlapping
+        21-day forward returns (the engine samples daily) so the absolute magnitude is inflated relative to a
+        tradeable curve — use the <em>relative</em> split across regimes, not the raw percentages.
+      </div>
+    </div>
+  );
+}
+
 // ─── Back link ─────────────────────────────────────────────────────────────────
 
 const BackLink = () => (
@@ -1007,73 +1274,33 @@ export default function MacroEnginePage() {
         </CardContent>
       </Card>
 
-      {/* ── Panel: Backtest Metrics ─────────────────────────────────────── */}
+      {/* ── Panel: Backtest Metrics (with net/gross toggle) ──────────────── */}
       <Card hover={false}>
         <CardHeader>
           <CardTitle className="text-sm font-semibold">Backtest Performance</CardTitle>
           <CardDescription className="text-[11px]">
-            Walk-forward OOS · {data?.metrics?.windowCount ?? '—'} monthly windows · 21-day holding periods · Excess returns vs SPY, credit-gate flat days excluded
+            Walk-forward OOS · Excess returns vs SPY, credit-gate flat days excluded · Toggle Net / Gross to see transaction-cost impact
           </CardDescription>
         </CardHeader>
         <CardContent>
           {!data?.metrics ? (
             <p className="text-sm text-slate-400">No backtest metrics. Run <code className="text-[11px] bg-slate-100 px-1 py-0.5 rounded">npm run backtest:run</code>.</p>
           ) : (
-            <div className="space-y-5">
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                {data.metrics.oos && (
-                  <div className="space-y-2">
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                      Out-of-Sample · {data.metrics.dataStart} → {data.metrics.holdoutStart}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <MetricCard
-                        label="Beat-SPY Rate"
-                        value={`${(data.metrics.oos.hitRate * 100).toFixed(1)}%`}
-                        sub="Active periods portfolio beat SPY"
-                        good={data.metrics.oos.hitRate >= 0.55}
-                      />
-                      <MetricCard
-                        label="Sharpe (Ann.)"
-                        value={data.metrics.oos.sharpeAnn.toFixed(2)}
-                        sub="Excess return / vol, active periods only"
-                        good={data.metrics.oos.sharpeAnn >= 0.3 ? true : data.metrics.oos.sharpeAnn < 0 ? false : null}
-                      />
-                    </div>
-                  </div>
-                )}
-                {data.metrics.holdout && (
-                  <div className="space-y-2">
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                      Holdout · {data.metrics.holdoutStart} → present
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <MetricCard
-                        label="Beat-SPY Rate"
-                        value={`${(data.metrics.holdout.hitRate * 100).toFixed(1)}%`}
-                        sub="Active periods portfolio beat SPY"
-                        good={data.metrics.holdout.hitRate >= 0.55}
-                      />
-                      <MetricCard
-                        label="Sharpe (Ann.)"
-                        value={data.metrics.holdout.sharpeAnn.toFixed(2)}
-                        sub="Excess return / vol, active periods only"
-                        good={data.metrics.holdout.sharpeAnn >= 0.3 ? true : data.metrics.holdout.sharpeAnn < 0 ? false : null}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <CollapsibleSection title="What these numbers mean">
-                <div className="rounded-lg bg-slate-50 border border-slate-100 p-4 space-y-2 text-[12px] text-slate-600">
-                  <p><strong>Beat-SPY Rate</strong> — fraction of 21-day (monthly) periods where the equal-weight long portfolio (top 25% ranked ETFs by 12-month cross-sectional momentum) beat SPY. &gt;55% means the ranking is consistently adding value.</p>
-                  <p><strong>Sharpe Ratio</strong> — annualized excess return of the long portfolio divided by its volatility. Computed on excess-over-SPY returns so beta is subtracted. Credit-gated (flat) days are excluded from the Sharpe denominator entirely — an "on-when-active" Sharpe rather than a zero-polluted one. &gt;0.3 is good; &gt;0.5 is strong for sector rotation.</p>
-                  <p><strong>Walk-forward</strong> — the model ranks the 17-ETF universe monthly by zCarry (12-month momentum) and longs the top 25%, gated flat during credit-stress regimes (6-regime system). Each monthly window was evaluated strictly OOS. The OOS period is 2007–2022; holdout is 2022–present (model never saw this data).</p>
-                </div>
-              </CollapsibleSection>
-            </div>
+            <BacktestMetricsPanel metrics={data.metrics} />
           )}
+        </CardContent>
+      </Card>
+
+      {/* ── Panel: Regime Attribution ──────────────────────────────────── */}
+      <Card hover={false}>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold">Regime Attribution · Holdout</CardTitle>
+          <CardDescription className="text-[11px]">
+            Where the holdout alpha came from — Sharpe, hit rate, and α share by macro regime over the live replay
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RegimeAttributionPanel />
         </CardContent>
       </Card>
 

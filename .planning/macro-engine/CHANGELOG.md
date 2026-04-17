@@ -456,6 +456,84 @@ by construction.
 
 ---
 
+## Chunk 7 — Regime attribution + net/gross toggle on Backtest Metrics (2026-04-16)
+
+No model change this chunk — surface-area only. Numbers are Chunk-5 NET
+baseline: Holdout Sharpe **1.31 net / 1.33 gross**, OOS **0.445 / 0.456**.
+
+### Attribution of the Holdout Sharpe
+
+Rebuilt from the live replay (`scoreWindowRows` per date, grouped by
+regime label). Share-of-time is observation fraction, alpha share is
+Σ|netExcess| fraction of all active days.
+
+| Regime                    | % time | Active / Gated | Sharpe Net | Sharpe Gross | Hit | α share | α compounded (overlapping) |
+|---------------------------|--------|----------------|------------|--------------|-----|---------|-----------------------------|
+| Regime-5-inflation        | 72.1%  | 328 / 0        | **1.55**   | **1.56**     | 69% | 87.1%   | (see note below)            |
+| Regime-1-inflation        | 7.5%   | 34 / 0         | -0.07      | -0.04        | 41% | 12.6%   |                             |
+| `global` (unlabeled)      | 0.2%   | 1 / 0          | —          | —            | 100%| 0.3%    | single-obs edge case        |
+| Regime-4-credit (gated)   | 11.2%  | 0 / 51         | —          | —            | —   | 0.0%    | design: gate off            |
+| Regime-0-credit (gated)   | 9.0%   | 0 / 41         | —          | —            | —   | 0.0%    | design: gate off            |
+
+Attribution sanity: α shares sum to 100.0%.
+
+**What this tells us**
+
+- The strategy is carried almost entirely by Regime-5-inflation (87% of
+  alpha at Sharpe 1.55). That's consistent with 12-month cross-sectional
+  momentum being a high-beta-to-macro-regime factor: when inflation /
+  commodity cycles persist, ranking ETFs by 12-month returns captures
+  real structural dispersion (energy vs tech, EM vs DM).
+- Regime-1-inflation is a mild drag (Sharpe -0.07, 41% hit rate). This
+  is a real finding — there's a "fake" inflation regime where the
+  momentum ranking gets whipsawed. Potential Chunk-8+ improvement:
+  conditional sizing per regime, or requiring regime persistence before
+  re-entering after a credit gate.
+- 20.2% of holdout time is credit-gated flat. The gate is doing its job
+  (all three credit-stress labels have 0 active days in the holdout).
+
+**Overlap note:** The `cumReturnNet` column in the attribution API is
+compounded across overlapping 21-day forward returns (the engine samples
+daily) — absolute magnitudes are inflated relative to a tradable curve.
+The UI shows the number with a footnote flagging this and recommending
+users treat it as a directional proxy, not a realized P&L.
+
+### API changes
+
+1. `GET /api/dashboard/macro-engine` now parses `BacktestRun.notes` to
+   surface `sharpeAnnGross`, `avgTurnover`, `annualizedCostBps`, and
+   `transactionCostBps`. Nullable — pre-Chunk-5 runs return `null`.
+2. `GET /api/dashboard/macro-engine/history` returns a new `byRegime`
+   array (typed `RegimeAttribution[]`) computed from the same
+   `ScoredDayRecord[]` stream. Cached server-side alongside the main
+   replay payload (15-min TTL) so the attribution panel loads in &lt;50ms
+   once warm.
+
+### UI changes
+
+1. **Backtest Metrics panel** now has a Net / Gross toggle. Each window
+   card also shows a small `turnover / cost drag` diagnostic line so
+   the cost accounting is visible at a glance, not buried in notes.
+2. **New Regime Attribution panel** (between Backtest Metrics and Top
+   Stock Picks). Table with per-regime Sharpe (net/gross toggle), hit
+   rate, turnover, cum return, and an inline alpha-share bar. Gated
+   regimes get a "GATED" chip and a muted look.
+3. Copy refreshed on the Backtest Metrics card to explain what Net /
+   Gross means and how active-day Sharpe is calculated.
+
+### Carry-over
+
+Chunks 1-7 delivered the correctness fixes (Chunk 1), modeling
+extensions (Chunks 2-3), harness (Chunk 4), transaction-cost accounting
+(Chunk 5), and dashboard/API surface work (Chunks 6-7). The live
+strategy now has: honest Sharpe, live replay, regime attribution, and a
+canonical baseline of **OOS 0.445 / Holdout 1.31** (net of 5 bps/side).
+Next natural targets (not in this plan): regime-conditional sizing,
+short-momentum blend re-evaluation post-cost, and a "fake-inflation"
+discriminator to salvage Regime-1.
+
+---
+
 ## Chunk 1 — Why the Holdout Sharpe went UP (1.168 → 1.327)
 
 Pre-fix, the holdout Sharpe was annualized over 455 observations with 92 of

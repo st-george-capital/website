@@ -27,11 +27,31 @@ export type MacroEnginePayload = {
     regimeLabel: string;
   }>;
   metrics: {
-    oos: { hitRate: number; sharpeAnn: number; maxDrawdown: number } | null;
-    holdout: { hitRate: number; sharpeAnn: number; maxDrawdown: number } | null;
+    // `sharpeAnn` is the NET series (post transaction costs). `sharpeAnnGross`
+    // is pre-cost, parsed from `BacktestRun.notes` where Chunk 5's scalar
+    // extras (turnover, cost drag) are persisted as a semi-structured string.
+    // When `sharpeAnnGross` is null it means the run pre-dates Chunk 5 and
+    // gross metrics weren't recorded.
+    oos: {
+      hitRate: number;
+      sharpeAnn: number;
+      sharpeAnnGross: number | null;
+      maxDrawdown: number;
+      avgTurnover: number | null;
+      annualizedCostBps: number | null;
+    } | null;
+    holdout: {
+      hitRate: number;
+      sharpeAnn: number;
+      sharpeAnnGross: number | null;
+      maxDrawdown: number;
+      avgTurnover: number | null;
+      annualizedCostBps: number | null;
+    } | null;
     windowCount: number;
     dataStart: string;
     holdoutStart: string;
+    transactionCostBps: number | null;
   } | null;
   stocks: Array<{
     ticker: string;
@@ -164,19 +184,46 @@ export async function GET() {
       where: { runId: latestRun.id },
     });
 
-    // Filter by window type ('oos' or 'holdout') and benchmark
-    const getMetric = (windowType: string, benchmark: string) => {
+    // Parse Chunk-5 scalars out of the semi-structured notes string. These
+    // fields live outside BacktestMetric for schema-churn reasons; format is
+    // `key=value; key=value; …`. If the run pre-dates Chunk 5 the keys are
+    // absent and `num()` returns null.
+    const notes = latestRun.notes ?? '';
+    const num = (key: string): number | null => {
+      const m = new RegExp(`${key}=(-?[0-9]+(?:\\.[0-9]+)?)`).exec(notes);
+      return m ? parseFloat(m[1]) : null;
+    };
+
+    const tcBps         = num('tcBps');
+    const oosGross      = num('oosSharpeGross');
+    const oosTurnover   = num('oosAvgTurnover');
+    const oosCostBps    = num('oosCostDragBps');
+    const holdGross     = num('holdoutSharpeGross');
+    const holdTurnover  = num('holdoutAvgTurnover');
+    const holdCostBps   = num('holdoutCostDragBps');
+
+    const getMetric = (windowType: string, benchmark: string, extras: {
+      gross: number | null; turnover: number | null; costBps: number | null;
+    }) => {
       const row = metricRows.find((m) => m.window === windowType && m.benchmark === benchmark);
       if (!row) return null;
-      return { hitRate: row.hitRate, sharpeAnn: row.sharpeAnn, maxDrawdown: row.maxDrawdown };
+      return {
+        hitRate:           row.hitRate,
+        sharpeAnn:         row.sharpeAnn,
+        sharpeAnnGross:    extras.gross,
+        maxDrawdown:       row.maxDrawdown,
+        avgTurnover:       extras.turnover,
+        annualizedCostBps: extras.costBps,
+      };
     };
 
     metrics = {
-      oos: getMetric('oos', 'SPY'),
-      holdout: getMetric('holdout', 'SPY'),
+      oos:     getMetric('oos',     'SPY', { gross: oosGross,  turnover: oosTurnover,  costBps: oosCostBps  }),
+      holdout: getMetric('holdout', 'SPY', { gross: holdGross, turnover: holdTurnover, costBps: holdCostBps }),
       windowCount: latestRun.windowCount,
-      dataStart: latestRun.dataStart,
+      dataStart:   latestRun.dataStart,
       holdoutStart: latestRun.holdoutStart,
+      transactionCostBps: tcBps,
     };
   }
 
