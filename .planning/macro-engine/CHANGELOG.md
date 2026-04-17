@@ -86,7 +86,67 @@ were produced alongside a dead ridge-regression path that wrote
 - No portfolio vol target / correlation-aware selection — Chunks 2 / 3.
 - Experiment scripts still preload data per-run — Chunk 4.
 
-### Why the Holdout Sharpe went UP (1.168 → 1.327)
+---
+
+## Chunk 2 — Portfolio vol-targeting overlay (2026-04-16)
+
+New file `lib/macro-engine/backtest/risk.ts` adds two pure utilities:
+`portfolioVolFromReturns(returnMatrix, weights, periodsPerYear)` computes
+the ex-ante annualized vol from a K×N aligned return matrix via
+`√(wᵀΣw)`; `volTargetScale(exAnteVolAnn, targetVolAnn)` returns
+`min(1, target/exAnte)` with a fail-open to 1.0 on degenerate inputs.
+
+`scoreWindowRows` now consults `returnMatrixMap` (new
+`buildReturnMatrixMap` precompute, aligned on a SHARED trading-date grid
+so that covariances are consistent across tickers) when
+`config.portfolioVolTarget > 0`, and folds the scale into the per-date
+position size alongside the regime-confidence exponent.
+
+Two new config fields:
+
+```ts
+portfolioVolTarget?: number;          // 0 = disabled
+portfolioVolLookbackPeriods?: number; // default 12
+```
+
+Left disabled by default per the plan's "tune on OOS only" rule — see
+sweep below. The overlay is distinct from per-ticker inverse-vol within
+the basket (`volLookbackPeriods`): that tilts weights across holdings;
+this one scales the entire basket up/down toward a vol target (and
+never above 1.0 — no leverage).
+
+### Sweep (lookback=12 periods, non-overlapping)
+
+| target | OOS Sharpe | OOS MaxDD | Holdout Sharpe | Holdout MaxDD |
+|--------|------------|-----------|----------------|---------------|
+| 0      | 0.456      | -0.830    | 1.327          | -0.354        |
+| 0.08   | 0.447      | -0.713    | 1.317          | -0.257        |
+| 0.10   | 0.447      | -0.780    | 1.352          | -0.290        |
+| 0.12   | 0.449      | -0.805    | 1.388          | -0.309        |
+| 0.15   | 0.446      | -0.824    | 1.379          | -0.328        |
+| 0.20   | 0.455      | -0.830    | 1.332          | -0.348        |
+
+Selection rule: tune on OOS only. **OOS-best → target=0 (disabled).**
+No vol-targeting config becomes the new default. The overlay is still
+available for users who prefer the 13% drawdown reduction at
+target=0.08 (MaxDD -0.830 → -0.713) at a 0.009 Sharpe cost — that is a
+better risk-adjusted portfolio on OOS in a drawdown-aware sense, but
+not a better-Sharpe portfolio, and the plan commits to honest Sharpe.
+
+### Baseline (unchanged — default still has vol-target=0)
+
+runId: `cmo26yarh00006uk3w5imcbry` (from Chunk 1 — re-running with
+`portfolioVolTarget=0` produces identical metrics because the overlay
+short-circuits when the target is 0).
+
+| Window  | Sharpe | HitRate | MaxDD  | activePeriods | flatDays | activeFrac |
+|---------|--------|---------|--------|---------------|----------|------------|
+| OOS     | 0.456  | 0.556   | -0.830 | 1572          | 1701     | 0.480      |
+| Holdout | 1.327  | 0.661   | -0.354 | 363           | 92       | 0.798      |
+
+---
+
+## Chunk 1 — Why the Holdout Sharpe went UP (1.168 → 1.327)
 
 Pre-fix, the holdout Sharpe was annualized over 455 observations with 92 of
 them pinned to zero. Zero-injection biased-deflated both the mean (by 20%)

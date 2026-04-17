@@ -50,6 +50,12 @@ export interface BacktestConfig {
   creditGateEnabled?:    boolean; // if false, skip the credit-stress flat regime gate (default: true)
   creditGateLabels?:     string[]; // if set, gate ONLY these specific regime labels (instead of all 'credit' labels)
   skipPersist?:          boolean; // if true, skip DB writes (for experiment sweeps — results logged only)
+
+  // ── Portfolio vol-targeting overlay (Chunk 2) ──────────────────────────────
+  /** Annualized ex-ante volatility target for the basket, e.g. 0.10. 0 / undefined = disabled. */
+  portfolioVolTarget?:         number;
+  /** Non-overlapping period count used to estimate the long-basket covariance matrix. */
+  portfolioVolLookbackPeriods?: number;
 }
 
 // ─── Window Result ────────────────────────────────────────────────────────────

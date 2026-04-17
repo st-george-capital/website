@@ -9,6 +9,7 @@ import {
 } from './types';
 import { aggregateMetrics } from './metrics';
 import { ForwardReturn, computeForwardReturns } from './returns';
+import { portfolioVolFromReturns, volTargetScale } from './risk';
 import { generateWindows } from './windows';
 
 type FeatureSliceRow = {
@@ -44,6 +45,8 @@ const DEFAULT_CONFIG: BacktestConfig = {
   confidenceExp: 1,            // linear: min(1, (confidence*2)^exp)
   shortMomPeriods: 0,          // 0 = disabled; short-term mom blend
   shortMomWeight: 0.3,         // weight of short-term momentum when enabled
+  portfolioVolTarget: 0,       // 0 = disabled; tuned via Chunk 2 sweep
+  portfolioVolLookbackPeriods: 12,
 };
 
 function toDateKey(date: Date): string {
@@ -211,6 +214,62 @@ function buildVolMap(
   return volMap;
 }
 
+/**
+ * Pre-compute the trailing N-period return vector for each (ticker, date),
+ * sampled on a SHARED calendar grid so that vectors are aligned across tickers
+ * for a proper pairwise covariance.
+ *
+ * For each scoring date D:
+ *   grid[k] = nearest date in `sortedDateKeys` at or before D - k·forwardDays
+ *             (for k = 1..N), with strict `< D` to prevent look-ahead.
+ *   vec[k]  = assetReturnMap.get(ticker|grid[k])
+ *
+ * Returns null for a given (ticker, date) if any grid slot is missing or the
+ * ticker lacks a return at that slot. This lets the scoring loop fail-open to
+ * scale=1 when vol can't be estimated.
+ */
+function buildReturnMatrixMap(
+  assetReturnMap: Map<string, number>,
+  tickers: string[],
+  sortedDateKeys: string[],
+  lookbackPeriods: number,
+  forwardDays: number,
+): Map<string, number[] | null> {
+  const out = new Map<string, number[] | null>();
+  if (lookbackPeriods <= 0) return out;
+
+  for (let i = 0; i < sortedDateKeys.length; i++) {
+    const dk = sortedDateKeys[i];
+    const dMs = new Date(dk).getTime();
+
+    // Resolve the N shared lookback date keys once per scoring date
+    const lookbackKeys: (string | null)[] = [];
+    let stepTargetMs = dMs - forwardDays * 86400_000;
+    for (let step = 0; step < lookbackPeriods; step++) {
+      const targetKey = new Date(stepTargetMs).toISOString().slice(0, 10);
+      let lo = 0, hi = sortedDateKeys.length - 1;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (sortedDateKeys[mid] <= targetKey) { lo = mid + 1; } else { hi = mid - 1; }
+      }
+      lookbackKeys.push(hi >= 0 && sortedDateKeys[hi] < dk ? sortedDateKeys[hi] : null);
+      stepTargetMs -= forwardDays * 86400_000;
+    }
+
+    for (const ticker of tickers) {
+      let vec: number[] | null = [];
+      for (const k of lookbackKeys) {
+        if (!k) { vec = null; break; }
+        const r = assetReturnMap.get(`${ticker}|${k}`);
+        if (r === undefined) { vec = null; break; }
+        vec.push(r);
+      }
+      out.set(`${ticker}|${dk}`, vec);
+    }
+  }
+  return out;
+}
+
 function scoreWindowRows(
   featureRows: FeatureSliceRow[],
   regimeMap: Map<string, string>,
@@ -224,6 +283,9 @@ function scoreWindowRows(
   confidenceExp: number,
   shortMomMap: Map<string, number | null>,
   shortMomWeight: number,
+  returnMatrixMap: Map<string, number[] | null>,
+  portfolioVolTarget: number,
+  periodsPerYear: number,
 ): WindowResult | null {
   // Group feature rows by date — score all tickers on each date, then build portfolio
   const byDate = new Map<string, FeatureSliceRow[]>();
@@ -310,13 +372,16 @@ function scoreWindowRows(
       return (vol !== null && vol !== undefined && vol > 0) ? 1 / vol : null;
     });
     let portfolioReturn: number;
+    let basketWeights: number[];
     if (invVols.some(v => v === null)) {
       // Fallback: equal-weight if any ticker missing vol
       portfolioReturn = longTickers.reduce((s, t) => s + t.actualReturn, 0) / longCount;
+      basketWeights = new Array(longCount).fill(1 / longCount);
     } else {
       const definedInvVols = invVols as number[];
       const totalInvVol = definedInvVols.reduce((s, v) => s + v, 0);
-      portfolioReturn = longTickers.reduce((s, t, i) => s + t.actualReturn * (definedInvVols[i] / totalInvVol), 0);
+      basketWeights = definedInvVols.map(v => v / totalInvVol);
+      portfolioReturn = longTickers.reduce((s, t, i) => s + t.actualReturn * basketWeights[i], 0);
     }
 
     // Scale total position by regime confidence (confidence ∈ [0,1]).
@@ -326,7 +391,39 @@ function scoreWindowRows(
     // exp>1 (harder): cuts exposure more aggressively when uncertain
     const confidence = confidenceMap.get(dateKey) ?? 0.5;
     const positionSize = Math.min(1.0, Math.pow(confidence * 2, confidenceExp));
-    const portfolioExcess = (portfolioReturn - benchmarkReturn) * positionSize;
+
+    // ── Portfolio vol-targeting overlay (Chunk 2) ─────────────────────────────
+    // Estimate ex-ante annualized vol of the long basket from aligned trailing
+    // returns + the actual basketWeights, then scale by min(1, target/exAnte).
+    // If insufficient data OR target disabled, fall open to scale=1.
+    let volScale = 1;
+    if (portfolioVolTarget > 0) {
+      const matrix: number[][] = [];
+      let ok = true;
+      // returnMatrixMap stores per-ticker trailing vectors aligned on a shared grid.
+      // We need row t = [r_1(t), r_2(t), ..., r_K(t)] where t indexes lookback steps.
+      const perTickerVecs: number[][] = [];
+      let N = -1;
+      for (const t of longTickers) {
+        const vec = returnMatrixMap.get(`${t.ticker}|${dateKey}`);
+        if (!vec) { ok = false; break; }
+        if (N === -1) N = vec.length;
+        if (vec.length !== N) { ok = false; break; }
+        perTickerVecs.push(vec);
+      }
+      if (ok && N > 0) {
+        for (let t = 0; t < N; t++) {
+          const row = new Array(longCount);
+          for (let k = 0; k < longCount; k++) row[k] = perTickerVecs[k][t];
+          matrix.push(row);
+        }
+        const exAnteVol = portfolioVolFromReturns(matrix, basketWeights, periodsPerYear);
+        volScale = volTargetScale(exAnteVol, portfolioVolTarget);
+      }
+    }
+
+    const finalSize = positionSize * volScale;
+    const portfolioExcess = (portfolioReturn - benchmarkReturn) * finalSize;
 
     predictedSigns.push(1);
     actualReturns.push(portfolioExcess);
@@ -462,6 +559,22 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
     console.log(`  computed short-term momentum map (${config.shortMomPeriods}p) for ${allShortMomMap.size} entries`);
   }
 
+  // Pre-compute aligned trailing-return matrix for portfolio vol targeting.
+  // Skipped entirely when the overlay is disabled (portfolioVolTarget <= 0) to
+  // keep baseline runs as fast as before.
+  const portfolioVolTarget = config.portfolioVolTarget ?? 0;
+  const portfolioVolLookback = config.portfolioVolLookbackPeriods ?? 12;
+  const allReturnMatrixMap = portfolioVolTarget > 0
+    ? buildReturnMatrixMap(allReturnMap, tickers, allSortedDateKeys, portfolioVolLookback, config.forwardDays)
+    : new Map<string, number[] | null>();
+  if (portfolioVolTarget > 0) {
+    console.log(
+      `  computed portfolio return-matrix map (${portfolioVolLookback}p) for ` +
+        `${allReturnMatrixMap.size} entries; volTarget=${(portfolioVolTarget * 100).toFixed(1)}% ann`,
+    );
+  }
+  const periodsPerYear = 252 / config.forwardDays;
+
   // Build in-memory lookup: "TICKER|YYYY-MM-DD" → feature row
   const featureByDateTicker = new Map<string, FeatureSliceRow>();
   for (const row of allFeatures) {
@@ -524,6 +637,9 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
       config.confidenceExp,
       allShortMomMap,
       config.shortMomWeight,
+      allReturnMatrixMap,
+      portfolioVolTarget,
+      periodsPerYear,
     );
 
     if (result) {
@@ -578,6 +694,9 @@ export async function runBacktest(config: BacktestConfig = DEFAULT_CONFIG): Prom
     config.confidenceExp,
     allShortMomMap,
     config.shortMomWeight,
+    allReturnMatrixMap,
+    portfolioVolTarget,
+    periodsPerYear,
   );
 
   if (!holdoutResult) {
