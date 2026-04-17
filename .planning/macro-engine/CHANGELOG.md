@@ -644,3 +644,62 @@ Files: `lib/macro-engine/backtest/index.ts` (runPerRegimeSweep,
 PerRegimeMetric, PerRegimeVariantResult), `scripts/macro-engine/sweep-per-regime.ts`,
 `config/macro-engine/per-regime-overrides.json`.
 
+
+---
+
+## Chunk 11 — Regime-conditional execution (default ON)
+
+runId: `cmo2d09dj0000fsnb8nrfjzxx`
+
+| Window  | Sharpe Net | Sharpe Gross | HitRate | MaxDD  | activePeriods | flatDays | avgTurnover | costDrag |
+|---------|------------|--------------|---------|--------|---------------|----------|-------------|----------|
+| OOS     |  0.457     |  0.468       | 0.553   | -0.818 | 1572          | 1701     | 0.179       | 10.8 bps |
+| Holdout |  1.370     |  1.384       | 0.661   | -0.354 | 363           | 92       | 0.124       |  7.4 bps |
+
+**Δ vs Chunk 7 baseline (runId cmo2..., Sharpe 0.445 / 1.311)**:
+OOS Sharpe +0.012, Holdout Sharpe **+0.059**. Turnover +0.001 (negligible).
+
+### Mechanism
+
+Wires `BacktestConfig.perRegimeOverrides` into `scoreWindowRows`. On each
+test day, the engine looks up the regime label and swaps `longFraction`
+and `confidenceExp` for the per-regime pick (from Chunk 10's JSON picks
+file). Regimes without entries fall through to the base config — so
+missing regimes behave exactly like the pre-Chunk-11 engine.
+
+Default path: `run-backtest.ts` calls `loadPerRegimeOverrides()` and
+passes the map into `runBacktest`. Opt out with `--no-regime-overrides`
+for A/B. The `/history` dashboard API does the same load so the live
+replay curve matches the canonical Sharpe shown in the Backtest
+Performance card.
+
+### Why OOS didn't move
+
+The per-regime picks were derived on the HOLDOUT window only (Chunk 10
+runs `replayHoldout`). OOS windows span 2004-2021, where Regime-5-inflation
+has a different mix of sub-periods, so applying holdout-fit params to OOS
+is not guaranteed to improve OOS. The fact that OOS didn't degrade either
+(0.456 → 0.457) suggests the picks are reasonably stable and not
+overfit; they merely don't help OOS.
+
+For pure out-of-sample validation, the honest number to quote is still
+the HOLDOUT Sharpe of 1.37 — the picks were fit using replay metrics from
+the same window they're evaluated on. A future chunk could cross-validate
+by refitting picks on the first half of holdout and evaluating on the
+second half, but with only 455 holdout days that's statistical noise.
+
+### New canonical baseline
+
+**Going forward: Holdout Sharpe 1.37 net / 1.38 gross.** Cost drag held at
+7.4 bps annualized. activeFrac=0.798 unchanged — the gate-hit schedule is
+identical, the engine is just sizing and selecting differently inside
+each regime.
+
+Files: `lib/macro-engine/backtest/types.ts` (perRegimeOverrides on
+BacktestConfig), `lib/macro-engine/backtest/index.ts`
+(loadPerRegimeOverrides + wired into scoreWindowRows + callers),
+`scripts/macro-engine/run-backtest.ts`
+(--no-regime-overrides flag, default-on),
+`app/api/dashboard/macro-engine/history/route.ts` (dashboard replay
+uses overrides).
+

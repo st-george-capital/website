@@ -350,6 +350,9 @@ function scoreWindowRows(
   corrOversampleMult: number,
   transactionCostBps: number,
   perDateRecords?: ScoredDayRecord[],
+  // Chunk 11: per-regime override lookup. undefined ⇒ disabled, behaves
+  // identically to the pre-Chunk-11 engine.
+  perRegimeOverrides?: Record<string, { longFraction?: number; confidenceExp?: number }>,
 ): WindowResult | null {
   // Group feature rows by date — score all tickers on each date, then build portfolio
   const byDate = new Map<string, FeatureSliceRow[]>();
@@ -383,6 +386,15 @@ function scoreWindowRows(
     if (benchmarkReturn === null) continue; // no SPY return for this date — skip
 
     const regimeLabel = regimeMap.get(dateKey) ?? 'global';
+
+    // ── Chunk 11: regime-conditional overrides ─────────────────────────────
+    // Swap `longFraction` and `confidenceExp` for their per-regime pick when
+    // the current regime has one configured. Falls through to the base-config
+    // value otherwise — so a missing override behaves exactly like the
+    // pre-Chunk-11 engine, preserving backwards compatibility.
+    const regimeOverride = perRegimeOverrides?.[regimeLabel];
+    const effLongFraction  = regimeOverride?.longFraction  ?? longFraction;
+    const effConfidenceExp = regimeOverride?.confidenceExp ?? confidenceExp;
 
     // ── Regime gate: go flat in credit-stress regimes ─────────────────────────
     // Credit-stress regimes have elevated cross-asset correlation and risk-off
@@ -455,7 +467,7 @@ function scoreWindowRows(
 
     // Long top fraction by momentum rank score
     candidates.sort((a, b) => b.score - a.score);
-    const longCount = Math.max(1, Math.ceil(candidates.length * longFraction));
+    const longCount = Math.max(1, Math.ceil(candidates.length * effLongFraction));
     let longTickers = candidates.slice(0, longCount);
 
     // ── Correlation-aware selection (Chunk 3) ─────────────────────────────────
@@ -519,7 +531,7 @@ function scoreWindowRows(
     // exp<1 (softer): keeps more exposure during transitions
     // exp>1 (harder): cuts exposure more aggressively when uncertain
     const confidence = confidenceMap.get(dateKey) ?? 0.5;
-    const positionSize = Math.min(1.0, Math.pow(confidence * 2, confidenceExp));
+    const positionSize = Math.min(1.0, Math.pow(confidence * 2, effConfidenceExp));
 
     // ── Portfolio vol-targeting overlay (Chunk 2) ─────────────────────────────
     // Estimate ex-ante annualized vol of the long basket from aligned trailing
@@ -892,6 +904,8 @@ export async function runBacktest(
       corrLookbackPeriods,
       corrOversampleMult,
       transactionCostBps,
+      undefined,
+      config.perRegimeOverrides,
     );
 
     if (result) {
@@ -948,6 +962,8 @@ export async function runBacktest(
     corrLookbackPeriods,
     corrOversampleMult,
     transactionCostBps,
+    undefined,
+    config.perRegimeOverrides,
   );
 
   if (!holdoutResult) {
@@ -1145,6 +1161,7 @@ export async function replayHoldout(
     corrOversampleMult,
     transactionCostBps,
     perDateRecords,
+    effective.perRegimeOverrides,
   );
 
   if (!holdoutResult) {
@@ -1260,6 +1277,45 @@ function printSweepTable(results: SweepVariantResult[]): void {
     );
   }
   console.log(sep);
+}
+
+// ─── Per-regime override loader (Chunk 11) ──────────────────────────────────
+
+/**
+ * Loads the canonical per-regime override map emitted by
+ * `scripts/macro-engine/sweep-per-regime.ts` into the shape expected by
+ * `BacktestConfig.perRegimeOverrides`. Returns `undefined` (i.e. "no
+ * overrides") if the file is missing — the engine then behaves identically
+ * to the pre-Chunk-11 path.
+ *
+ * `path` defaults to the canonical repo location. Pass an absolute path
+ * (or a different relative-to-cwd path) to use an alternative picks file
+ * for experimentation or A/B testing.
+ */
+export async function loadPerRegimeOverrides(
+  filePath = 'config/macro-engine/per-regime-overrides.json',
+): Promise<BacktestConfig['perRegimeOverrides'] | undefined> {
+  const fs   = await import('node:fs/promises');
+  const path = await import('node:path');
+  const abs  = path.isAbsolute(filePath) ? filePath : path.resolve(process.cwd(), filePath);
+  try {
+    const raw = await fs.readFile(abs, 'utf8');
+    const parsed = JSON.parse(raw) as {
+      perRegime?: Record<string, { overrides?: { longFraction?: number; confidenceExp?: number } }>;
+    };
+    if (!parsed.perRegime) return undefined;
+    const out: NonNullable<BacktestConfig['perRegimeOverrides']> = {};
+    for (const [regime, entry] of Object.entries(parsed.perRegime)) {
+      const o = entry.overrides ?? {};
+      const pick: { longFraction?: number; confidenceExp?: number } = {};
+      if (typeof o.longFraction  === 'number') pick.longFraction  = o.longFraction;
+      if (typeof o.confidenceExp === 'number') pick.confidenceExp = o.confidenceExp;
+      if (Object.keys(pick).length > 0) out[regime] = pick;
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 // ─── Per-regime sweep harness ───────────────────────────────────────────────

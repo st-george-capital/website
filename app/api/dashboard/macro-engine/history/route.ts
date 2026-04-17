@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { replayHoldout, DEFAULT_CONFIG } from '@/lib/macro-engine/backtest';
+import { replayHoldout, DEFAULT_CONFIG, loadPerRegimeOverrides } from '@/lib/macro-engine/backtest';
 import type { ScoredDayRecord } from '@/lib/macro-engine/backtest';
 
 export const dynamic = 'force-dynamic';
@@ -172,7 +172,11 @@ export async function GET(req: NextRequest) {
 }
 
 async function buildFullReplay(): Promise<HistoryPayload> {
-  const replay = await replayHoldout(DEFAULT_CONFIG);
+  // Chunk 11: honor regime-conditional overrides so the live dashboard curve
+  // matches the canonical backtest. Falls back to vanilla DEFAULT_CONFIG when
+  // no picks file is present (undefined ⇒ no-op in the engine).
+  const perRegimeOverrides = await loadPerRegimeOverrides();
+  const replay = await replayHoldout({ ...DEFAULT_CONFIG, perRegimeOverrides });
 
   let cumNet   = 1;
   let cumGross = 1;

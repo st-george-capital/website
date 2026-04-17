@@ -77,6 +77,25 @@ export interface BacktestConfig {
    * only charge costs on the dates the model actually rebalances.
    */
   transactionCostBps?: number;
+
+  // ── Regime-conditional execution (Chunk 11) ───────────────────────────────
+  /**
+   * Optional per-regime overrides applied at scoring time. For any date whose
+   * regime label (canonical `Regime-N-name`) matches a key in this map, the
+   * override's fields replace the corresponding base-config values when
+   * building the basket:
+   *   - `longFraction`: sizes the basket against the candidate universe.
+   *   - `confidenceExp`: controls the confidence-scaling exponent.
+   * Regimes not listed fall through to the base-config values. `volLookbackPeriods`
+   * is intentionally NOT overridable per-regime: Chunk 10 showed it's strictly
+   * dominated by vl=0, so wiring a per-date override would cost a vol-map recompute
+   * with no upside. Emit from `config/macro-engine/per-regime-overrides.json`
+   * (produced by `scripts/macro-engine/sweep-per-regime.ts`).
+   */
+  perRegimeOverrides?: Record<string, {
+    longFraction?:  number;
+    confidenceExp?: number;
+  }>;
 }
 
 // ─── Window Result ────────────────────────────────────────────────────────────
