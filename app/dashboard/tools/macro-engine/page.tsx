@@ -16,6 +16,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/card';
 import type { MacroEnginePayload } from '@/app/api/dashboard/macro-engine/route';
 import type { HistoryPayload, HistoryPoint, RegimeAttribution, RegimeRun } from '@/app/api/dashboard/macro-engine/history/route';
+import type { RecommendationPayload } from '@/app/api/dashboard/macro-engine/recommendation/route';
 
 // ─── Universe metadata ─────────────────────────────────────────────────────────
 
@@ -646,6 +647,181 @@ function TodaysTradesCard() {
         Today&apos;s basket is the equal-weight long of the top {Math.round(data.config.longFraction * 100)}% of the
         universe by 12-month cross-sectional momentum (same ranker driving the {data.summary.nActive}-period
         holdout replay, {(data.summary.activeFraction * 100).toFixed(0)}% active).
+      </div>
+    </div>
+  );
+}
+
+// ─── Conviction-weighted recommendation card (Chunk 12) ──────────────────────
+
+/**
+ * Chunk 12: conviction-weighted, sector/country-capped basket. Sits on top
+ * of the same replay that drives TodaysTradesCard, but post-processes the
+ * equal-weight basket into actionable target weights the user can trade
+ * directly. Shows the delta vs the previous rebalance so it's clear what
+ * actually needs to change.
+ *
+ * Important honesty note rendered in the UI: the backtest Sharpe was
+ * validated equal-weighted. Conviction weighting is a display overlay on
+ * the live signal — not a re-backtested strategy.
+ */
+function ConvictionRecommendationCard() {
+  const [data, setData]       = useState<RecommendationPayload | null>(null);
+  const [error, setError]     = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/dashboard/macro-engine/recommendation')
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then((d: RecommendationPayload) => setData(d))
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="text-sm text-slate-400 py-4">Computing conviction weights…</div>;
+  if (error)   return <div className="text-sm text-red-600 py-4">Recommendation failed: {error}</div>;
+  if (!data)   return <div className="text-sm text-slate-400 py-4">No recommendation available.</div>;
+
+  if (data.gated || data.conviction.basket.length === 0) {
+    return (
+      <div className="rounded-lg border border-red-100 bg-red-50/30 px-4 py-6 text-center">
+        <div className="text-sm font-semibold text-red-700">Go to cash</div>
+        <div className="text-[11px] text-slate-500 mt-1">
+          Credit-stress regime active (as of {fmtDate(data.asOfDate)}) — no positions recommended.
+        </div>
+      </div>
+    );
+  }
+
+  const maxConv = Math.max(...data.conviction.basket.map(b => b.convWeight));
+
+  const deltaRows = data.positionDelta.filter(d => d.action !== 'HOLD');
+  const sectorEntries  = Object.entries(data.conviction.exposures.bySector).sort((a, b) => b[1] - a[1]);
+  const countryEntries = Object.entries(data.conviction.exposures.byCountry).sort((a, b) => b[1] - a[1]);
+
+  const actionColor: Record<string, string> = {
+    NEW:  'bg-blue-100  text-blue-700',
+    BUY:  'bg-emerald-100 text-emerald-700',
+    SELL: 'bg-amber-100 text-amber-700',
+    EXIT: 'bg-red-100   text-red-700',
+    HOLD: 'bg-slate-100 text-slate-500',
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <div className="text-[11px] text-slate-400">
+            Regime <span className="font-semibold" style={{ color: regimeColor(data.regime) }}>{regimeDisplayName(data.regime)}</span>
+            {' '}· Final size <span className="font-semibold text-slate-700">{(data.finalSize * 100).toFixed(0)}%</span>
+            {' '}· As of {fmtDate(data.asOfDate)}
+          </div>
+          <div className="text-[10px] text-amber-700 mt-1">
+            Conviction overlay — backtest Sharpe was validated equal-weighted. This is display-only.
+          </div>
+        </div>
+        {data.conviction.trimmed && (
+          <div className="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2.5 py-0.5 text-[10px] font-bold">
+            CAP BINDING
+          </div>
+        )}
+      </div>
+
+      {/* ── Target basket w/ conviction bars ─────────────────────────────── */}
+      <div>
+        <div className="text-[11px] text-slate-500 font-semibold mb-2">Target weights (conviction-scaled · rank-proportional)</div>
+        <div className="space-y-1">
+          {data.conviction.basket.map((b, i) => (
+            <div key={b.ticker} className="flex items-center gap-2">
+              <div className="w-4 text-[10px] text-slate-400 font-mono">{i + 1}</div>
+              <div className="w-12 font-mono font-bold text-slate-900 text-xs">{b.ticker}</div>
+              <div className="flex-1 text-[11px] text-slate-600 truncate">
+                {TICKER_META[b.ticker]?.flag} {TICKER_META[b.ticker]?.name ?? b.name}
+                {b.capReason && <span className="ml-1 text-amber-700 text-[10px]">({b.capReason})</span>}
+              </div>
+              <div className="flex-1 max-w-[200px] h-2 bg-slate-100 rounded overflow-hidden">
+                <div className="h-full bg-indigo-500"
+                     style={{ width: `${(b.convWeight / maxConv) * 100}%` }} />
+              </div>
+              <div className="w-14 text-right text-[11px] font-mono font-bold text-indigo-700">
+                {(b.convWeight * 100).toFixed(1)}%
+              </div>
+              <div className="w-14 text-right text-[10px] font-mono text-slate-400">
+                eq {(b.equalWeight * 100).toFixed(1)}%
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Exposure breakdowns ──────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {sectorEntries.length > 0 && (
+          <div>
+            <div className="text-[11px] text-slate-500 font-semibold mb-2">
+              Sector exposure (cap {(data.conviction.maxPerSector * 100).toFixed(0)}%)
+            </div>
+            <div className="space-y-1">
+              {sectorEntries.map(([s, w]) => (
+                <div key={s} className="flex items-center gap-2 text-[11px]">
+                  <div className="w-32 truncate text-slate-700">{s}</div>
+                  <div className="flex-1 h-1.5 bg-slate-100 rounded overflow-hidden">
+                    <div className="h-full bg-slate-500"
+                         style={{ width: `${(w / data.conviction.maxPerSector) * 100}%` }} />
+                  </div>
+                  <div className="w-12 text-right font-mono text-slate-700">{(w * 100).toFixed(1)}%</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {countryEntries.length > 0 && (
+          <div>
+            <div className="text-[11px] text-slate-500 font-semibold mb-2">
+              Country exposure (cap {(data.conviction.maxPerCountry * 100).toFixed(0)}%)
+            </div>
+            <div className="space-y-1">
+              {countryEntries.map(([c, w]) => (
+                <div key={c} className="flex items-center gap-2 text-[11px]">
+                  <div className="w-32 truncate text-slate-700">{c}</div>
+                  <div className="flex-1 h-1.5 bg-slate-100 rounded overflow-hidden">
+                    <div className="h-full bg-slate-500"
+                         style={{ width: `${(w / data.conviction.maxPerCountry) * 100}%` }} />
+                  </div>
+                  <div className="w-12 text-right font-mono text-slate-700">{(w * 100).toFixed(1)}%</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Position delta vs previous rebalance ─────────────────────────── */}
+      <div>
+        <div className="text-[11px] text-slate-500 font-semibold mb-2">
+          Trades vs {data.prevDate ? fmtDate(data.prevDate) : 'cash'} (changes &gt; 1% of NAV)
+        </div>
+        {deltaRows.length === 0 ? (
+          <div className="text-[11px] text-slate-400">No changes — basket held flat vs prior rebalance.</div>
+        ) : (
+          <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg overflow-hidden">
+            {deltaRows.map(d => (
+              <div key={d.ticker} className="flex items-center gap-3 px-3 py-1.5 text-[11px] bg-white">
+                <div className={`inline-flex justify-center w-12 rounded px-1.5 py-0.5 text-[10px] font-bold ${actionColor[d.action] ?? ''}`}>
+                  {d.action}
+                </div>
+                <div className="w-14 font-mono font-bold text-slate-900">{d.ticker}</div>
+                <div className="flex-1 text-slate-600 truncate">{d.name}</div>
+                <div className="w-16 text-right font-mono text-slate-500">{(d.prevWeight * 100).toFixed(1)}%</div>
+                <div className="w-4 text-center text-slate-300">→</div>
+                <div className="w-16 text-right font-mono font-semibold text-slate-800">{(d.currWeight * 100).toFixed(1)}%</div>
+                <div className={`w-16 text-right font-mono font-bold ${d.deltaWeight > 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
+                  {d.deltaWeight > 0 ? '+' : ''}{(d.deltaWeight * 100).toFixed(1)}%
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1750,6 +1926,19 @@ export default function MacroEnginePage() {
         </CardHeader>
         <CardContent>
           <TodaysTradesCard />
+        </CardContent>
+      </Card>
+
+      {/* ── Panel: Conviction-weighted recommendation (Chunk 12) ─────────── */}
+      <Card hover={false}>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold">Recommended Basket · Conviction-Weighted</CardTitle>
+          <CardDescription className="text-[11px]">
+            Rank-proportional sizing with sector/country caps · Backtest validated equal-weighted, this card is a forward-looking display overlay
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ConvictionRecommendationCard />
         </CardContent>
       </Card>
 

@@ -703,3 +703,100 @@ BacktestConfig), `lib/macro-engine/backtest/index.ts`
 `app/api/dashboard/macro-engine/history/route.ts` (dashboard replay
 uses overrides).
 
+
+---
+
+## Chunk 12 — Conviction-weighted recommendation overlay
+
+Canonical backtest Sharpe **unchanged** — this chunk adds a display-only
+forward-looking overlay. No change to `runBacktest` equity path.
+
+### Scope
+
+Implements actionable per-ticker target weights that are not equal-
+weighted. Takes the live replay's rank-ordered basket from `replayHoldout`
+and post-processes it through conviction scaling + sector/country caps.
+
+Core design decision: **do not modify the engine**. The 1.37 Sharpe
+already has honest backing (equal-weighted, walk-forward, out-of-sample);
+replacing equal-weight sizing with conviction weighting inside the
+backtest engine would require re-validating all of it from scratch, and
+risks overfitting the caps + weighting curve to HOLDOUT. Instead we
+expose conviction weighting as a dashboard-level recommendation layer
+with an explicit honesty note in the UI (`Conviction overlay — backtest
+Sharpe was validated equal-weighted. This is display-only.`).
+
+### Conviction function
+
+- **`rank`** (default): linear rank weighting. Rank-1 gets `N/sum(1..N)`,
+  rank-2 gets `(N-1)/sum`, etc. Self-normalizing, insensitive to the
+  underlying z-scale. Top pick gets ~2× the weight of the last pick for
+  a 12-name basket.
+- **`softmax-zcarry`**: softmax over z-scores with temperature τ. Not
+  exposed in the UI yet — kept as a pluggable alternative for future
+  regime-conditional sizing (e.g. lower τ in high-conviction regimes).
+
+### Category caps (defaults)
+
+- **Per-ticker**: 35%. Prevents any single name from dominating.
+- **Per-sector**: 50%. Canonical sector names (e.g. `Technology` groups
+  XLK + AAPL/MSFT/NVDA/AVGO/META).
+- **Per-country**: 60%. Country-ETF sleeves (EWJ, EWZ, EWC, EWU, etc.).
+
+Iterative trim + pro-rata redistribute to non-offending tickers. Caps
+hard-terminate after 10 iterations to guarantee convergence on
+pathological universes. Records `capReason` on every trimmed entry so
+the UI can explain to the user *why* a weight was clipped.
+
+### Sector-name normalization
+
+The universe file uses sector-ETF tickers (`XLK`, `XLF`, ...) for single
+stocks and human names (`Technology`, `Financials`, ...) for the sector
+ETFs themselves — an artifact of the original loader. `convictionWeight`
+normalizes via `SECTOR_ALIASES` so caps group them correctly. Without
+this, AAPL and XLK would live in separate buckets and the Tech cap would
+leak.
+
+### Position delta
+
+`computePositionDelta` compares the previous rebalance's conviction
+basket to today's. Actions: `NEW` / `EXIT` for basket membership
+changes, `BUY` / `SELL` for size changes > 1% NAV tolerance, `HOLD`
+otherwise. The UI renders only non-HOLD rows by default so the card
+surfaces real trades.
+
+Gated days are **skipped** when finding the reference basket — the delta
+uses the last non-gated rebalance, so the output is "what needs to
+change to go from last active basket to today's active basket", not
+"everything is NEW because yesterday was cash".
+
+### Live sample (2026-03-20 holdout tail)
+
+Regime: Regime-5-inflation · Final size 100% · 12-name basket.
+
+Conviction weights (vs 8.3% equal):
+- XLE 15.4%, GLD 14.1%, EWZ 12.8%, EWJ 11.5%, EWC 10.3%, EWU 9.0%
+- AAPL 7.7%, MSFT 6.4%, NVDA 5.1%, AVGO 3.8%, META 2.6%, JPM 1.3%
+
+Sector exposure: Technology 25.6%, Energy 15.4%, Financials 1.3% — all
+well under the 50% cap. Country exposure: BR 12.8%, JP 11.5%, CA 10.3%,
+GB 9.0% — all well under the 60% cap. No caps binding today; the
+rank-weighted distribution already respects diversification bounds
+naturally for a 12-name momentum basket. Caps will bind when the
+universe concentrates (e.g. a full-risk-on regime where all 12 picks
+are tech stocks).
+
+### Files
+
+- `lib/macro-engine/recommendations/convictionWeight.ts` (NEW) —
+  `buildRecommendation`, `computePositionDelta`, sector alias map.
+- `app/api/dashboard/macro-engine/recommendation/route.ts` (NEW) —
+  `GET /api/dashboard/macro-engine/recommendation` returning
+  `RecommendationPayload`. Uses the same `loadPerRegimeOverrides` +
+  `replayHoldout` path as the history route so the basket matches the
+  equity curve exactly.
+- `app/dashboard/tools/macro-engine/page.tsx` —
+  `ConvictionRecommendationCard` component + mounted as a new panel
+  between Today's Trades and Historical Performance. Honest banner
+  ("display overlay, not re-backtested") front and center.
+
