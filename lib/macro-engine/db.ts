@@ -1,7 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 
 const accelerateUrl = process.env.DATABASE_URL ?? process.env.DATABASE_PRISMA_DATABASE_URL;
-const directUrl = process.env.DIRECT_URL ?? process.env.DATABASE_POSTGRES_URL ?? process.env.POSTGRES_URL;
+const directUrlCandidate = process.env.DIRECT_URL ?? process.env.DATABASE_POSTGRES_URL ?? process.env.POSTGRES_URL;
+const directUrl = process.env.MACRO_ENGINE_USE_DIRECT_DB === 'true' ? directUrlCandidate : undefined;
 
 const prisma = accelerateUrl
   ? new PrismaClient({ datasourceUrl: accelerateUrl })
@@ -13,6 +14,8 @@ const prisma = accelerateUrl
  *   - P6009: Response > 5MB
  *   - P6004: Query > 10s execution time
  *
+ * Direct TCP is opt-in because serverless/dev preview runtimes may expose a
+ * DATABASE_POSTGRES_URL that is not reachable from the running environment.
  * Falls back to the standard Accelerate client if no direct Postgres URL is set.
  */
 export const prismaDirectUrl = directUrl

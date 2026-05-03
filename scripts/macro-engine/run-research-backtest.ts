@@ -1,8 +1,11 @@
 #!/usr/bin/env tsx
 
-if (process.env.DIRECT_URL && process.env.DATABASE_URL?.startsWith('prisma+postgres://')) {
-  process.env.DATABASE_URL = process.env.DIRECT_URL;
-  console.log('research:backtest using DIRECT_URL');
+const directUrl = process.env.DIRECT_URL ?? process.env.DATABASE_POSTGRES_URL ?? process.env.POSTGRES_URL;
+
+if (directUrl && process.env.DATABASE_URL?.startsWith('prisma+postgres://')) {
+  process.env.DATABASE_URL = directUrl;
+  process.env.MACRO_ENGINE_USE_DIRECT_DB = 'true';
+  console.log('research:backtest using direct Postgres URL');
 }
 
 import { prismaDirectUrl as prisma } from '../../lib/macro-engine/db';
