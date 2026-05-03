@@ -2,8 +2,8 @@
 
 const directUrl = process.env.DIRECT_URL ?? process.env.DATABASE_POSTGRES_URL ?? process.env.POSTGRES_URL;
 
-if (directUrl && process.env.DATABASE_URL?.startsWith('prisma+postgres://')) {
-  process.env.DATABASE_URL = directUrl;
+if (directUrl) {
+  if (process.env.DATABASE_URL?.startsWith('prisma+postgres://')) process.env.DATABASE_URL = directUrl;
   process.env.MACRO_ENGINE_USE_DIRECT_DB = 'true';
   console.log('research:prices using direct Postgres URL');
 }

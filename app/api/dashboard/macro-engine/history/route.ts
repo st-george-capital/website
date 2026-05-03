@@ -133,42 +133,53 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { searchParams } = new URL(req.url);
-  const startParam = searchParams.get('start');
-  const endParam   = searchParams.get('end');
+  try {
+    const { searchParams } = new URL(req.url);
+    const startParam = searchParams.get('start');
+    const endParam   = searchParams.get('end');
 
-  const now = Date.now();
-  let full: HistoryPayload;
-  if (CACHE && (now - CACHE.ts) < TTL_MS) {
-    full = CACHE.payload;
-  } else {
-    full = await buildFullReplay();
-    CACHE = { key: full.asOfDate, ts: now, payload: full };
+    const now = Date.now();
+    let full: HistoryPayload;
+    if (CACHE && (now - CACHE.ts) < TTL_MS) {
+      full = CACHE.payload;
+    } else {
+      full = await buildFullReplay();
+      CACHE = { key: full.asOfDate, ts: now, payload: full };
+    }
+
+    // Apply range filter on top of the cached full replay
+    if (!startParam && !endParam) {
+      return NextResponse.json(full);
+    }
+
+    const filtered: HistoryPoint[] = full.points.filter((p) => {
+      if (startParam && p.date < startParam) return false;
+      if (endParam   && p.date > endParam)   return false;
+      return true;
+    });
+
+    // Recompute summary "finalX" on the filtered slice — but keep Sharpe/MDD
+    // pinned to the full holdout replay so the summary card numbers match the
+    // backtest tables exactly regardless of the zoom level.
+    const last = filtered[filtered.length - 1];
+    const summary: HistoryPayload['summary'] = {
+      ...full.summary,
+      finalPortfolioNet:   last?.cumulativePortfolioNet   ?? 1,
+      finalPortfolioGross: last?.cumulativePortfolioGross ?? 1,
+      finalSpy:            last?.cumulativeSpy            ?? 1,
+    };
+
+    return NextResponse.json({ ...full, points: filtered, summary } satisfies HistoryPayload);
+  } catch (error) {
+    console.error('macro-engine/history replay failed', error);
+    return NextResponse.json(
+      {
+        error: 'Macro replay failed',
+        detail: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
+    );
   }
-
-  // Apply range filter on top of the cached full replay
-  if (!startParam && !endParam) {
-    return NextResponse.json(full);
-  }
-
-  const filtered: HistoryPoint[] = full.points.filter((p) => {
-    if (startParam && p.date < startParam) return false;
-    if (endParam   && p.date > endParam)   return false;
-    return true;
-  });
-
-  // Recompute summary "finalX" on the filtered slice — but keep Sharpe/MDD
-  // pinned to the full holdout replay so the summary card numbers match the
-  // backtest tables exactly regardless of the zoom level.
-  const last = filtered[filtered.length - 1];
-  const summary: HistoryPayload['summary'] = {
-    ...full.summary,
-    finalPortfolioNet:   last?.cumulativePortfolioNet   ?? 1,
-    finalPortfolioGross: last?.cumulativePortfolioGross ?? 1,
-    finalSpy:            last?.cumulativeSpy            ?? 1,
-  };
-
-  return NextResponse.json({ ...full, points: filtered, summary } satisfies HistoryPayload);
 }
 
 async function buildFullReplay(): Promise<HistoryPayload> {

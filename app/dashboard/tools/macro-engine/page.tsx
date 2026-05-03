@@ -102,6 +102,17 @@ function colorClass(v: number, goodThreshold = 0): string {
   return 'text-slate-500';
 }
 
+async function readJsonOrThrow<T>(res: Response): Promise<T> {
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    const msg = body?.detail
+      ? `${body.error ?? `HTTP ${res.status}`}: ${body.detail}`
+      : body?.error ?? `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return body as T;
+}
+
 /**
  * Rolling Sharpe over last N active (non-gated) observations of an excess return series.
  * Gated days are excluded so credit-stress flats don't pollute the rolling metric.
@@ -243,17 +254,20 @@ function PerformanceChart() {
   const [range, setRange] = useState(48);
   const [data, setData] = useState<HistoryPayload | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [selectedPoint, setSelectedPoint] = useState<HistoryPoint | null>(null);
   const [tab, setTab] = useState<ChartTab>('cumulative');
   const [mode, setMode] = useState<ReturnMode>('net');
 
   const load = useCallback(() => {
     setLoading(true);
+    setError(null);
     const end = new Date();
     const start = new Date(end.getTime() - range * 30 * 24 * 60 * 60 * 1000);
     fetch(`/api/dashboard/macro-engine/history?start=${start.toISOString().slice(0, 10)}&end=${end.toISOString().slice(0, 10)}`)
-      .then(r => r.json())
+      .then(readJsonOrThrow<HistoryPayload>)
       .then((d: HistoryPayload) => { setData(d); setSelectedPoint(null); })
+      .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, [range]);
 
@@ -430,6 +444,8 @@ function PerformanceChart() {
       {/* Chart */}
       {loading ? (
         <div className="h-52 flex items-center justify-center text-sm text-slate-400">Loading...</div>
+      ) : error ? (
+        <div className="h-52 flex items-center justify-center text-sm text-red-600 px-6 text-center">{error}</div>
       ) : chartData.length === 0 ? (
         <div className="h-52 flex items-center justify-center text-sm text-slate-400">No data for this range.</div>
       ) : (
@@ -564,7 +580,7 @@ function TodaysTradesCard() {
     const end   = new Date();
     const start = new Date(end.getTime() - 400 * 24 * 60 * 60 * 1000);
     fetch(`/api/dashboard/macro-engine/history?start=${start.toISOString().slice(0, 10)}&end=${end.toISOString().slice(0, 10)}`)
-      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(readJsonOrThrow<HistoryPayload>)
       .then((d: HistoryPayload) => setData(d))
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
@@ -694,7 +710,7 @@ function RegimeOutlookCard() {
 
   useEffect(() => {
     fetch('/api/dashboard/macro-engine/forecast')
-      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(readJsonOrThrow<RegimeForecastUi>)
       .then((d: RegimeForecastUi) => setData(d))
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
@@ -838,7 +854,7 @@ function RegimeTimelinePanel() {
 
   useEffect(() => {
     fetch('/api/dashboard/macro-engine/history')
-      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(readJsonOrThrow<HistoryPayload>)
       .then((d: HistoryPayload) => setData(d))
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
@@ -1278,7 +1294,7 @@ function RegimeAttributionPanel() {
 
   useEffect(() => {
     fetch('/api/dashboard/macro-engine/history')
-      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(readJsonOrThrow<HistoryPayload>)
       .then((d: HistoryPayload) => { setByRegime(d.byRegime); setAsOf(d.asOfDate); })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
@@ -1426,6 +1442,37 @@ function sortResearchRows(rows: ResearchBacktestSummaryRow[]) {
   });
 }
 
+function researchCoverage(row: ResearchBacktestSummaryRow) {
+  if (row.numeratorRows == null || row.denominatorRows == null) {
+    return {
+      label: 'Rerun needed',
+      detail: 'Coverage fields were added after this saved run',
+      className: 'text-amber-700',
+    };
+  }
+  const numeratorRows = row.numeratorRows;
+  const denominatorRows = row.denominatorRows;
+  if (numeratorRows === 0 || denominatorRows === 0) {
+    return {
+      label: 'Missing prices',
+      detail: `${row.numerator}: ${numeratorRows} · ${row.denominator}: ${denominatorRows}`,
+      className: 'text-red-600',
+    };
+  }
+  if (!row.coverageStart || !row.coverageEnd) {
+    return {
+      label: 'No overlap',
+      detail: `${row.numerator}: ${numeratorRows} · ${row.denominator}: ${denominatorRows}`,
+      className: 'text-amber-700',
+    };
+  }
+  return {
+    label: `${row.coverageStart.slice(0, 4)}-${row.coverageEnd.slice(0, 4)}`,
+    detail: `${Math.min(numeratorRows, denominatorRows).toLocaleString()} overlap rows`,
+    className: 'text-slate-600',
+  };
+}
+
 function ResearchBacktestPanel() {
   const [payload, setPayload] = useState<ResearchBacktestPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1437,9 +1484,7 @@ function ResearchBacktestPanel() {
     setError(null);
     try {
       const res = await fetch('/api/dashboard/macro-engine/research-backtest');
-      const body = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`);
-      setPayload(body as ResearchBacktestPayload);
+      setPayload(await readJsonOrThrow<ResearchBacktestPayload>(res));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -1461,9 +1506,7 @@ function ResearchBacktestPanel() {
           endDate: new Date().toISOString().slice(0, 10),
         }),
       });
-      const body = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`);
-      setPayload(body as ResearchBacktestPayload);
+      setPayload(await readJsonOrThrow<ResearchBacktestPayload>(res));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -1553,6 +1596,7 @@ function ResearchBacktestPanel() {
             <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-400">
               <tr>
                 <th className="px-3 py-2 font-semibold">Pair</th>
+                <th className="px-3 py-2 font-semibold">Coverage</th>
                 <th className="px-3 py-2 font-semibold">Signal</th>
                 <th className="px-3 py-2 text-right font-semibold">Events</th>
                 <th className="px-3 py-2 text-right font-semibold">Best Horizon</th>
@@ -1565,11 +1609,16 @@ function ResearchBacktestPanel() {
             <tbody className="divide-y divide-slate-100">
               {rows.map((row) => {
                 const longest = row.longestHorizon;
+                const coverage = researchCoverage(row);
                 return (
                   <tr key={row.pairId} className="hover:bg-slate-50/70">
                     <td className="px-3 py-2">
                       <div className="font-semibold text-slate-800">{row.label}</div>
                       <div className="font-mono text-[10px] text-slate-400">{row.numerator} / {row.denominator}</div>
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className={`text-[11px] font-semibold ${coverage.className}`}>{coverage.label}</div>
+                      <div className="text-[10px] text-slate-400">{coverage.detail}</div>
                     </td>
                     <td className="px-3 py-2 text-slate-500">
                       {row.mode === 'mean_reversion' ? 'Mean reversion' : 'Trend continuation'}
@@ -1629,7 +1678,7 @@ export default function MacroEnginePage() {
   useEffect(() => {
     if (status !== 'authenticated') return;
     fetch('/api/dashboard/macro-engine')
-      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(readJsonOrThrow<MacroEnginePayload>)
       .then((d: MacroEnginePayload) => setData(d))
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));

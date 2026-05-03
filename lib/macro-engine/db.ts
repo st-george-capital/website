@@ -1,11 +1,16 @@
 import { PrismaClient } from '@prisma/client';
 
-const accelerateUrl = process.env.DATABASE_URL ?? process.env.DATABASE_PRISMA_DATABASE_URL;
-const directUrlCandidate = process.env.DIRECT_URL ?? process.env.DATABASE_POSTGRES_URL ?? process.env.POSTGRES_URL;
+const appDatasourceUrl = process.env.DATABASE_PRISMA_DATABASE_URL ?? process.env.DATABASE_URL;
+const databaseUrl = process.env.DATABASE_URL;
+const directUrlCandidate =
+  process.env.DIRECT_URL ??
+  process.env.DATABASE_POSTGRES_URL ??
+  (databaseUrl?.startsWith('postgres') ? databaseUrl : undefined) ??
+  process.env.POSTGRES_URL;
 const directUrl = process.env.MACRO_ENGINE_USE_DIRECT_DB === 'true' ? directUrlCandidate : undefined;
 
-const prisma = accelerateUrl
-  ? new PrismaClient({ datasourceUrl: accelerateUrl })
+const prisma = appDatasourceUrl
+  ? new PrismaClient({ datasourceUrl: appDatasourceUrl })
   : new PrismaClient();
 
 /**

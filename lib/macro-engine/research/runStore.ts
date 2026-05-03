@@ -28,6 +28,10 @@ export interface ResearchBacktestSummaryRow {
   numerator: string;
   denominator: string;
   mode: PairDefinition['mode'];
+  numeratorRows: number;
+  denominatorRows: number;
+  coverageStart: string | null;
+  coverageEnd: string | null;
   events: number;
   bestHorizonDays: number | null;
   bestHitRate: number | null;
@@ -178,6 +182,10 @@ export function summarizeResearchBacktest(results: PairBacktestResult[]): Resear
       numerator: result.pair.numerator,
       denominator: result.pair.denominator,
       mode: result.pair.mode,
+      numeratorRows: result.coverage.numeratorRows,
+      denominatorRows: result.coverage.denominatorRows,
+      coverageStart: result.coverage.startDate,
+      coverageEnd: result.coverage.endDate,
       events: result.events.length,
       bestHorizonDays: best?.horizonDays ?? null,
       bestHitRate: best?.hitRate ?? null,
