@@ -1487,6 +1487,32 @@ function researchCoverage(row: ResearchBacktestSummaryRow) {
   };
 }
 
+function researchCurrentSetup(row: ResearchBacktestSummaryRow) {
+  if (row.currentZScore == null || row.currentTriggered == null) {
+    return {
+      label: 'Rerun needed',
+      detail: 'Current z-score not stored',
+      className: 'text-amber-700',
+    };
+  }
+
+  const z = `${row.currentZScore >= 0 ? '+' : ''}${row.currentZScore.toFixed(2)}z`;
+  if (!row.currentTriggered) {
+    return {
+      label: 'No trigger',
+      detail: `${z}${row.currentDate ? ` on ${row.currentDate}` : ''}`,
+      className: 'text-slate-500',
+    };
+  }
+
+  const longLeg = row.currentSide === 'long_numerator' ? row.numerator : row.denominator;
+  return {
+    label: `Long ${longLeg}`,
+    detail: `${z}${row.currentDate ? ` on ${row.currentDate}` : ''}`,
+    className: 'text-emerald-700',
+  };
+}
+
 function ResearchBacktestPanel() {
   const [payload, setPayload] = useState<ResearchBacktestPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1561,6 +1587,8 @@ function ResearchBacktestPanel() {
   const totalPairs = coverage?.totalPairs ?? 0;
   const missingTickers = coverage?.missingTickers ?? [];
   const coverageReady = totalPairs > 0 && readyPairs === totalPairs;
+  const activeSetups = rows.filter((row) => row.currentTriggered === true);
+  const evidenceRows = rows.filter((row) => (row.bestHitRate ?? 0) >= 0.52 && (row.events ?? 0) >= 20);
   const status = runStatusLabel(payload);
   const statusClass = currentRun
     ? 'bg-emerald-100 text-emerald-700'
@@ -1657,6 +1685,30 @@ function ResearchBacktestPanel() {
         </div>
       )}
 
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+        <div className="rounded-xl border border-slate-100 bg-white px-4 py-3">
+          <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">What This Is</div>
+          <div className="mt-1 text-sm font-semibold text-slate-800">Pair-rule research</div>
+          <div className="mt-1 text-[11px] leading-relaxed text-slate-500">
+            It tests rules like: when EWZ/SPY breaks out, does Brazil keep outperforming? It is evidence for an idea, not a portfolio or size recommendation.
+          </div>
+        </div>
+        <div className="rounded-xl border border-slate-100 bg-white px-4 py-3">
+          <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Evidence Rows</div>
+          <div className="mt-1 text-sm font-semibold text-slate-800">{evidenceRows.length}/{rows.length || totalPairs}</div>
+          <div className="mt-1 text-[11px] leading-relaxed text-slate-500">
+            Rows counted here have at least 20 historical triggers and a best-horizon hit rate above 52%.
+          </div>
+        </div>
+        <div className="rounded-xl border border-slate-100 bg-white px-4 py-3">
+          <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Current Setups</div>
+          <div className="mt-1 text-sm font-semibold text-slate-800">{activeSetups.length}</div>
+          <div className="mt-1 text-[11px] leading-relaxed text-slate-500">
+            A setup only appears when today&apos;s ratio z-score crosses that pair&apos;s trigger threshold.
+          </div>
+        </div>
+      </div>
+
       {ingestResult && (
         <div className={`rounded-lg border px-3 py-2 text-xs ${
           ingestResult.status === 'success'
@@ -1685,6 +1737,7 @@ function ResearchBacktestPanel() {
                 <th className="px-3 py-2 font-semibold">Pair</th>
                 <th className="px-3 py-2 font-semibold">Readiness</th>
                 <th className="px-3 py-2 font-semibold">Coverage</th>
+                <th className="px-3 py-2 font-semibold">Now</th>
                 <th className="px-3 py-2 font-semibold">Signal</th>
                 <th className="px-3 py-2 text-right font-semibold">Events</th>
                 <th className="px-3 py-2 text-right font-semibold">Best Horizon</th>
@@ -1698,6 +1751,7 @@ function ResearchBacktestPanel() {
               {rows.map((row) => {
                 const longest = row.longestHorizon;
                 const coverage = researchCoverage(row);
+                const setup = researchCurrentSetup(row);
                 const pairCoverage = payload?.priceCoverage.pairs.find((pair) => pair.pairId === row.pairId);
                 const pairStatus = pairCoverage?.status ?? 'ready';
                 return (
@@ -1714,6 +1768,10 @@ function ResearchBacktestPanel() {
                     <td className="px-3 py-2">
                       <div className={`text-[11px] font-semibold ${coverage.className}`}>{coverage.label}</div>
                       <div className="text-[10px] text-slate-400">{coverage.detail}</div>
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className={`text-[11px] font-semibold ${setup.className}`}>{setup.label}</div>
+                      <div className="text-[10px] text-slate-400">{setup.detail}</div>
                     </td>
                     <td className="px-3 py-2 text-slate-500">
                       {row.mode === 'mean_reversion' ? 'Mean reversion' : 'Trend continuation'}

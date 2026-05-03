@@ -7,6 +7,7 @@ import {
   backtestPairSignals,
   type PairBacktestResult,
   type HorizonStats,
+  type PairSignalEvent,
 } from './pairBacktest';
 import {
   getResearchPairs,
@@ -34,6 +35,10 @@ export interface ResearchBacktestSummaryRow {
   denominatorRows: number;
   coverageStart: string | null;
   coverageEnd: string | null;
+  currentDate: string | null;
+  currentZScore: number | null;
+  currentTriggered: boolean | null;
+  currentSide: PairSignalEvent['side'] | null;
   events: number;
   bestHorizonDays: number | null;
   bestHitRate: number | null;
@@ -317,6 +322,10 @@ export function summarizeResearchBacktest(results: PairBacktestResult[]): Resear
       denominatorRows: result.coverage.denominatorRows,
       coverageStart: result.coverage.startDate,
       coverageEnd: result.coverage.endDate,
+      currentDate: result.currentSetup?.date ?? null,
+      currentZScore: result.currentSetup?.zScore ?? null,
+      currentTriggered: result.currentSetup?.triggered ?? null,
+      currentSide: result.currentSetup?.side ?? null,
       events: result.events.length,
       bestHorizonDays: best?.horizonDays ?? null,
       bestHitRate: best?.hitRate ?? null,

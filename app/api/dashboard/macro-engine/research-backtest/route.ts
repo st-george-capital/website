@@ -87,11 +87,20 @@ export async function POST(req: NextRequest) {
     const horizonsRaw = Array.isArray(body.horizons)
       ? body.horizons.filter((x: unknown): x is number => typeof x === 'number').join(',')
       : searchParams.get('horizons');
+    const requestedPairIds = parseCsv(pairIdsRaw);
+    const pairIds = requestedPairIds ?? (await getResearchPriceCoverage())
+      .pairs
+      .filter((pair) => pair.status === 'ready')
+      .map((pair) => pair.pairId);
+
+    if (pairIds.length === 0) {
+      throw new Error('No research pairs have enough stored prices to backtest yet. Ingest missing prices first.');
+    }
 
     const run = await runAndSaveResearchBacktest({
       startDate: parseDateParam(start, '2004-01-01'),
       endDate: parseDateParam(end, new Date().toISOString().slice(0, 10)),
-      pairIds: parseCsv(pairIdsRaw),
+      pairIds,
       horizons: parseHorizons(horizonsRaw),
     });
 

@@ -17,6 +17,13 @@ export interface PairSignalEvent {
   mode: PairDefinition['mode'];
 }
 
+export interface PairCurrentSetup {
+  date: string;
+  zScore: number;
+  triggered: boolean;
+  side: PairSignalEvent['side'] | null;
+}
+
 export interface HorizonStats {
   horizonDays: number;
   sampleSize: number;
@@ -36,6 +43,7 @@ export interface PairBacktestResult {
     startDate: string | null;
     endDate: string | null;
   };
+  currentSetup: PairCurrentSetup | null;
   events: PairSignalEvent[];
   horizons: HorizonStats[];
 }
@@ -46,9 +54,14 @@ interface RatioPoint {
   logRatio: number;
 }
 
-export async function loadPriceMap(tickers: string[], startDate: Date, endDate: Date): Promise<Map<string, PricePoint[]>> {
+export async function loadPriceMap(
+  tickers: string[],
+  startDate: Date,
+  endDate: Date,
+  horizons: readonly number[] = DEFAULT_HORIZONS,
+): Promise<Map<string, PricePoint[]>> {
   const out = new Map<string, PricePoint[]>();
-  const fetchEnd = addDays(endDate, Math.max(...DEFAULT_HORIZONS) + PRICE_BUFFER_DAYS);
+  const fetchEnd = addDays(endDate, Math.max(...horizons) + PRICE_BUFFER_DAYS);
 
   for (const ticker of tickers) {
     const rows = await prisma.$queryRaw<{ date: Date; adjClose: number }[]>`
@@ -78,7 +91,7 @@ export async function backtestPairSignals(options: {
 }): Promise<PairBacktestResult[]> {
   const horizons = options.horizons ?? DEFAULT_HORIZONS;
   const tickers = [...new Set(options.pairs.flatMap((pair) => [pair.numerator, pair.denominator]))];
-  const priceMap = await loadPriceMap(tickers, options.startDate, options.endDate);
+  const priceMap = await loadPriceMap(tickers, options.startDate, options.endDate, horizons);
 
   return options.pairs.map((pair) => {
     const numerator = priceMap.get(pair.numerator) ?? [];
@@ -98,6 +111,7 @@ export function backtestPair(
   const ratios = buildRatioSeries(numerator, denominator)
     .filter((point) => point.date >= startDate && point.date <= endDate);
   const events = buildSignalEvents(ratios, pair);
+  const currentSetup = buildCurrentSetup(ratios, pair);
   const horizonStats = horizons.map((horizonDays) => summarizeHorizon(events, ratios, horizonDays));
 
   return {
@@ -108,6 +122,7 @@ export function backtestPair(
       startDate: ratios[0]?.date.toISOString().slice(0, 10) ?? null,
       endDate: ratios[ratios.length - 1]?.date.toISOString().slice(0, 10) ?? null,
     },
+    currentSetup,
     events: events.map((event) => ({
       date: event.date.toISOString().slice(0, 10),
       zScore: event.zScore,
@@ -115,6 +130,36 @@ export function backtestPair(
       mode: event.mode,
     })),
     horizons: horizonStats,
+  };
+}
+
+function buildCurrentSetup(ratios: RatioPoint[], pair: PairDefinition): PairCurrentSetup | null {
+  if (ratios.length <= pair.lookbackDays) return null;
+
+  const i = ratios.length - 1;
+  const lookback = ratios.slice(i - pair.lookbackDays, i).map((point) => point.logRatio);
+  const z = computeZScore(ratios[i].logRatio, lookback);
+  if (z === null) return null;
+
+  const triggered = Math.abs(z) >= pair.entryZ;
+  if (!triggered) {
+    return {
+      date: ratios[i].date.toISOString().slice(0, 10),
+      zScore: z,
+      triggered: false,
+      side: null,
+    };
+  }
+
+  const direction = pair.mode === 'trend_continuation'
+    ? (z > 0 ? 1 : -1)
+    : (z > 0 ? -1 : 1);
+
+  return {
+    date: ratios[i].date.toISOString().slice(0, 10),
+    zScore: z,
+    triggered: true,
+    side: direction === 1 ? 'long_numerator' : 'long_denominator',
   };
 }
 
