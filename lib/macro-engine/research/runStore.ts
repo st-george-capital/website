@@ -138,7 +138,6 @@ function currentSourceFingerprint(): string {
 }
 
 export async function getResearchBacktestPayload(): Promise<ResearchBacktestPayload> {
-  await ensureResearchBacktestTable();
   const configHash = currentResearchConfigHash();
   const [current, latest, priceCoverage] = await Promise.all([
     loadLatestRun({ configHash }),
@@ -252,8 +251,6 @@ export async function runAndSaveResearchBacktest(options: {
   pairIds?: string[];
   horizons?: number[];
 }): Promise<SavedResearchBacktestRun> {
-  await ensureResearchBacktestTable();
-
   const allPairs = getResearchPairs();
   const pairIdSet = options.pairIds ? new Set(options.pairIds) : null;
   const pairs = pairIdSet ? allPairs.filter((pair) => pairIdSet.has(pair.id)) : allPairs;
@@ -275,17 +272,24 @@ export async function runAndSaveResearchBacktest(options: {
   const endDate = options.endDate.toISOString().slice(0, 10);
   const pairIds = pairs.map((pair) => pair.id);
 
-  await prisma.$executeRaw`
-    INSERT INTO research_backtest_runs (
-      id, "configHash", "engineVersion", "startDate", "endDate",
-      horizons, "pairIds", result, summary, status, error
-    )
-    VALUES (
-      ${id}, ${configHash}, ${RESEARCH_BACKTEST_ENGINE_VERSION}, ${startDate}, ${endDate},
-      ${horizons}::int[], ${pairIds}::text[], ${JSON.stringify(result)}::jsonb, ${JSON.stringify(summary)}::jsonb,
-      'success', NULL
-    )
-  `;
+  try {
+    await prisma.$executeRaw`
+      INSERT INTO research_backtest_runs (
+        id, "configHash", "engineVersion", "startDate", "endDate",
+        horizons, "pairIds", result, summary, status, error
+      )
+      VALUES (
+        ${id}, ${configHash}, ${RESEARCH_BACKTEST_ENGINE_VERSION}, ${startDate}, ${endDate},
+        ${horizons}::int[], ${pairIds}::text[], ${JSON.stringify(result)}::jsonb, ${JSON.stringify(summary)}::jsonb,
+        'success', NULL
+      )
+    `;
+  } catch (error) {
+    if (isMissingResearchRunTableError(error)) {
+      throw new Error('research_backtest_runs table is missing. Apply the Prisma schema before saving research backtests.');
+    }
+    throw error;
+  }
 
   const saved = await loadRunById(id);
   if (!saved) throw new Error(`Research backtest run ${id} was not saved`);
@@ -322,59 +326,45 @@ export function summarizeResearchBacktest(results: PairBacktestResult[]): Resear
   });
 }
 
-async function ensureResearchBacktestTable(): Promise<void> {
-  await prisma.$executeRaw`
-    CREATE TABLE IF NOT EXISTS research_backtest_runs (
-      id TEXT PRIMARY KEY,
-      "runAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      "configHash" TEXT NOT NULL,
-      "engineVersion" TEXT NOT NULL,
-      "startDate" TEXT NOT NULL,
-      "endDate" TEXT NOT NULL,
-      horizons INTEGER[] NOT NULL,
-      "pairIds" TEXT[] NOT NULL,
-      result JSONB NOT NULL,
-      summary JSONB NOT NULL,
-      status TEXT NOT NULL DEFAULT 'success',
-      error TEXT,
-      "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `;
-  await prisma.$executeRaw`
-    CREATE INDEX IF NOT EXISTS research_backtest_runs_config_runat_idx
-    ON research_backtest_runs ("configHash", "runAt" DESC)
-  `;
-}
-
 async function loadLatestRun(where: { configHash?: string }): Promise<SavedResearchBacktestRun | null> {
-  const rows = where.configHash
-    ? await prisma.$queryRaw<DbRunRow[]>`
-        SELECT id, "runAt", "configHash", "engineVersion", "startDate", "endDate",
-               horizons, "pairIds", result, summary, status, error
-        FROM research_backtest_runs
-        WHERE "configHash" = ${where.configHash}
-        ORDER BY "runAt" DESC
-        LIMIT 1
-      `
-    : await prisma.$queryRaw<DbRunRow[]>`
-        SELECT id, "runAt", "configHash", "engineVersion", "startDate", "endDate",
-               horizons, "pairIds", result, summary, status, error
-        FROM research_backtest_runs
-        ORDER BY "runAt" DESC
-        LIMIT 1
-      `;
-  return rows[0] ? normalizeRun(rows[0]) : null;
+  try {
+    const rows = where.configHash
+      ? await prisma.$queryRaw<DbRunRow[]>`
+          SELECT id, "runAt", "configHash", "engineVersion", "startDate", "endDate",
+                 horizons, "pairIds", result, summary, status, error
+          FROM research_backtest_runs
+          WHERE "configHash" = ${where.configHash}
+          ORDER BY "runAt" DESC
+          LIMIT 1
+        `
+      : await prisma.$queryRaw<DbRunRow[]>`
+          SELECT id, "runAt", "configHash", "engineVersion", "startDate", "endDate",
+                 horizons, "pairIds", result, summary, status, error
+          FROM research_backtest_runs
+          ORDER BY "runAt" DESC
+          LIMIT 1
+        `;
+    return rows[0] ? normalizeRun(rows[0]) : null;
+  } catch (error) {
+    if (isMissingResearchRunTableError(error)) return null;
+    throw error;
+  }
 }
 
 async function loadRunById(id: string): Promise<SavedResearchBacktestRun | null> {
-  const rows = await prisma.$queryRaw<DbRunRow[]>`
-    SELECT id, "runAt", "configHash", "engineVersion", "startDate", "endDate",
-           horizons, "pairIds", result, summary, status, error
-    FROM research_backtest_runs
-    WHERE id = ${id}
-    LIMIT 1
-  `;
-  return rows[0] ? normalizeRun(rows[0]) : null;
+  try {
+    const rows = await prisma.$queryRaw<DbRunRow[]>`
+      SELECT id, "runAt", "configHash", "engineVersion", "startDate", "endDate",
+             horizons, "pairIds", result, summary, status, error
+      FROM research_backtest_runs
+      WHERE id = ${id}
+      LIMIT 1
+    `;
+    return rows[0] ? normalizeRun(rows[0]) : null;
+  } catch (error) {
+    if (isMissingResearchRunTableError(error)) return null;
+    throw error;
+  }
 }
 
 function normalizeRun(row: DbRunRow): SavedResearchBacktestRun {
@@ -392,4 +382,11 @@ function normalizeRun(row: DbRunRow): SavedResearchBacktestRun {
     status: row.status,
     error: row.error,
   };
+}
+
+function isMissingResearchRunTableError(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return false;
+  if (error.code !== 'P2010') return false;
+  const sqlCode = typeof error.meta?.code === 'string' ? error.meta.code : null;
+  return sqlCode === '42P01';
 }
