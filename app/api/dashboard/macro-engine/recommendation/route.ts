@@ -10,6 +10,7 @@ import {
 } from '@/lib/macro-engine/recommendations/convictionWeight';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
 
 /**
  * Serves today's actionable recommendation: conviction-weighted target

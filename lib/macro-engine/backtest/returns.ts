@@ -2,7 +2,7 @@
 // Forward return computation from OhlcvDaily.adjClose.
 // Skips (ticker, date) pairs where forward price is missing — never zero-fills.
 
-import { prisma } from '../db';
+import { prismaDirectUrl as prisma } from '../db';
 import { addDays } from 'date-fns';
 
 const BUFFER_DAYS = 10; // extra buffer for weekends/holidays when fetching
@@ -51,19 +51,27 @@ export async function computeForwardReturns(
   let skipped = 0;
 
   for (const [ticker, prices] of priceMap) {
+    let forwardIdx = 0;
     for (let i = 0; i < prices.length; i++) {
       const base = prices[i];
       // Only process dates within [startDate, endDate]
       if (base.date < startDate || base.date > endDate) continue;
 
-      // Find nearest trading day approximately forwardDays after base.date
+      // Prices are sorted, and target dates only move forward, so a single
+      // advancing pointer avoids an O(n^2) scan on every dashboard replay.
       const targetDate = addDays(base.date, forwardDays);
-      // Find the closest price on or after targetDate (within BUFFER_DAYS)
-      const fwdPrice = prices.find(
-        p => p.date >= targetDate && p.date <= addDays(targetDate, BUFFER_DAYS)
-      );
+      const targetMs = targetDate.getTime();
+      const latestAllowedMs = addDays(targetDate, BUFFER_DAYS).getTime();
+      while (
+        forwardIdx < prices.length &&
+        prices[forwardIdx].date.getTime() < targetMs
+      ) {
+        forwardIdx++;
+      }
 
-      if (!fwdPrice) {
+      const fwdPrice = prices[forwardIdx];
+
+      if (!fwdPrice || fwdPrice.date.getTime() > latestAllowedMs) {
         skipped++;
         continue; // skip — do not impute zero
       }

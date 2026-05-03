@@ -5,6 +5,7 @@ import { replayHoldout, DEFAULT_CONFIG, loadPerRegimeOverrides } from '@/lib/mac
 import type { ScoredDayRecord } from '@/lib/macro-engine/backtest';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
 
 /**
  * Serves the honest model trajectory for the dashboard's equity chart and
