@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
 import path from 'path';
+import { Prisma } from '@prisma/client';
 import { prismaDirectUrl as prisma } from '../db';
 import {
   backtestPairSignals,
@@ -9,6 +10,7 @@ import {
 } from './pairBacktest';
 import {
   getResearchPairs,
+  getResearchExpressions,
   getResearchUniverseConfig,
   type PairDefinition,
 } from './universe';
@@ -57,9 +59,42 @@ export interface SavedResearchBacktestRun {
 export interface ResearchBacktestPayload {
   currentConfigHash: string;
   engineVersion: string;
+  priceCoverage: ResearchPriceCoveragePayload;
   latestForCurrentConfig: SavedResearchBacktestRun | null;
   latestAnyConfig: SavedResearchBacktestRun | null;
   needsRun: boolean;
+}
+
+export type ResearchPairCoverageStatus = 'ready' | 'missing_prices' | 'no_overlap' | 'thin_history';
+
+export interface ResearchTickerCoverage {
+  ticker: string;
+  name: string;
+  rows: number;
+  startDate: string | null;
+  endDate: string | null;
+  neededByPairs: number;
+}
+
+export interface ResearchPairCoverage {
+  pairId: string;
+  label: string;
+  numerator: string;
+  denominator: string;
+  numeratorRows: number;
+  denominatorRows: number;
+  coverageStart: string | null;
+  coverageEnd: string | null;
+  missingTickers: string[];
+  status: ResearchPairCoverageStatus;
+}
+
+export interface ResearchPriceCoveragePayload {
+  tickers: ResearchTickerCoverage[];
+  pairs: ResearchPairCoverage[];
+  totalPairs: number;
+  readyPairs: number;
+  missingTickers: string[];
 }
 
 type DbRunRow = {
@@ -105,17 +140,109 @@ function currentSourceFingerprint(): string {
 export async function getResearchBacktestPayload(): Promise<ResearchBacktestPayload> {
   await ensureResearchBacktestTable();
   const configHash = currentResearchConfigHash();
-  const [current, latest] = await Promise.all([
+  const [current, latest, priceCoverage] = await Promise.all([
     loadLatestRun({ configHash }),
     loadLatestRun({}),
+    getResearchPriceCoverage(),
   ]);
 
   return {
     currentConfigHash: configHash,
     engineVersion: RESEARCH_BACKTEST_ENGINE_VERSION,
+    priceCoverage,
     latestForCurrentConfig: current,
     latestAnyConfig: latest,
     needsRun: current === null,
+  };
+}
+
+export async function getResearchPriceCoverage(): Promise<ResearchPriceCoveragePayload> {
+  const expressions = getResearchExpressions();
+  const pairs = getResearchPairs();
+  const tickers = [...new Set(expressions.map((expr) => expr.ticker))];
+  const exprByTicker = new Map(expressions.map((expr) => [expr.ticker, expr]));
+  const neededByPairs = new Map<string, number>();
+  for (const pair of pairs) {
+    neededByPairs.set(pair.numerator, (neededByPairs.get(pair.numerator) ?? 0) + 1);
+    neededByPairs.set(pair.denominator, (neededByPairs.get(pair.denominator) ?? 0) + 1);
+  }
+
+  const rows = tickers.length > 0
+    ? await prisma.$queryRaw<Array<{
+        ticker: string;
+        rows: number;
+        startDate: Date | null;
+        endDate: Date | null;
+      }>>`
+        SELECT ticker, COUNT(*)::int AS rows, MIN(date) AS "startDate", MAX(date) AS "endDate"
+        FROM ohlcv_daily
+        WHERE ticker IN (${Prisma.join(tickers)})
+        GROUP BY ticker
+      `
+    : [];
+
+  const byTicker = new Map(rows.map((row) => [row.ticker, row]));
+  const tickerCoverage: ResearchTickerCoverage[] = tickers.map((ticker) => {
+    const row = byTicker.get(ticker);
+    const expr = exprByTicker.get(ticker);
+    return {
+      ticker,
+      name: expr?.name ?? ticker,
+      rows: Number(row?.rows ?? 0),
+      startDate: row?.startDate ? row.startDate.toISOString().slice(0, 10) : null,
+      endDate: row?.endDate ? row.endDate.toISOString().slice(0, 10) : null,
+      neededByPairs: neededByPairs.get(ticker) ?? 0,
+    };
+  });
+  const tickerCoverageMap = new Map(tickerCoverage.map((row) => [row.ticker, row]));
+
+  const pairCoverage: ResearchPairCoverage[] = pairs.map((pair) => {
+    const numerator = tickerCoverageMap.get(pair.numerator);
+    const denominator = tickerCoverageMap.get(pair.denominator);
+    const missingTickers = [numerator, denominator]
+      .filter((row): row is ResearchTickerCoverage => !!row && row.rows === 0)
+      .map((row) => row.ticker);
+
+    let coverageStart: string | null = null;
+    let coverageEnd: string | null = null;
+    let status: ResearchPairCoverageStatus = 'ready';
+
+    if (missingTickers.length > 0 || !numerator || !denominator) {
+      status = 'missing_prices';
+    } else if (!numerator.startDate || !numerator.endDate || !denominator.startDate || !denominator.endDate) {
+      status = 'no_overlap';
+    } else {
+      coverageStart = numerator.startDate > denominator.startDate ? numerator.startDate : denominator.startDate;
+      coverageEnd = numerator.endDate < denominator.endDate ? numerator.endDate : denominator.endDate;
+      if (coverageStart > coverageEnd) {
+        status = 'no_overlap';
+      } else if (Math.min(numerator.rows, denominator.rows) < pair.lookbackDays + 252 + 10) {
+        status = 'thin_history';
+      }
+    }
+
+    return {
+      pairId: pair.id,
+      label: pair.label,
+      numerator: pair.numerator,
+      denominator: pair.denominator,
+      numeratorRows: numerator?.rows ?? 0,
+      denominatorRows: denominator?.rows ?? 0,
+      coverageStart,
+      coverageEnd,
+      missingTickers,
+      status,
+    };
+  });
+
+  return {
+    tickers: tickerCoverage,
+    pairs: pairCoverage,
+    totalPairs: pairCoverage.length,
+    readyPairs: pairCoverage.filter((row) => row.status === 'ready').length,
+    missingTickers: tickerCoverage
+      .filter((row) => row.neededByPairs > 0 && row.rows === 0)
+      .map((row) => row.ticker),
   };
 }
 

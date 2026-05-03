@@ -1,18 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { ingestPrices, type IngestResult } from '@/lib/macro-engine/ingest/prices';
 import {
   getResearchBacktestPayload,
+  getResearchPriceCoverage,
   runAndSaveResearchBacktest,
   type ResearchBacktestPayload,
+  type ResearchPriceCoveragePayload,
   type ResearchBacktestSummaryRow,
   type SavedResearchBacktestRun,
 } from '@/lib/macro-engine/research/runStore';
+import { getResearchExpressions, toPriceIngestUniverse } from '@/lib/macro-engine/research/universe';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
-export type { ResearchBacktestPayload, ResearchBacktestSummaryRow, SavedResearchBacktestRun };
+export type {
+  ResearchBacktestPayload,
+  ResearchBacktestSummaryRow,
+  ResearchPriceCoveragePayload,
+  SavedResearchBacktestRun,
+};
+
+export type ResearchBacktestApiResponse = ResearchBacktestPayload & {
+  ingestResult?: IngestResult;
+};
 
 function parseDateParam(value: string | null, fallback: string): Date {
   const raw = value ?? fallback;
@@ -51,6 +64,20 @@ export async function POST(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const body = await req.json().catch(() => ({} as Record<string, unknown>));
+    const action = typeof body.action === 'string'
+      ? body.action
+      : searchParams.get('action') ?? 'run-backtest';
+
+    if (action === 'ingest-missing-prices') {
+      const coverage = await getResearchPriceCoverage();
+      const missingSet = new Set(coverage.missingTickers);
+      const missingExpressions = getResearchExpressions().filter((expr) => missingSet.has(expr.ticker));
+      const ingestResult = missingExpressions.length > 0
+        ? await ingestPrices(toPriceIngestUniverse(missingExpressions), { dryRun: false })
+        : { source: 'alpha-vantage', rowsUpserted: 0, errors: [], status: 'success' as const };
+      const payload = await getResearchBacktestPayload();
+      return NextResponse.json({ ...payload, ingestResult } satisfies ResearchBacktestApiResponse);
+    }
 
     const start = typeof body.startDate === 'string' ? body.startDate : searchParams.get('start');
     const end = typeof body.endDate === 'string' ? body.endDate : searchParams.get('end');

@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import type { MacroEnginePayload } from '@/app/api/dashboard/macro-engine/route';
 import type { HistoryPayload, HistoryPoint, RegimeAttribution, RegimeRun } from '@/app/api/dashboard/macro-engine/history/route';
 import type {
+  ResearchBacktestApiResponse,
   ResearchBacktestPayload,
   ResearchBacktestSummaryRow,
 } from '@/app/api/dashboard/macro-engine/research-backtest/route';
@@ -1442,6 +1443,19 @@ function sortResearchRows(rows: ResearchBacktestSummaryRow[]) {
   });
 }
 
+function pairCoverageStatusClass(status: string) {
+  if (status === 'ready') return 'bg-emerald-100 text-emerald-700';
+  if (status === 'thin_history') return 'bg-amber-100 text-amber-700';
+  return 'bg-red-100 text-red-700';
+}
+
+function pairCoverageStatusLabel(status: string) {
+  if (status === 'ready') return 'Ready';
+  if (status === 'thin_history') return 'Thin';
+  if (status === 'no_overlap') return 'No overlap';
+  return 'Missing';
+}
+
 function researchCoverage(row: ResearchBacktestSummaryRow) {
   if (row.numeratorRows == null || row.denominatorRows == null) {
     return {
@@ -1477,6 +1491,8 @@ function ResearchBacktestPanel() {
   const [payload, setPayload] = useState<ResearchBacktestPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [ingesting, setIngesting] = useState(false);
+  const [ingestResult, setIngestResult] = useState<ResearchBacktestApiResponse['ingestResult'] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -1493,6 +1509,26 @@ function ResearchBacktestPanel() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const ingestMissingPrices = useCallback(async () => {
+    setIngesting(true);
+    setError(null);
+    setIngestResult(null);
+    try {
+      const res = await fetch('/api/dashboard/macro-engine/research-backtest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'ingest-missing-prices' }),
+      });
+      const body = await readJsonOrThrow<ResearchBacktestApiResponse>(res);
+      setPayload(body);
+      setIngestResult(body.ingestResult ?? null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIngesting(false);
+    }
+  }, []);
 
   const runBacktest = useCallback(async () => {
     setRunning(true);
@@ -1520,6 +1556,11 @@ function ResearchBacktestPanel() {
   const staleRun = !currentRun ? (payload?.latestAnyConfig ?? null) : null;
   const visibleRun = currentRun ?? staleRun;
   const rows = sortResearchRows(visibleRun?.summary ?? []);
+  const coverage = payload?.priceCoverage ?? null;
+  const readyPairs = coverage?.readyPairs ?? 0;
+  const totalPairs = coverage?.totalPairs ?? 0;
+  const missingTickers = coverage?.missingTickers ?? [];
+  const coverageReady = totalPairs > 0 && readyPairs === totalPairs;
   const status = runStatusLabel(payload);
   const statusClass = currentRun
     ? 'bg-emerald-100 text-emerald-700'
@@ -1562,10 +1603,21 @@ function ResearchBacktestPanel() {
           </div>
         </div>
         <div className="flex gap-2">
+          {missingTickers.length > 0 && (
+            <button
+              type="button"
+              onClick={ingestMissingPrices}
+              disabled={running || ingesting}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${ingesting ? 'animate-spin' : ''}`} />
+              {ingesting ? 'Ingesting...' : `Ingest ${missingTickers.length} Missing`}
+            </button>
+          )}
           <button
             type="button"
             onClick={load}
-            disabled={running}
+            disabled={running || ingesting}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -1574,14 +1626,49 @@ function ResearchBacktestPanel() {
           <button
             type="button"
             onClick={runBacktest}
-            disabled={running}
+            disabled={running || ingesting}
             className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${running ? 'animate-spin' : ''}`} />
-            {running ? 'Running...' : 'Run 20Y Backtest'}
+            {running ? 'Running...' : coverageReady ? 'Run Backtest' : 'Run Partial Backtest'}
           </button>
         </div>
       </div>
+
+      {coverage && (
+        <div className={`rounded-xl border px-4 py-3 text-xs ${
+          coverageReady ? 'border-emerald-100 bg-emerald-50/50 text-emerald-900' : 'border-amber-100 bg-amber-50/60 text-amber-900'
+        }`}>
+          <div className="font-semibold">
+            Price readiness: {readyPairs}/{totalPairs} pairs testable
+          </div>
+          <div className="mt-1 leading-relaxed">
+            This panel is a pair-signal diagnostic, not a trade list. It tests whether a ratio
+            like GOOGL/META, EWZ/SPY, or GLD/SPY historically worked after a z-score trigger.
+            {coverageReady
+              ? ' All configured pairs have stored price history.'
+              : ` ${missingTickers.length} required tickers are missing price history, so the backtest is partial until you ingest them.`}
+          </div>
+          {!coverageReady && missingTickers.length > 0 && (
+            <div className="mt-2 font-mono text-[10px] text-amber-800">
+              Missing: {missingTickers.join(', ')}
+            </div>
+          )}
+        </div>
+      )}
+
+      {ingestResult && (
+        <div className={`rounded-lg border px-3 py-2 text-xs ${
+          ingestResult.status === 'success'
+            ? 'border-emerald-100 bg-emerald-50 text-emerald-800'
+            : 'border-amber-100 bg-amber-50 text-amber-800'
+        }`}>
+          Price ingest {ingestResult.status}: {ingestResult.rowsUpserted.toLocaleString()} rows added.
+          {ingestResult.errors.length > 0 && (
+            <span className="ml-1">Errors: {ingestResult.errors.slice(0, 3).join(' · ')}</span>
+          )}
+        </div>
+      )}
 
       {error && (
         <div className="flex items-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">
@@ -1596,6 +1683,7 @@ function ResearchBacktestPanel() {
             <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-400">
               <tr>
                 <th className="px-3 py-2 font-semibold">Pair</th>
+                <th className="px-3 py-2 font-semibold">Readiness</th>
                 <th className="px-3 py-2 font-semibold">Coverage</th>
                 <th className="px-3 py-2 font-semibold">Signal</th>
                 <th className="px-3 py-2 text-right font-semibold">Events</th>
@@ -1610,11 +1698,18 @@ function ResearchBacktestPanel() {
               {rows.map((row) => {
                 const longest = row.longestHorizon;
                 const coverage = researchCoverage(row);
+                const pairCoverage = payload?.priceCoverage.pairs.find((pair) => pair.pairId === row.pairId);
+                const pairStatus = pairCoverage?.status ?? 'ready';
                 return (
                   <tr key={row.pairId} className="hover:bg-slate-50/70">
                     <td className="px-3 py-2">
                       <div className="font-semibold text-slate-800">{row.label}</div>
                       <div className="font-mono text-[10px] text-slate-400">{row.numerator} / {row.denominator}</div>
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${pairCoverageStatusClass(pairStatus)}`}>
+                        {pairCoverageStatusLabel(pairStatus)}
+                      </span>
                     </td>
                     <td className="px-3 py-2">
                       <div className={`text-[11px] font-semibold ${coverage.className}`}>{coverage.label}</div>
