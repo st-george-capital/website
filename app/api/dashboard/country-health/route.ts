@@ -52,10 +52,18 @@ const WB_BASE = 'https://api.worldbank.org/v2';
 const MRV = 15;
 
 /** Extra World Bank series for composites & overlay_plus */
-const EXTRA_WB_CODES = ['BX.GSR.NFSV.CD', 'NY.GDP.MKTP.CD', 'NY.GDP.PCAP.KD', 'FS.AST.PRVT.GD.ZS'];
+const EXTRA_WB_CODES = [
+  'BX.GSR.NFSV.CD',
+  'NY.GDP.MKTP.CD',
+  'NY.GDP.PCAP.KD',
+  'FS.AST.PRVT.GD.ZS',
+  'FI.RES.TOTL.CD',
+  'FI.RES.XGLD.CD',
+  'MS.MIL.XPND.GD.ZS',
+];
 
 function uniqueCodesForDefs(defs: VariableDef[]): string[] {
-  return [...new Set(defs.map(v => v.code))];
+  return [...new Set(defs.map(v => v.code).filter(code => !code.startsWith('__')))];
 }
 
 function allCodesToFetch(): string[] {
@@ -127,6 +135,52 @@ function injectCompositeServicesExportsPct(seriesByCode: SeriesByCode, countryCo
   seriesByCode.set('__SVC_EXP_PCT_GDP', m);
 }
 
+/** (total reserves including gold - reserves excluding gold) / total reserves × 100 */
+function injectCompositeGoldReserveShare(seriesByCode: SeriesByCode, countryCodes: string[]) {
+  const total = seriesByCode.get('FI.RES.TOTL.CD');
+  const exGold = seriesByCode.get('FI.RES.XGLD.CD');
+  if (!total || !exGold) return;
+  const m = new Map<string, { date: string; value: number }[]>();
+  for (const c of countryCodes) {
+    const totalSeries = total.get(c);
+    const exGoldSeries = exGold.get(c);
+    if (!totalSeries || !exGoldSeries) continue;
+    const exGoldByYear = new Map(exGoldSeries.map(p => [p.date, p.value]));
+    const rows = totalSeries
+      .map(p => {
+        const xg = exGoldByYear.get(p.date);
+        if (xg == null || p.value <= 0) return null;
+        return { date: p.date, value: ((p.value - xg) / p.value) * 100 };
+      })
+      .filter((p): p is { date: string; value: number } => p !== null && Number.isFinite(p.value));
+    if (rows.length > 0) m.set(c, rows);
+  }
+  seriesByCode.set('__GOLD_RESERVE_SHARE', m);
+}
+
+/** Military spend (% GDP) divided by gross capital formation (% GDP). */
+function injectCompositeMilitaryCapexRatio(seriesByCode: SeriesByCode, countryCodes: string[]) {
+  const military = seriesByCode.get('MS.MIL.XPND.GD.ZS');
+  const capital = seriesByCode.get('NE.GDI.TOTL.ZS');
+  if (!military || !capital) return;
+  const m = new Map<string, { date: string; value: number }[]>();
+  for (const c of countryCodes) {
+    const milSeries = military.get(c);
+    const capSeries = capital.get(c);
+    if (!milSeries || !capSeries) continue;
+    const capByYear = new Map(capSeries.map(p => [p.date, p.value]));
+    const rows = milSeries
+      .map(p => {
+        const cap = capByYear.get(p.date);
+        if (cap == null || cap <= 0) return null;
+        return { date: p.date, value: p.value / cap };
+      })
+      .filter((p): p is { date: string; value: number } => p !== null && Number.isFinite(p.value));
+    if (rows.length > 0) m.set(c, rows);
+  }
+  seriesByCode.set('__MILITARY_CAPEX_RATIO', m);
+}
+
 function injectPopulation(rows: RawVariableRow[], populations: Record<string, number>) {
   for (const row of rows) {
     row.population = populations[row.country] ?? null;
@@ -173,6 +227,8 @@ export async function GET(request: Request) {
     ]);
 
     injectCompositeServicesExportsPct(seriesByCode, fetchIds);
+    injectCompositeGoldReserveShare(seriesByCode, fetchIds);
+    injectCompositeMilitaryCapexRatio(seriesByCode, fetchIds);
 
     const defaultIds = PEER_SETS.default.ids;
 
@@ -263,7 +319,7 @@ export async function GET(request: Request) {
       methodology: {
         normalization: 'cross-sectional z-score → scaled to [0,1], clamped at ±3σ',
         momentumBlend:
-          '70% normalized level + 30% normalized momentum. Momentum: growth indicators use pp change; debt/GDP uses percent change of the ratio before z-scoring.',
+          '70% normalized level + 30% normalized momentum when enabled. Momentum uses percentage change for debt ratios and pp change for rate/share indicators before z-scoring.',
         pillarAggregation:
           'Weighted average within pillar; missing variables reweight the pillar. Pillar score suppressed below 25% weight coverage.',
         pillarConfidenceThresholds: {
@@ -275,6 +331,10 @@ export async function GET(request: Request) {
           'For robustness, anchor year = most recent year where ≥70% of the peer set has data for that indicator.',
         manufacturing:
           'Productive capacity uses manufacturing value added per capita (constant USD) instead of manufacturing % of GDP to avoid penalizing service-intensive advanced economies.',
+        monetaryOrder:
+          'Macro sustainability includes World Bank/IMF reserve, external-debt, short-term refinancing, interest-burden, and gold-reserve-share proxies. Gold reserve share is computed from total reserves including gold minus total reserves excluding gold.',
+        strategicCapacity:
+          'Productive capacity includes energy import dependence and electric power consumption as early proxies for energy autonomy and AI/data-center infrastructure constraints. Military/capital-formation burden is computed as military spending % GDP divided by gross capital formation % GDP.',
         coreWeights: {
           productive_capacity: '25%',
           human_capital: '15%',
@@ -288,7 +348,7 @@ export async function GET(request: Request) {
         frameworkNotes: [
           'This model is a peer-relative structural macro / institutional / innovation score. All ranks are relative to the peer set — they measure standing within the group, not absolute development levels.',
           'The overlay is a separate, conservative market-access / monetization lens. It reflects how accessible and liquid a country\'s capital markets are. It is not part of the core structural score and should be read independently.',
-          'The model does not fully capture great-power strategic dominance, reserve-currency centrality, geopolitical leverage, or intangible-asset accumulation. Countries like the United States may appear structurally under-ranked relative to their actual global systemic weight for precisely this reason.',
+          'The model now includes first-pass monetary-order and strategic-capacity proxies, but it still does not fully capture reserve-currency centrality, foreign official ownership of sovereign debt, sanctions/geopolitical leverage, private-credit stress, or true AI infrastructure permitting bottlenecks.',
           'Political Stability (PV.EST) weight is intentionally set below other institutional variables. WB PV.EST captures terrorism/violence/political disruption risk — it is not a direct measure of governance quality and tends to penalize large, diverse democracies more than small authoritarian states. Rule of Law and Government Effectiveness are more discriminating within this peer set.',
         ],
       },

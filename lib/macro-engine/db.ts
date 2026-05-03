@@ -1,6 +1,11 @@
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+const accelerateUrl = process.env.DATABASE_URL ?? process.env.DATABASE_PRISMA_DATABASE_URL;
+const directUrl = process.env.DIRECT_URL ?? process.env.DATABASE_POSTGRES_URL ?? process.env.POSTGRES_URL;
+
+const prisma = accelerateUrl
+  ? new PrismaClient({ datasourceUrl: accelerateUrl })
+  : new PrismaClient();
 
 /**
  * Direct Postgres client that bypasses Prisma Accelerate.
@@ -8,11 +13,10 @@ const prisma = new PrismaClient();
  *   - P6009: Response > 5MB
  *   - P6004: Query > 10s execution time
  *
- * Only available in server-side scripts (Node.js) — not for API routes.
- * Falls back to the standard Accelerate client if DIRECT_URL is not set.
+ * Falls back to the standard Accelerate client if no direct Postgres URL is set.
  */
-export const prismaDirectUrl = process.env.DIRECT_URL
-  ? new PrismaClient({ datasourceUrl: process.env.DIRECT_URL })
+export const prismaDirectUrl = directUrl
+  ? new PrismaClient({ datasourceUrl: directUrl })
   : prisma;
 
 export interface TimescaleDbStatus {

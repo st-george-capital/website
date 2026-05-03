@@ -31,7 +31,10 @@
     "signals:run": "npx tsx scripts/macro-engine/run-signals.ts",
     "signals:dry": "npx tsx scripts/macro-engine/run-signals.ts --dry-run",
     "verify:signals": "npx tsx scripts/macro-engine/verify-signals.ts",
-    "backfill:momentum": "npx tsx scripts/macro-engine/backfill-momentum.ts"
+    "backfill:momentum": "npx tsx scripts/macro-engine/backfill-momentum.ts",
+    "research:prices": "sucrase-node scripts/macro-engine/ingest-research-prices.ts",
+    "research:prices:dry": "sucrase-node scripts/macro-engine/ingest-research-prices.ts --dry-run",
+    "research:backtest": "sucrase-node scripts/macro-engine/run-research-backtest.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

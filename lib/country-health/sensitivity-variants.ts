@@ -161,18 +161,6 @@ export function overlaySlimDefs(defs: VariableDef[]): VariableDef[] {
 export function overlayPlusDefs(defs: VariableDef[]): VariableDef[] {
   const extra: VariableDef[] = [
     {
-      id: 'domestic_credit_private',
-      pillar: 'overlay',
-      code: 'FS.AST.PRVT.GD.ZS',
-      label: 'Domestic credit to private sector',
-      unit: '% GDP',
-      direction: 'up_good',
-      kind: 'structural',
-      useChange: false,
-      why: 'Financial depth proxy — credit intermediation to the private sector.',
-      weight: 2,
-    },
-    {
       id: 'services_exports_overlay',
       pillar: 'overlay',
       code: '__SVC_EXP_PCT_GDP',
@@ -185,7 +173,8 @@ export function overlayPlusDefs(defs: VariableDef[]): VariableDef[] {
       weight: 2,
     },
   ];
-  return [...defs, ...extra];
+  const existingIds = new Set(defs.map(d => d.id));
+  return [...defs, ...extra.filter(d => !existingIds.has(d.id))];
 }
 
 export function spearmanFromRanks(

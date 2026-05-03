@@ -16,7 +16,10 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/card';
 import type { MacroEnginePayload } from '@/app/api/dashboard/macro-engine/route';
 import type { HistoryPayload, HistoryPoint, RegimeAttribution, RegimeRun } from '@/app/api/dashboard/macro-engine/history/route';
-import type { RecommendationPayload } from '@/app/api/dashboard/macro-engine/recommendation/route';
+import type {
+  ResearchBacktestPayload,
+  ResearchBacktestSummaryRow,
+} from '@/app/api/dashboard/macro-engine/research-backtest/route';
 
 // ─── Universe metadata ─────────────────────────────────────────────────────────
 
@@ -647,181 +650,6 @@ function TodaysTradesCard() {
         Today&apos;s basket is the equal-weight long of the top {Math.round(data.config.longFraction * 100)}% of the
         universe by 12-month cross-sectional momentum (same ranker driving the {data.summary.nActive}-period
         holdout replay, {(data.summary.activeFraction * 100).toFixed(0)}% active).
-      </div>
-    </div>
-  );
-}
-
-// ─── Conviction-weighted recommendation card (Chunk 12) ──────────────────────
-
-/**
- * Chunk 12: conviction-weighted, sector/country-capped basket. Sits on top
- * of the same replay that drives TodaysTradesCard, but post-processes the
- * equal-weight basket into actionable target weights the user can trade
- * directly. Shows the delta vs the previous rebalance so it's clear what
- * actually needs to change.
- *
- * Important honesty note rendered in the UI: the backtest Sharpe was
- * validated equal-weighted. Conviction weighting is a display overlay on
- * the live signal — not a re-backtested strategy.
- */
-function ConvictionRecommendationCard() {
-  const [data, setData]       = useState<RecommendationPayload | null>(null);
-  const [error, setError]     = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch('/api/dashboard/macro-engine/recommendation')
-      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then((d: RecommendationPayload) => setData(d))
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return <div className="text-sm text-slate-400 py-4">Computing conviction weights…</div>;
-  if (error)   return <div className="text-sm text-red-600 py-4">Recommendation failed: {error}</div>;
-  if (!data)   return <div className="text-sm text-slate-400 py-4">No recommendation available.</div>;
-
-  if (data.gated || data.conviction.basket.length === 0) {
-    return (
-      <div className="rounded-lg border border-red-100 bg-red-50/30 px-4 py-6 text-center">
-        <div className="text-sm font-semibold text-red-700">Go to cash</div>
-        <div className="text-[11px] text-slate-500 mt-1">
-          Credit-stress regime active (as of {fmtDate(data.asOfDate)}) — no positions recommended.
-        </div>
-      </div>
-    );
-  }
-
-  const maxConv = Math.max(...data.conviction.basket.map(b => b.convWeight));
-
-  const deltaRows = data.positionDelta.filter(d => d.action !== 'HOLD');
-  const sectorEntries  = Object.entries(data.conviction.exposures.bySector).sort((a, b) => b[1] - a[1]);
-  const countryEntries = Object.entries(data.conviction.exposures.byCountry).sort((a, b) => b[1] - a[1]);
-
-  const actionColor: Record<string, string> = {
-    NEW:  'bg-blue-100  text-blue-700',
-    BUY:  'bg-emerald-100 text-emerald-700',
-    SELL: 'bg-amber-100 text-amber-700',
-    EXIT: 'bg-red-100   text-red-700',
-    HOLD: 'bg-slate-100 text-slate-500',
-  };
-
-  return (
-    <div className="space-y-5">
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <div className="text-[11px] text-slate-400">
-            Regime <span className="font-semibold" style={{ color: regimeColor(data.regime) }}>{regimeDisplayName(data.regime)}</span>
-            {' '}· Final size <span className="font-semibold text-slate-700">{(data.finalSize * 100).toFixed(0)}%</span>
-            {' '}· As of {fmtDate(data.asOfDate)}
-          </div>
-          <div className="text-[10px] text-amber-700 mt-1">
-            Conviction overlay — backtest Sharpe was validated equal-weighted. This is display-only.
-          </div>
-        </div>
-        {data.conviction.trimmed && (
-          <div className="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2.5 py-0.5 text-[10px] font-bold">
-            CAP BINDING
-          </div>
-        )}
-      </div>
-
-      {/* ── Target basket w/ conviction bars ─────────────────────────────── */}
-      <div>
-        <div className="text-[11px] text-slate-500 font-semibold mb-2">Target weights (conviction-scaled · rank-proportional)</div>
-        <div className="space-y-1">
-          {data.conviction.basket.map((b, i) => (
-            <div key={b.ticker} className="flex items-center gap-2">
-              <div className="w-4 text-[10px] text-slate-400 font-mono">{i + 1}</div>
-              <div className="w-12 font-mono font-bold text-slate-900 text-xs">{b.ticker}</div>
-              <div className="flex-1 text-[11px] text-slate-600 truncate">
-                {TICKER_META[b.ticker]?.flag} {TICKER_META[b.ticker]?.name ?? b.name}
-                {b.capReason && <span className="ml-1 text-amber-700 text-[10px]">({b.capReason})</span>}
-              </div>
-              <div className="flex-1 max-w-[200px] h-2 bg-slate-100 rounded overflow-hidden">
-                <div className="h-full bg-indigo-500"
-                     style={{ width: `${(b.convWeight / maxConv) * 100}%` }} />
-              </div>
-              <div className="w-14 text-right text-[11px] font-mono font-bold text-indigo-700">
-                {(b.convWeight * 100).toFixed(1)}%
-              </div>
-              <div className="w-14 text-right text-[10px] font-mono text-slate-400">
-                eq {(b.equalWeight * 100).toFixed(1)}%
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Exposure breakdowns ──────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {sectorEntries.length > 0 && (
-          <div>
-            <div className="text-[11px] text-slate-500 font-semibold mb-2">
-              Sector exposure (cap {(data.conviction.maxPerSector * 100).toFixed(0)}%)
-            </div>
-            <div className="space-y-1">
-              {sectorEntries.map(([s, w]) => (
-                <div key={s} className="flex items-center gap-2 text-[11px]">
-                  <div className="w-32 truncate text-slate-700">{s}</div>
-                  <div className="flex-1 h-1.5 bg-slate-100 rounded overflow-hidden">
-                    <div className="h-full bg-slate-500"
-                         style={{ width: `${(w / data.conviction.maxPerSector) * 100}%` }} />
-                  </div>
-                  <div className="w-12 text-right font-mono text-slate-700">{(w * 100).toFixed(1)}%</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {countryEntries.length > 0 && (
-          <div>
-            <div className="text-[11px] text-slate-500 font-semibold mb-2">
-              Country exposure (cap {(data.conviction.maxPerCountry * 100).toFixed(0)}%)
-            </div>
-            <div className="space-y-1">
-              {countryEntries.map(([c, w]) => (
-                <div key={c} className="flex items-center gap-2 text-[11px]">
-                  <div className="w-32 truncate text-slate-700">{c}</div>
-                  <div className="flex-1 h-1.5 bg-slate-100 rounded overflow-hidden">
-                    <div className="h-full bg-slate-500"
-                         style={{ width: `${(w / data.conviction.maxPerCountry) * 100}%` }} />
-                  </div>
-                  <div className="w-12 text-right font-mono text-slate-700">{(w * 100).toFixed(1)}%</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ── Position delta vs previous rebalance ─────────────────────────── */}
-      <div>
-        <div className="text-[11px] text-slate-500 font-semibold mb-2">
-          Trades vs {data.prevDate ? fmtDate(data.prevDate) : 'cash'} (changes &gt; 1% of NAV)
-        </div>
-        {deltaRows.length === 0 ? (
-          <div className="text-[11px] text-slate-400">No changes — basket held flat vs prior rebalance.</div>
-        ) : (
-          <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg overflow-hidden">
-            {deltaRows.map(d => (
-              <div key={d.ticker} className="flex items-center gap-3 px-3 py-1.5 text-[11px] bg-white">
-                <div className={`inline-flex justify-center w-12 rounded px-1.5 py-0.5 text-[10px] font-bold ${actionColor[d.action] ?? ''}`}>
-                  {d.action}
-                </div>
-                <div className="w-14 font-mono font-bold text-slate-900">{d.ticker}</div>
-                <div className="flex-1 text-slate-600 truncate">{d.name}</div>
-                <div className="w-16 text-right font-mono text-slate-500">{(d.prevWeight * 100).toFixed(1)}%</div>
-                <div className="w-4 text-center text-slate-300">→</div>
-                <div className="w-16 text-right font-mono font-semibold text-slate-800">{(d.currWeight * 100).toFixed(1)}%</div>
-                <div className={`w-16 text-right font-mono font-bold ${d.deltaWeight > 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
-                  {d.deltaWeight > 0 ? '+' : ''}{(d.deltaWeight * 100).toFixed(1)}%
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -1573,6 +1401,208 @@ function RegimeAttributionPanel() {
   );
 }
 
+// ─── Research backtest persistence panel ──────────────────────────────────────
+
+function pctPlain(v: number | null | undefined, decimals = 0) {
+  return typeof v === 'number' ? `${(v * 100).toFixed(decimals)}%` : '—';
+}
+
+function pctSigned(v: number | null | undefined, decimals = 1) {
+  return typeof v === 'number' ? pct(v, decimals) : '—';
+}
+
+function runStatusLabel(payload: ResearchBacktestPayload | null) {
+  if (!payload) return 'Loading';
+  if (payload.latestForCurrentConfig) return 'Current';
+  if (payload.latestAnyConfig) return 'Stale';
+  return 'Missing';
+}
+
+function sortResearchRows(rows: ResearchBacktestSummaryRow[]) {
+  return [...rows].sort((a, b) => {
+    const aScore = (a.bestHitRate ?? -1) * 100 + (a.bestMedianSignedReturn ?? -1);
+    const bScore = (b.bestHitRate ?? -1) * 100 + (b.bestMedianSignedReturn ?? -1);
+    return bScore - aScore;
+  });
+}
+
+function ResearchBacktestPanel() {
+  const [payload, setPayload] = useState<ResearchBacktestPayload | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/dashboard/macro-engine/research-backtest');
+      const body = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`);
+      setPayload(body as ResearchBacktestPayload);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const runBacktest = useCallback(async () => {
+    setRunning(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/dashboard/macro-engine/research-backtest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          startDate: '2004-01-01',
+          endDate: new Date().toISOString().slice(0, 10),
+        }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`);
+      setPayload(body as ResearchBacktestPayload);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRunning(false);
+    }
+  }, []);
+
+  if (loading) return <div className="text-sm text-slate-400 py-4">Loading saved research backtest...</div>;
+
+  const currentRun = payload?.latestForCurrentConfig ?? null;
+  const staleRun = !currentRun ? (payload?.latestAnyConfig ?? null) : null;
+  const visibleRun = currentRun ?? staleRun;
+  const rows = sortResearchRows(visibleRun?.summary ?? []);
+  const status = runStatusLabel(payload);
+  const statusClass = currentRun
+    ? 'bg-emerald-100 text-emerald-700'
+    : staleRun
+      ? 'bg-amber-100 text-amber-700'
+      : 'bg-slate-100 text-slate-500';
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold ${statusClass}`}>
+              {status}
+            </span>
+            {payload && (
+              <code className="rounded bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">
+                config {payload.currentConfigHash.slice(0, 12)}
+              </code>
+            )}
+            {visibleRun && (
+              <code className="rounded bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">
+                run {visibleRun.id.slice(0, 8)}
+              </code>
+            )}
+          </div>
+          <div className="text-[11px] text-slate-500">
+            {currentRun && (
+              <>
+                Saved {fmtDate(currentRun.runAt.slice(0, 10))} · {currentRun.startDate} to {currentRun.endDate} ·
+                {' '}{currentRun.pairIds.length} pairs · horizons {currentRun.horizons.join('/')}d
+              </>
+            )}
+            {staleRun && (
+              <>
+                Latest saved run is for config {staleRun.configHash.slice(0, 12)} · rerun to match current code/config.
+              </>
+            )}
+            {!visibleRun && 'No saved research run yet. Run it from the dev server so Prisma can read the price history.'}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={load}
+            disabled={running}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          <button
+            type="button"
+            onClick={runBacktest}
+            disabled={running}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${running ? 'animate-spin' : ''}`} />
+            {running ? 'Running...' : 'Run 20Y Backtest'}
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="flex items-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">
+          <AlertCircle className="h-3.5 w-3.5" />
+          {error}
+        </div>
+      )}
+
+      {visibleRun ? (
+        <div className="overflow-x-auto rounded-xl border border-slate-100">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-400">
+              <tr>
+                <th className="px-3 py-2 font-semibold">Pair</th>
+                <th className="px-3 py-2 font-semibold">Signal</th>
+                <th className="px-3 py-2 text-right font-semibold">Events</th>
+                <th className="px-3 py-2 text-right font-semibold">Best Horizon</th>
+                <th className="px-3 py-2 text-right font-semibold">Hit</th>
+                <th className="px-3 py-2 text-right font-semibold">Median</th>
+                <th className="px-3 py-2 text-right font-semibold">Longest Sample</th>
+                <th className="px-3 py-2 text-right font-semibold">Worst Path</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {rows.map((row) => {
+                const longest = row.longestHorizon;
+                return (
+                  <tr key={row.pairId} className="hover:bg-slate-50/70">
+                    <td className="px-3 py-2">
+                      <div className="font-semibold text-slate-800">{row.label}</div>
+                      <div className="font-mono text-[10px] text-slate-400">{row.numerator} / {row.denominator}</div>
+                    </td>
+                    <td className="px-3 py-2 text-slate-500">
+                      {row.mode === 'mean_reversion' ? 'Mean reversion' : 'Trend continuation'}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-slate-600">{row.events}</td>
+                    <td className="px-3 py-2 text-right font-mono text-slate-600">
+                      {row.bestHorizonDays ? `${row.bestHorizonDays}d` : '—'}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-slate-700">{pctPlain(row.bestHitRate)}</td>
+                    <td className={`px-3 py-2 text-right font-mono font-semibold ${colorClass(row.bestMedianSignedReturn ?? 0, 0.001)}`}>
+                      {pctSigned(row.bestMedianSignedReturn)}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-slate-500">
+                      {longest ? `${longest.horizonDays}d / ${longest.sampleSize}` : '—'}
+                    </td>
+                    <td className={`px-3 py-2 text-right font-mono ${colorClass(longest?.worstAdverseMove ?? 0, 0.001)}`}>
+                      {pctSigned(longest?.worstAdverseMove)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+          No saved pair evidence yet.
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Back link ─────────────────────────────────────────────────────────────────
 
 const BackLink = () => (
@@ -1809,6 +1839,19 @@ export default function MacroEnginePage() {
         </CardContent>
       </Card>
 
+      {/* ── Panel: Research Backtest Evidence ───────────────────────────── */}
+      <Card hover={false}>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold">Research Backtest Evidence</CardTitle>
+          <CardDescription className="text-[11px]">
+            Saved 20-year pair tests across liquid ETFs and equities · Auto-loads the current config hash, rerun after code or universe changes
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ResearchBacktestPanel />
+        </CardContent>
+      </Card>
+
       {/* ── Panel: Allocation Signals ─────────────────────────────────────── */}
       <Card hover={false}>
         <CardHeader>
@@ -1926,19 +1969,6 @@ export default function MacroEnginePage() {
         </CardHeader>
         <CardContent>
           <TodaysTradesCard />
-        </CardContent>
-      </Card>
-
-      {/* ── Panel: Conviction-weighted recommendation (Chunk 12) ─────────── */}
-      <Card hover={false}>
-        <CardHeader>
-          <CardTitle className="text-sm font-semibold">Recommended Basket · Conviction-Weighted</CardTitle>
-          <CardDescription className="text-[11px]">
-            Rank-proportional sizing with sector/country caps · Backtest validated equal-weighted, this card is a forward-looking display overlay
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ConvictionRecommendationCard />
         </CardContent>
       </Card>
 

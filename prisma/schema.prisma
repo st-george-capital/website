@@ -797,6 +797,25 @@ model BacktestMetric {
   @@map("backtest_metrics")
 }
 
+model ResearchBacktestRun {
+  id            String   @id @default(cuid())
+  runAt         DateTime @default(now())
+  configHash    String
+  engineVersion String
+  startDate     String
+  endDate       String
+  horizons      Int[]
+  pairIds       String[]
+  result        Json
+  summary       Json
+  status        String   @default("success")
+  error         String?
+  createdAt     DateTime @default(now())
+
+  @@index([configHash, runAt])
+  @@map("research_backtest_runs")
+}
+
 model AllocationSignal {
   id                String   @id @default(cuid())
   runDate           DateTime

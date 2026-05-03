@@ -20,10 +20,18 @@ const WB_BASE = 'https://api.worldbank.org/v2';
 const MRV = 15;
 
 /** Extra World Bank series needed for composites */
-const EXTRA_WB_CODES = ['BX.GSR.NFSV.CD', 'NY.GDP.MKTP.CD', 'NY.GDP.PCAP.KD', 'FS.AST.PRVT.GD.ZS'];
+const EXTRA_WB_CODES = [
+  'BX.GSR.NFSV.CD',
+  'NY.GDP.MKTP.CD',
+  'NY.GDP.PCAP.KD',
+  'FS.AST.PRVT.GD.ZS',
+  'FI.RES.TOTL.CD',
+  'FI.RES.XGLD.CD',
+  'MS.MIL.XPND.GD.ZS',
+];
 
 function uniqueCodesForDefs(defs: VariableDef[]): string[] {
-  return [...new Set(defs.map(v => v.code))];
+  return [...new Set(defs.map(v => v.code).filter(code => !code.startsWith('__')))];
 }
 
 function allCodesToFetch(): string[] {
@@ -95,6 +103,60 @@ function injectCompositeServicesExportsPct(seriesByCode: SeriesByCode, countryCo
   seriesByCode.set('__SVC_EXP_PCT_GDP', m);
 }
 
+/** (total reserves including gold - reserves excluding gold) / total reserves × 100 */
+function injectCompositeGoldReserveShare(seriesByCode: SeriesByCode, countryCodes: string[]) {
+  const total = seriesByCode.get('FI.RES.TOTL.CD');
+  const exGold = seriesByCode.get('FI.RES.XGLD.CD');
+  if (!total || !exGold) return;
+  const out = new Map<string, { date: string; value: number }[]>();
+
+  for (const c of countryCodes) {
+    const totalSeries = total.get(c);
+    const exGoldSeries = exGold.get(c);
+    if (!totalSeries || !exGoldSeries) continue;
+
+    const exGoldByYear = new Map(exGoldSeries.map(p => [p.date, p.value]));
+    const rows = totalSeries
+      .map(p => {
+        const xg = exGoldByYear.get(p.date);
+        if (xg == null || p.value <= 0) return null;
+        return { date: p.date, value: ((p.value - xg) / p.value) * 100 };
+      })
+      .filter((p): p is { date: string; value: number } => p !== null && Number.isFinite(p.value));
+
+    if (rows.length > 0) out.set(c, rows);
+  }
+
+  seriesByCode.set('__GOLD_RESERVE_SHARE', out);
+}
+
+/** Military spend (% GDP) divided by gross capital formation (% GDP). */
+function injectCompositeMilitaryCapexRatio(seriesByCode: SeriesByCode, countryCodes: string[]) {
+  const military = seriesByCode.get('MS.MIL.XPND.GD.ZS');
+  const capital = seriesByCode.get('NE.GDI.TOTL.ZS');
+  if (!military || !capital) return;
+  const out = new Map<string, { date: string; value: number }[]>();
+
+  for (const c of countryCodes) {
+    const milSeries = military.get(c);
+    const capSeries = capital.get(c);
+    if (!milSeries || !capSeries) continue;
+
+    const capByYear = new Map(capSeries.map(p => [p.date, p.value]));
+    const rows = milSeries
+      .map(p => {
+        const cap = capByYear.get(p.date);
+        if (cap == null || cap <= 0) return null;
+        return { date: p.date, value: p.value / cap };
+      })
+      .filter((p): p is { date: string; value: number } => p !== null && Number.isFinite(p.value));
+
+    if (rows.length > 0) out.set(c, rows);
+  }
+
+  seriesByCode.set('__MILITARY_CAPEX_RATIO', out);
+}
+
 function injectPopulation(rows: RawVariableRow[], populations: Record<string, number>) {
   for (const row of rows) {
     row.population = populations[row.country] ?? null;
@@ -115,6 +177,8 @@ export async function fetchWorldBankRows(): Promise<RawVariableRow[]> {
   ]);
 
   injectCompositeServicesExportsPct(seriesByCode, fetchIds);
+  injectCompositeGoldReserveShare(seriesByCode, fetchIds);
+  injectCompositeMilitaryCapexRatio(seriesByCode, fetchIds);
 
   const rawRows = buildRawRows(seriesByCode, fetchIds, 'latest', VARIABLES);
   injectPopulation(rawRows, populations);
