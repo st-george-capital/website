@@ -591,6 +591,82 @@ model MarketingAsset {
   @@index([campaignId, platform, ordering])
 }
 
+model PriceHistory {
+  id        String   @id @default(cuid())
+  ticker    String   // Holding.apiTicker || Holding.ticker, or "URTH" for the benchmark proxy
+  date      DateTime
+  open      Float
+  high      Float
+  low       Float
+  close     Float
+  volume    Float?
+  source    String   // "polygon" | "alpha_vantage"
+  createdAt DateTime @default(now())
+
+  @@unique([ticker, date])
+  @@index([ticker])
+}
+
+model FactorExposure {
+  id           String   @id @default(cuid())
+  ticker       String
+  asOfDate     DateTime
+  value        Float?
+  growth       Float?
+  momentum     Float?
+  quality      Float?
+  volatility   Float?   // inverted realized vol: higher score = lower vol = more "low-vol tilt"
+  size         Float?
+  rawInputs    Json     // raw fundamentals/returns used, for auditability
+  dataComplete Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@unique([ticker, asOfDate])
+  @@index([ticker])
+}
+
+model OptimizationConstraintSet {
+  id                      String   @id @default(cuid())
+  name                    String
+  isActive                Boolean  @default(true)
+  sectorLimits            Json     // { "Technology": {min: 0, max: 0.30}, ... }
+  regionLimits            Json     // { "US": {min: 0.55, max: 0.60}, ... } — encodes the ~57.5% US target (~12.5pt underweight vs MSCI World's ~70%)
+  factorTilts             Json     // { "quality": {target: 0.3}, "volatility": {target: 0.3}, ... }
+  maxSinglePositionWeight Float    @default(0.15)
+  turnoverLimit           Float?
+  cvarConfidence          Float    @default(0.95)
+  cvarHorizonDays         Int      @default(20)
+  createdBy               String
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  runs SavedOptimizationRun[]
+}
+
+model SavedOptimizationRun {
+  id                String   @id @default(cuid())
+  constraintSetId   String
+  constraintSet     OptimizationConstraintSet @relation(fields: [constraintSetId], references: [id])
+  status            String   @default("completed") // "completed" | "failed" | "infeasible"
+  asOfDate          DateTime @default(now())
+  universe          Json     // tickers + current weights snapshot at run time
+  targetWeights     Json     // { ticker: weight }
+  expectedCVaR      Float
+  expectedReturn    Float?
+  benchmarkCVaR     Float?   // URTH CVaR over same scenarios
+  factorExposures   Json     // portfolio-level realized factor tilts vs benchmark
+  sectorWeights     Json
+  regionWeights     Json
+  suggestedTrades   Json     // [{ticker, action, currentShares, targetShares, deltaShares, deltaDollars, rationale}]
+  stressTestResults Json?
+  diagnostics       Json?    // solver status, warnings, infeasibility notes
+  runBy             String   // userId
+  notes             String?  @db.Text
+  createdAt         DateTime @default(now())
+
+  @@index([constraintSetId, createdAt])
+}
+
 model SavedDCFModel {
   id                    String   @id @default(cuid())
   ticker                String
