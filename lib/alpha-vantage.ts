@@ -330,6 +330,49 @@ export async function fetchAlphaVantageDailyHistory(
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+export interface DailyOHLC {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+// Additive sibling of fetchAlphaVantageDailyHistory: TIME_SERIES_DAILY's raw payload
+// already carries open/high/low/volume alongside close, just unmapped by the close-only
+// helper above. Used by lib/market-data/price-history.ts as the Alpha Vantage fallback
+// path for PriceHistory backfill (Polygon is tried first).
+export async function fetchAlphaVantageFullOHLC(
+  ticker: string,
+  outputSize: 'compact' | 'full' = 'compact'
+): Promise<DailyOHLC[]> {
+  const data = await fetchAlphaVantage({
+    function: 'TIME_SERIES_DAILY',
+    symbol: ticker,
+    outputsize: outputSize,
+  });
+
+  const timeSeries = data['Time Series (Daily)'];
+  if (!timeSeries) {
+    throw new Error(`No daily data for ${ticker}`);
+  }
+
+  return Object.entries(timeSeries)
+    .map(([date, values]: [string, unknown]) => {
+      const v = values as Record<string, string>;
+      return {
+        date,
+        open: parseFloat(v['1. open']),
+        high: parseFloat(v['2. high']),
+        low: parseFloat(v['3. low']),
+        close: parseFloat(v['4. close']),
+        volume: parseFloat(v['5. volume']),
+      };
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export async function fetchAlphaVantageSymbolSearch(query: string): Promise<AlphaVantageSymbolMatch[]> {
   const data = await fetchAlphaVantage({
     function: 'SYMBOL_SEARCH',

@@ -23,6 +23,7 @@ import { formatCurrency, formatPercent } from '@/lib/utils';
 import { TradeModal } from '@/components/portfolio/TradeModal';
 import { TradeHistory } from '@/components/portfolio/TradeHistory';
 import { PortfolioChart } from '@/components/portfolio/PortfolioChart';
+import { ReweightModelSection } from '@/components/portfolio/ReweightModelSection';
 
 interface EnrichedHolding {
   id: string;
@@ -676,6 +677,8 @@ export default function HoldingsPage() {
             )}
           </CardContent>
         </Card>
+
+        <ReweightModelSection />
 
         <Card hover={false}>
           <CardHeader>

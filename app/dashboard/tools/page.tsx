@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { Brain, Calculator, BarChart3, FileText, GitBranch, Globe, MessageSquareText, Sparkles, TrendingUp } from 'lucide-react';
+import { Brain, Calculator, BarChart3, FileText, GitBranch, Globe, MessageSquareText, Sparkles, TrendingUp, ShieldAlert } from 'lucide-react';
 
 const tools = [
   {
@@ -87,6 +87,20 @@ const tools = [
       'Bullish vs bearish drivers',
       'Recent article trend view',
       'Price-context divergence check',
+    ],
+  },
+  {
+    id: 'cvar-optimizer',
+    name: 'CVaR Portfolio Optimizer',
+    description: 'Baseline late-cycle regime tilt: CVaR-minimizing optimization over fund holdings with sector, region, and factor constraints',
+    href: '/dashboard/tools/cvar-optimizer',
+    icon: ShieldAlert,
+    features: [
+      'Rockafellar-Uryasev CVaR minimization',
+      'Sector, region & factor-tilt constraints',
+      'Quality / low-Vol factor scoring',
+      'Historical stress tests vs URTH',
+      'Recommendation-only suggested trades',
     ],
   },
   {
