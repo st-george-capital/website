@@ -182,9 +182,9 @@ export async function POST(request: NextRequest) {
     }));
 
     const constraintSet: ConstraintSetInput = {
-      sectorLimits: constraintSetRow.sectorLimits as ConstraintSetInput['sectorLimits'],
-      regionLimits: constraintSetRow.regionLimits as ConstraintSetInput['regionLimits'],
-      factorTilts: constraintSetRow.factorTilts as ConstraintSetInput['factorTilts'],
+      sectorLimits: constraintSetRow.sectorLimits as unknown as ConstraintSetInput['sectorLimits'],
+      regionLimits: constraintSetRow.regionLimits as unknown as ConstraintSetInput['regionLimits'],
+      factorTilts: constraintSetRow.factorTilts as unknown as ConstraintSetInput['factorTilts'],
       maxSinglePositionWeight: constraintSetRow.maxSinglePositionWeight,
       turnoverLimit: constraintSetRow.turnoverLimit,
       cvarConfidence: constraintSetRow.cvarConfidence,

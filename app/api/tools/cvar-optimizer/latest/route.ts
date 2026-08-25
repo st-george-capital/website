@@ -81,7 +81,7 @@ export async function GET() {
       region: h.region,
     }));
 
-    const targetWeights = latestRun.targetWeights as Record<string, number>;
+    const targetWeights = latestRun.targetWeights as unknown as Record<string, number>;
     const liveSuggestedTrades = computeSuggestedTrades(targetWeights, currentHoldingsInfo, portfolioValue, priceMap);
 
     return NextResponse.json({
