@@ -18,6 +18,9 @@ import {
   XCircle,
   FileText,
   Info,
+  FlaskConical,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import {
   WeightComparisonChart,
@@ -108,7 +111,30 @@ interface FactorExposureRow {
   dataComplete: boolean;
 }
 
-type Tab = 'overview' | 'constraints' | 'run' | 'results';
+type Tab = 'overview' | 'constraints' | 'run' | 'results' | 'sandbox';
+
+interface SandboxTickerRow {
+  ticker: string;
+  shares: number;
+  sector: string | null;
+  region: string | null;
+}
+
+interface SandboxRun {
+  id: string;
+  label: string;
+  status: string;
+  tickers: SandboxTickerRow[];
+  targetWeights: Record<string, number>;
+  expectedCVaR: number | null;
+  benchmarkCVaR: number | null;
+  factorExposures: Record<string, number | null> | null;
+  sectorWeights: Record<string, number> | null;
+  regionWeights: Record<string, number> | null;
+  stressTestResults: StressTestResult[] | null;
+  diagnostics: { warnings?: string[]; message?: string } | null;
+  createdAt: string;
+}
 
 const FACTOR_LABELS: Record<string, string> = {
   value: 'Value', growth: 'Growth', momentum: 'Momentum', quality: 'Quality', volatility: 'Low-Vol', size: 'Size',
@@ -278,6 +304,7 @@ export default function CVaROptimizerPage() {
     { id: 'constraints', label: 'Constraints', icon: Settings2 },
     { id: 'run', label: 'Run Optimization', icon: Play },
     { id: 'results', label: 'Results', icon: LineChartIcon },
+    { id: 'sandbox', label: 'Sandbox', icon: FlaskConical },
   ];
 
   return (
@@ -479,11 +506,49 @@ export default function CVaROptimizerPage() {
           currentHoldings={portfolio?.holdings ?? []}
         />
       )}
+
+      {/* ── Sandbox tab ───────────────────────────────────────────────────── */}
+      {activeTab === 'sandbox' && <SandboxTab constraintSets={constraintSets} />}
     </div>
   );
 }
 
 // ─── Constraints tab ────────────────────────────────────────────────────────────
+
+// Mirrors scripts/seed-cvar-constraint-set.js exactly — the "Late-Cycle Defensive
+// Baseline" set (~57.5% US target, defensive sector floors, Quality/low-Vol factor
+// floors). Kept in sync manually; the script remains the source of truth for anyone
+// seeding via a direct DB connection instead of the UI.
+const BASELINE_CONSTRAINT_SET = {
+  name: 'Late-Cycle Defensive Baseline',
+  isActive: true,
+  regionLimits: {
+    US: { min: 0.55, max: 0.60 },
+    Europe: { min: 0.20, max: 0.30 },
+    Japan: { min: 0.05, max: 0.15 },
+    APAC_Other: { min: 0, max: 0.10 },
+  },
+  sectorLimits: {
+    'Consumer Staples': { min: 0.10, max: 0.30 },
+    'Utilities': { min: 0.05, max: 0.20 },
+    'Health Care': { min: 0.10, max: 0.30 },
+    'Information Technology': { min: 0, max: 0.30 },
+    'Financials': { min: 0, max: 0.25 },
+    'Energy': { min: 0, max: 0.15 },
+    'Industrials': { min: 0, max: 0.20 },
+    'Materials': { min: 0, max: 0.15 },
+    'Consumer Discretionary': { min: 0, max: 0.20 },
+    'Communication Services': { min: 0, max: 0.15 },
+  },
+  factorTilts: {
+    quality: { target: 0.25 },
+    volatility: { target: 0.25 },
+  },
+  maxSinglePositionWeight: 0.15,
+  turnoverLimit: null,
+  cvarConfidence: 0.95,
+  cvarHorizonDays: 20,
+};
 
 function ConstraintsTab({
   constraintSets,
@@ -497,7 +562,32 @@ function ConstraintsTab({
   onRefresh: () => void;
 }) {
   const [saving, setSaving] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+  const [seedError, setSeedError] = useState<string | null>(null);
   const active = constraintSets.find((c) => c.isActive) ?? constraintSets[0] ?? null;
+
+  const handleSeedBaseline = async () => {
+    setSeeding(true);
+    setSeedError(null);
+    try {
+      const res = await fetch('/api/tools/cvar-optimizer/constraints', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(BASELINE_CONSTRAINT_SET),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSeedError(data.error || 'Failed to seed baseline constraint set.');
+      } else {
+        onRefresh();
+      }
+    } catch (e) {
+      setSeedError('Request failed.');
+      console.error(e);
+    } finally {
+      setSeeding(false);
+    }
+  };
 
   const [maxPos, setMaxPos] = useState(active?.maxSinglePositionWeight ?? 0.15);
   const [confidence, setConfidence] = useState(active?.cvarConfidence ?? 0.95);
@@ -540,10 +630,31 @@ function ConstraintsTab({
   if (!active) {
     return (
       <Card>
-        <CardContent className="py-8 text-center">
+        <CardContent className="py-8 text-center space-y-4">
           <p className="text-sm text-muted-foreground">
-            No constraint sets found. Run <code className="px-1 py-0.5 bg-gray-100 rounded">scripts/seed-cvar-constraint-set.js</code> to seed the baseline &quot;Late-Cycle Defensive Baseline&quot; set.
+            No constraint sets found yet.
           </p>
+          {isAdmin ? (
+            <>
+              <Button size="sm" onClick={handleSeedBaseline} disabled={seeding}>
+                {seeding ? 'Seeding...' : 'Seed Baseline Constraint Set'}
+              </Button>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                Creates the &quot;Late-Cycle Defensive Baseline&quot; set (~57.5% US target, defensive sector
+                floors, Quality/low-Vol factor floors) — the same values as{' '}
+                <code className="px-1 py-0.5 bg-gray-100 rounded">scripts/seed-cvar-constraint-set.js</code>,
+                for anyone who only has UI access and not a direct database connection.
+              </p>
+              {seedError && (
+                <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 max-w-md mx-auto text-left">
+                  <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span>{seedError}</span>
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">Ask an admin to seed a baseline constraint set.</p>
+          )}
         </CardContent>
       </Card>
     );
@@ -854,6 +965,278 @@ function ResultsTab({
           </Button>
         </Link>
       </div>
+    </div>
+  );
+}
+
+// ─── Sandbox tab ────────────────────────────────────────────────────────────────
+//
+// Runs the same CVaR/factor/stress-test pipeline against a user-typed, ad-hoc ticker
+// list — no dependency on real fund Holding records. Results are saved as
+// SavedSandboxRun, a model kept entirely separate from SavedOptimizationRun so a
+// sandbox test can never be mistaken for a real recommendation, and is never used as
+// input to the regime-thesis report (that report's fund-portfolio sections require a
+// real run against actual holdings — see plan Section 8, Sections 8-9 of the report).
+
+const EMPTY_ROW: SandboxTickerRow = { ticker: '', shares: 0, sector: null, region: null };
+
+const COMMON_SECTORS = [
+  'Information Technology', 'Health Care', 'Financials', 'Consumer Staples',
+  'Consumer Discretionary', 'Industrials', 'Energy', 'Utilities', 'Materials',
+  'Communication Services', 'Real Estate',
+];
+const COMMON_REGIONS = ['US', 'Europe', 'Japan', 'APAC_Other'];
+
+function SandboxTab({ constraintSets }: { constraintSets: ConstraintSet[] }) {
+  const [label, setLabel] = useState('');
+  const [rows, setRows] = useState<SandboxTickerRow[]>([{ ...EMPTY_ROW }, { ...EMPTY_ROW }, { ...EMPTY_ROW }]);
+  const [selectedConstraintSetId, setSelectedConstraintSetId] = useState<string>('');
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<SandboxRun | null>(null);
+
+  const updateRow = (index: number, patch: Partial<SandboxTickerRow>) => {
+    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+  };
+  const addRow = () => setRows((prev) => [...prev, { ...EMPTY_ROW }]);
+  const removeRow = (index: number) => setRows((prev) => prev.filter((_, i) => i !== index));
+
+  const handleRun = async () => {
+    setRunning(true);
+    setError(null);
+    setResult(null);
+    try {
+      const res = await fetch('/api/tools/cvar-optimizer/sandbox/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          label: label || undefined,
+          tickers: rows,
+          constraintSetId: selectedConstraintSetId || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Sandbox run failed.');
+      } else if (data.status !== 'completed') {
+        setError(data.diagnostics?.message || `Run finished with status "${data.status}".`);
+        setResult(data);
+      } else {
+        setResult(data);
+      }
+    } catch (e) {
+      setError('Sandbox run request failed.');
+      console.error(e);
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const weightComparison = result
+    ? Object.entries(result.targetWeights).map(([ticker, target]) => ({ ticker, current: 0, target }))
+    : [];
+  const factorComparisonData = result
+    ? Object.entries(FACTOR_LABELS).map(([key, lbl]) => ({ factor: lbl, portfolio: result.factorExposures?.[key] ?? null }))
+    : [];
+  const stressChartData = (result?.stressTestResults ?? []).map((st) => ({
+    label: st.window.label, portfolio: st.portfolioReturn, benchmark: st.benchmarkReturn,
+  }));
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+        <FlaskConical className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+        <p className="text-sm text-blue-900">
+          Test the model against any tickers you choose — not the fund&apos;s real holdings. Results are saved
+          separately as scratch runs and are never used as fund recommendations or fed into the methodology report.
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Custom Portfolio</CardTitle>
+          <CardDescription>Enter tickers and share counts, optionally with sector/region for constraint checking.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase block mb-1">Label (optional)</label>
+            <input
+              type="text"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="e.g. Test basket A"
+              className="w-full sm:w-80 rounded-md border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-muted-foreground uppercase border-b">
+                  <th className="py-2 pr-3">Ticker</th>
+                  <th className="py-2 pr-3">Shares</th>
+                  <th className="py-2 pr-3">Sector (optional)</th>
+                  <th className="py-2 pr-3">Region (optional)</th>
+                  <th className="py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, i) => (
+                  <tr key={i} className="border-b border-gray-100">
+                    <td className="py-2 pr-3">
+                      <input
+                        type="text"
+                        value={row.ticker}
+                        onChange={(e) => updateRow(i, { ticker: e.target.value.toUpperCase() })}
+                        placeholder="AAPL"
+                        className="w-24 rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                      />
+                    </td>
+                    <td className="py-2 pr-3">
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={row.shares || ''}
+                        onChange={(e) => updateRow(i, { shares: parseFloat(e.target.value) || 0 })}
+                        placeholder="100"
+                        className="w-24 rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                      />
+                    </td>
+                    <td className="py-2 pr-3">
+                      <select
+                        value={row.sector ?? ''}
+                        onChange={(e) => updateRow(i, { sector: e.target.value || null })}
+                        className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                      >
+                        <option value="">—</option>
+                        {COMMON_SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </td>
+                    <td className="py-2 pr-3">
+                      <select
+                        value={row.region ?? ''}
+                        onChange={(e) => updateRow(i, { region: e.target.value || null })}
+                        className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                      >
+                        <option value="">—</option>
+                        {COMMON_REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                    </td>
+                    <td className="py-2">
+                      <button onClick={() => removeRow(i)} className="text-gray-400 hover:text-red-600" aria-label="Remove row">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <Button size="sm" variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-100" onClick={addRow}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add ticker
+          </Button>
+
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase block mb-1">Constraint set (optional)</label>
+            <select
+              value={selectedConstraintSetId}
+              onChange={(e) => setSelectedConstraintSetId(e.target.value)}
+              className="w-full sm:w-80 rounded-md border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="">Use loose defaults (no saved constraint set)</option>
+              {constraintSets.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}{c.isActive ? ' (active)' : ''}</option>
+              ))}
+            </select>
+          </div>
+
+          <Button onClick={handleRun} disabled={running}>
+            <Play className="w-4 h-4 mr-2" />
+            {running ? 'Running (fetches price history + runs the optimizer — can take a minute)...' : 'Run Sandbox Optimization'}
+          </Button>
+
+          {error && (
+            <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+              <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {result && result.status === 'completed' && (
+        <div className="space-y-6">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase mb-1">Portfolio</p>
+                  <p className="text-sm font-semibold">{result.label}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase mb-1">Status</p>
+                  <Badge variant="default">{result.status}</Badge>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase mb-1">Expected CVaR</p>
+                  <p className="text-sm font-semibold">{result.expectedCVaR !== null ? pct(result.expectedCVaR, 2) : '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase mb-1">Benchmark (URTH) CVaR</p>
+                  <p className="text-sm font-semibold">{result.benchmarkCVaR !== null ? pct(result.benchmarkCVaR, 2) : '—'}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Model-Optimal Weights</CardTitle>
+              <CardDescription>&quot;Current&quot; shown as 0% — sandbox portfolios have no live fund weight to compare against.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <WeightComparisonChart data={weightComparison} />
+            </CardContent>
+          </Card>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader><CardTitle>Factor Exposure</CardTitle></CardHeader>
+              <CardContent><FactorExposureChart data={factorComparisonData} /></CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle>CVaR Comparison</CardTitle></CardHeader>
+              <CardContent><CVaRComparisonChart portfolioCVaR={result.expectedCVaR} benchmarkCVaR={result.benchmarkCVaR} /></CardContent>
+            </Card>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader><CardTitle>Sector Allocation</CardTitle></CardHeader>
+              <CardContent><AllocationPieChart data={result.sectorWeights ?? {}} title="Sector" /></CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle>Region Allocation</CardTitle></CardHeader>
+              <CardContent><AllocationPieChart data={result.regionWeights ?? {}} title="Region" /></CardContent>
+            </Card>
+          </div>
+
+          {result.stressTestResults && result.stressTestResults.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Stress Test Results</CardTitle>
+                <CardDescription>Sandbox portfolio vs URTH, realized return over historical crisis windows.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <StressTestChart data={stressChartData} />
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
     </div>
   );
 }

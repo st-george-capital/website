@@ -931,3 +931,30 @@ model SavedOptimizationRun {
 
   @@index([constraintSetId, createdAt])
 }
+
+// Sandbox/scratch runs against a user-typed, ad-hoc list of tickers — NOT the fund's real
+// holdings, NOT tied to any Holding/Transaction record, and never used as the source for
+// the regime-thesis report's fund-portfolio sections (those require a real SavedOptimizationRun
+// against actual Holding rows). Exists purely so someone can explore "what would the model
+// say about this basket of stocks" without needing real fund positions entered first, and
+// without any risk of a sandbox result being mistaken for an official recommendation.
+model SavedSandboxRun {
+  id                  String   @id @default(cuid())
+  label               String   // user-provided name for this sandbox portfolio, e.g. "Test basket A"
+  tickers             Json     // [{ticker, shares, sector?, region?}] as entered by the user
+  constraintSetId     String?  // optional — sandbox runs can reference a real constraint set or use inline overrides
+  constraintOverrides Json?    // inline constraint values if not using a saved constraint set
+  status              String   @default("completed") // "completed" | "failed" | "infeasible"
+  targetWeights       Json
+  expectedCVaR        Float?
+  benchmarkCVaR       Float?
+  factorExposures     Json?
+  sectorWeights       Json?
+  regionWeights       Json?
+  stressTestResults   Json?
+  diagnostics         Json?
+  runBy               String   // userId
+  createdAt           DateTime @default(now())
+
+  @@index([runBy, createdAt])
+}
