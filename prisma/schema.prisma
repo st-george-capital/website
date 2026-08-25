@@ -958,3 +958,27 @@ model SavedSandboxRun {
 
   @@index([runBy, createdAt])
 }
+
+// Persisted results from a real run of the diverse MSCI World validation basket
+// (lib/quant/validation-basket.ts) — this is the actual empirical evidence the
+// regime-thesis report's Section 7 ("Validation Basket Results") pulls from once a real
+// run has happened. Distinct from SavedSandboxRun (user-typed ad-hoc tickers) and
+// SavedOptimizationRun (the fund's real holdings) — this one specific basket is fixed and
+// versioned by run, so the report can always point at "the most recent completed run of
+// THE validation basket," not an arbitrary sandbox test.
+model SavedValidationBasketRun {
+  id                String   @id @default(cuid())
+  status            String   @default("completed") // "completed" | "failed" | "infeasible"
+  tickerCount       Int
+  targetWeights     Json
+  expectedCVaR      Float?
+  sectorWeights     Json?
+  regionWeights     Json?
+  stressTestResults Json?
+  backtestSummary   Json?    // BacktestSummary from lib/quant/stress-test.ts's runWalkForwardBacktest
+  diagnostics       Json?
+  runBy             String   // userId
+  createdAt         DateTime @default(now())
+
+  @@index([createdAt])
+}

@@ -79,7 +79,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(constraintSet, { status: 201 });
   } catch (error) {
     console.error('CVaR optimizer constraints POST error:', error);
-    return NextResponse.json({ error: 'Failed to create constraint set' }, { status: 500 });
+    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: 'Failed to create constraint set', detail: message }, { status: 500 });
   }
 }
 

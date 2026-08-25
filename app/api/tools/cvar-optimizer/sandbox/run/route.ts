@@ -28,7 +28,8 @@ function toJsonValue(value: unknown) {
 
 interface SandboxTickerInput {
   ticker: string;
-  shares: number;
+  shares?: number;
+  weightPct?: number; // alternative to `shares` — percent of a $100 notional portfolio
   sector?: string | null;
   region?: string | null;
 }
@@ -52,18 +53,27 @@ export async function POST(request: NextRequest) {
     const constraintSetId: string | undefined = body?.constraintSetId;
     const inlineConstraints: Partial<ConstraintSetInput> | undefined = body?.constraintOverrides;
 
+    // Accept either an explicit share count or a percent-of-$100-notional weight per
+    // ticker (not both resolved yet — weightPct needs a price, which isn't available
+    // until price history is fetched below, so `shares` stays undefined here for
+    // weightPct-only rows and gets resolved further down).
     const cleaned = tickerInputs
-      .map((t) => ({
-        ticker: String(t.ticker || '').trim().toUpperCase(),
-        shares: Number(t.shares),
-        sector: t.sector ?? null,
-        region: t.region ?? null,
-      }))
-      .filter((t) => t.ticker && Number.isFinite(t.shares) && t.shares > 0);
+      .map((t) => {
+        const shares = Number(t.shares);
+        const weightPct = Number(t.weightPct);
+        return {
+          ticker: String(t.ticker || '').trim().toUpperCase(),
+          shares: Number.isFinite(shares) && shares > 0 ? shares : undefined,
+          weightPct: Number.isFinite(weightPct) && weightPct > 0 ? weightPct : undefined,
+          sector: t.sector ?? null,
+          region: t.region ?? null,
+        };
+      })
+      .filter((t) => t.ticker && (t.shares !== undefined || t.weightPct !== undefined));
 
     if (cleaned.length < 2) {
       return NextResponse.json(
-        { error: 'Enter at least 2 tickers with a positive share count to run a sandbox optimization.' },
+        { error: 'Enter at least 2 tickers with a positive share count or weight % to run a sandbox optimization.' },
         { status: 400 }
       );
     }
@@ -160,9 +170,35 @@ export async function POST(request: NextRequest) {
       const rows = priceHistoryByTicker[ticker];
       if (rows.length > 0) priceMap[ticker] = rows[rows.length - 1].close;
     }
-    const holdingValues = cleaned.map((t) => (priceMap[t.ticker] ?? 0) * t.shares);
+
+    // Resolve weightPct-only rows into shares now that prices are known: "assume you have
+    // $100" — weightPct% of a $100 notional / latest price = implied share count. Rows that
+    // gave an explicit share count instead just keep it.
+    const NOTIONAL = 100;
+    const unresolvable: string[] = [];
+    const resolved = cleaned.map((t) => {
+      if (t.shares !== undefined) return { ...t, shares: t.shares };
+      const price = priceMap[t.ticker];
+      if (!price || price <= 0) {
+        unresolvable.push(t.ticker);
+        return { ...t, shares: 0 };
+      }
+      const dollarAllocation = (t.weightPct! / 100) * NOTIONAL;
+      return { ...t, shares: dollarAllocation / price };
+    });
+
+    if (unresolvable.length > 0) {
+      return NextResponse.json(
+        {
+          error: `Could not resolve a price for ${unresolvable.join(', ')} to convert weight % into shares — price history may have failed to backfill for that ticker.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    const holdingValues = resolved.map((t) => (priceMap[t.ticker] ?? 0) * t.shares);
     const portfolioValue = holdingValues.reduce((sum, v) => sum + v, 0);
-    const universe: HoldingUniverseEntry[] = cleaned.map((t, i) => ({
+    const universe: HoldingUniverseEntry[] = resolved.map((t, i) => ({
       ticker: t.ticker,
       sector: t.sector,
       region: t.region,
@@ -176,7 +212,7 @@ export async function POST(request: NextRequest) {
       const failedRun = await prisma.savedSandboxRun.create({
         data: {
           label,
-          tickers: toJsonValue(cleaned),
+          tickers: toJsonValue(resolved),
           constraintSetId: resolvedConstraintSetId,
           constraintOverrides: constraintSetId ? Prisma.JsonNull : toJsonValue(constraintSet),
           status: result.status === 'infeasible' ? 'infeasible' : 'failed',
@@ -222,7 +258,7 @@ export async function POST(request: NextRequest) {
     const savedRun = await prisma.savedSandboxRun.create({
       data: {
         label,
-        tickers: toJsonValue(cleaned),
+        tickers: toJsonValue(resolved),
         constraintSetId: resolvedConstraintSetId,
         constraintOverrides: constraintSetId ? Prisma.JsonNull : toJsonValue(constraintSet),
         status: 'completed',
@@ -241,7 +277,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(savedRun);
   } catch (error) {
     console.error('CVaR sandbox run error:', error);
-    return NextResponse.json({ error: 'Failed to run sandbox optimization' }, { status: 500 });
+    // Surface the real error message (not just a generic one) — this route has many
+    // possible failure points (missing DB tables if `prisma db push` hasn't actually run
+    // against production, Alpha Vantage/Polygon rate limits, LP solver errors), and a
+    // flat "failed" message with no detail is undiagnosable from the browser alone.
+    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: 'Failed to run sandbox optimization', detail: message }, { status: 500 });
   }
 }
 

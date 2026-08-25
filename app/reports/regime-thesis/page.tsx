@@ -290,6 +290,67 @@ export default async function RegimeThesisReportPage() {
           academic and practitioner literature. NBER recession dates are published and
           maintained publicly at nber.org/research/business-cycle-dating.
         </p>
+        <h3 className="rt-h3">2.5 &nbsp;Quantitative track record of the leading indicators used here</h3>
+        <p className="rt-body">
+          To move beyond a purely qualitative "these indicators are widely used" case, this
+          section states plainly what is and is not quantitatively well-established about
+          each indicator's historical track record, and is explicit about statistical
+          caveats rather than treating a small number of historical episodes as a large
+          sample.
+        </p>
+        <p className="rt-body">
+          <strong>Yield curve inversion — historical hit rate and lag structure.</strong>{' '}
+          Every U.S. recession since the mid-1950s has been preceded by a 10-year/2-year or
+          10-year/3-month Treasury yield curve inversion — a track record commonly cited in
+          Federal Reserve research (e.g. Federal Reserve Bank of San Francisco Economic
+          Letters on the topic) as effectively a perfect historical hit rate over roughly
+          seven to eight recession cycles. This is a genuinely small sample in a statistical
+          sense — n≈7-8 independent events is not enough to estimate a hit rate with tight
+          confidence bounds, and a small number of false positives (inversions not followed
+          by recession within a conventional window) have also been noted in the literature,
+          most prominently discussed around the mid-1960s episode. The lag between inversion
+          and recession onset has historically varied considerably, commonly cited in Fed
+          research as ranging from roughly six months to two years, which is precisely why
+          this report treats the yield curve as a <em>probabilistic, imprecisely-timed</em>{' '}
+          input rather than a trigger with a fixed forecast horizon. The New York Fed
+          maintains a published recession-probability model built on the 10-year/3-month
+          spread (available at newyorkfed.org) that converts the raw spread into an explicit
+          probability estimate using a probit regression against NBER-dated recessions —
+          that published model, not an ad hoc reading of the raw spread, is the more
+          statistically disciplined version of this indicator and is the one this report
+          defers to for calibration.
+        </p>
+        <p className="rt-body">
+          <strong>The Sahm Rule — a formally back-tested, real-time-safe trigger.</strong>{' '}
+          Unlike a qualitative "unemployment is rising" read, the Sahm Rule is a precisely
+          defined, back-tested trigger (three-month moving average of the national
+          unemployment rate rising 0.50 percentage points or more from its low over the
+          trailing twelve months) that Claudia Sahm designed specifically to be
+          real-time-safe — i.e., computable from data available at the time, not requiring
+          later revisions — which is a meaningfully higher statistical bar than many
+          informal recession-timing heuristics clear. It is maintained as a live,
+          continuously updated FRED series (FRED series ID: SAHMREALTIME), which allows
+          direct, mechanical verification against the historical record rather than relying
+          on a qualitative reading. Its historical reliability across post-war recessions is
+          well documented in Sahm's own published work and subsequent Federal Reserve
+          research; this report treats it as corroborating, coincident-to-lagging evidence
+          precisely because — by construction — it fires only after labor-market weakening
+          is already underway, not as an early-warning signal.
+        </p>
+        <p className="rt-body">
+          <strong>Honest statistical framing.</strong> With only ~7-8 U.S. recessions in the
+          post-war sample used to validate these indicators, formal hypothesis testing at
+          conventional confidence levels is not really meaningful — this is a fundamental,
+          irreducible data limitation of macro regime research, not specific to this report.
+          The correct reading of "every recession was preceded by an inversion" is not "this
+          indicator has a statistically estimated 100% hit rate with a tight confidence
+          interval" — it is "this indicator has never yet failed to precede a recession in a
+          small historical sample, with a variable and imprecise lag." This report relies on
+          the weight of multiple correlated-but-distinct indicators (Section 2.1-2.4)
+          precisely because no single one, examined in isolation with statistical rigor,
+          would justify high-confidence market timing on its own.
+        </p>
+
         <p className="rt-body">
           Taken together, this indicator set is the standard toolkit for assessing late-cycle
           risk. This report does not claim algorithmic regime detection from these indicators

@@ -116,8 +116,11 @@ type Tab = 'overview' | 'constraints' | 'run' | 'results' | 'sandbox';
 interface SandboxTickerRow {
   ticker: string;
   shares: number;
+  weightPct: number;
   sector: string | null;
   region: string | null;
+  name: string | null;
+  autofillStatus: 'idle' | 'loading' | 'ok' | 'error';
 }
 
 interface SandboxRun {
@@ -577,7 +580,7 @@ function ConstraintsTab({
       });
       const data = await res.json();
       if (!res.ok) {
-        setSeedError(data.error || 'Failed to seed baseline constraint set.');
+        setSeedError(data.detail ? `${data.error}: ${data.detail}` : data.error || 'Failed to seed baseline constraint set.');
       } else {
         onRefresh();
       }
@@ -978,7 +981,9 @@ function ResultsTab({
 // input to the regime-thesis report (that report's fund-portfolio sections require a
 // real run against actual holdings — see plan Section 8, Sections 8-9 of the report).
 
-const EMPTY_ROW: SandboxTickerRow = { ticker: '', shares: 0, sector: null, region: null };
+const EMPTY_ROW: SandboxTickerRow = {
+  ticker: '', shares: 0, weightPct: 0, sector: null, region: null, name: null, autofillStatus: 'idle',
+};
 
 const COMMON_SECTORS = [
   'Information Technology', 'Health Care', 'Financials', 'Consumer Staples',
@@ -987,9 +992,12 @@ const COMMON_SECTORS = [
 ];
 const COMMON_REGIONS = ['US', 'Europe', 'Japan', 'APAC_Other'];
 
+type WeightMode = 'shares' | 'percent';
+
 function SandboxTab({ constraintSets }: { constraintSets: ConstraintSet[] }) {
   const [label, setLabel] = useState('');
   const [rows, setRows] = useState<SandboxTickerRow[]>([{ ...EMPTY_ROW }, { ...EMPTY_ROW }, { ...EMPTY_ROW }]);
+  const [weightMode, setWeightMode] = useState<WeightMode>('shares');
   const [selectedConstraintSetId, setSelectedConstraintSetId] = useState<string>('');
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1001,23 +1009,63 @@ function SandboxTab({ constraintSets }: { constraintSets: ConstraintSet[] }) {
   const addRow = () => setRows((prev) => [...prev, { ...EMPTY_ROW }]);
   const removeRow = (index: number) => setRows((prev) => prev.filter((_, i) => i !== index));
 
+  // Ticker autofill: on blur of the ticker field, look up company name/sector/region via
+  // Alpha Vantage OVERVIEW (through the sandbox lookup route) and fill in whatever the
+  // row doesn't already have set. Never overwrites a value the user already typed/picked.
+  const handleTickerBlur = async (index: number) => {
+    const row = rows[index];
+    if (!row.ticker || row.autofillStatus === 'loading') return;
+    updateRow(index, { autofillStatus: 'loading' });
+    try {
+      const res = await fetch(`/api/tools/cvar-optimizer/sandbox/lookup?ticker=${encodeURIComponent(row.ticker)}`);
+      const data = await res.json();
+      if (!res.ok) {
+        updateRow(index, { autofillStatus: 'error' });
+        return;
+      }
+      setRows((prev) =>
+        prev.map((r, i) =>
+          i === index
+            ? {
+                ...r,
+                name: r.name ?? data.name,
+                sector: r.sector ?? data.sector,
+                region: r.region ?? data.region,
+                autofillStatus: 'ok',
+              }
+            : r
+        )
+      );
+    } catch (e) {
+      updateRow(index, { autofillStatus: 'error' });
+      console.error(e);
+    }
+  };
+
+  const totalPct = rows.reduce((sum, r) => sum + (r.weightPct || 0), 0);
+
   const handleRun = async () => {
     setRunning(true);
     setError(null);
     setResult(null);
     try {
+      const payloadTickers = rows.map((r) =>
+        weightMode === 'percent'
+          ? { ticker: r.ticker, weightPct: r.weightPct, sector: r.sector, region: r.region }
+          : { ticker: r.ticker, shares: r.shares, sector: r.sector, region: r.region }
+      );
       const res = await fetch('/api/tools/cvar-optimizer/sandbox/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           label: label || undefined,
-          tickers: rows,
+          tickers: payloadTickers,
           constraintSetId: selectedConstraintSetId || undefined,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || 'Sandbox run failed.');
+        setError(data.detail ? `${data.error}: ${data.detail}` : data.error || 'Sandbox run failed.');
       } else if (data.status !== 'completed') {
         setError(data.diagnostics?.message || `Run finished with status "${data.status}".`);
         setResult(data);
@@ -1055,28 +1103,59 @@ function SandboxTab({ constraintSets }: { constraintSets: ConstraintSet[] }) {
       <Card>
         <CardHeader>
           <CardTitle>Custom Portfolio</CardTitle>
-          <CardDescription>Enter tickers and share counts, optionally with sector/region for constraint checking.</CardDescription>
+          <CardDescription>
+            Enter tickers with either exact share counts or target weight % (assumed against a $100 notional
+            portfolio). Sector and region autofill from company data when you leave the ticker field — override
+            anything the lookup gets wrong.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase block mb-1">Label (optional)</label>
-            <input
-              type="text"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder="e.g. Test basket A"
-              className="w-full sm:w-80 rounded-md border border-gray-300 px-3 py-2 text-sm"
-            />
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground uppercase block mb-1">Label (optional)</label>
+              <input
+                type="text"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder="e.g. Test basket A"
+                className="w-full sm:w-80 rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground uppercase block mb-1">Input mode</label>
+              <div className="inline-flex rounded-md border border-gray-300 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setWeightMode('shares')}
+                  className={`px-3 py-2 text-sm ${weightMode === 'shares' ? 'bg-primary text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                >
+                  Shares
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWeightMode('percent')}
+                  className={`px-3 py-2 text-sm border-l border-gray-300 ${weightMode === 'percent' ? 'bg-primary text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                >
+                  Weight % (of $100)
+                </button>
+              </div>
+            </div>
           </div>
+
+          {weightMode === 'percent' && (
+            <p className={`text-xs ${Math.abs(totalPct - 100) < 0.01 ? 'text-emerald-600' : 'text-amber-600'}`}>
+              Total: {totalPct.toFixed(1)}% of $100 notional {Math.abs(totalPct - 100) < 0.01 ? '✓' : '(doesn\'t need to sum to exactly 100 — the optimizer only uses this as a starting weight snapshot)'}
+            </p>
+          )}
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-muted-foreground uppercase border-b">
                   <th className="py-2 pr-3">Ticker</th>
-                  <th className="py-2 pr-3">Shares</th>
-                  <th className="py-2 pr-3">Sector (optional)</th>
-                  <th className="py-2 pr-3">Region (optional)</th>
+                  <th className="py-2 pr-3">{weightMode === 'percent' ? 'Weight %' : 'Shares'}</th>
+                  <th className="py-2 pr-3">Sector</th>
+                  <th className="py-2 pr-3">Region</th>
                   <th className="py-2"></th>
                 </tr>
               </thead>
@@ -1084,24 +1163,43 @@ function SandboxTab({ constraintSets }: { constraintSets: ConstraintSet[] }) {
                 {rows.map((row, i) => (
                   <tr key={i} className="border-b border-gray-100">
                     <td className="py-2 pr-3">
-                      <input
-                        type="text"
-                        value={row.ticker}
-                        onChange={(e) => updateRow(i, { ticker: e.target.value.toUpperCase() })}
-                        placeholder="AAPL"
-                        className="w-24 rounded-md border border-gray-300 px-2 py-1.5 text-sm"
-                      />
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={row.ticker}
+                          onChange={(e) => updateRow(i, { ticker: e.target.value.toUpperCase(), autofillStatus: 'idle' })}
+                          onBlur={() => handleTickerBlur(i)}
+                          placeholder="AAPL"
+                          className="w-24 rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                        />
+                        {row.autofillStatus === 'loading' && <RefreshCw className="w-3.5 h-3.5 text-gray-400 animate-spin flex-shrink-0" />}
+                        {row.autofillStatus === 'ok' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" aria-label={row.name ?? 'Found'} />}
+                        {row.autofillStatus === 'error' && <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" aria-label="Lookup failed — enter sector/region manually" />}
+                      </div>
+                      {row.name && <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[7rem]">{row.name}</p>}
                     </td>
                     <td className="py-2 pr-3">
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={row.shares || ''}
-                        onChange={(e) => updateRow(i, { shares: parseFloat(e.target.value) || 0 })}
-                        placeholder="100"
-                        className="w-24 rounded-md border border-gray-300 px-2 py-1.5 text-sm"
-                      />
+                      {weightMode === 'percent' ? (
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.5"
+                          value={row.weightPct || ''}
+                          onChange={(e) => updateRow(i, { weightPct: parseFloat(e.target.value) || 0 })}
+                          placeholder="10"
+                          className="w-24 rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                        />
+                      ) : (
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={row.shares || ''}
+                          onChange={(e) => updateRow(i, { shares: parseFloat(e.target.value) || 0 })}
+                          placeholder="100"
+                          className="w-24 rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                        />
+                      )}
                     </td>
                     <td className="py-2 pr-3">
                       <select
@@ -1237,6 +1335,179 @@ function SandboxTab({ constraintSets }: { constraintSets: ConstraintSet[] }) {
           )}
         </div>
       )}
+
+      <ValidationBasketSection />
     </div>
+  );
+}
+
+// ─── Validation basket section (within Sandbox tab) ──────────────────────────────
+//
+// The FIXED ~30-ticker diverse MSCI World basket (lib/quant/validation-basket.ts) —
+// distinct from the free-form custom-ticker sandbox above. This is the same basket used
+// as build-time QA and, once run for real, is the actual source for the regime-thesis
+// report's Section 7 ("Validation Basket Results"). Kept as its own admin-triggerable
+// run (not folded into the generic sandbox route) so the report always has one canonical,
+// versioned "latest run of THE validation basket" to point at.
+
+interface ValidationBasketRun {
+  id: string;
+  status: string;
+  tickerCount: number;
+  targetWeights: Record<string, number>;
+  expectedCVaR: number | null;
+  sectorWeights: Record<string, number> | null;
+  regionWeights: Record<string, number> | null;
+  stressTestResults: StressTestResult[] | null;
+  backtestSummary: {
+    periodsRun: number;
+    periodsSkipped: number;
+    cumulativePortfolioReturn: number | null;
+    cumulativeBenchmarkReturn: number | null;
+    maxDrawdownPortfolio: number | null;
+    maxDrawdownBenchmark: number | null;
+    realizedCVaR: number | null;
+    avgPredictedCVaR: number | null;
+    sampleCaveat: string;
+  } | null;
+  diagnostics: { message?: string } | null;
+  createdAt: string;
+}
+
+function ValidationBasketSection() {
+  const [latest, setLatest] = useState<ValidationBasketRun | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/tools/cvar-optimizer/validation-basket/run')
+      .then((r) => r.json())
+      .then((d) => setLatest(d.run ?? null))
+      .catch((e) => console.error('Failed to fetch validation basket run:', e))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleRun = async () => {
+    setRunning(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/tools/cvar-optimizer/validation-basket/run', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.detail ? `${data.error}: ${data.detail}` : data.error || 'Validation basket run failed.');
+      } else if (data.status !== 'completed') {
+        setError(data.diagnostics?.message || `Run finished with status "${data.status}".`);
+        setLatest(data);
+      } else {
+        setLatest(data);
+      }
+    } catch (e) {
+      setError('Validation basket run request failed.');
+      console.error(e);
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const sectorData = latest?.sectorWeights ?? {};
+  const regionData = latest?.regionWeights ?? {};
+  const stressChartData = (latest?.stressTestResults ?? []).map((st) => ({
+    label: st.window.label, portfolio: st.portfolioReturn, benchmark: st.benchmarkReturn,
+  }));
+
+  return (
+    <Card className="border-2 border-dashed border-gray-300">
+      <CardHeader>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <CardTitle>Validation Basket (MSCI World Diverse Universe)</CardTitle>
+            <CardDescription>
+              The fixed ~30-ticker basket spanning US/Europe/Japan/APAC and 10 GICS sectors, approximating MSCI World&apos;s
+              diversity. Running this re-weights it in accordance with the model — this is the same run that populates
+              the methodology report&apos;s Validation Basket section (Section 7).
+            </CardDescription>
+          </div>
+          <Button size="sm" onClick={handleRun} disabled={running}>
+            <Play className="w-4 h-4 mr-2" />
+            {running ? 'Running (backfill + optimize + backtest — several minutes)...' : 'Run Validation Basket'}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {error && (
+          <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        ) : !latest ? (
+          <p className="text-sm text-muted-foreground">No validation basket run yet. Click &quot;Run Validation Basket&quot; above.</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase mb-1">Run Date</p>
+                <p className="text-sm font-semibold">{new Date(latest.createdAt).toLocaleDateString()}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase mb-1">Status</p>
+                <Badge variant={latest.status === 'completed' ? 'default' : 'destructive'}>{latest.status}</Badge>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase mb-1">Expected CVaR</p>
+                <p className="text-sm font-semibold">{latest.expectedCVaR !== null ? pct(latest.expectedCVaR, 2) : '—'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase mb-1">Tickers</p>
+                <p className="text-sm font-semibold">{latest.tickerCount}</p>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <h4 className="text-sm font-semibold mb-3">Sector Allocation (Target)</h4>
+                <AllocationPieChart data={sectorData} title="Sector" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold mb-3">Region Allocation (Target)</h4>
+                <AllocationPieChart data={regionData} title="Region" />
+              </div>
+            </div>
+
+            {latest.stressTestResults && latest.stressTestResults.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold mb-3">Stress Test Results</h4>
+                <StressTestChart data={stressChartData} />
+              </div>
+            )}
+
+            {latest.backtestSummary && (
+              <div>
+                <h4 className="text-sm font-semibold mb-3">Walk-Forward Backtest</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase mb-1">Periods Run</p>
+                    <p className="text-sm font-semibold">{latest.backtestSummary.periodsRun} ({latest.backtestSummary.periodsSkipped} skipped)</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase mb-1">Cumulative Return</p>
+                    <p className="text-sm font-semibold">{latest.backtestSummary.cumulativePortfolioReturn !== null ? pct(latest.backtestSummary.cumulativePortfolioReturn, 1) : '—'} vs URTH {latest.backtestSummary.cumulativeBenchmarkReturn !== null ? pct(latest.backtestSummary.cumulativeBenchmarkReturn, 1) : '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase mb-1">Max Drawdown</p>
+                    <p className="text-sm font-semibold">{latest.backtestSummary.maxDrawdownPortfolio !== null ? pct(latest.backtestSummary.maxDrawdownPortfolio, 1) : '—'} vs URTH {latest.backtestSummary.maxDrawdownBenchmark !== null ? pct(latest.backtestSummary.maxDrawdownBenchmark, 1) : '—'}</p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground italic">{latest.backtestSummary.sampleCaveat}</p>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
