@@ -9,6 +9,7 @@
 // relative to the other names currently held," not relative to the global equity
 // universe. See report Section 5/10 for the full caveat.
 
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { sequential } from '@/lib/market-data/rate-limit';
 
@@ -256,7 +257,7 @@ export async function persistFactorScores(scores: FactorScores[], asOfDate: Date
         quality: s.quality,
         volatility: s.volatility,
         size: s.size,
-        rawInputs: s.rawInputs,
+        rawInputs: s.rawInputs as unknown as Prisma.InputJsonValue,
         dataComplete: s.dataComplete,
       },
       create: {
@@ -268,7 +269,7 @@ export async function persistFactorScores(scores: FactorScores[], asOfDate: Date
         quality: s.quality,
         volatility: s.volatility,
         size: s.size,
-        rawInputs: s.rawInputs,
+        rawInputs: s.rawInputs as unknown as Prisma.InputJsonValue,
         dataComplete: s.dataComplete,
       },
     });
