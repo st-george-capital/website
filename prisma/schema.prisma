@@ -857,6 +857,7 @@ model StockScreenResult {
   @@map("stock_screen_results")
 }
 
+
 model TradeIngestRun {
   id                String   @id @default(cuid())
   status            String   @default("running")
@@ -1082,4 +1083,131 @@ model TradeWatchlist {
   @@index([userId, scope])
   @@index([watchType, label])
   @@map("trade_watchlists")
+}
+
+model PriceHistory {
+  id        String   @id @default(cuid())
+  ticker    String   // Holding.apiTicker || Holding.ticker, or "URTH" for the benchmark proxy
+  date      DateTime
+  open      Float
+  high      Float
+  low       Float
+  close     Float
+  volume    Float?
+  source    String   // "polygon" | "alpha_vantage"
+  createdAt DateTime @default(now())
+
+  @@unique([ticker, date])
+  @@index([ticker])
+}
+
+model FactorExposure {
+  id           String   @id @default(cuid())
+  ticker       String
+  asOfDate     DateTime
+  value        Float?
+  growth       Float?
+  momentum     Float?
+  quality      Float?
+  volatility   Float?   // inverted realized vol: higher score = lower vol = more "low-vol tilt"
+  size         Float?
+  rawInputs    Json     // raw fundamentals/returns used, for auditability
+  dataComplete Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@unique([ticker, asOfDate])
+  @@index([ticker])
+}
+
+model OptimizationConstraintSet {
+  id                      String   @id @default(cuid())
+  name                    String
+  isActive                Boolean  @default(true)
+  sectorLimits            Json     // { "Technology": {min: 0, max: 0.30}, ... }
+  regionLimits            Json     // { "US": {min: 0.55, max: 0.60}, ... } — encodes the ~57.5% US target (~12.5pt underweight vs MSCI World's ~70%)
+  factorTilts             Json     // { "quality": {target: 0.3}, "volatility": {target: 0.3}, ... }
+  maxSinglePositionWeight Float    @default(0.15)
+  turnoverLimit           Float?
+  cvarConfidence          Float    @default(0.95)
+  cvarHorizonDays         Int      @default(20)
+  createdBy               String
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  runs SavedOptimizationRun[]
+}
+
+model SavedOptimizationRun {
+  id                String   @id @default(cuid())
+  constraintSetId   String
+  constraintSet     OptimizationConstraintSet @relation(fields: [constraintSetId], references: [id])
+  status            String   @default("completed") // "completed" | "failed" | "infeasible"
+  asOfDate          DateTime @default(now())
+  universe          Json     // tickers + current weights snapshot at run time
+  targetWeights     Json     // { ticker: weight }
+  expectedCVaR      Float
+  expectedReturn    Float?
+  benchmarkCVaR     Float?   // URTH CVaR over same scenarios
+  factorExposures   Json     // portfolio-level realized factor tilts vs benchmark
+  sectorWeights     Json
+  regionWeights     Json
+  suggestedTrades   Json     // [{ticker, action, currentShares, targetShares, deltaShares, deltaDollars, rationale}]
+  stressTestResults Json?
+  diagnostics       Json?    // solver status, warnings, infeasibility notes
+  runBy             String   // userId
+  notes             String?  @db.Text
+  createdAt         DateTime @default(now())
+
+  @@index([constraintSetId, createdAt])
+}
+
+// Sandbox/scratch runs against a user-typed, ad-hoc list of tickers — NOT the fund's real
+// holdings, NOT tied to any Holding/Transaction record, and never used as the source for
+// the regime-thesis report's fund-portfolio sections (those require a real SavedOptimizationRun
+// against actual Holding rows). Exists purely so someone can explore "what would the model
+// say about this basket of stocks" without needing real fund positions entered first, and
+// without any risk of a sandbox result being mistaken for an official recommendation.
+model SavedSandboxRun {
+  id                  String   @id @default(cuid())
+  label               String   // user-provided name for this sandbox portfolio, e.g. "Test basket A"
+  tickers             Json     // [{ticker, shares, sector?, region?}] as entered by the user
+  constraintSetId     String?  // optional — sandbox runs can reference a real constraint set or use inline overrides
+  constraintOverrides Json?    // inline constraint values if not using a saved constraint set
+  status              String   @default("completed") // "completed" | "failed" | "infeasible"
+  targetWeights       Json
+  expectedCVaR        Float?
+  benchmarkCVaR       Float?
+  factorExposures     Json?
+  sectorWeights       Json?
+  regionWeights       Json?
+  stressTestResults   Json?
+  diagnostics         Json?
+  runBy               String   // userId
+  createdAt           DateTime @default(now())
+
+  @@index([runBy, createdAt])
+}
+
+// Persisted results from a real run of the diverse MSCI World validation basket
+// (lib/quant/validation-basket.ts) — this is the actual empirical evidence the
+// regime-thesis report's Section 7 ("Validation Basket Results") pulls from once a real
+// run has happened. Distinct from SavedSandboxRun (user-typed ad-hoc tickers) and
+// SavedOptimizationRun (the fund's real holdings) — this one specific basket is fixed and
+// versioned by run, so the report can always point at "the most recent completed run of
+// THE validation basket," not an arbitrary sandbox test.
+model SavedValidationBasketRun {
+  id                String   @id @default(cuid())
+  status            String   @default("completed") // "completed" | "failed" | "infeasible"
+  tickerCount       Int
+  targetWeights     Json
+  expectedCVaR      Float?
+  sectorWeights     Json?
+  regionWeights     Json?
+  stressTestResults Json?
+  backtestSummary   Json?    // BacktestSummary from lib/quant/stress-test.ts's runWalkForwardBacktest
+  diagnostics       Json?
+  runBy             String   // userId
+  createdAt         DateTime @default(now())
+
+  @@index([createdAt])
 }
