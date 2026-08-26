@@ -17,6 +17,9 @@ import {
 import { Button } from '@/components/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/card';
 import { RelatedResearchTools } from '@/components/related-research-tools';
+import { ToolAtAGlance } from '@/components/tool-digest';
+import { ToolReadingGuide } from '@/components/tool-reading-guide';
+import { getToolReadingGuide } from '@/lib/tool-reading-guides';
 import type {
   EarningsEventImpact,
   EquityPositioningResponse,
@@ -176,6 +179,62 @@ export default function EquityPositioningPage() {
 
   const estimateChartPoints = useMemo(() => revisions?.estimateSeries || [], [revisions]);
 
+  const readingGuide = getToolReadingGuide('equity-positioning');
+
+  const positioningDigest = useMemo(() => {
+    const symbol = result?.entity.symbol;
+    if (!symbol) {
+      return {
+        headline: 'Enter a ticker to see how earnings and options positioning line up.',
+        bullets: [
+          'Earnings tab: did beats or misses move the stock over the next few weeks?',
+          'Options tab: is the market leaning bullish, hedged, or bearish via puts and calls?',
+        ],
+      };
+    }
+
+    if (activeTab === 'options' && options) {
+      const bias = options.summary.positioningBias;
+      return {
+        headline:
+          bias === 'bearish'
+            ? `${symbol}: options flow looks defensive or bearish right now.`
+            : bias === 'bullish'
+              ? `${symbol}: options flow looks more call-heavy / bullish.`
+              : `${symbol}: options positioning looks balanced.`,
+        bullets: [
+          options.summary.positioningDetail,
+          options.summary.putCallOiRatio != null
+            ? `Put/call open interest is ${options.summary.putCallOiRatio.toFixed(2)} (above 1.0 often means more hedging demand).`
+            : 'Put/call open interest ratio is unavailable for this name.',
+          'This is not short interest — it is options-market positioning only.',
+        ],
+      };
+    }
+
+    if (revisions) {
+      const beatRate =
+        revisions.summary.beatRate != null
+          ? `${(revisions.summary.beatRate * 100).toFixed(0)}% beat rate`
+          : 'limited earnings history';
+      return {
+        headline: `${symbol}: earnings revisions and post-print price reactions.`,
+        bullets: [
+          `Historical print quality: ${beatRate} across ${revisions.summary.eventsAnalyzed} events.`,
+          revisions.summary.avgReturn5dAfterBeat != null
+            ? `After beats, the stock averaged ${formatPercent(revisions.summary.avgReturn5dAfterBeat)} over 5 trading days.`
+            : 'Post-beat price reaction is still building as more prints come in.',
+          revisions.summary.revisionMomentumDetail,
+        ],
+      };
+    }
+
+    return {
+      headline: `Analyzing ${symbol}...`,
+      bullets: ['Loading positioning data for this ticker.'],
+    };
+  }, [activeTab, options, result?.entity.symbol, revisions]);
+
   if (status === 'loading') {
     return (
       <div className="flex min-h-[320px] items-center justify-center">
@@ -284,6 +343,8 @@ export default function EquityPositioningPage() {
         })}
       </div>
 
+      {readingGuide ? <ToolReadingGuide guide={readingGuide} symbol={result?.entity.symbol} /> : null}
+
       {error ? (
         <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -294,6 +355,8 @@ export default function EquityPositioningPage() {
       {result?.entity.symbol ? (
         <RelatedResearchTools symbol={result.entity.symbol} currentTool="equity-positioning" />
       ) : null}
+
+      <ToolAtAGlance headline={positioningDigest.headline} bullets={positioningDigest.bullets} />
 
       {activeTab === 'revisions' && revisions ? (
         <div className="space-y-6">

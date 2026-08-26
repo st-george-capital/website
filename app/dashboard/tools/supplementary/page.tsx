@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { RelatedResearchTools } from '@/components/related-research-tools';
+import { ToolReadingGuide } from '@/components/tool-reading-guide';
+import { getToolReadingGuide } from '@/lib/tool-reading-guides';
 import {
   Building2,
   AlertTriangle,
@@ -270,6 +272,15 @@ export default function SupplementaryToolsPage() {
           </p>
         </div>
       </div>
+
+      {getToolReadingGuide('supplementary') ? (
+        <ToolReadingGuide
+          guide={getToolReadingGuide('supplementary')!}
+          symbol={currentResult?.entity.symbol}
+          defaultOpen={false}
+          compact
+        />
+      ) : null}
 
       <Card hover={false} className="overflow-visible border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#f7fbff_45%,#eef4ff_100%)]">
         <CardHeader>

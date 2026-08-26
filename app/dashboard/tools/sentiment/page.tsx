@@ -7,6 +7,8 @@ import Link from 'next/link';
 import { Button } from '@/components/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/card';
 import { RelatedResearchTools } from '@/components/related-research-tools';
+import { ToolReadingGuide } from '@/components/tool-reading-guide';
+import { getToolReadingGuide } from '@/lib/tool-reading-guides';
 import type { SentimentLabel, SentimentResponsePayload } from '@/lib/sentiment';
 import {
   AlertTriangle,
@@ -330,6 +332,15 @@ export default function SentimentToolPage() {
           </p>
         </div>
       </div>
+
+      {getToolReadingGuide('sentiment') ? (
+        <ToolReadingGuide
+          guide={getToolReadingGuide('sentiment')!}
+          symbol={result?.entity.symbol}
+          defaultOpen={false}
+          compact
+        />
+      ) : null}
 
       <Card hover={false} className="overflow-visible border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_45%,#eef4ff_100%)]">
         <CardHeader>

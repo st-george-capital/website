@@ -14,6 +14,9 @@ import {
   BarChart2, Activity,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/card';
+import { CollapsibleCard, ToolAtAGlance } from '@/components/tool-digest';
+import { ToolReadingGuide } from '@/components/tool-reading-guide';
+import { getToolReadingGuide } from '@/lib/tool-reading-guides';
 import type { MacroEnginePayload } from '@/app/api/dashboard/macro-engine/route';
 import type { HistoryPayload, HistoryPoint, RegimeAttribution, RegimeRun } from '@/app/api/dashboard/macro-engine/history/route';
 import type {
@@ -81,6 +84,60 @@ function regimeDisplayName(label: string): string {
     zEarnings: 'Earnings-Led',  zCarry: 'Momentum',
   };
   return `${MAP[m[2]] ?? m[2]} (R${m[1]})`;
+}
+
+function isCreditStressRegime(label: string) {
+  return label.toLowerCase().includes('credit');
+}
+
+function isFallbackProbability(value: number | null | undefined) {
+  return value != null && Math.abs(value - 0.5) < 0.001;
+}
+
+function formatSignalProbability(value: number | null | undefined) {
+  if (value == null) return { display: '—', muted: true };
+  if (isFallbackProbability(value)) {
+    return { display: 'N/A', muted: true };
+  }
+  return { display: `${(value * 100).toFixed(0)}%`, muted: false };
+}
+
+function buildMacroDigest(data: MacroEnginePayload | null) {
+  if (!data?.regime) {
+    return {
+      headline: 'Run the macro pipeline to populate regime and allocation signals.',
+      bullets: [
+        'This tool answers: which countries and sectors to overweight right now, given the macro backdrop.',
+        'Start with Allocation Signals once data loads — everything else is supporting evidence.',
+      ],
+    };
+  }
+
+  const overweight = data.signals.filter((signal) => signal.direction === 'overweight');
+  const underweight = data.signals.filter((signal) => signal.direction === 'underweight');
+  const topLongs = overweight.slice(0, 3).map((signal) => signal.ticker);
+  const topAvoids = underweight.slice(-3).map((signal) => signal.ticker);
+  const creditStress = isCreditStressRegime(data.regime.regimeLabel);
+  const holdoutSharpe = data.metrics?.holdout?.sharpeAnn;
+
+  const bullets = [
+    creditStress
+      ? 'Credit-stress regimes are defensive: the model is designed to go flat rather than force trades.'
+      : `In the current regime, the model prefers ${topLongs.join(', ') || 'few clear longs'} and is cautious on ${topAvoids.join(', ') || 'several areas'}.`,
+    'Conviction bars show relative ranking inside today’s signal set — higher means stronger preference, not position size.',
+    holdoutSharpe != null
+      ? `Since 2022, the live replay has a holdout Sharpe of ${holdoutSharpe.toFixed(2)} versus SPY (net of costs).`
+      : 'Holdout performance stats appear once the backtest pipeline has run.',
+    'Ignore 50% / N/A probability fields — those mean the historical probability table is not populated yet.',
+  ];
+
+  return {
+    headline: creditStress
+      ? `${regimeDisplayName(data.regime.regimeLabel)}: stay defensive until the credit-stress gate clears.`
+      : `${regimeDisplayName(data.regime.regimeLabel)}: favor momentum leaders and reduce laggards on a monthly rebalance.`,
+    bullets,
+    footnote: 'Advanced sections below are optional. Read Allocation Signals first, then drill into backtests only if you need evidence.',
+  };
 }
 
 // ─── Small helpers ─────────────────────────────────────────────────────────────
@@ -168,6 +225,34 @@ function ConvictionBar({ value, direction }: { value: number; direction: string 
         <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pctVal}%` }} />
       </div>
       <span className="text-[11px] font-mono text-slate-500 w-7 text-right">{pctVal}%</span>
+    </div>
+  );
+}
+
+function SignalProbCell({
+  value,
+  label,
+}: {
+  value: number | null | undefined;
+  label: string;
+}) {
+  const formatted = formatSignalProbability(value);
+  return (
+    <div className="text-center self-center">
+      <div
+        className={`text-[14px] font-bold ${
+          formatted.muted
+            ? 'text-slate-400'
+            : value != null && value >= 0.6
+              ? 'text-emerald-700'
+              : value != null && value <= 0.45
+                ? 'text-red-500'
+                : 'text-slate-700'
+        }`}
+      >
+        {formatted.display}
+      </div>
+      <div className="text-[10px] text-slate-400">{label}</div>
     </div>
   );
 }
@@ -1892,6 +1977,8 @@ export default function MacroEnginePage() {
   // Factor profile from top overweight signal
   const topSignal = overweight[0] ?? data?.signals[0] ?? null;
   const attribution = topSignal?.factorAttribution ?? {};
+  const digest = buildMacroDigest(data);
+  const readingGuide = getToolReadingGuide('macro-engine');
 
   return (
     <div className="space-y-8 pb-12">
@@ -1915,6 +2002,14 @@ export default function MacroEnginePage() {
           </div>
         )}
       </div>
+
+      <ToolAtAGlance
+        headline={digest.headline}
+        bullets={digest.bullets}
+        footnote={digest.footnote}
+      />
+
+      {readingGuide ? <ToolReadingGuide guide={readingGuide} compact /> : null}
 
       {/* ── Row 1: Regime + Factor profile ──────────────────────────────── */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
@@ -1973,9 +2068,9 @@ export default function MacroEnginePage() {
         <div className="lg:col-span-3">
           <Card hover={false} className="h-full">
             <CardHeader>
-              <CardTitle className="text-sm font-semibold">Macro Factor Profile</CardTitle>
+              <CardTitle className="text-sm font-semibold">What&apos;s Driving the Top Pick</CardTitle>
               <CardDescription className="text-[11px]">
-                Z-scores vs 20yr history · From top-ranked signal · Drives regime classification
+                Factor contribution for the #1 overweight ETF · Positive = helping the score, negative = dragging it
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -2016,7 +2111,7 @@ export default function MacroEnginePage() {
                           </div>
                         </div>
                         <div className={`w-14 text-right text-[11px] font-mono font-semibold ${isPos ? 'text-emerald-700' : 'text-red-600'}`}>
-                          {val > 0 ? '+' : ''}{val.toFixed(2)}σ
+                          {val > 0 ? '+' : ''}{val.toFixed(2)}
                         </div>
                       </div>
                     );
@@ -2028,38 +2123,12 @@ export default function MacroEnginePage() {
         </div>
       </div>
 
-      {/* ── Panel: Regime Outlook (Markov forecast) ─────────────────────── */}
-      <Card hover={false}>
-        <CardHeader>
-          <CardTitle className="text-sm font-semibold">Regime Outlook · Markov Forecast</CardTitle>
-          <CardDescription className="text-[11px]">
-            n-step-ahead probability of each regime conditional on today · 21d = one rebalance period
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <RegimeOutlookCard />
-        </CardContent>
-      </Card>
-
-      {/* ── Panel: Research Backtest Evidence ───────────────────────────── */}
-      <Card hover={false}>
-        <CardHeader>
-          <CardTitle className="text-sm font-semibold">Research Backtest Evidence</CardTitle>
-          <CardDescription className="text-[11px]">
-            Saved 20-year pair tests across liquid ETFs and equities · Auto-loads the current config hash, rerun after code or universe changes
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResearchBacktestPanel />
-        </CardContent>
-      </Card>
-
       {/* ── Panel: Allocation Signals ─────────────────────────────────────── */}
       <Card hover={false}>
         <CardHeader>
-          <CardTitle className="text-sm font-semibold">Allocation Signals</CardTitle>
+          <CardTitle className="text-sm font-semibold">What To Own Right Now</CardTitle>
           <CardDescription className="text-[11px]">
-            Ranked by regime-conditional conviction · P(outperf) = empirical probability of beating SPY over 6 / 12 months
+            Ranked longs and avoids for the current macro regime · Higher conviction = stronger preference within today&apos;s list
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -2090,22 +2159,8 @@ export default function MacroEnginePage() {
                           <div className="text-[10px] text-slate-400 mb-1">Conviction</div>
                           <ConvictionBar value={s.convictionScore} direction={s.direction} />
                         </div>
-                        <div className="text-center self-center">
-                          {s.prob6m != null && (
-                            <div className={`text-[14px] font-bold ${s.prob6m >= 0.6 ? 'text-emerald-700' : s.prob6m <= 0.45 ? 'text-red-500' : 'text-slate-700'}`}>
-                              {(s.prob6m * 100).toFixed(0)}%
-                            </div>
-                          )}
-                          <div className="text-[10px] text-slate-400">P(↑6m)</div>
-                        </div>
-                        <div className="text-center self-center">
-                          {s.prob12m != null && (
-                            <div className={`text-[14px] font-bold ${s.prob12m >= 0.6 ? 'text-emerald-700' : s.prob12m <= 0.45 ? 'text-red-500' : 'text-slate-700'}`}>
-                              {(s.prob12m * 100).toFixed(0)}%
-                            </div>
-                          )}
-                          <div className="text-[10px] text-slate-400">P(↑12m)</div>
-                        </div>
+                        <SignalProbCell value={s.prob6m} label="Beat SPY (6m)" />
+                        <SignalProbCell value={s.prob12m} label="Beat SPY (12m)" />
                       </div>
                     ))}
                   </div>
@@ -2135,22 +2190,8 @@ export default function MacroEnginePage() {
                           <div className="text-[10px] text-slate-400 mb-1">Conviction</div>
                           <ConvictionBar value={s.convictionScore} direction={s.direction} />
                         </div>
-                        <div className="text-center self-center">
-                          {s.prob6m != null && (
-                            <div className={`text-[14px] font-bold ${s.prob6m >= 0.6 ? 'text-emerald-700' : s.prob6m <= 0.45 ? 'text-red-500' : 'text-slate-700'}`}>
-                              {(s.prob6m * 100).toFixed(0)}%
-                            </div>
-                          )}
-                          <div className="text-[10px] text-slate-400">P(↑6m)</div>
-                        </div>
-                        <div className="text-center self-center">
-                          {s.prob12m != null && (
-                            <div className={`text-[14px] font-bold ${s.prob12m >= 0.6 ? 'text-emerald-700' : s.prob12m <= 0.45 ? 'text-red-500' : 'text-slate-700'}`}>
-                              {(s.prob12m * 100).toFixed(0)}%
-                            </div>
-                          )}
-                          <div className="text-[10px] text-slate-400">P(↑12m)</div>
-                        </div>
+                        <SignalProbCell value={s.prob6m} label="Beat SPY (6m)" />
+                        <SignalProbCell value={s.prob12m} label="Beat SPY (12m)" />
                       </div>
                     ))}
                   </div>
@@ -2164,9 +2205,9 @@ export default function MacroEnginePage() {
       {/* ── Panel: Today's Trades (live holdout replay) ─────────────────── */}
       <Card hover={false}>
         <CardHeader>
-          <CardTitle className="text-sm font-semibold">Today&apos;s Trades · Live Model Replay</CardTitle>
+          <CardTitle className="text-sm font-semibold">Model Portfolio Today</CardTitle>
           <CardDescription className="text-[11px]">
-            Current-day basket produced by replaying the backtest engine day-by-day from 2022-01-01 · Same scoring path as Holdout Sharpe below · Net of transaction costs
+            What the live replay model would hold right now if you followed it mechanically
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -2177,9 +2218,9 @@ export default function MacroEnginePage() {
       {/* ── Panel: Historical Performance + Explorer ──────────────────── */}
       <Card hover={false}>
         <CardHeader>
-          <CardTitle className="text-sm font-semibold">Historical Performance · Holdout Equity</CardTitle>
+          <CardTitle className="text-sm font-semibold">Performance Since 2022</CardTitle>
           <CardDescription className="text-[11px]">
-            Live model replay from 2022-01-01 · Equal-weight long of top-25% ETFs by 12-month momentum, credit-gate flats honored · Net toggle includes transaction costs · Click any point to explore that date
+            How the model would have done versus SPY in the live holdout replay
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -2187,48 +2228,44 @@ export default function MacroEnginePage() {
         </CardContent>
       </Card>
 
-      {/* ── Panel: Backtest Metrics (with net/gross toggle) ──────────────── */}
-      <Card hover={false}>
-        <CardHeader>
-          <CardTitle className="text-sm font-semibold">Backtest Performance</CardTitle>
-          <CardDescription className="text-[11px]">
-            Walk-forward OOS · Excess returns vs SPY, credit-gate flat days excluded · Toggle Net / Gross to see transaction-cost impact
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {!data?.metrics ? (
-            <p className="text-sm text-slate-400">No backtest metrics. Run <code className="text-[11px] bg-slate-100 px-1 py-0.5 rounded">npm run backtest:run</code>.</p>
-          ) : (
-            <BacktestMetricsPanel metrics={data.metrics} />
-          )}
-        </CardContent>
-      </Card>
+      <CollapsibleCard
+        title="Regime Outlook"
+        description="Where the macro backdrop may shift next — optional context, not a trade list"
+      >
+        <RegimeOutlookCard />
+      </CollapsibleCard>
 
-      {/* ── Panel: Regime Attribution ──────────────────────────────────── */}
-      <Card hover={false}>
-        <CardHeader>
-          <CardTitle className="text-sm font-semibold">Regime Attribution · Holdout</CardTitle>
-          <CardDescription className="text-[11px]">
-            Where the holdout alpha came from — Sharpe, hit rate, and α share by macro regime over the live replay
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <RegimeAttributionPanel />
-        </CardContent>
-      </Card>
+      <CollapsibleCard
+        title="Pair Research Backtests"
+        description="Historical evidence for ratio ideas like Brazil vs US or gold vs stocks"
+      >
+        <ResearchBacktestPanel />
+      </CollapsibleCard>
 
-      {/* ── Panel: Regime Timeline (Gantt + per-run drilldown) ───────────── */}
-      <Card hover={false}>
-        <CardHeader>
-          <CardTitle className="text-sm font-semibold">Regime Timeline · Holdout History</CardTitle>
-          <CardDescription className="text-[11px]">
-            Every contiguous regime stint since 2022-01-01 · Click any segment or row to inspect stats + top contributors
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <RegimeTimelinePanel />
-        </CardContent>
-      </Card>
+      <CollapsibleCard
+        title="Backtest Scorecard"
+        description="Out-of-sample and holdout stats for the full ETF momentum model"
+      >
+        {!data?.metrics ? (
+          <p className="text-sm text-slate-400">No backtest metrics. Run <code className="text-[11px] bg-slate-100 px-1 py-0.5 rounded">npm run backtest:run</code>.</p>
+        ) : (
+          <BacktestMetricsPanel metrics={data.metrics} />
+        )}
+      </CollapsibleCard>
+
+      <CollapsibleCard
+        title="Regime Attribution"
+        description="Which macro regimes contributed most of the holdout return"
+      >
+        <RegimeAttributionPanel />
+      </CollapsibleCard>
+
+      <CollapsibleCard
+        title="Regime Timeline"
+        description="Every regime stint since 2022 with drill-down stats"
+      >
+        <RegimeTimelinePanel />
+      </CollapsibleCard>
 
       {/* ── Panel: Top Stock Picks ─────────────────────────────────────── */}
       {data?.stocks && data.stocks.length > 0 && (

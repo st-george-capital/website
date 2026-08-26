@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
+import { ToolsHubReadingGuide } from '@/components/tool-reading-guide';
 import { Brain, Calculator, FileText, GitBranch, Globe, MessageSquareText, Sparkles, TrendingUp, Radar, Crosshair, ShieldAlert } from 'lucide-react';
 
 const tools = [
@@ -10,6 +11,7 @@ const tools = [
     id: 'dcf',
     name: 'DCF Valuation Tool',
     description: 'Interactive Discounted Cash Flow valuation model for equity research and analysis',
+    plainSummary: 'Use when you need a fair value estimate from cash flows.',
     href: '/dashboard/tools/dcf',
     icon: Calculator,
     features: [
@@ -24,6 +26,7 @@ const tools = [
     id: 'equity-research',
     name: 'Equity Research Reports',
     description: 'Create and manage institutional-grade equity research reports linked to DCF models',
+    plainSummary: 'Use when you are writing up a formal stock pitch or published report.',
     href: '/dashboard/research',
     icon: FileText,
     features: [
@@ -37,6 +40,7 @@ const tools = [
     id: 'capital-flows',
     name: 'Capital Flows & Positioning',
     description: 'ETF-based proxy for global institutional capital movement, risk regime detection, and macro context',
+    plainSummary: 'Use when you want the big-picture risk-on / risk-off read.',
     href: '/dashboard/flows',
     icon: GitBranch,
     features: [
@@ -51,6 +55,7 @@ const tools = [
     id: 'country-health',
     name: 'Country Macro Health Index',
     description: 'Score countries across five pillars: productive capacity, human capital, macro sustainability, institutions, and innovation',
+    plainSummary: 'Use when you are comparing countries on structural fundamentals.',
     href: '/dashboard/country-health',
     icon: Globe,
     features: [
@@ -65,6 +70,7 @@ const tools = [
     id: 'interview-tool',
     name: 'Interview Tool',
     description: 'A searchable interview bank with quiz mode, member submissions, and admin review for finance and consulting roles',
+    plainSummary: 'Use when you are prepping for finance or consulting interviews.',
     href: '/dashboard/tools/interview',
     icon: Brain,
     features: [
@@ -79,6 +85,7 @@ const tools = [
     id: 'sentiment-tool',
     name: 'Sentiment Tool',
     description: 'Live news-sentiment analysis for a ticker or company, translated into an investment memo view',
+    plainSummary: 'Use when you want the news narrative around one stock.',
     href: '/dashboard/tools/sentiment',
     icon: MessageSquareText,
     features: [
@@ -93,6 +100,7 @@ const tools = [
     id: 'cvar-optimizer',
     name: 'CVaR Portfolio Optimizer',
     description: 'Baseline late-cycle regime tilt: CVaR-minimizing optimization over fund holdings with sector, region, and factor constraints',
+    plainSummary: 'Use when you want portfolio-level risk tilts for fund holdings.',
     href: '/dashboard/tools/cvar-optimizer',
     icon: ShieldAlert,
     features: [
@@ -107,6 +115,7 @@ const tools = [
     id: 'supplementary-tools',
     name: 'Supplementary Tools',
     description: 'Transcript, insider, estimate, and calendar overlays for faster equity research prep',
+    plainSummary: 'Use for transcripts, insiders, estimates, and earnings dates on one name.',
     href: '/dashboard/tools/supplementary',
     icon: Sparkles,
     features: [
@@ -121,6 +130,7 @@ const tools = [
     id: 'macro-engine',
     name: 'Macro Allocation Engine',
     description: 'Current macro regime, ranked country/sector allocation signals with backtested OOS accuracy, and top single-stock picks per favored sector',
+    plainSummary: 'Use when you want which countries/sectors to overweight this month.',
     href: '/dashboard/tools/macro-engine',
     icon: TrendingUp,
     features: [
@@ -135,6 +145,7 @@ const tools = [
     id: 'trade-radar',
     name: 'Trade Shift Radar',
     description: 'WRDS Panjiva-powered dashboard for unusual shipment shifts, route substitutions, and parent-level trade exposure changes',
+    plainSummary: 'Use when you are tracking trade rerouting and supply-chain shifts.',
     href: '/dashboard/tools/trade-radar',
     icon: Radar,
     features: [
@@ -149,6 +160,7 @@ const tools = [
     id: 'equity-positioning',
     name: 'Equity Positioning',
     description: 'Single-name positioning view with earnings revision price reactions and options flow bias',
+    plainSummary: 'Use when you want earnings reaction history and options positioning on one stock.',
     href: '/dashboard/tools/equity-positioning',
     icon: Crosshair,
     features: [
@@ -168,10 +180,12 @@ export default function ToolsDashboardPage() {
         <div>
           <h1 className="text-3xl font-bold">Research Tools</h1>
           <p className="text-muted-foreground">
-            Professional valuation, analysis, and macro intelligence tools
+            Pick a tool by the question you are trying to answer — each page now starts with a plain-English summary.
           </p>
         </div>
       </div>
+
+      <ToolsHubReadingGuide />
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {tools.map((tool) => (
@@ -186,6 +200,9 @@ export default function ToolsDashboardPage() {
                   <CardDescription className="mt-1">
                     {tool.description}
                   </CardDescription>
+                  {'plainSummary' in tool && tool.plainSummary ? (
+                    <p className="mt-2 text-sm font-medium text-slate-700">{tool.plainSummary}</p>
+                  ) : null}
                 </div>
               </div>
             </CardHeader>
