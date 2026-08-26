@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
-import { Brain, Calculator, BarChart3, FileText, GitBranch, Globe, MessageSquareText, Sparkles, TrendingUp } from 'lucide-react';
+import { Brain, Calculator, FileText, GitBranch, Globe, MessageSquareText, Sparkles, TrendingUp, Radar, Crosshair } from 'lucide-react';
 
 const tools = [
   {
@@ -117,6 +117,34 @@ const tools = [
       "Top single-stock picks with O'Neil scores and analyst consensus",
     ],
   },
+  {
+    id: 'trade-radar',
+    name: 'Trade Shift Radar',
+    description: 'WRDS Panjiva-powered dashboard for unusual shipment shifts, route substitutions, and parent-level trade exposure changes',
+    href: '/dashboard/tools/trade-radar',
+    icon: Radar,
+    features: [
+      'Ranked weekly trade-shift signals',
+      'Parent-company linkage and watchlists',
+      'Country-to-country rerouting monitor',
+      'HS6 theme mapping and market tags',
+      'Auto-generated weekly trade brief',
+    ],
+  },
+  {
+    id: 'equity-positioning',
+    name: 'Equity Positioning',
+    description: 'Single-name positioning view with earnings revision price reactions and options flow bias',
+    href: '/dashboard/tools/equity-positioning',
+    icon: Crosshair,
+    features: [
+      'Earnings beat/miss history with price reaction',
+      'Forward estimate revision momentum',
+      'Put/call open interest and volume ratios',
+      'IV skew and unusual options activity',
+      'Cross-links to sentiment and supplementary tools',
+    ],
+  },
 ];
 
 export default function ToolsDashboardPage() {
@@ -170,27 +198,6 @@ export default function ToolsDashboardPage() {
           </Card>
         ))}
 
-        {/* Coming Soon Placeholder */}
-        <Card className="border-dashed border-2">
-          <CardHeader>
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center">
-                <BarChart3 className="w-6 h-6 text-muted-foreground" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Coming Soon</CardTitle>
-                <CardDescription>
-                  More research tools in development
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Additional valuation tools and analysis features are being developed.
-            </p>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );

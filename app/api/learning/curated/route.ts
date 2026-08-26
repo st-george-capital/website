@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAdmin, getSession } from '@/lib/auth';
+import { requireAdmin, getSession, isAdmin } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -8,13 +8,16 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   try {
     const session = await getSession();
+    const admin = isAdmin(session);
     const { searchParams } = new URL(req.url);
     const kind = searchParams.get('kind');
     const publishedOnly = searchParams.get('published') === 'true';
 
     const where: any = {};
     if (kind) where.kind = kind;
-    if (publishedOnly || !session) where.published = true;
+    // Non-admins only ever receive published rows; admins respect `published=true`
+    // when explicitly filtering.
+    if (publishedOnly || !admin) where.published = true;
 
     const items = await prisma.learningCuratedItem.findMany({
       where,

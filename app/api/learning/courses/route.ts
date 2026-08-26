@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAdmin, getSession } from '@/lib/auth';
+import { requireAdmin, getSession, isAdmin } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -8,17 +8,22 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   try {
     const session = await getSession();
+    const admin = isAdmin(session);
     const { searchParams } = new URL(req.url);
     const withLessons = searchParams.get('lessons') === 'true';
 
-    const where: any = {};
-    if (!session) where.published = true;
+    // Unauthenticated callers only see published material. Authenticated non-admins must
+    // not scrape draft courses / lessons via the API (dashboard admin needs full drafts).
+    const where: Record<string, unknown> = {};
+    if (!admin) where.published = true;
+
+    const lessonFilter = admin || !withLessons ? {} : { where: { published: true } };
 
     const courses = await prisma.learningCourse.findMany({
       where,
       orderBy: { order: 'asc' },
       include: withLessons
-        ? { lessons: { orderBy: { order: 'asc' } } }
+        ? { lessons: { ...lessonFilter, orderBy: { order: 'asc' } } }
         : undefined,
     });
 

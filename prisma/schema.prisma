@@ -22,6 +22,7 @@ model User {
   teamMemberId     String?     @unique
   tags             String[]    @default([])
   teamMember       TeamMember? @relation(fields: [teamMemberId], references: [id])
+  tradeWatchlists  TradeWatchlist[]
 }
 
 model Article {
@@ -854,4 +855,231 @@ model StockScreenResult {
 
   @@unique([runDate, ticker])
   @@map("stock_screen_results")
+}
+
+model TradeIngestRun {
+  id                String   @id @default(cuid())
+  status            String   @default("running")
+  mode              String   @default("incremental")
+  sourceWindowStart DateTime
+  sourceWindowEnd   DateTime
+  sourceCountries   String[] @default([])
+  rawRows           Int      @default(0)
+  normalizedRows    Int      @default(0)
+  aggregateRows     Int      @default(0)
+  signalRows        Int      @default(0)
+  errorMsg          String?
+  warnings          Json?
+  startedAt         DateTime @default(now())
+  completedAt       DateTime?
+
+  @@index([status, startedAt])
+  @@map("trade_ingest_runs")
+}
+
+model TradeEntity {
+  id                       String           @id @default(cuid())
+  panjivaCompanyId         String?          @unique
+  normalizedName           String
+  legalName                String?
+  country                  String?
+  roles                    String[]         @default([])
+  ciqCompanyId             String?
+  ciqUltimateParentId      String?
+  duns                     String?
+  ultimateParentDuns       String?
+  ein                      String?
+  ultimateParentEin        String?
+  confidence               String           @default("unresolved")
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+  importerShipments        TradeShipment[]  @relation("TradeImporter")
+  exporterShipments        TradeShipment[]  @relation("TradeExporter")
+  importerParentShipments  TradeShipment[]  @relation("TradeImporterParent")
+  exporterParentShipments  TradeShipment[]  @relation("TradeExporterParent")
+  entityAggregates         TradeWeeklyAggregate[] @relation("TradeAggregateEntity")
+  parentAggregates         TradeWeeklyAggregate[] @relation("TradeAggregateParent")
+  entitySignals            TradeSignal[]    @relation("TradeSignalEntity")
+  parentSignals            TradeSignal[]    @relation("TradeSignalParent")
+  entityWatchlists         TradeWatchlist[] @relation("TradeWatchEntity")
+  parentWatchlists         TradeWatchlist[] @relation("TradeWatchParent")
+
+  @@index([normalizedName])
+  @@index([ciqCompanyId])
+  @@index([ciqUltimateParentId])
+  @@index([country])
+  @@map("trade_entities")
+}
+
+model TradeThemeMap {
+  id         String                 @id @default(cuid())
+  hs6        String                 @unique
+  hs4        String?
+  themeKey   String
+  themeLabel String
+  marketTags String[]               @default([])
+  notes      String?
+  createdAt  DateTime               @default(now())
+  updatedAt  DateTime               @updatedAt
+  aggregates TradeWeeklyAggregate[]
+  signals    TradeSignal[]
+  watchlists TradeWatchlist[]
+
+  @@index([themeKey])
+  @@index([hs4])
+  @@map("trade_theme_maps")
+}
+
+model TradeShipment {
+  id                    String       @id @default(cuid())
+  weekStart             DateTime
+  sourceCountry         String
+  direction             String
+  shipmentDate          DateTime
+  arrivalDate           DateTime?
+  departureDate         DateTime?
+  importerEntityId      String?
+  exporterEntityId      String?
+  importerParentEntityId String?
+  exporterParentEntityId String?
+  originCountry         String?
+  destinationCountry    String?
+  originPort            String?
+  destinationPort       String?
+  transportMode         String?
+  hs6                   String?
+  hs4                   String?
+  productDescription    String?
+  quantity              Float?
+  weightKg              Float?
+  customsValue          Float?
+  valuePerKg            Float?
+  routeKey              String?
+  themeKey              String?
+  sourceTable           String
+  sourceNaturalKey      String       @unique
+  rawSource             Json?
+  createdAt             DateTime     @default(now())
+  importerEntity        TradeEntity? @relation("TradeImporter", fields: [importerEntityId], references: [id])
+  exporterEntity        TradeEntity? @relation("TradeExporter", fields: [exporterEntityId], references: [id])
+  importerParentEntity  TradeEntity? @relation("TradeImporterParent", fields: [importerParentEntityId], references: [id])
+  exporterParentEntity  TradeEntity? @relation("TradeExporterParent", fields: [exporterParentEntityId], references: [id])
+
+  @@index([shipmentDate])
+  @@index([weekStart])
+  @@index([sourceCountry, direction, weekStart])
+  @@index([hs6, weekStart])
+  @@index([routeKey, weekStart])
+  @@index([themeKey, weekStart])
+  @@map("trade_shipments")
+}
+
+model TradeWeeklyAggregate {
+  id                     String        @id @default(cuid())
+  weekStart              DateTime
+  sliceKey               String
+  sourceCountry          String
+  direction              String
+  hs6                    String?
+  hs4                    String?
+  routeKey               String?
+  entityId               String?
+  parentEntityId         String?
+  themeMapId             String?
+  themeKey               String?
+  themeLabel             String?
+  shipmentCount          Int           @default(0)
+  totalValue             Float?
+  totalWeightKg          Float?
+  avgValuePerKg          Float?
+  medianValuePerKg       Float?
+  uniqueCounterparties   Int           @default(0)
+  newRelationships       Int           @default(0)
+  lostRelationships      Int           @default(0)
+  supplierConcentration  Float?
+  buyerConcentration     Float?
+  originConcentration    Float?
+  destinationConcentration Float?
+  coverageScore          Float?
+  coverageStatus         String?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+  entity                 TradeEntity?  @relation("TradeAggregateEntity", fields: [entityId], references: [id])
+  parentEntity           TradeEntity?  @relation("TradeAggregateParent", fields: [parentEntityId], references: [id])
+  themeMap               TradeThemeMap? @relation(fields: [themeMapId], references: [id])
+
+  @@unique([weekStart, sliceKey])
+  @@index([weekStart, shipmentCount])
+  @@index([sourceCountry, direction, weekStart])
+  @@index([themeKey, weekStart])
+  @@map("trade_weekly_aggregates")
+}
+
+model TradeSignal {
+  id                    String         @id @default(cuid())
+  signalWeek            DateTime
+  signalType            String
+  status                String         @default("active")
+  severityBucket        String
+  sourceCountry         String?
+  direction             String?
+  hs6                   String?
+  hs4                   String?
+  routeKey              String?
+  entityId              String?
+  parentEntityId        String?
+  themeMapId            String?
+  themeKey              String?
+  themeLabel            String?
+  signalScore           Float
+  rawValue              Float?
+  baselineMedian        Float?
+  baselineRobustZ       Float?
+  shortMomentum         Float?
+  yoyDelta              Float?
+  counterpartyChurn     Float?
+  concentrationDelta    Float?
+  materialityValue      Float?
+  crossSliceConfirmation Float?
+  coverageValidWeeks    Int?
+  coverageStatus        String?
+  explanation           String
+  marketTags            String[]       @default([])
+  detail                Json?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  entity                TradeEntity?   @relation("TradeSignalEntity", fields: [entityId], references: [id])
+  parentEntity          TradeEntity?   @relation("TradeSignalParent", fields: [parentEntityId], references: [id])
+  themeMap              TradeThemeMap? @relation(fields: [themeMapId], references: [id])
+
+  @@index([signalWeek, signalScore])
+  @@index([signalType, signalWeek])
+  @@index([status, severityBucket, signalWeek])
+  @@index([themeKey, signalWeek])
+  @@map("trade_signals")
+}
+
+model TradeWatchlist {
+  id             String         @id @default(cuid())
+  userId         String?
+  scope          String         @default("user")
+  watchType      String
+  entityId       String?
+  parentEntityId String?
+  themeMapId     String?
+  themeKey       String?
+  hs6            String?
+  routeKey       String?
+  label          String
+  notes          String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  user           User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entity         TradeEntity?   @relation("TradeWatchEntity", fields: [entityId], references: [id])
+  parentEntity   TradeEntity?   @relation("TradeWatchParent", fields: [parentEntityId], references: [id])
+  themeMap       TradeThemeMap? @relation(fields: [themeMapId], references: [id])
+
+  @@index([userId, scope])
+  @@index([watchType, label])
+  @@map("trade_watchlists")
 }

@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { Button } from '@/components/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/card';
+import { RelatedResearchTools } from '@/components/related-research-tools';
 import type { SentimentLabel, SentimentResponsePayload } from '@/lib/sentiment';
 import {
   AlertTriangle,
@@ -198,6 +199,7 @@ function DriverList({
 
 export default function SentimentToolPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, status } = useSession();
 
   const [query, setQuery] = useState('');
@@ -221,9 +223,8 @@ export default function SentimentToolPage() {
     return result.articles.filter((article) => article.articleSentimentLabel === articleFilter);
   }, [articleFilter, result]);
 
-  async function handleAnalyze(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!query.trim()) {
+  async function analyzeSymbol(symbolOrQuery: string) {
+    if (!symbolOrQuery.trim()) {
       setError('Enter a ticker or company to analyze.');
       return;
     }
@@ -233,7 +234,7 @@ export default function SentimentToolPage() {
 
     try {
       const params = new URLSearchParams({
-        query: query.trim(),
+        query: symbolOrQuery.trim(),
         horizon,
       });
 
@@ -254,6 +255,10 @@ export default function SentimentToolPage() {
 
       setResult(data);
       setArticleFilter('all');
+
+      if (data.entity?.symbol) {
+        router.replace(`/dashboard/tools/sentiment?symbol=${encodeURIComponent(data.entity.symbol)}`);
+      }
     } catch (fetchError) {
       setResult(null);
       setError(fetchError instanceof Error ? fetchError.message : 'Failed to analyze sentiment');
@@ -261,6 +266,25 @@ export default function SentimentToolPage() {
       setLoading(false);
     }
   }
+
+  async function handleAnalyze(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await analyzeSymbol(query);
+  }
+
+  useEffect(() => {
+    const symbol = searchParams.get('symbol');
+    if (symbol) {
+      setQuery(symbol);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const symbol = searchParams.get('symbol');
+    if (!symbol || status !== 'authenticated') return;
+    void analyzeSymbol(symbol);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, status]);
 
   if (status === 'loading') {
     return (
@@ -378,6 +402,10 @@ export default function SentimentToolPage() {
           )}
         </CardContent>
       </Card>
+
+      {result?.entity.symbol ? (
+        <RelatedResearchTools symbol={result.entity.symbol} currentTool="sentiment" />
+      ) : null}
 
       {result && (
         <>

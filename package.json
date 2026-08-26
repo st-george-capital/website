@@ -34,7 +34,11 @@
     "backfill:momentum": "npx tsx scripts/macro-engine/backfill-momentum.ts",
     "research:prices": "sucrase-node scripts/macro-engine/ingest-research-prices.ts",
     "research:prices:dry": "sucrase-node scripts/macro-engine/ingest-research-prices.ts --dry-run",
-    "research:backtest": "sucrase-node scripts/macro-engine/run-research-backtest.ts"
+    "research:backtest": "sucrase-node scripts/macro-engine/run-research-backtest.ts",
+    "trade-radar:ingest": "npx tsx scripts/trade-radar/run-ingest.ts",
+    "trade-radar:signals": "npx tsx scripts/trade-radar/run-signals.ts",
+    "trade-radar:brief": "npx tsx scripts/trade-radar/run-brief.ts",
+    "trade-radar:verify": "npx tsx scripts/trade-radar/verify-data.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -55,6 +59,7 @@
     "ml-matrix": "^6.12.1",
     "next": "14.2.18",
     "next-auth": "^4.24.10",
+    "pg": "^8.21.0",
     "puppeteer-core": "^24.40.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { RelatedResearchTools } from '@/components/related-research-tools';
 import {
   Building2,
   AlertTriangle,
@@ -125,6 +126,7 @@ function StatCard({
 
 export default function SupplementaryToolsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, status } = useSession();
 
   const [activeTab, setActiveTab] = useState<SupplementaryTab>('transcript');
@@ -148,8 +150,9 @@ export default function SupplementaryToolsPage() {
     [currentResult]
   );
 
-  async function loadTab(tab = activeTab) {
-    if (tab !== 'calendar' && !query.trim()) {
+  async function loadTab(tab = activeTab, symbolOverride?: string) {
+    const effectiveQuery = symbolOverride || query;
+    if (tab !== 'calendar' && !effectiveQuery.trim()) {
       setError('Enter a ticker or company first.');
       return;
     }
@@ -160,8 +163,8 @@ export default function SupplementaryToolsPage() {
     try {
       const params = new URLSearchParams({ tab });
 
-      if (query.trim()) {
-        params.set(looksLikeTicker(query.trim()) ? 'symbol' : 'query', query.trim());
+      if (effectiveQuery.trim()) {
+        params.set(looksLikeTicker(effectiveQuery.trim()) ? 'symbol' : 'query', effectiveQuery.trim());
       }
 
       if (tab === 'transcript' && quarter.trim()) {
@@ -184,6 +187,11 @@ export default function SupplementaryToolsPage() {
         [tab]: data,
       }));
 
+      if (data.entity?.symbol) {
+        const nextParams = new URLSearchParams({ symbol: data.entity.symbol, tab });
+        router.replace(`/dashboard/tools/supplementary?${nextParams.toString()}`);
+      }
+
       if (tab === 'transcript' && data.transcript?.selectedQuarter) {
         setQuarter(data.transcript.selectedQuarter.replace(/^Q([1-4]) (\d{4})$/, '$2Q$1'));
       }
@@ -193,6 +201,25 @@ export default function SupplementaryToolsPage() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    const symbol = searchParams.get('symbol');
+    const tab = searchParams.get('tab') as SupplementaryTab | null;
+    if (symbol) {
+      setQuery(symbol);
+    }
+    if (tab && tabs.some((entry) => entry.id === tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const symbol = searchParams.get('symbol');
+    const tab = (searchParams.get('tab') as SupplementaryTab | null) || activeTab;
+    if (!symbol || status !== 'authenticated') return;
+    void loadTab(tab, symbol);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, status]);
 
   useEffect(() => {
     if (activeTab === 'calendar' && !results.calendar) {
@@ -368,6 +395,10 @@ export default function SupplementaryToolsPage() {
           </CardContent>
         </Card>
       )}
+
+      {currentResult?.entity.symbol ? (
+        <RelatedResearchTools symbol={currentResult.entity.symbol} currentTool="supplementary" tab={activeTab} />
+      ) : null}
 
       {currentResult?.entity.symbol && (
         <Card hover={false}>

@@ -1,5 +1,32 @@
 const ALPHA_VANTAGE_BASE = 'https://www.alphavantage.co/query';
 
+/** Stagger between sequential AV calls — matches flows dashboard pattern. */
+export const ALPHA_VANTAGE_STAGGER_MS = 550;
+
+export function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Run Alpha Vantage requests one at a time with a short pause between calls.
+ * Premium plans tolerate bursts better, but sequential fetching avoids 429s across tools.
+ */
+export async function runAlphaVantageSequential<T extends readonly (() => Promise<unknown>)[]>(
+  tasks: T,
+  staggerMs = ALPHA_VANTAGE_STAGGER_MS
+): Promise<{ [K in keyof T]: Awaited<ReturnType<T[K]>> }> {
+  const results: unknown[] = [];
+
+  for (let index = 0; index < tasks.length; index += 1) {
+    results.push(await tasks[index]());
+    if (staggerMs > 0 && index < tasks.length - 1) {
+      await delay(staggerMs);
+    }
+  }
+
+  return results as { [K in keyof T]: Awaited<ReturnType<T[K]>> };
+}
+
 export interface AlphaVantageQuote {
   price: number;
   change: number;
@@ -512,6 +539,31 @@ export async function fetchAlphaVantageInstitutionalHoldings(
           lastReported: holding.last_reported || null,
         }))
       : [],
+  };
+}
+
+export interface AlphaVantageHistoricalOptionsResponse {
+  symbol: string;
+  asOfDate: string | null;
+  contracts: Record<string, unknown>[];
+}
+
+export async function fetchAlphaVantageHistoricalOptions(
+  ticker: string,
+  date?: string
+): Promise<AlphaVantageHistoricalOptionsResponse> {
+  const data = await fetchAlphaVantage({
+    function: 'HISTORICAL_OPTIONS',
+    symbol: ticker,
+    ...(date ? { date } : {}),
+  });
+
+  const contracts = Array.isArray(data.data) ? data.data : [];
+
+  return {
+    symbol: String(data.symbol || ticker),
+    asOfDate: contracts[0]?.date ? String(contracts[0].date) : date || null,
+    contracts,
   };
 }
 

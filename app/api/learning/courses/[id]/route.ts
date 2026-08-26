@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAdmin, getSession } from '@/lib/auth';
+import { requireAdmin, getSession, isAdmin } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -8,17 +8,23 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const session = await getSession();
+    const admin = isAdmin(session);
 
     const course = await prisma.learningCourse.findUnique({
       where: { id: params.id },
-      include: { lessons: { orderBy: { order: 'asc' } } },
+      include: {
+        lessons: {
+          ...(admin ? {} : { where: { published: true } }),
+          orderBy: { order: 'asc' },
+        },
+      },
     });
 
     if (!course) {
       return NextResponse.json({ error: 'Course not found' }, { status: 404 });
     }
 
-    if (!course.published && !session) {
+    if (!course.published && !admin) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
