@@ -134,6 +134,36 @@ export const TOOL_READING_GUIDES: Record<string, ToolReadingGuide> = {
       { id: 'supplementary', label: 'Transcripts & insiders' },
     ],
   },
+  'g10-rates': {
+    id: 'g10-rates',
+    name: 'G10 Rates Monitor',
+    question: 'Who is pricing rate cuts vs hikes across the G10 right now?',
+    whenToUse: 'You want a quick cross-country rates snapshot before macro allocation or a rates-themed pitch.',
+    steps: [
+      {
+        title: 'Read Start here',
+        detail: 'The headline summarizes which markets have front-end yields below policy (broad easing priced) or inverted curves.',
+      },
+      {
+        title: 'Scan the G10 table',
+        detail: 'Compare policy rate, short yield, and 10Y. Focus on Short − Policy and ~Cuts priced columns first.',
+      },
+      {
+        title: 'Check 1M Δ short',
+        detail: 'Large negative moves mean the market repriced toward cuts over the past month even if the level still looks neutral.',
+      },
+      {
+        title: 'Read curve shape',
+        detail: '10Y − Short shows inversion vs steepening. Inverted curves often flag growth slowdown risk.',
+      },
+      {
+        title: 'Cross-check macro tools',
+        detail: 'Open Macro Allocation Engine for country/sector tilts, or Capital Flows for risk-on / risk-off context.',
+      },
+    ],
+    advancedNote:
+      '“~Cuts priced” is policy minus short yield — a rough proxy. True meeting odds need futures/OIS data (not in this free stack).',
+  },
   supplementary: {
     id: 'supplementary',
     name: 'Supplementary Tools',

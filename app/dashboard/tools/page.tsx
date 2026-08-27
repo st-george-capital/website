@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
 import { ToolsHubReadingGuide } from '@/components/tool-reading-guide';
-import { Brain, Calculator, FileText, GitBranch, Globe, MessageSquareText, Sparkles, TrendingUp, Radar, Crosshair, ShieldAlert } from 'lucide-react';
+import { Brain, Calculator, FileText, GitBranch, Globe, MessageSquareText, Sparkles, TrendingUp, Radar, Crosshair, ShieldAlert, LineChart } from 'lucide-react';
 
 const tools = [
   {
@@ -154,6 +154,21 @@ const tools = [
       'Country-to-country rerouting monitor',
       'HS6 theme mapping and market tags',
       'Auto-generated weekly trade brief',
+    ],
+  },
+  {
+    id: 'g10-rates',
+    name: 'G10 Rates Monitor',
+    description: 'G10 policy rates, short-end yields, and 10-year curves with a rough read on who is pricing cuts vs hikes',
+    plainSummary: 'Use when you want a cross-country rates snapshot and curve context (free FRED data).',
+    href: '/dashboard/tools/g10-rates',
+    icon: LineChart,
+    features: [
+      'G10 policy, short-end, and 10Y yields',
+      'Curve slope and front-end vs policy spreads',
+      'Rough “cuts priced” proxy (not futures odds)',
+      '1-week / 1-month repricing moves',
+      'Links to Macro Engine and Capital Flows',
     ],
   },
   {
