@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
+import { dashboardFadeInUp, staggerContainer } from '@/lib/motion-variants';
 import {
   Calendar, MapPin, Globe, TrendingUp, FileText, Users,
   BarChart3, BookOpen, Presentation, Calculator, Briefcase,
@@ -448,12 +450,17 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Spotlight row ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <NextMeetingCard event={nextMeeting} loading={meetingLoading} />
-        <QuoteCard quote={quote} loading={quoteLoading} />
-        <FinanceTermCard term={financeTerm} loading={financeTermLoading} />
-        <ToolsCard />
-      </div>
+      <motion.div
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
+        initial="hidden"
+        animate="visible"
+        variants={staggerContainer}
+      >
+        <motion.div variants={dashboardFadeInUp}><NextMeetingCard event={nextMeeting} loading={meetingLoading} /></motion.div>
+        <motion.div variants={dashboardFadeInUp}><QuoteCard quote={quote} loading={quoteLoading} /></motion.div>
+        <motion.div variants={dashboardFadeInUp}><FinanceTermCard term={financeTerm} loading={financeTermLoading} /></motion.div>
+        <motion.div variants={dashboardFadeInUp}><ToolsCard /></motion.div>
+      </motion.div>
 
       <MarketMoversCard movers={marketMovers} loading={marketMoversLoading} />
 
@@ -462,9 +469,15 @@ export default function DashboardPage() {
         <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">
           Quick Access
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        <motion.div
+          className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+          initial="hidden"
+          animate="visible"
+          variants={staggerContainer}
+        >
           {visibleNav.map(item => (
-            <Link
+            <motion.div key={item.href} variants={dashboardFadeInUp}>
+              <Link
               key={item.href}
               href={item.href}
               className="group flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3.5 hover:border-gray-300 hover:shadow-sm transition-all"
@@ -479,9 +492,10 @@ export default function DashboardPage() {
                 <div className="text-[10px] text-gray-400 truncate">{item.desc}</div>
               </div>
               <ChevronRight size={12} className="text-gray-300 group-hover:text-gray-500 flex-shrink-0 transition-colors" />
-            </Link>
+              </Link>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
 
     </div>

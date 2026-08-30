@@ -1,10 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
-import { Button } from '@/components/button';
+import { motion } from 'framer-motion';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { ToolsHubReadingGuide } from '@/components/tool-reading-guide';
 import { Brain, Calculator, FileText, GitBranch, Globe, MessageSquareText, Sparkles, TrendingUp, Radar, Crosshair, ShieldAlert, LineChart } from 'lucide-react';
+import { dashboardFadeInUp, staggerContainer } from '@/lib/motion-variants';
 
 const tools = [
   {
@@ -202,9 +204,15 @@ export default function ToolsDashboardPage() {
 
       <ToolsHubReadingGuide />
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <motion.div
+        className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
+        initial="hidden"
+        animate="visible"
+        variants={staggerContainer}
+      >
         {tools.map((tool) => (
-          <Card key={tool.id} className="hover:shadow-lg transition-shadow">
+          <motion.div key={tool.id} variants={dashboardFadeInUp}>
+          <Card className="hover:shadow-lg transition-shadow">
             <CardHeader>
               <div className="flex items-start space-x-4">
                 <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -242,9 +250,10 @@ export default function ToolsDashboardPage() {
               </div>
             </CardContent>
           </Card>
+          </motion.div>
         ))}
 
-      </div>
+      </motion.div>
     </div>
   );
 }
