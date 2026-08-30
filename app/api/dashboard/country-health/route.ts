@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 import {
   VARIABLES,
   COUNTRY_META,
@@ -207,6 +209,11 @@ function enrichCountry(
 
 export async function GET(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role === 'visitor') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const pruned = searchParams.get('pruned') === '1';
     const altProductive = searchParams.get('alt_productive') === '1';
