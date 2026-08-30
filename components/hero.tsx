@@ -22,7 +22,7 @@ export function Hero({ title, subtitle, children, height = 'full', pattern = tru
   };
 
   return (
-    <section className={`relative ${heightClasses[height]} flex items-center ${align === 'center' ? 'justify-center' : 'justify-start'} overflow-hidden bg-[#030116] pt-20`}>
+    <section className={`relative ${heightClasses[height]} flex items-center ${align === 'center' ? 'justify-center' : 'justify-start'} overflow-hidden bg-primary pt-20`}>
       {/* Background Pattern */}
       {pattern && (
         <div className="absolute inset-0 opacity-10">
@@ -102,4 +102,3 @@ export function Hero({ title, subtitle, children, height = 'full', pattern = tru
     </section>
   );
 }
-
