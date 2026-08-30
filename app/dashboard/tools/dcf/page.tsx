@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
-import { Button } from '@/components/button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 // Using native HTML form elements instead of custom UI components
 import { Badge } from '@/components/ui/badge';
 import { toNum } from '@/lib/utils';

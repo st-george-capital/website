@@ -19,8 +19,8 @@ import {
   Sparkles,
   Users,
 } from 'lucide-react';
-import { Button } from '@/components/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn, formatCurrency, formatDate, formatNumber } from '@/lib/utils';
 import type {
   SupplementaryEstimateRow,

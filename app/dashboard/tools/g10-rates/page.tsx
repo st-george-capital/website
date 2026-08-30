@@ -14,8 +14,8 @@ import {
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
-import { Button } from '@/components/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CollapsibleCard, ToolAtAGlance } from '@/components/tool-digest';
 import { ToolReadingGuide } from '@/components/tool-reading-guide';
 import { getToolReadingGuide } from '@/lib/tool-reading-guides';

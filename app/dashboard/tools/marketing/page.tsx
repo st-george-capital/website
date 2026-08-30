@@ -17,8 +17,8 @@ import {
   Zap,
 } from 'lucide-react';
 import JSZip from 'jszip';
-import { Button } from '@/components/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type {
   MarketingCampaignKind,
   MarketingCampaignRecord,

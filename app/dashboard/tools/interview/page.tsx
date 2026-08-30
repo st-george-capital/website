@@ -5,8 +5,8 @@ import { useDeferredValue, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   ArrowLeft,
   Brain,
