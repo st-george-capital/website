@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { AlertCircle, Loader2, Radar, RefreshCw, Route, Save, ShieldAlert, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DashboardLoadingState } from '@/components/dashboard-state';
 import type {
   TradeBriefsPayload,
   TradeRadarRefreshPayload,
@@ -233,9 +234,7 @@ export default function TradeRadarPage() {
       </Tabs>
 
       {loading ? (
-        <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-slate-200 bg-white">
-          <Loader2 className="h-6 w-6 animate-spin text-slate-500" />
-        </div>
+        <DashboardLoadingState compact label="Scanning trade signals" description="Collecting the latest routes, watchlists, and weekly briefs." />
       ) : (
         <>
           {tab === 'radar' && (

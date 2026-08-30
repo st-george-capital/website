@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DashboardLoadingState } from '@/components/dashboard-state';
 import { CollapsibleCard, ToolAtAGlance } from '@/components/tool-digest';
 import { ToolReadingGuide } from '@/components/tool-reading-guide';
 import { getToolReadingGuide } from '@/lib/tool-reading-guides';
@@ -526,7 +527,7 @@ function PerformanceChart() {
 
       {/* Chart */}
       {loading ? (
-        <div className="h-52 flex items-center justify-center text-sm text-slate-400">Loading...</div>
+        <DashboardLoadingState compact label="Loading backtest data" description="Building the selected allocation history." />
       ) : error ? (
         <div className="h-52 flex items-center justify-center text-sm text-red-600 px-6 text-center">{error}</div>
       ) : chartData.length === 0 ? (

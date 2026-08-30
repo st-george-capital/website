@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CollapsibleCard, ToolAtAGlance } from '@/components/tool-digest';
 import { ToolReadingGuide } from '@/components/tool-reading-guide';
+import { DashboardLoadingState } from '@/components/dashboard-state';
 import { getToolReadingGuide } from '@/lib/tool-reading-guides';
 import type { G10CountryRates, G10RatesPayload } from '@/app/api/dashboard/g10-rates/route';
 
@@ -111,11 +112,7 @@ export default function G10RatesPage() {
   );
 
   if (status === 'loading' || (loading && !payload)) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center text-sm text-slate-500">
-        Loading G10 rates…
-      </div>
-    );
+    return <DashboardLoadingState label="Loading G10 rates" description="Collecting policy, short-end, and curve data across the G10." />;
   }
 
   return (

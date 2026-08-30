@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
+import { DashboardLoadingState } from '@/components/dashboard-state';
 import {
   LayoutDashboard,
   TrendingUp,
@@ -74,10 +75,9 @@ export default function DashboardLayout({
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading...</p>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
+        <div className="w-full max-w-lg">
+          <DashboardLoadingState compact label="Signing you in" description="Restoring your dashboard and permissions." />
         </div>
       </div>
     );
