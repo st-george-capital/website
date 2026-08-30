@@ -1,8 +1,9 @@
 import { Hero } from '@/components/hero';
 import { Section, SectionHeader } from '@/components/section';
-import { Card, CardHeader } from '@/components/card';
-import { Button } from '@/components/button';
+import { Card, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Linkedin, ArrowRight } from 'lucide-react';
 import { prisma } from '@/lib/prisma';
 import { TeamMemberCard } from '@/components/team-member-card';
@@ -45,7 +46,7 @@ function AlumniCard({ member }: { member: any }) {
       <div className="flex items-center gap-4">
         <div className="w-14 h-14 rounded-full overflow-hidden bg-white/10 flex items-center justify-center flex-shrink-0">
           {member.headshot ? (
-            <img src={member.headshot} alt={member.name} className="w-full h-full object-cover" />
+            <Image src={member.headshot} alt={member.name} width={56} height={56} sizes="56px" className="h-full w-full object-cover" />
           ) : (
             <span className="text-lg font-bold text-white/60">
               {member.name.split(' ').map((n: string) => n[0]).join('')}

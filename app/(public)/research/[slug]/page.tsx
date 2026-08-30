@@ -1,8 +1,9 @@
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { Section } from '@/components/section';
-import { Button } from '@/components/button';
+import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowLeft, Calendar, User, Tag } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -81,10 +82,13 @@ export default async function ArticlePage({ params }: { params: { slug: string }
       {article.coverImage && (
         <Section>
           <div className="max-w-5xl mx-auto">
-            <img
+            <Image
               src={article.coverImage}
               alt={article.title}
-              className="w-full h-auto rounded-2xl shadow-2xl"
+              width={1200}
+              height={675}
+              sizes="(min-width: 1024px) 1024px, 100vw"
+              className="h-auto w-full rounded-2xl shadow-2xl"
             />
           </div>
         </Section>
@@ -205,4 +209,3 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     description: article.excerpt,
   };
 }
-

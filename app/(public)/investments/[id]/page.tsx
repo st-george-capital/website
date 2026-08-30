@@ -1,8 +1,9 @@
 import { notFound } from 'next/navigation';
 import { Section, SectionHeader } from '@/components/section';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowLeft } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
@@ -112,11 +113,13 @@ export default async function InvestmentPage({ params }: { params: { id: string 
             )}
 
             {investment.coverImage && (
-              <div className="mt-6">
-                <img
+              <div className="relative mt-6 h-64 w-full max-w-2xl overflow-hidden rounded-lg shadow-lg">
+                <Image
                   src={investment.coverImage}
                   alt={investment.title}
-                  className="w-full max-w-2xl h-64 object-cover rounded-lg shadow-lg"
+                  fill
+                  sizes="(min-width: 1024px) 672px, 100vw"
+                  className="object-cover"
                 />
               </div>
             )}

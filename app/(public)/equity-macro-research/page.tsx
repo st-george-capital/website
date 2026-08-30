@@ -3,8 +3,8 @@
 import { motion } from 'framer-motion';
 import { Hero } from '@/components/hero';
 import { Section, SectionHeader } from '@/components/section';
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/card';
-import { Button } from '@/components/button';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Globe, Building2, TrendingUp, Shield, ArrowRight } from 'lucide-react';
@@ -189,10 +189,12 @@ export default function EquityMacroResearchPage() {
             transition={{ duration: 0.8 }}
           >
             <div className="relative w-full h-[500px] rounded-2xl overflow-hidden shadow-2xl">
-              <img
+              <Image
                 src="/images/webphotos/dash.jpg"
                 alt="Research Tools and Resources"
-                className="w-full h-full object-cover"
+                fill
+                sizes="(min-width: 768px) 50vw, 100vw"
+                className="object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
             </div>

@@ -1,8 +1,9 @@
 import { Hero } from '@/components/hero';
 import { Section, SectionHeader } from '@/components/section';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import Image from 'next/image';
 
 // Force dynamic rendering for database queries
 export const dynamic = 'force-dynamic';
@@ -119,10 +120,13 @@ export default async function HoldingsPage() {
                   <CardHeader>
                     <div className="flex items-start justify-between mb-4">
                       {thesis.coverImage ? (
-                        <img
+                        <Image
                           src={thesis.coverImage}
                           alt={thesis.title}
-                          className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                          width={48}
+                          height={48}
+                          sizes="48px"
+                          className="h-12 w-12 shrink-0 rounded-lg object-cover"
                         />
                       ) : (
                         <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">

@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import { Hero } from '@/components/hero';
 import { Section } from '@/components/section';
-import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '@/components/card';
-import { Button } from '@/components/button';
+import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Mail, MapPin, Linkedin, Instagram, Send, Briefcase, Users, TrendingUp, Target, FileText } from 'lucide-react';
 interface JobPosting {
@@ -108,10 +109,12 @@ export default function ContactPage() {
               transition={{ duration: 0.8 }}
               className="relative h-[400px] rounded-2xl overflow-hidden"
             >
-              <img
+              <Image
                 src="/images/webphotos/joinus.jpg"
                 alt="Join St. George Capital"
-                className="w-full h-full object-cover"
+                fill
+                sizes="(min-width: 768px) 50vw, 100vw"
+                className="object-cover"
                 style={{ imageRendering: 'auto' }}
                 loading="eager"
                 decoding="async"

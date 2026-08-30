@@ -1,9 +1,10 @@
 import { prisma } from '@/lib/prisma';
 import { Hero } from '@/components/hero';
 import { Section, SectionHeader } from '@/components/section';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
-import { Button } from '@/components/button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Calendar, User, ArrowRight } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -64,11 +65,13 @@ export default async function ResearchPage() {
                 <Link key={article.id} href={`/research/${article.slug}`}>
                   <Card className="h-full hover:shadow-xl transition-shadow cursor-pointer bg-white">
                     {article.coverImage && (
-                      <div className="w-full h-48 overflow-hidden rounded-t-lg">
-                        <img
+                      <div className="relative h-48 w-full overflow-hidden rounded-t-lg">
+                        <Image
                           src={article.coverImage}
                           alt={article.title}
-                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                          fill
+                          sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+                          className="object-cover transition-transform duration-300 hover:scale-105"
                         />
                       </div>
                     )}
