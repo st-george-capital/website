@@ -19,6 +19,7 @@ import {
 import JSZip from 'jszip';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DashboardHelpButton } from '@/components/dashboard-help';
 import type {
   MarketingCampaignKind,
   MarketingCampaignRecord,
@@ -531,6 +532,7 @@ export default function MarketingStudioPage() {
             Generate institutional SGC platform packs for Instagram, LinkedIn, and recruiting flyers using fixed branded templates.
           </p>
         </div>
+        <DashboardHelpButton topic="marketing" label="How to generate a pack" />
       </div>
 
       <Card hover={false} className="overflow-hidden border-slate-200 bg-[linear-gradient(135deg,#030116_0%,#081a31_48%,#11294b_100%)] text-white">

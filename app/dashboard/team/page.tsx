@@ -6,6 +6,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/button';
 import { Users, Linkedin, Plus, UserCheck, Trash2, Edit, Save, X, Upload, Archive, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
+import { DashboardHelpButton } from '@/components/dashboard-help';
+import { DashboardLoadingState } from '@/components/dashboard-state';
 
 interface User {
   id: string;
@@ -280,12 +282,7 @@ export default function TeamDashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading team members...</p>
-        </div>
-      </div>
+      <DashboardLoadingState compact label="Loading team management" description="Retrieving members and account access." />
     );
   }
 
@@ -302,14 +299,17 @@ export default function TeamDashboardPage() {
             }
           </p>
         </div>
-        {isAdmin && activeTab === 'members' && (
-          <Link href="/dashboard/team/add">
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Team Member
-            </Button>
-          </Link>
-        )}
+        <div className="flex items-center gap-3">
+          <DashboardHelpButton topic={activeTab === 'members' ? 'members' : 'permissions'} label="How this works" />
+          {isAdmin && activeTab === 'members' && (
+            <Link href="/dashboard/team/add">
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Team Member
+              </Button>
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}

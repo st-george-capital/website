@@ -7,6 +7,7 @@ import { signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DashboardLoadingState } from '@/components/dashboard-state';
+import { DashboardHelpButton } from '@/components/dashboard-help';
 import {
   LayoutDashboard,
   TrendingUp,
@@ -185,6 +186,7 @@ export default function DashboardLayout({
               <Menu size={24} />
             </button>
             <div className="flex items-center space-x-4">
+              <DashboardHelpButton topic="content" compact />
               <Link
                 href="/"
                 className="text-sm text-muted-foreground hover:text-foreground"
