@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import { Card, CardHeader } from '@/components/card';
 import { Linkedin } from 'lucide-react';
 
@@ -32,10 +33,13 @@ export function TeamMemberCard({ member, index }: TeamMemberCardProps) {
           {/* Headshot */}
           <div className="w-32 h-32 mx-auto mb-6 rounded-lg overflow-hidden bg-gradient-to-br from-primary/20 to-primary/5">
             {member.headshot ? (
-              <img
+              <Image
                 src={member.headshot}
                 alt={member.name}
-                className="w-full h-full object-cover"
+                width={128}
+                height={128}
+                sizes="128px"
+                className="h-full w-full object-cover"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
@@ -74,4 +78,3 @@ export function TeamMemberCard({ member, index }: TeamMemberCardProps) {
     </motion.div>
   );
 }
-

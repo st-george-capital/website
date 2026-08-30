@@ -6,6 +6,7 @@ import { Section, SectionHeader } from '@/components/section';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/card';
 import { Button } from '@/components/button';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Brain, TrendingUp, Database, LineChart, ArrowRight } from 'lucide-react';
 
 const focusAreas = [
@@ -92,11 +93,12 @@ export default function QuantTradingPage() {
             transition={{ duration: 0.8 }}
             className="relative h-[400px] rounded-2xl overflow-hidden"
           >
-            <img 
+            <Image
               src="/images/webphotos/quanttrading.jpg" 
               alt="Quantitative Trading Team" 
-              className="w-full h-full object-cover"
-              loading="lazy"
+              fill
+              sizes="(min-width: 768px) 50vw, 100vw"
+              className="object-cover"
             />
           </motion.div>
           <motion.div
@@ -214,4 +216,3 @@ export default function QuantTradingPage() {
     </>
   );
 }
-

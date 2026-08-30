@@ -6,6 +6,7 @@ import { Section, SectionHeader } from '@/components/section';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/card';
 import { Button } from '@/components/button';
 import Link from 'next/link';
+import Image from 'next/image';
 import { BookOpen, Award, Users, Lightbulb, ArrowRight } from 'lucide-react';
 
 const activities = [
@@ -88,11 +89,12 @@ export default function QuantResearchPage() {
             transition={{ duration: 0.8 }}
             className="relative h-[400px] rounded-2xl overflow-hidden"
           >
-            <img 
+            <Image
               src="/images/webphotos/quantresearch.jpg" 
               alt="Quantitative Research Team" 
-              className="w-full h-full object-cover"
-              loading="lazy"
+              fill
+              sizes="(min-width: 768px) 50vw, 100vw"
+              className="object-cover"
             />
           </motion.div>
         </div>
@@ -243,4 +245,3 @@ export default function QuantResearchPage() {
     </>
   );
 }
-

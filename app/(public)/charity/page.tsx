@@ -5,6 +5,7 @@ import { Heart, Users, TrendingUp, Calendar, DollarSign } from 'lucide-react';
 import { Button } from '@/components/button';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
+import Image from 'next/image';
 
 // Force dynamic rendering to prevent static generation issues with database calls
 export const dynamic = 'force-dynamic';
@@ -90,10 +91,12 @@ export default async function CharityPage() {
             </div>
             
             <div className="relative h-96 bg-gradient-to-br from-white/5 to-white/10 rounded-2xl overflow-hidden">
-              <img 
+              <Image
                 src="/images/charity/sgcsoccer.jpeg" 
                 alt="SGC SickKids Charity Event"
-                className="w-full h-full object-cover"
+                fill
+                sizes="(min-width: 1024px) 50vw, 100vw"
+                className="object-cover"
               />
             </div>
           </div>

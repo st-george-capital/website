@@ -3,6 +3,7 @@ import { Section, SectionHeader } from '@/components/section';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Users, Coffee, Lightbulb, Target } from 'lucide-react';
 import { prisma } from '@/lib/prisma';
+import Image from 'next/image';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,11 +89,12 @@ export default async function CulturePage() {
             </div>
 
             <div className="relative w-full h-[500px] rounded-2xl overflow-hidden shadow-2xl">
-              <img
+              <Image
                 src="/images/webphotos/culture.jpeg"
                 alt="St. George Capital Team Culture"
-                className="w-full h-full object-cover"
-                loading="lazy"
+                fill
+                sizes="(min-width: 768px) 50vw, 100vw"
+                className="object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
             </div>
@@ -112,11 +114,13 @@ export default async function CulturePage() {
             <div className="flex flex-wrap justify-center items-center gap-x-10 gap-y-8">
               {logos.map((logo) => (
                 <div key={logo.id} className="flex items-center justify-center w-32 h-14">
-                  <img
+                  <Image
                     src={logo.logoUrl}
                     alt={logo.name}
                     title={logo.name}
-                    className="max-h-full max-w-full object-contain grayscale hover:grayscale-0 transition-all duration-300 opacity-70 hover:opacity-100"
+                    width={128}
+                    height={56}
+                    className="max-h-full max-w-full object-contain grayscale opacity-70 transition-all duration-300 hover:grayscale-0 hover:opacity-100"
                   />
                 </div>
               ))}
@@ -127,4 +131,3 @@ export default async function CulturePage() {
     </>
   );
 }
-
