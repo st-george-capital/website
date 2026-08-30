@@ -494,7 +494,7 @@ export default function InterviewToolPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 min-w-[280px]">
+        <div className="grid w-full grid-cols-2 gap-3 sm:w-auto sm:grid-cols-4">
           <Card hover={false} className="border-slate-200">
             <CardContent className="p-4">
               <div className="text-xs text-muted-foreground">Total</div>

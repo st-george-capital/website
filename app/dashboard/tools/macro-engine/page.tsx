@@ -410,7 +410,7 @@ function PerformanceChart() {
     const d = payload[0].payload as ChartRow;
     const ptFull = points.find(p => p.date === d.date);
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-lg text-xs min-w-[160px]">
+      <div className="max-w-[90vw] min-w-[160px] rounded-lg border border-slate-200 bg-white p-2.5 text-xs shadow-lg">
         <div className="font-semibold text-slate-700 mb-1.5">{fmtDate(d.date)}</div>
         {tab === 'cumulative' && (
           <div className="space-y-0.5">
@@ -489,7 +489,7 @@ function PerformanceChart() {
 
       {/* Summary stats */}
       {points.length > 0 && (
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <div className="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2 text-center">
             <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
               Portfolio {mode === 'gross' ? '(Gross)' : '(Net)'}
@@ -618,7 +618,7 @@ function PerformanceChart() {
             </div>
           </div>
           {selectedPoint.basket.length > 0 ? (
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+            <div className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2">
               {selectedPoint.basket.map((r, i) => (
                 <div key={r.ticker} className="flex items-center gap-2 text-[12px]">
                   <span className="w-4 text-slate-300 font-mono text-[10px]">{i + 1}</span>
@@ -698,7 +698,7 @@ function TodaysTradesCard() {
             {' '}transaction cost {data.config.transactionCostBps}bps/side
           </div>
         </div>
-        <div className="flex gap-2 text-[11px]">
+        <div className="flex flex-wrap gap-2 text-[11px]">
           <div className="rounded border border-slate-200 px-2.5 py-1.5 bg-white min-w-[88px]">
             <div className="text-slate-400">Holdout Sharpe (Net)</div>
             <div className={`text-base font-bold ${colorClass(data.summary.sharpeNet - 0.3, 0)}`}>
@@ -883,7 +883,7 @@ function RegimeOutlookCard() {
           const color = regimeColor(row.regime);
           return (
             <div key={row.regime} className="flex items-center gap-3">
-              <div className="w-[160px] shrink-0 flex items-center gap-1.5">
+              <div className="flex w-full items-center gap-1.5 sm:w-[160px] sm:shrink-0">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
                 <div className={`text-[12px] ${isCurrent ? 'font-bold text-slate-800' : 'font-medium text-slate-600'}`}>
                   {regimeDisplayName(row.regime)}
@@ -1286,7 +1286,7 @@ function BacktestMetricsPanel({ metrics }: { metrics: NonNullable<MacroEnginePay
             <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
               Out-of-Sample · {metrics.dataStart} → {metrics.holdoutStart}
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <MetricCard
                 label="Beat-SPY Rate"
                 value={`${(metrics.oos.hitRate * 100).toFixed(1)}%`}
@@ -1317,7 +1317,7 @@ function BacktestMetricsPanel({ metrics }: { metrics: NonNullable<MacroEnginePay
             <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
               Holdout · {metrics.holdoutStart} → present
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <MetricCard
                 label="Beat-SPY Rate"
                 value={`${(metrics.holdout.hitRate * 100).toFixed(1)}%`}
@@ -2083,7 +2083,7 @@ export default function MacroEnginePage() {
                     const isPos = val >= 0;
                     return (
                       <div key={key} className="flex items-center gap-3">
-                        <div className="w-[90px] shrink-0">
+                        <div className="w-20 shrink-0 sm:w-[90px]">
                           <div className="text-[12px] font-semibold text-slate-700">{label}</div>
                           <div className="text-[10px] text-slate-400 leading-tight">{desc}</div>
                         </div>

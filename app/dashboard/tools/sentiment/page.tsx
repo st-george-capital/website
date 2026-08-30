@@ -438,7 +438,7 @@ export default function SentimentToolPage() {
                   <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">{result.narrative.coverageSummary}</p>
                 </div>
 
-                <div className="grid min-w-[280px] grid-cols-2 gap-3 lg:w-[360px]">
+                <div className="grid w-full grid-cols-2 gap-3 lg:w-[360px]">
                   <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                     <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Signal strength</div>
                     <div className="mt-2 text-2xl font-bold text-slate-950">{result.snapshot.signalStrength}</div>
