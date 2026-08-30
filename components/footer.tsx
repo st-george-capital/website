@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Linkedin, Instagram, Mail, MapPin } from 'lucide-react';
 
 const footerLinks = {
@@ -47,10 +48,13 @@ export function Footer() {
           {/* Brand Column */}
           <div className="lg:col-span-2">
             <Link href="/" className="inline-block mb-6">
-              <img 
+              <Image
                 src="/images/logo/logo_cropped.png" 
                 alt="SGC Logo" 
-                className="h-12 w-auto opacity-90 hover:opacity-100 transition-opacity"
+                width={192}
+                height={48}
+                sizes="192px"
+                className="h-12 w-auto opacity-90 transition-opacity hover:opacity-100"
               />
             </Link>
             <p className="text-white/60 text-sm leading-relaxed mb-6 max-w-sm">
@@ -174,4 +178,3 @@ export function Footer() {
     </footer>
   );
 }
-

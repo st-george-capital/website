@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Navigation } from '@/components/navigation';
 import { Footer } from '@/components/footer';
 import { VideoHero } from '@/components/video-hero';
-import { Button } from '@/components/button';
+import { Button } from '@/components/ui/button';
 import { Section, SectionHeader } from '@/components/section';
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/card';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ArrowRight, TrendingUp, Users, LineChart, Heart } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -156,11 +157,12 @@ export default function HomePage() {
             className="relative"
           >
             <div className="relative w-full h-[500px] rounded-2xl overflow-hidden shadow-2xl">
-              <img
+              <Image
                 src="/images/webphotos/engineeredatuoft.jpg"
                 alt="SGC Team at University of Toronto"
-                className="w-full h-full object-cover"
-                loading="lazy"
+                fill
+                sizes="(min-width: 768px) 50vw, 100vw"
+                className="object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
             </div>
@@ -255,11 +257,12 @@ export default function HomePage() {
             transition={{ duration: 0.8 }}
           >
             <div className="relative w-full h-[500px] rounded-2xl overflow-hidden shadow-2xl">
-              <img
+              <Image
                 src="/images/webphotos/marketleaders.jpg"
                 alt="St. George Capital Leadership"
-                className="w-full h-full object-cover"
-                loading="lazy"
+                fill
+                sizes="(min-width: 768px) 50vw, 100vw"
+                className="object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
             </div>
@@ -277,10 +280,12 @@ export default function HomePage() {
             transition={{ duration: 0.8 }}
             className="relative h-[400px] rounded-2xl overflow-hidden"
           >
-            <img 
+            <Image
               src="/images/charity/sgcsoccer.jpeg" 
               alt="SGC Charity Soccer Event" 
-              className="w-full h-full object-cover"
+              fill
+              sizes="(min-width: 768px) 50vw, 100vw"
+              className="object-cover"
             />
           </motion.div>
 

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Menu, X, ChevronDown } from 'lucide-react';
@@ -92,10 +93,13 @@ export function Navigation() {
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
             <Link href="/" className="flex items-center group">
-              <img 
+              <Image
                 src="/images/logo/logo_cropped.png" 
                 alt="SGC Logo" 
-                className="h-12 w-auto opacity-90 group-hover:opacity-100 transition-opacity"
+                width={192}
+                height={48}
+                sizes="192px"
+                className="h-12 w-auto opacity-90 transition-opacity group-hover:opacity-100"
               />
             </Link>
 
