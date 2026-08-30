@@ -53,3 +53,6 @@ prisma/*.db-journal
 
 # Original large video file (keeping compressed version)
 /images/exec\ team/video/*.mp4
+
+# GSD planning artifacts (local only, not tracked)
+.planning/
