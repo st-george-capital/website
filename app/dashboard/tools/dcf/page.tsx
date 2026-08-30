@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-// Using native HTML form elements instead of custom UI components
 import { Badge } from '@/components/ui/badge';
 import { toNum } from '@/lib/utils';
 import { ArrowLeft, Calculator, TrendingUp, BarChart3, AlertTriangle, Info, Download, Upload, FileText, Save, Trash2, List } from 'lucide-react';
@@ -29,7 +28,6 @@ import {
 } from 'recharts';
 import Link from 'next/link';
 
-// Number formatting helper
 function formatNumber(num: number, decimals: number = 0): string {
   return num.toLocaleString('en-US', {
     minimumFractionDigits: decimals,
@@ -1313,11 +1311,9 @@ export default function DCFToolPage() {
     }
   };
 
-  // Company selection and analysis
   const handleCompanySelect = async (company: CompanyOverview) => {
     setSelectedCompany(company);
     setAnalysisError(null);
-    // Automatically run analysis for the selected company
     await runFullAnalysis(company.symbol);
   };
 
@@ -1329,7 +1325,6 @@ export default function DCFToolPage() {
     try {
       console.log('Starting full analysis for ticker:', ticker);
 
-      // Validate ticker format
       if (!ticker || ticker.length < 1 || ticker.length > 5) {
         throw new Error(`Invalid ticker symbol: ${ticker}. Please use a valid stock symbol like AAPL or TSLA.`);
       }
@@ -1605,9 +1600,7 @@ export default function DCFToolPage() {
     });
   };
 
-  // Extract company name from Excel data
   const extractCompanyName = (data: any[][]): string | null => {
-    // Look for company name in the first few rows
     for (let i = 0; i < Math.min(10, data.length); i++) {
       for (let j = 0; j < data[i].length; j++) {
         const cell = data[i][j];
@@ -1619,9 +1612,7 @@ export default function DCFToolPage() {
     return null;
   };
 
-  // Extract ticker from Excel data
   const extractTicker = (data: any[][]): string | null => {
-    // Look for ticker in the first few rows
     for (let i = 0; i < Math.min(10, data.length); i++) {
       for (let j = 0; j < data[i].length; j++) {
         const cell = data[i][j];
