@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { AlertCircle, Loader2, Radar, RefreshCw, Route, Save, ShieldAlert, Sparkles } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type {
   TradeBriefsPayload,
   TradeRadarRefreshPayload,
@@ -217,19 +218,19 @@ export default function TradeRadarPage() {
 
       <TradeSummaryCards summary={summary} />
 
-      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-2">
-        {TABS.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setTab(item.id)}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-              tab === item.id ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
+      <Tabs value={tab} onValueChange={(value) => setTab(value as TabId)}>
+        <TabsList className="h-auto flex-wrap gap-2 rounded-none border-b border-slate-200 bg-transparent p-0 pb-2">
+          {TABS.map((item) => (
+            <TabsTrigger
+              key={item.id}
+              value={item.id}
+              className="rounded-full border-0 px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              {item.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       {loading ? (
         <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-slate-200 bg-white">

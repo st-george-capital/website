@@ -14,8 +14,9 @@ import {
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
-import { Button } from '@/components/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RelatedResearchTools } from '@/components/related-research-tools';
 import { ToolAtAGlance } from '@/components/tool-digest';
 import { ToolReadingGuide } from '@/components/tool-reading-guide';
@@ -309,25 +310,23 @@ export default function EquityPositioningPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-3 md:grid-cols-2">
-        {tabs.map((tab) => {
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          const nextTab = value as PositioningTab;
+          setActiveTab(nextTab);
+          if (result?.entity.symbol) void loadData(result.entity.symbol, nextTab);
+        }}
+      >
+        <TabsList className="grid h-auto w-full grid-cols-1 gap-3 bg-transparent p-0 md:grid-cols-2">
+          {tabs.map((tab) => {
           const Icon = tab.icon;
           const selected = activeTab === tab.id;
           return (
-            <button
+            <TabsTrigger
               key={tab.id}
-              type="button"
-              onClick={() => {
-                setActiveTab(tab.id);
-                if (result?.entity.symbol) {
-                  void loadData(result.entity.symbol, tab.id);
-                }
-              }}
-              className={`rounded-2xl border p-4 text-left transition ${
-                selected
-                  ? 'border-primary bg-primary/5 shadow-sm'
-                  : 'border-slate-200 bg-white hover:border-slate-300'
-              }`}
+              value={tab.id}
+              className="h-auto whitespace-normal rounded-2xl border border-slate-200 bg-white p-4 text-left data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=active]:text-foreground data-[state=active]:shadow-sm"
             >
               <div className="flex items-start gap-3">
                 <div className={`rounded-xl p-2 ${selected ? 'bg-primary/10' : 'bg-slate-100'}`}>
@@ -338,10 +337,11 @@ export default function EquityPositioningPage() {
                   <div className="mt-1 text-sm text-slate-500">{tab.description}</div>
                 </div>
               </div>
-            </button>
+            </TabsTrigger>
           );
-        })}
-      </div>
+          })}
+        </TabsList>
+      </Tabs>
 
       {readingGuide ? <ToolReadingGuide guide={readingGuide} symbol={result?.entity.symbol} /> : null}
 

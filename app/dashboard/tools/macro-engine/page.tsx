@@ -13,7 +13,8 @@ import {
   AlertCircle, ArrowLeft, TrendingUp, Info, ChevronDown, ChevronRight, RefreshCw,
   BarChart2, Activity,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CollapsibleCard, ToolAtAGlance } from '@/components/tool-digest';
 import { ToolReadingGuide } from '@/components/tool-reading-guide';
 import { getToolReadingGuide } from '@/lib/tool-reading-guides';
@@ -403,18 +404,6 @@ function PerformanceChart() {
     setSelectedPoint(full);
   };
 
-  const tabBtn = (t: ChartTab, icon: React.ReactNode, label: string) => (
-    <button
-      type="button"
-      onClick={() => setTab(t)}
-      className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-semibold transition-colors ${
-        tab === t ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-      }`}
-    >
-      {icon}{label}
-    </button>
-  );
-
   type ChartRow = { date: string; portfolio?: number; spy?: number; excess?: number; rollingSharpe?: number | null; gated?: boolean };
   const tooltipContent = ({ active, payload }: TooltipProps<ValueType, NameType>) => {
     if (!active || !payload?.length) return null;
@@ -452,11 +441,19 @@ function PerformanceChart() {
     <div className="space-y-4">
       {/* Top controls */}
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex gap-1">
-          {tabBtn('cumulative', <Activity className="h-3 w-3" />, 'Cumulative')}
-          {tabBtn('excess', <BarChart2 className="h-3 w-3" />, 'Excess / Period')}
-          {tabBtn('sharpe', <TrendingUp className="h-3 w-3" />, 'Rolling Sharpe')}
-        </div>
+        <Tabs value={tab} onValueChange={(value) => setTab(value as ChartTab)}>
+          <TabsList className="h-auto gap-1 rounded bg-transparent p-0">
+            <TabsTrigger value="cumulative" className="gap-1.5 px-2.5 py-1 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Activity className="h-3 w-3" />Cumulative
+            </TabsTrigger>
+            <TabsTrigger value="excess" className="gap-1.5 px-2.5 py-1 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <BarChart2 className="h-3 w-3" />Excess / Period
+            </TabsTrigger>
+            <TabsTrigger value="sharpe" className="gap-1.5 px-2.5 py-1 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <TrendingUp className="h-3 w-3" />Rolling Sharpe
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
         <div className="flex gap-1 items-center">
           <div className="flex bg-slate-100 rounded overflow-hidden mr-1">
             <button
