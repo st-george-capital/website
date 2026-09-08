@@ -1,68 +1,88 @@
-'use client';
+"use client";
 
-import { useState, useRef } from 'react';
-import { Pause, Play } from 'lucide-react';
+import { useState, useRef, useEffect } from "react";
+import { useReducedMotion, motion } from "framer-motion";
+import Link from "next/link";
+import { Pause, Play, ArrowRight, ArrowDown } from "lucide-react";
 
 export function VideoHero() {
-  const [isPaused, setIsPaused] = useState(false);
+  const [isPaused, setIsPaused] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
-
-  const togglePlayPause = () => {
-    if (videoRef.current) {
-      if (isPaused) {
-        videoRef.current.play();
-      } else {
-        videoRef.current.pause();
-      }
-      setIsPaused(!isPaused);
+  const reduced = useReducedMotion();
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (reduced) {
+      video.pause();
+      return;
     }
+    video.play().catch(() => setIsPaused(true));
+  }, [reduced]);
+  const toggle = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) video.play().catch(() => setIsPaused(true));
+    else video.pause();
   };
-
   return (
-    <section className="relative w-full h-screen overflow-hidden">
-      {/* Video Background */}
+    <section className="video-hero">
       <video
         ref={videoRef}
-        autoPlay
         loop
         muted
         playsInline
-        className="absolute inset-0 w-full h-full object-cover"
+        preload="metadata"
+        poster="/videos/sgc-poster.jpg"
+        onPlay={() => setIsPaused(false)}
+        onPause={() => setIsPaused(true)}
+        className="hero-film"
       >
         <source src="/videos/SGC_Promotional.mp4" type="video/mp4" />
       </video>
-
-      {/* Overlay gradient for better text readability */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/60" />
-
-      {/* Pause/Play Button - Top Right */}
-      <button
-        onClick={togglePlayPause}
-        className="absolute top-24 right-8 z-20 w-12 h-12 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm transition-all duration-200 border border-white/30"
-        aria-label={isPaused ? 'Play video' : 'Pause video'}
-      >
-        {isPaused ? (
-          <Play className="w-5 h-5 text-white ml-0.5" />
-        ) : (
-          <Pause className="w-5 h-5 text-white" />
-        )}
-      </button>
-
-      {/* Content */}
-      <div className="relative z-10 h-full flex flex-col justify-center px-6 lg:px-16">
-        {/* Main Heading - Left Aligned */}
-        <h1 className="text-white text-5xl md:text-6xl lg:text-7xl font-serif font-bold text-left mb-8 tracking-tight max-w-4xl">
-          Where Passion<br />Becomes Practice
+      <div className="hero-shade" />
+      <div className="video-hero-content">
+        <p className="eyebrow">
+          St. George Capital <span>/</span> University of Toronto
+        </p>
+        <h1 aria-label="Where Passion Becomes Practice">
+          {["Where Passion", "Becomes Practice"].map((line, i) => (
+            <span className="hero-line" key={line}>
+              <motion.span
+                initial={{ y: "105%", opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{
+                  duration: 0.9,
+                  delay: 0.15 + i * 0.12,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
+              >
+                {line}
+              </motion.span>
+            </span>
+          ))}
         </h1>
-
-        {/* Bottom Blue Text Block - Almost Full Width */}
-        <div className="absolute bottom-0 left-0 right-8 lg:right-16">
-          <div className="bg-[#1e3a8a]/90 backdrop-blur-sm py-8 px-6 lg:px-16">
-            <p className="text-white/95 text-base md:text-lg leading-relaxed max-w-3xl">
-              A student-led investment community grounded in mentorship, collaboration, and hands-on learning in the markets.
-            </p>
-          </div>
+        <Link href="/research" className="text-link hero-research-link">
+          Explore Our Research <ArrowRight size={19} />
+        </Link>
+      </div>
+      <div className="hero-bottom">
+        <div className="hero-description">
+          <span className="hero-description-rule" />
+          <p>
+            A student-led investment community grounded in mentorship,
+            collaboration, and hands-on learning in the markets.
+          </p>
+          <a href="#about" aria-label="Discover St. George Capital">
+            <ArrowDown size={21} />
+          </a>
         </div>
+        <button
+          onClick={toggle}
+          className="film-control"
+          aria-label={isPaused ? "Play video" : "Pause video"}
+        >
+          {isPaused ? <Play size={16} /> : <Pause size={16} />}
+        </button>
       </div>
     </section>
   );

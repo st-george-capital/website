@@ -1,5 +1,6 @@
 'use client';
 
+import { ResearchReportHeader } from '@/components/research/ResearchReportHeader';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -105,7 +106,7 @@ export default function ResearchReportPreviewPage() {
 
   return (
     <>
-      <div className="max-w-5xl mx-auto space-y-6 pb-12">
+      <div className="research-sheet research-report max-w-5xl mx-auto space-y-6 pb-12">
         <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow sticky top-0 z-10">
           <Link href="/dashboard/research">
             <Button variant="outline" className="text-gray-700">
@@ -122,7 +123,7 @@ export default function ResearchReportPreviewPage() {
             </Link>
             <Button
               onClick={handleExportPDF}
-              className="bg-purple-600 text-white hover:bg-purple-700"
+              className="bg-[#172f50] text-white hover:bg-[#1e3a8a]"
             >
               <Download className="w-4 h-4 mr-2" />
               Export to PDF
@@ -137,50 +138,7 @@ export default function ResearchReportPreviewPage() {
           </div>
         </div>
 
-      {/* Cover Page */}
-      <Card className="bg-gradient-to-br from-blue-900 to-blue-700 text-white">
-        <CardContent className="p-12">
-          <div className="text-center space-y-6">
-            <div className="text-sm uppercase tracking-wide opacity-80">
-              St. George Capital • Equity Research
-            </div>
-            <h1 className="text-5xl font-bold mb-2">
-              {report.companyName}
-            </h1>
-            <div className="text-2xl font-semibold opacity-90">
-              {report.ticker} • {report.exchange}
-            </div>
-            
-            <div className="inline-flex items-center gap-4 bg-white/20 backdrop-blur-sm px-8 py-4 rounded-lg">
-              <div className="text-center">
-                <div className="text-sm opacity-80">Recommendation</div>
-                <div className={`text-2xl font-bold px-4 py-2 rounded mt-1 ${getRecommendationColor(report.recommendation)}`}>
-                  {report.recommendation.toUpperCase()}
-                </div>
-              </div>
-              <div className="w-px h-12 bg-white/30" />
-              <div className="text-center">
-                <div className="text-sm opacity-80">Target Price</div>
-                <div className="text-3xl font-bold">${report.targetPrice.toFixed(2)}</div>
-              </div>
-              <div className="w-px h-12 bg-white/30" />
-              <div className="text-center">
-                <div className="text-sm opacity-80">Implied Upside</div>
-                <div className={`text-3xl font-bold flex items-center ${report.impliedUpside >= 0 ? 'text-green-300' : 'text-red-300'}`}>
-                  {report.impliedUpside >= 0 ? <TrendingUp className="w-6 h-6 mr-1" /> : <TrendingDown className="w-6 h-6 mr-1" />}
-                  {(report.impliedUpside * 100).toFixed(1)}%
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-6 text-sm opacity-80">
-              <div>{report.sector} • {report.industry}</div>
-              <div className="mt-2">Analysts: {report.analysts.join(', ')}</div>
-              <div className="mt-1">{new Date(report.reportDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <ResearchReportHeader report={report} />
 
       {/* Company Snapshot & Price Performance */}
       {(report.priceDate || report.fiftyTwoWeekRange != null || report.marketCap != null || report.sharesOutstanding != null || report.fiscalYearEnd || report.priceTargetEndDate || report.dataSource || (report.performanceMetrics && (report.performanceMetrics as any).absYTD != null) || report.dcfInputs || (report.priceHistory && report.priceHistory.length > 0)) && (

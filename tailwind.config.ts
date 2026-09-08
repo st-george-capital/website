@@ -50,6 +50,12 @@ const config: Config = {
           "4": "hsl(var(--chart-4))",
           "5": "hsl(var(--chart-5))",
         },
+        surface: {
+          offwhite: "hsl(var(--surface-offwhite))",
+          "blue-grey": "hsl(var(--surface-blue-grey))",
+          navy: "hsl(var(--surface-navy))",
+          border: "hsl(var(--surface-border))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

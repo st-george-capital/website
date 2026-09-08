@@ -369,8 +369,8 @@ export function InstitutionalValuationSection({
   const forecastYears = Array.from({ length: inputs.forecastYears }, (_, i) => i + 1);
 
   return (
-    <div className={isDocument ? 'space-y-6' : 'space-y-8'}>
-      <div className={isDocument ? 'border border-slate-300 bg-slate-50 p-6' : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-8'}>
+    <div className={isDocument ? 'space-y-6' : 'research-sheet space-y-8'}>
+      <div className={isDocument ? 'border border-slate-300 bg-slate-50 p-6' : 'bg-slate-50 border-y border-slate-300 p-6'}>
         <div className="grid md:grid-cols-4 gap-6">
           <div className="text-center">
             <div className={isDocument ? 'font-sans text-[9px] font-semibold uppercase text-slate-500 mb-1' : 'text-sm text-gray-600 mb-1 uppercase tracking-wide'}>Intrinsic Value</div>

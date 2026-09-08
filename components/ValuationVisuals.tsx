@@ -1,6 +1,5 @@
 'use client';
 
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
 type VisualVariant = 'default' | 'document';
 
@@ -36,31 +35,34 @@ function DocumentBarFigure({
   const topPad = 18;
   const bottomPad = 44;
   const chartHeight = height - topPad - bottomPad;
-  const maxValue = Math.max(...data.map((item) => Math.max(0, item.value)), 0.1);
-  const barWidth = Math.max(26, Math.floor((width - leftPad - rightPad) / Math.max(data.length, 1) - 14));
-  const gap = 14;
+  const maxValue = Math.max(0, ...data.map(item => item.value));
+  const minValue = Math.min(0, ...data.map(item => item.value));
+  const span = Math.max(maxValue - minValue, .1);
+  const toY = (value: number) => topPad + (maxValue - value) / span * chartHeight;
+  const slot = (width - leftPad - rightPad) / Math.max(data.length, 1);
+  const barWidth = slot * .55;
 
   return (
-    <div className="report-figure">
+    <div className="report-figure research-figure">
       <div className="report-subhead">{title}</div>
       <svg viewBox={`0 0 ${width} ${height}`} className="mt-4 w-full h-auto" role="img" aria-label={title}>
         <line x1={leftPad} y1={height - bottomPad} x2={width - rightPad} y2={height - bottomPad} stroke="#cbd5e1" strokeWidth="1" />
         <line x1={leftPad} y1={topPad} x2={leftPad} y2={height - bottomPad} stroke="#cbd5e1" strokeWidth="1" />
         {Array.from({ length: 3 }).map((_, index) => {
           const y = topPad + (chartHeight / 2) * index;
-          return <line key={index} x1={leftPad} y1={y} x2={width - rightPad} y2={y} stroke="#e2e8f0" strokeDasharray="3 5" />;
+          return <line key={index} x1={leftPad} y1={y} x2={width - rightPad} y2={y} stroke="#e5eaf1" />;
         })}
         {data.map((item, index) => {
-          const x = leftPad + index * (barWidth + gap) + gap;
-          const barHeight = (Math.max(0, item.value) / maxValue) * chartHeight;
-          const y = height - bottomPad - barHeight;
+          const x = leftPad + index * slot + (slot - barWidth) / 2;
+          const barHeight = Math.abs(toY(item.value) - toY(0));
+          const y = Math.min(toY(item.value), toY(0));
           return (
             <g key={item.label}>
               <rect x={x} y={y} width={barWidth} height={barHeight} fill={color} rx="2" />
-              <text x={x + barWidth / 2} y={y - 6} textAnchor="middle" fontSize="10" fill="#0f172a" fontFamily="Helvetica, Arial, sans-serif">
+              <text x={x + barWidth / 2} y={item.value < 0 ? toY(item.value) + 12 : y - 6} textAnchor="middle" fontSize="12" fill="#0f172a" fontFamily="Helvetica, Arial, sans-serif">
                 {item.value.toFixed(1)}%
               </text>
-              <text x={x + barWidth / 2} y={height - 22} textAnchor="middle" fontSize="9" fill="#475569" fontFamily="Helvetica, Arial, sans-serif">
+              <text x={x + barWidth / 2} y={height - 22} textAnchor="middle" fontSize="11" fill="#475569" fontFamily="Helvetica, Arial, sans-serif">
                 {item.label}
               </text>
             </g>
@@ -92,8 +94,9 @@ function DocumentLineFigure({
   const topPad = 18;
   const bottomPad = 42;
   const values = data.flatMap((item) => [item.primary, item.secondary].filter((value): value is number => typeof value === 'number'));
-  const minValue = Math.min(...values);
-  const maxValue = Math.max(...values);
+  const padding = Math.max((Math.max(...values) - Math.min(...values)) * .15, .5);
+  const minValue = Math.min(...values) - padding;
+  const maxValue = Math.max(...values) + padding;
   const range = Math.max(maxValue - minValue, 1);
   const plotWidth = width - leftPad - rightPad;
   const plotHeight = height - topPad - bottomPad;
@@ -106,7 +109,7 @@ function DocumentLineFigure({
   const secondaryPoints = data.map((item, index) => item.secondary == null ? null : toPoint(item.secondary, index));
 
   return (
-    <div className="report-figure">
+    <div className="report-figure research-figure">
       <div className="report-subhead">{title}</div>
       <svg viewBox={`0 0 ${width} ${height}`} className="mt-4 w-full h-auto" role="img" aria-label={title}>
         <line x1={leftPad} y1={height - bottomPad} x2={width - rightPad} y2={height - bottomPad} stroke="#cbd5e1" strokeWidth="1" />
@@ -116,8 +119,8 @@ function DocumentLineFigure({
           const value = maxValue - (range / 3) * index;
           return (
             <g key={index}>
-              <line x1={leftPad} y1={y} x2={width - rightPad} y2={y} stroke="#e2e8f0" strokeDasharray="3 4" />
-              <text x={leftPad - 8} y={y + 4} textAnchor="end" fontSize="9" fill="#64748b" fontFamily="Helvetica, Arial, sans-serif">
+              <line x1={leftPad} y1={y} x2={width - rightPad} y2={y} stroke="#e5eaf1" />
+              <text x={leftPad - 8} y={y + 4} textAnchor="end" fontSize="11" fill="#64748b" fontFamily="Helvetica, Arial, sans-serif">
                 {value.toFixed(1)}%
               </text>
             </g>
@@ -140,8 +143,8 @@ function DocumentLineFigure({
         )}
         {primaryPoints.map((point, index) => (
           <g key={data[index].label}>
-            <circle cx={point.x} cy={point.y} r="3.5" fill={seriesColor} />
-            <text x={point.x} y={height - 20} textAnchor="middle" fontSize="9" fill="#475569" fontFamily="Helvetica, Arial, sans-serif">
+            {index === primaryPoints.length - 1 && <text x={point.x} y={point.y - 10} textAnchor="end" fontSize="12" fill={seriesColor}>{data[index].primary.toFixed(1)}%</text>}
+            <text x={point.x} y={height - 20} textAnchor="middle" fontSize="11" fill="#475569" fontFamily="Helvetica, Arial, sans-serif">
               {data[index].label}
             </text>
           </g>
@@ -161,53 +164,39 @@ export function ValuationBridge({ pvForecastFCF, pvTerminalValue, enterpriseValu
     { name: 'Equity Value', value: equityValue / 1e9, display: `$${(equityValue / 1e9).toFixed(1)}B` },
   ];
 
-  const colors = ['#3b82f6', '#60a5fa', '#1e40af', '#ef4444', '#10b981'];
+  const colors = ['#7189aa', '#a2b1c5', '#172f50', '#9b6570', '#1e3a8a'];
 
-  if (variant === 'document') {
-    return (
-      <div className="report-figure">
-        <div className="report-subhead">Valuation Bridge</div>
-        <div className="mt-4 space-y-2">
-          {data.map((item, index) => (
-            <div key={item.name} className="grid grid-cols-[1.6fr_0.7fr_2.1fr] items-center gap-3">
-              <div className="font-sans text-[10px] text-slate-700">{item.name}</div>
-              <div className={`font-sans text-[11px] font-semibold ${item.value < 0 ? 'text-red-700' : 'text-slate-900'}`}>
-                {formatBillions(item.value)}
-              </div>
-              <div className="h-3 bg-slate-100">
-                <div
-                  className="h-3"
-                  style={{
-                    width: `${Math.max((Math.abs(item.value) / Math.max(...data.map((entry) => Math.abs(entry.value)))) * 100, 6)}%`,
-                    backgroundColor: colors[index],
-                  }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="report-caption">Figure 2. Bridge from forecast free cash flow to equity value.</div>
-      </div>
-    );
-  }
-
+  const steps = [
+    { label: 'Forecast FCF', start: 0, end: pvForecastFCF / 1e9 },
+    { label: 'Terminal value', start: pvForecastFCF / 1e9, end: enterpriseValue / 1e9 },
+    { label: 'Enterprise value', start: 0, end: enterpriseValue / 1e9 },
+    { label: netDebt < 0 ? 'Net cash' : 'Net debt', start: enterpriseValue / 1e9, end: equityValue / 1e9 },
+    { label: 'Equity value', start: 0, end: equityValue / 1e9 },
+  ];
+  const low = Math.min(0, ...steps.flatMap(step => [step.start, step.end]));
+  const high = Math.max(0, ...steps.flatMap(step => [step.start, step.end]));
+  const span = Math.max(high - low, 1);
+  const y = (value: number) => 224 - ((value - low) / span) * 166;
   return (
-    <div className="bg-white p-6 rounded-lg border">
-      <h3 className="font-bold text-lg mb-4 text-gray-900">Valuation Bridge</h3>
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-          <XAxis dataKey="name" tick={{ fontSize: 12 }} angle={-15} textAnchor="end" height={80} />
-          <YAxis tick={{ fontSize: 12 }} label={{ value: 'Value ($B)', angle: -90, position: 'insideLeft' }} />
-          <Tooltip formatter={(value) => `$${Number(value).toFixed(1)}B`} />
-          <Bar dataKey="value" label={{ position: 'top', formatter: (value: number) => `$${value.toFixed(1)}B` }}>
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={colors[index]} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
+    <figure className="research-figure bg-white p-6 border">
+      <figcaption className="mb-5"><h3>Enterprise to equity value</h3><p className="text-xs text-slate-500 mt-1">Discounted cash flow contributions · $bn</p></figcaption>
+      <svg viewBox="0 0 760 290" className="w-full" role="img" aria-label="Valuation waterfall, in billions of dollars">
+        {[0, 1, 2, 3].map(index => {
+          const value = low + span * index / 3;
+          return <g key={index}><line x1="60" x2="744" y1={y(value)} y2={y(value)} stroke="#e5eaf0" /><text x="48" y={y(value) + 4} textAnchor="end" fontSize="11" fill="#64748b">{value.toFixed(1)}</text></g>;
+        })}
+        {steps.map((step, index) => {
+          const x = 82 + index * 134;
+          const value = index === 1 ? pvTerminalValue / 1e9 : index === 3 ? -netDebt / 1e9 : step.end;
+          return <g key={step.label}>
+            <rect x={x} y={Math.min(y(step.start), y(step.end))} width="78" height={Math.max(Math.abs(y(step.end) - y(step.start)), 1)} fill={colors[index]} />
+            {index < 4 && <line x1={x + 78} x2={x + 134} y1={y(step.end)} y2={y(step.end)} stroke="#a2b1c5" strokeDasharray="3 3" />}
+            <text x={x + 39} y={Math.min(y(step.start), y(step.end)) - 10} textAnchor="middle" fontSize="12" fill="#172f50">{formatBillions(value)}</text>
+            <text x={x + 39} y="252" textAnchor="middle" fontSize="11" fill="#475569">{step.label}</text>
+          </g>;
+        })}
+      </svg>
+    </figure>
   );
 }
 
@@ -218,50 +207,13 @@ interface RevenueGrowthChartProps {
   variant?: VisualVariant;
 }
 
-export function RevenueGrowthChart({ years, growthRates, terminalGrowth, variant = 'default' }: RevenueGrowthChartProps) {
-  const data = years.map((year, i) => ({
-    year: `Year ${year}`,
-    growth: (growthRates[i] * 100).toFixed(1),
-    terminalGrowth: (terminalGrowth * 100).toFixed(1),
-  }));
-
-  if (variant === 'document') {
-    const figureData = years.map((year, index) => ({
-      label: `Y${year}`,
-      primary: growthRates[index] * 100,
-      secondary: terminalGrowth * 100,
-    }));
-
-    return (
-      <DocumentLineFigure
-        title="Revenue Growth Trajectory"
-        subtitle={`Figure 3. Growth moderates from ${(growthRates[0] * 100).toFixed(1)}% to ${(growthRates[growthRates.length - 1] * 100).toFixed(1)}% and converges toward the ${(terminalGrowth * 100).toFixed(1)}% terminal rate.`}
-        data={figureData}
-        seriesColor="#1d4ed8"
-        terminalColor="#94a3b8"
-      />
-    );
-  }
-
-  return (
-    <div className="bg-white p-6 rounded-lg border">
-      <h3 className="font-bold text-lg mb-4 text-gray-900">Revenue Growth Trajectory</h3>
-      <ResponsiveContainer width="100%" height={250}>
-        <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-          <XAxis dataKey="year" tick={{ fontSize: 12 }} />
-          <YAxis tick={{ fontSize: 12 }} label={{ value: 'Growth Rate (%)', angle: -90, position: 'insideLeft' }} />
-          <Tooltip formatter={(value) => `${value}%`} />
-          <Legend />
-          <Line type="monotone" dataKey="growth" stroke="#3b82f6" strokeWidth={3} name="Forecast Growth" dot={{ r: 5 }} />
-          <Line type="monotone" dataKey="terminalGrowth" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" name="Terminal Growth" />
-        </LineChart>
-      </ResponsiveContainer>
-      <p className="text-xs text-gray-600 mt-2">
-        Growth moderates from {(growthRates[0] * 100).toFixed(1)}% to {(growthRates[growthRates.length - 1] * 100).toFixed(1)}% as company matures, converging to long-term {(terminalGrowth * 100).toFixed(1)}% terminal rate.
-      </p>
-    </div>
-  );
+export function RevenueGrowthChart({ years, growthRates, terminalGrowth }: RevenueGrowthChartProps) {
+  return <DocumentLineFigure
+    title="Revenue growth / forecast"
+    subtitle={`Solid: forecast growth. Dashed: terminal assumption (${(terminalGrowth * 100).toFixed(1)}%).`}
+    data={years.map((year, i) => ({ label: `Y${year}`, primary: growthRates[i] * 100, secondary: terminalGrowth * 100 }))}
+    seriesColor="#214a79" terminalColor="#a2b1c5"
+  />;
 }
 
 interface EBITMarginChartProps {
@@ -270,47 +222,12 @@ interface EBITMarginChartProps {
   variant?: VisualVariant;
 }
 
-export function EBITMarginChart({ years, margins, variant = 'default' }: EBITMarginChartProps) {
-  const data = years.map((year, i) => ({
-    year: `Year ${year}`,
-    margin: (margins[i] * 100).toFixed(1),
-  }));
-
-  const avgMargin = margins.reduce((sum, m) => sum + m, 0) / margins.length * 100;
-
-  if (variant === 'document') {
-    const figureData = years.map((year, index) => ({
-      label: `Y${year}`,
-      value: margins[index] * 100,
-    }));
-
-    return (
-      <DocumentBarFigure
-        title="EBIT Margin Forecast"
-        subtitle={`Figure 4. EBIT margin averages ${avgMargin.toFixed(1)}% across the forecast period.`}
-        data={figureData}
-        color="#0f766e"
-      />
-    );
-  }
-
-  return (
-    <div className="bg-white p-6 rounded-lg border">
-      <h3 className="font-bold text-lg mb-4 text-gray-900">EBIT Margin Forecast</h3>
-      <ResponsiveContainer width="100%" height={250}>
-        <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-          <XAxis dataKey="year" tick={{ fontSize: 12 }} />
-          <YAxis tick={{ fontSize: 12 }} label={{ value: 'EBIT Margin (%)', angle: -90, position: 'insideLeft' }} />
-          <Tooltip formatter={(value) => `${value}%`} />
-          <Bar dataKey="margin" fill="#10b981" label={{ position: 'top', formatter: (value: number) => `${value}%` }} />
-        </BarChart>
-      </ResponsiveContainer>
-      <p className="text-xs text-gray-600 mt-2">
-        EBIT margins average {avgMargin.toFixed(1)}% across forecast period, reflecting {margins[0] === margins[margins.length - 1] ? 'stable' : 'expanding'} operational efficiency.
-      </p>
-    </div>
-  );
+export function EBITMarginChart({ years, margins }: EBITMarginChartProps) {
+  return <DocumentBarFigure title="Operating margin / forecast"
+    subtitle="EBIT as a percentage of revenue across the forecast period."
+    data={years.map((year, i) => ({ label: `Y${year}`, value: margins[i] * 100 }))}
+    color="#7189aa"
+  />;
 }
 
 interface SensitivityTableProps {
@@ -327,16 +244,16 @@ export function SensitivityTable({ baseWACC, baseTerminalGrowth, baseValue, calc
 
   const getColor = (value: number) => {
     const diff = (value / baseValue - 1) * 100;
-    if (diff > 15) return 'bg-emerald-100 text-emerald-950';
-    if (diff > 5) return 'bg-emerald-50 text-emerald-900';
-    if (diff < -15) return 'bg-rose-100 text-rose-950';
-    if (diff < -5) return 'bg-rose-50 text-rose-900';
+    if (diff > 15) return 'bg-blue-100 text-slate-900';
+    if (diff > 5) return 'bg-blue-50 text-slate-900';
+    if (diff < -15) return 'bg-slate-200 text-slate-900';
+    if (diff < -5) return 'bg-slate-100 text-slate-900';
     return 'bg-slate-50 text-slate-900';
   };
 
   if (variant === 'document') {
     return (
-      <div className="report-figure">
+      <div className="report-figure research-figure">
         <div className="report-subhead">Sensitivity Analysis</div>
         <div className="mt-4 overflow-hidden">
           <table className="w-full table-fixed border-collapse font-sans text-[10px] text-slate-900">
@@ -391,7 +308,7 @@ export function SensitivityTable({ baseWACC, baseTerminalGrowth, baseValue, calc
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg border">
+    <div className="research-figure bg-white p-6 border">
       <h3 className="font-bold text-lg mb-4 text-gray-900">Sensitivity Analysis: Intrinsic Value per Share</h3>
       <p className="text-sm text-gray-600 mb-4">
         Impact of changes in WACC and terminal growth rate on valuation (base case: ${baseValue.toFixed(2)})
@@ -424,7 +341,7 @@ export function SensitivityTable({ baseWACC, baseTerminalGrowth, baseValue, calc
                       <td
                         key={g}
                         className={`border border-gray-300 px-3 py-2 text-center font-medium ${
-                          isBase ? 'bg-blue-100 text-blue-900 font-bold' : getColor(value)
+                          isBase ? 'bg-[#172f50] text-white font-bold' : getColor(value)
                         }`}
                       >
                         ${value.toFixed(2)}

@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { Hero } from '@/components/hero';
+import { ResearchHero } from '@/components/research-hero';
 import { Section } from '@/components/section';
 import { Card, CardContent } from '@/components/card';
 import Link from 'next/link';
@@ -23,14 +23,9 @@ export default async function EquityResearchPage() {
 
   return (
     <>
-      <Hero
-        title="Equity Research"
-        breadcrumb="What We Do / Equity Research"
-        height="small"
-        align="left"
-      />
+      <ResearchHero title="Equity Research" discipline="equity" subtitle="Company fundamentals, competitive positioning, and intrinsic value." />
 
-      <Section className="!py-12 !md:py-16">
+      <Section id="overview" className="!py-12 !md:py-16">
         <div className="grid md:grid-cols-2 gap-20 items-start">
           <div>
             <h2 className="font-serif text-5xl md:text-6xl font-bold">

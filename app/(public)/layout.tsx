@@ -1,3 +1,4 @@
+import { PublicExperience } from '@/components/public-experience';
 import { Navigation } from '@/components/navigation';
 import { Footer } from '@/components/footer';
 
@@ -7,13 +8,13 @@ export default function PublicLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
+    <PublicExperience>
       <Navigation />
-      <main className="pt-20">
+      <main id="main-content" className="pt-20">
         {children}
       </main>
       <Footer />
-    </>
+    </PublicExperience>
   );
 }
 

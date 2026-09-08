@@ -1,5 +1,6 @@
+import { ResearchReportHeader } from '@/components/research/ResearchReportHeader';
 import { notFound } from 'next/navigation';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { ArrowLeft, TrendingUp, TrendingDown, Calendar, User } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -9,7 +10,7 @@ import { InstitutionalValuationSection } from '@/components/InstitutionalValuati
 import { ResearchMarketSnapshotSection } from '@/components/research/ResearchMarketSnapshotSection';
 import { ResearchSentimentSection } from '@/components/research/ResearchSentimentSection';
 
-const prisma = new PrismaClient();
+export const dynamic = 'force-dynamic';
 
 async function getPublishedReport(ticker: string) {
   const report = await prisma.equityResearchReport.findFirst({
@@ -31,29 +32,34 @@ export default async function PublicResearchReportPage({
 }: {
   params: { ticker: string };
 }) {
-  const report = await getPublishedReport(params.ticker);
+  let report;
+  try {
+    if (!process.env.DATABASE_URL && !process.env.DATABASE_PRISMA_DATABASE_URL) {
+      throw new Error('Research database is not configured');
+    }
+    report = await getPublishedReport(params.ticker);
+  } catch {
+    return (
+      <section className="min-h-[65vh] bg-white px-6 pb-24 pt-40 text-[#172f50]">
+        <div className="mx-auto max-w-3xl">
+          <p className="eyebrow">Equity research</p>
+          <h1 className="mb-6 mt-4 text-4xl tracking-tight sm:text-5xl">Research temporarily unavailable.</h1>
+          <p className="mb-8 max-w-xl leading-relaxed">We’re unable to load this report right now. Please try again shortly.</p>
+          <Link href="/equity-research" className="inline-flex items-center gap-2 border-b border-current pb-2"><ArrowLeft size={18} /> Back to equity research</Link>
+        </div>
+      </section>
+    );
+  }
 
   if (!report) {
     notFound();
   }
 
-  const getRecommendationColor = (rec: string) => {
-    switch (rec.toLowerCase()) {
-      case 'buy': return 'bg-green-600 text-white';
-      case 'sell': return 'bg-red-600 text-white';
-      case 'overweight': return 'bg-green-600 text-white';
-      case 'underweight': return 'bg-red-600 text-white';
-      case 'neutral': return 'bg-gray-600 text-white';
-      case 'hold': return 'bg-gray-600 text-white';
-      default: return 'bg-gray-600 text-white';
-    }
-  };
-
   const getProbabilityBadge = (prob: string) => {
     const colors = {
-      low: 'bg-yellow-100 text-yellow-800',
-      medium: 'bg-orange-100 text-orange-800',
-      high: 'bg-red-100 text-red-800',
+      low: 'bg-slate-100 text-slate-700',
+      medium: 'bg-slate-100 text-slate-700',
+      high: 'bg-slate-100 text-slate-700',
     };
     return colors[prob as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
@@ -61,8 +67,8 @@ export default async function PublicResearchReportPage({
   const getImpactBadge = (impact: string) => {
     const colors = {
       low: 'bg-blue-100 text-blue-800',
-      medium: 'bg-orange-100 text-orange-800',
-      high: 'bg-red-100 text-red-800',
+      medium: 'bg-slate-100 text-slate-700',
+      high: 'bg-slate-100 text-slate-700',
     };
     return colors[impact as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
@@ -73,85 +79,23 @@ export default async function PublicResearchReportPage({
   const risks = report.keyRisks as any[];
 
   return (
-    <div className="min-h-screen bg-[#030116]">
-      {/* Navigation */}
-            <nav className="border-b border-white/10 bg-[#030116]/95 backdrop-blur-sm sticky top-0 z-50">
-              <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-                <Link href="/equity-research" className="inline-flex items-center text-white/80 hover:text-white transition-colors">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Equity Research
-                </Link>
-              </div>
-            </nav>
-
-      <div className="max-w-5xl mx-auto px-6 py-12 space-y-8">
-        {/* Cover Section */}
-        <div className="bg-gradient-to-br from-blue-900 to-blue-700 rounded-2xl p-12 text-white">
-          <div className="space-y-6">
-            <div className="flex items-center gap-2 text-sm opacity-80">
-              <span className="uppercase tracking-wide">St. George Capital • Equity Research</span>
-            </div>
-            
-            <h1 className="text-5xl font-bold">
-              {report.companyName}
-            </h1>
-            
-            <div className="text-2xl font-semibold opacity-90">
-              {report.ticker} • {report.exchange}
-            </div>
-            
-            <div className="flex items-center gap-6 pt-4">
-              <div className="text-center">
-                <div className="text-sm opacity-80 mb-1">Recommendation</div>
-                <div className={`text-xl font-bold px-6 py-3 rounded-lg ${getRecommendationColor(report.recommendation)}`}>
-                  {report.recommendation.toUpperCase()}
-                </div>
-              </div>
-              
-              <div className="w-px h-16 bg-white/30" />
-              
-              <div className="text-center">
-                <div className="text-sm opacity-80 mb-1">Target Price</div>
-                <div className="text-4xl font-bold">${report.targetPrice.toFixed(2)}</div>
-              </div>
-              
-              <div className="w-px h-16 bg-white/30" />
-              
-              <div className="text-center">
-                <div className="text-sm opacity-80 mb-1">Implied Upside</div>
-                <div className={`text-4xl font-bold flex items-center ${report.impliedUpside >= 0 ? 'text-green-300' : 'text-red-300'}`}>
-                  {report.impliedUpside >= 0 ? <TrendingUp className="w-8 h-8 mr-2" /> : <TrendingDown className="w-8 h-8 mr-2" />}
-                  {(report.impliedUpside * 100).toFixed(1)}%
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-6 pt-6 text-sm border-t border-white/20">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4" />
-                {new Date(report.reportDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-              </div>
-              <div className="flex items-center gap-2">
-                <User className="w-4 h-4" />
-                {report.analysts.join(', ')}
-              </div>
-              <div>
-                {report.sector} • {report.industry}
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className="website-equity research-sheet research-report min-h-screen">
+      <div className="equity-document">
+        <Link href="/equity-research" className="equity-back-link">
+          <ArrowLeft size={15} aria-hidden="true" /> Equity research
+        </Link>
+      <ResearchReportHeader report={report} />
 
         {/* Company Snapshot & Price Performance */}
         {(report.priceDate || report.fiftyTwoWeekRange || report.marketCap != null || report.sharesOutstanding != null || report.fiscalYearEnd || report.priceTargetEndDate || report.dataSource || (report.performanceMetrics as any)?.absYTD != null || report.dcfInputs || ((report as any).priceHistory && (report as any).priceHistory.length > 0)) && (
-          <div className="bg-white rounded-2xl p-8 space-y-6">
+          <div className="equity-section space-y-6">
             <h2 className="text-2xl font-bold text-gray-900">Company Snapshot & Price Performance</h2>
             <ResearchMarketSnapshotSection report={report as any} />
           </div>
         )}
 
         {/* Executive Summary */}
-        <div className="bg-white rounded-2xl p-8 space-y-6">
+        <div className="equity-section space-y-6">
           <h2 className="text-3xl font-bold text-gray-900">Executive Summary</h2>
           
           <div className="grid grid-cols-2 gap-6 pb-6 border-b">
@@ -197,7 +141,7 @@ export default async function PublicResearchReportPage({
         </div>
 
         {/* Business Model */}
-        <div className="bg-white rounded-2xl p-8 space-y-6">
+        <div className="equity-section space-y-6">
           <h2 className="text-3xl font-bold text-gray-900">Business Model & Economics</h2>
           <div className="prose max-w-none text-gray-700
             [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
@@ -242,7 +186,7 @@ export default async function PublicResearchReportPage({
         </div>
 
         {/* Industry Analysis */}
-        <div className="bg-white rounded-2xl p-8 space-y-6">
+        <div className="equity-section space-y-6">
           <h2 className="text-3xl font-bold text-gray-900">Industry & Competitive Landscape</h2>
 
           <div className="prose max-w-none text-gray-700
@@ -259,7 +203,7 @@ export default async function PublicResearchReportPage({
 
         {/* Catalysts */}
         {(catalystsNear.length > 0 || catalystsMedium.length > 0) && (
-          <div className="bg-white rounded-2xl p-8 space-y-6">
+          <div className="equity-section space-y-6">
             <h2 className="text-3xl font-bold text-gray-900">Catalysts & Timeline</h2>
             
             {catalystsNear.length > 0 && (
@@ -311,7 +255,7 @@ export default async function PublicResearchReportPage({
         )}
 
         {/* Valuation */}
-        <div className="bg-white rounded-2xl p-8 space-y-6">
+        <div className="equity-section space-y-6">
           <h2 className="text-3xl font-bold text-gray-900">Valuation Analysis</h2>
 
           {/* Comps table */}
@@ -359,22 +303,22 @@ export default async function PublicResearchReportPage({
         </div>
 
         {(report as any).sentimentSnapshot && (
-          <div className="bg-white rounded-2xl p-8 space-y-6">
+          <div className="equity-section space-y-6">
             <h2 className="text-3xl font-bold text-gray-900">Sentiment & News Flow</h2>
             <ResearchSentimentSection sentiment={(report as any).sentimentSnapshot} />
           </div>
         )}
 
         {/* Bull & Bear Cases */}
-        <div className="bg-white rounded-2xl p-8 space-y-6">
+        <div className="equity-section space-y-6">
           <h2 className="text-3xl font-bold text-gray-900">Bull & Bear Cases</h2>
           
           {report.bullCase && (
             <div>
               <h3 className="font-semibold text-xl mb-4 text-gray-900">Bull Case</h3>
-              <div className="prose max-w-none text-gray-700 border-l-4 border-green-500 pl-4 py-3 bg-green-50 rounded-r
+              <div className="prose max-w-none text-gray-700 border-l-4 border-slate-400 pl-4 py-3 bg-slate-50 rounded-r
                 [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
-                [&_th]:bg-green-100 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
+                [&_th]:bg-slate-100 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
                 [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
                 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
                 [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
@@ -387,9 +331,9 @@ export default async function PublicResearchReportPage({
 
           <div>
             <h3 className="font-semibold text-xl mb-4 text-gray-900">Bear Case Scenario</h3>
-            <div className="prose max-w-none text-gray-700 border-l-4 border-red-500 pl-4 py-3 bg-red-50 rounded-r
+            <div className="prose max-w-none text-gray-700 border-l-4 border-slate-400 pl-4 py-3 bg-slate-50 rounded-r
               [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
-              [&_th]:bg-red-100 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
+              [&_th]:bg-slate-100 [&_th]:border [&_th]:border-gray-300 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
               [&_td]:border [&_td]:border-gray-300 [&_td]:px-3 [&_td]:py-2
               [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2
               [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:rounded [&_img]:max-w-full">
@@ -415,11 +359,11 @@ export default async function PublicResearchReportPage({
 
         {/* Key Risks */}
         {risks.length > 0 && (
-          <div className="bg-white rounded-2xl p-8 space-y-6">
+          <div className="equity-section space-y-6">
             <h2 className="text-3xl font-bold text-gray-900">Key Risks</h2>
             <div className="space-y-3">
               {risks.map((risk: any, index: number) => (
-                <div key={index} className="border border-red-200 rounded-lg p-4 bg-red-50">
+                <div key={index} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
                   <div className="flex items-start justify-between mb-2">
                     <div className="font-semibold text-gray-900 prose prose-sm max-w-none [&_p]:inline [&_p]:m-0">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{risk.title}</ReactMarkdown>
@@ -447,7 +391,7 @@ export default async function PublicResearchReportPage({
 
         {/* AI Strategies */}
         {report.aiStrategies && (
-          <div className="bg-white rounded-2xl p-8 space-y-6">
+          <div className="equity-section space-y-6">
             <h2 className="text-3xl font-bold text-gray-900">AI & Data Strategy</h2>
             <div className="prose max-w-none text-gray-700
               [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
@@ -464,7 +408,7 @@ export default async function PublicResearchReportPage({
 
         {/* ESG */}
         {report.esgFactors && (
-          <div className="bg-white rounded-2xl p-8 space-y-6">
+          <div className="equity-section space-y-6">
             <h2 className="text-3xl font-bold text-gray-900">ESG & Governance</h2>
             <div className="prose max-w-none text-gray-700
               [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
@@ -481,7 +425,7 @@ export default async function PublicResearchReportPage({
 
         {/* Conclusion */}
         {report.concludingSection != null && report.concludingSection !== '' && (
-          <div className="bg-white rounded-2xl p-8 space-y-6">
+          <div className="equity-section space-y-6">
             <h2 className="text-3xl font-bold text-gray-900">Conclusion</h2>
             <div className="prose max-w-none text-gray-700
               [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
@@ -498,18 +442,20 @@ export default async function PublicResearchReportPage({
         )}
 
         {/* Disclosures */}
-        <div className="bg-gray-900 rounded-2xl p-8 text-white">
+        <div className="equity-disclosures">
           <h3 className="font-bold text-sm mb-3 uppercase tracking-wide">Important Disclosures</h3>
-          <p className="text-sm text-white/80 leading-relaxed">
+          <p className="text-sm leading-relaxed">
             This report has been prepared by St. George Capital for educational purposes only. 
             It does not constitute investment advice or a solicitation to buy or sell securities. 
             St. George Capital and its members may hold positions in the securities discussed. 
             Past performance does not guarantee future results. Investors should conduct their own 
             due diligence and consult with qualified financial advisors before making investment decisions.
           </p>
-          <div className="mt-4 pt-4 border-t border-white/20 text-xs text-white/60">
-            Published: {report.publishedAt ? new Date(report.publishedAt).toLocaleDateString() : 'N/A'}
-          </div>
+          {report.publishedAt && (
+            <p className="mt-4 text-xs">
+              Published {new Date(report.publishedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}
+            </p>
+          )}
         </div>
       </div>
     </div>

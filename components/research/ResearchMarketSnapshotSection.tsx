@@ -1,3 +1,4 @@
+import { ResearchPriceChart } from './ResearchPriceChart';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -67,7 +68,7 @@ function parseFiftyTwoWeekRange(range?: string | null) {
 
 function normalizeChartData(points: PricePoint[]) {
   return [...points]
-    .filter((point) => point?.date && Number.isFinite(point?.close))
+    .filter((point) => point?.date && Number.isFinite(new Date(point.date).getTime()) && Number.isFinite(point?.close))
     .sort((left, right) => new Date(left.date).getTime() - new Date(right.date).getTime())
     .slice(-252);
 }
@@ -106,9 +107,9 @@ function SnapshotMetric({
   accentClassName?: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+    <div className="snapshot-metric border-b border-slate-200 py-3">
       <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</div>
-      <div className={`mt-2 text-xl font-bold ${accentClassName}`}>{value}</div>
+      <div className={`mt-2 text-xl font-medium ${accentClassName}`}>{value}</div>
       {sublabel ? <div className="mt-1 text-xs text-slate-500">{sublabel}</div> : null}
     </div>
   );
@@ -139,8 +140,8 @@ export function ResearchMarketSnapshotSection({ report }: { report: MarketSnapsh
   const gridMarkers = [0, 1, 2, 3].map((index) => paddedMin + ((paddedMax - paddedMin) / 3) * index);
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="research-snapshot research-sheet space-y-6">
+      <div className="grid gap-x-8 sm:grid-cols-2 xl:grid-cols-3">
         {report.priceDate ? <SnapshotMetric label="Date of Price" value={report.priceDate} /> : null}
         {report.fiftyTwoWeekRange ? <SnapshotMetric label="52-Week Range" value={report.fiftyTwoWeekRange} /> : null}
         {report.marketCap != null ? <SnapshotMetric label="Market Cap" value={formatCompactCurrencyFromMillions(report.marketCap)} /> : null}
@@ -162,7 +163,7 @@ export function ResearchMarketSnapshotSection({ report }: { report: MarketSnapsh
             label="Forward P/E (Consensus)"
             value={`${report.forwardPEConsensus.toFixed(2)}x`}
             sublabel="Analyst estimates"
-            accentClassName="text-violet-700"
+            accentClassName="text-slate-700"
           />
         ) : null}
         {report.dividendYield != null ? (
@@ -176,12 +177,12 @@ export function ResearchMarketSnapshotSection({ report }: { report: MarketSnapsh
       ) : null}
 
       {(hasEPS || hasChart) && (
-        <div className="grid gap-5 xl:grid-cols-[0.84fr_1.16fr]">
+        <div className="grid gap-8">
           {hasEPS && (
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <section className="border-t border-slate-300 bg-white pt-5">
               <div className="border-b border-slate-200 pb-3">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Recent EPS Trend</div>
-                <h3 className="mt-2 text-2xl font-bold text-slate-950">Recent Reported EPS</h3>
+                <h3 className="mt-2 text-lg font-semibold text-slate-950">Recent Reported EPS</h3>
               </div>
 
               {epsRows.length ? (
@@ -228,10 +229,10 @@ export function ResearchMarketSnapshotSection({ report }: { report: MarketSnapsh
           )}
 
           {hasChart && (
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <section className="border-t border-slate-300 bg-white pt-5">
               <div className="border-b border-slate-200 pb-3">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Price Performance</div>
-                <h3 className="mt-2 text-2xl font-bold text-slate-950">Recent Share Price Trend</h3>
+                <h3 className="mt-2 text-lg font-semibold text-slate-950">Share price performance</h3>
               </div>
 
               {report.priceChartImageUrl && !chartData.length ? (
@@ -255,65 +256,8 @@ export function ResearchMarketSnapshotSection({ report }: { report: MarketSnapsh
                     </div>
                   </div>
 
-                  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-                    <svg viewBox="0 0 840 280" className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
-                      {chartData.length ? (
-                        <>
-                          {gridMarkers.map((marker, index) => {
-                            const y = toY(marker);
-                            return (
-                              <g key={index}>
-                                <line x1="54" y1={y} x2="808" y2={y} stroke="#dbe4f0" strokeWidth="1" />
-                                <text x="44" y={y + 4} textAnchor="end" fontSize="11" fill="#64748b">
-                                  ${marker.toFixed(0)}
-                                </text>
-                              </g>
-                            );
-                          })}
-                          {range?.high != null && (
-                            <>
-                              <line x1="54" y1={toY(range.high)} x2="808" y2={toY(range.high)} stroke="#cbd5e1" strokeDasharray="5 5" />
-                              <text x="808" y={toY(range.high) - 8} textAnchor="end" fontSize="11" fill="#475569">52W High ${range.high.toFixed(2)}</text>
-                            </>
-                          )}
-                          {range?.low != null && (
-                            <>
-                              <line x1="54" y1={toY(range.low)} x2="808" y2={toY(range.low)} stroke="#cbd5e1" strokeDasharray="5 5" />
-                              <text x="808" y={toY(range.low) - 8} textAnchor="end" fontSize="11" fill="#475569">52W Low ${range.low.toFixed(2)}</text>
-                            </>
-                          )}
-                          {(() => {
-                            const points = chartData.map((point: PricePoint, index: number) => {
-                              const x = (chartData.length > 1 ? index / (chartData.length - 1) : 0) * 754 + 54;
-                              return `${x},${toY(point.close)}`;
-                            }).join(' ');
-                            const areaPoints = `${points} 808,228 54,228`;
-
-                            return (
-                              <>
-                                <polygon points={areaPoints} fill="rgba(15, 23, 42, 0.06)" />
-                                <polyline
-                                  points={points}
-                                  fill="none"
-                                  stroke="#0f172a"
-                                  strokeWidth="3"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                />
-                                <circle cx="54" cy={toY(startPrice || 0)} r="4" fill="#0f172a" />
-                                <circle cx="808" cy={toY(endPrice || 0)} r="4" fill="#0f172a" />
-                              </>
-                            );
-                          })()}
-                          <text x="54" y="248" textAnchor="start" fontSize="11" fill="#64748b">
-                            {formatChartDate(chartData[0]?.date)}
-                          </text>
-                          <text x="808" y="248" textAnchor="end" fontSize="11" fill="#64748b">
-                            {formatChartDate(chartData[chartData.length - 1]?.date)}
-                          </text>
-                        </>
-                      ) : null}
-                    </svg>
+                  <div className="mt-5 bg-white">
+                    <ResearchPriceChart points={chartData} />
                   </div>
                 </>
               )}

@@ -1,14 +1,17 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import Image from 'next/image';
-import { Hero } from '@/components/hero';
-import { Section } from '@/components/section';
-import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Mail, MapPin, Linkedin, Instagram, Send, Briefcase, Users, TrendingUp, Target, FileText } from 'lucide-react';
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Mail, Send, Briefcase, FileText, Instagram, Linkedin } from "lucide-react";
 interface JobPosting {
   id: string;
   title: string;
@@ -22,426 +25,286 @@ interface JobPosting {
 }
 
 function formatTeamLabel(team: string) {
-  if (team === 'macro_equity') return 'Macro & Equity';
-  if (team === 'executive') return 'Executive Team';
-  return team.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+  if (team === "macro_equity") return "Macro & Equity";
+  if (team === "executive") return "Executive Team";
+  return team
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
-
-
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    subject: '',
-    message: '',
+    firstName: "",
+    lastName: "",
+    email: "",
+    subject: "",
+    message: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [submitStatus, setSubmitStatus] = useState<
+    "idle" | "success" | "error"
+  >("idle");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
 
       if (response.ok) {
-        setSubmitStatus('success');
+        setSubmitStatus("success");
         setFormData({
-          firstName: '',
-          lastName: '',
-          email: '',
-          subject: '',
-          message: '',
+          firstName: "",
+          lastName: "",
+          email: "",
+          subject: "",
+          message: "",
         });
       } else {
-        setSubmitStatus('error');
+        setSubmitStatus("error");
       }
     } catch (error) {
-      setSubmitStatus('error');
+      setSubmitStatus("error");
     } finally {
       setIsSubmitting(false);
-      setTimeout(() => setSubmitStatus('idle'), 5000);
+      setTimeout(() => setSubmitStatus("idle"), 5000);
     }
   };
 
   return (
-    <>
-      <Hero
-        title="Join Us"
-        breadcrumb="Opportunities / Join Us"
-        height="small"
-        align="left"
-      />
-
-      <Section className="!py-12 !md:py-16">
-        <div className="grid md:grid-cols-2 gap-20 items-start">
-          <div>
-            <h2 className="font-serif text-5xl md:text-6xl font-bold">
-              Work with the Best
-            </h2>
-          </div>
-          <div className="space-y-6">
-            <p className="text-lg text-gray-600 leading-relaxed">
-              Learn from our experienced leadership team with top internship placements at leading financial institutions. Join a community driven by a passion for markets and teaching, working alongside like-minded peers who share your ambition.
-            </p>
-            <p className="text-lg text-gray-600 leading-relaxed">
-              We're always looking for talented individuals to join our quantitative trading and fundamental research teams.
-            </p>
-          </div>
+    <div className="join-page">
+      <header className="join-intro">
+        <div className="join-copy">
+          <p className="eyebrow">Opportunities / St. George Capital</p>
+          <h1>
+            Join Us<span>.</span>
+          </h1>
+          <p className="join-lead">
+            A shared interest in markets.
+            <br />
+            Room to do something with it.
+          </p>
+          <p>
+            Learn from our experienced leadership team and work alongside
+            like-minded peers. We're always looking for talented individuals to
+            join our quantitative trading and fundamental research teams.
+          </p>
+          <a href="#opportunities" className="join-primary">
+            Explore opportunities <span aria-hidden="true">↗</span>
+          </a>
         </div>
-      </Section>
-
-      {/* Join Our Team Section - Image + Job Postings */}
-      <Section dark className="!py-12 !md:py-16">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-16 items-center mb-12">
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8 }}
-              className="relative h-[400px] rounded-2xl overflow-hidden"
-            >
-              <Image
-                src="/images/webphotos/joinus.jpg"
-                alt="Join St. George Capital"
-                fill
-                sizes="(min-width: 768px) 50vw, 100vw"
-                className="object-cover"
-                style={{ imageRendering: 'auto' }}
-                loading="eager"
-                decoding="async"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8 }}
-            >
-              <h2 className="font-serif text-3xl md:text-4xl font-bold mb-6">Current Opportunities</h2>
-              <p className="text-lg text-white/80 leading-relaxed">
-                Explore our open positions below and become part of Canada's premier student-led investment organization.
-              </p>
-            </motion.div>
+        <figure className="join-photo">
+          <Image
+            src="/images/webphotos/joinus.jpg"
+            alt="St. George Capital members learning and working together"
+            fill
+            sizes="(min-width: 768px) 45vw, 100vw"
+            className="object-cover"
+            priority
+          />
+          <figcaption>Mentorship. Collaboration. Practice.</figcaption>
+        </figure>
+      </header>
+      <section id="opportunities" className="join-opportunities">
+        <div className="join-section-heading">
+          <div>
+            <p className="eyebrow">Find your team</p>
+            <h2>Current Opportunities</h2>
           </div>
-
-          {/* 🔥 JOB POSTINGS - RIGHT HERE AT THE TOP */}
-          <div className="mb-16">
-            <h3 className="font-serif text-2xl font-bold text-center mb-8">Open Positions</h3>
-            <JobPostingsSection />
-          </div>
-
-          {/* 📄 RESUME BOOK */}
-          <div className="mb-16">
-            <div className="text-center mb-8">
-              <h3 className="font-serif text-2xl font-bold mb-3">Resume Book</h3>
-              <p className="text-white/70 max-w-xl mx-auto">Submit your resume to our talent pool. Our leadership reviews submissions for future opportunities and firm referrals.</p>
+          <p>
+            Explore our open positions and the work you could contribute to.
+          </p>
+        </div>
+        <JobPostingsSection />
+      </section>
+      <section
+        className="join-stay-connected"
+        aria-label="More ways to connect"
+      >
+        <details>
+          <summary>
+            <div>
+              <span className="eyebrow">For future opportunities</span>
+              <h2>Resume Book</h2>
+              <p>Share your resume with our leadership team.</p>
             </div>
+            <span className="details-plus" aria-hidden="true">
+              +
+            </span>
+          </summary>
+          <div className="join-expanded">
             <ResumeBookSection />
           </div>
-
-          {/* 📬 NEWSLETTER */}
-          <div className="mb-16">
+        </details>
+        <details>
+          <summary>
+            <div>
+              <span className="eyebrow">Follow our research</span>
+              <h2>Daily Market Snapshot</h2>
+              <p>Get SGC's market briefing in your inbox.</p>
+            </div>
+            <span className="details-plus" aria-hidden="true">
+              +
+            </span>
+          </summary>
+          <div className="join-expanded">
             <NewsletterSubscribeSection />
           </div>
-
-          {/* Team Sections */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <TrendingUp className="w-8 h-8 text-blue-400" />
-              </div>
-              <h3 className="font-serif text-xl font-bold mb-3">Quant Trading</h3>
-              <p className="text-muted-foreground mb-4">
-                Develop and implement algorithmic trading strategies across multiple asset classes.
-              </p>
-              <div className="space-y-1 text-sm text-muted-foreground">
-                <div>• High-frequency trading</div>
-                <div>• Risk management systems</div>
-                <div>• Portfolio optimization</div>
-                <div>• Execution algorithms</div>
-              </div>
-            </div>
-
-            <div className="text-center">
-              <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Users className="w-8 h-8 text-green-400" />
-              </div>
-              <h3 className="font-serif text-xl font-bold mb-3">Quant Research</h3>
-              <p className="text-muted-foreground mb-4">
-                Conduct fundamental research and develop quantitative models for investment decisions.
-              </p>
-              <div className="space-y-1 text-sm text-muted-foreground">
-                <div>• Statistical modeling</div>
-                <div>• Machine learning</div>
-                <div>• Factor analysis</div>
-                <div>• Backtesting frameworks</div>
-              </div>
-            </div>
-
-            <div className="text-center">
-              <div className="w-16 h-16 bg-purple-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Target className="w-8 h-8 text-purple-400" />
-              </div>
-              <h3 className="font-serif text-xl font-bold mb-3">Macro Research</h3>
-              <p className="text-muted-foreground mb-4">
-                Analyze macroeconomic trends and their impact on global markets and asset allocation.
-              </p>
-              <div className="space-y-1 text-sm text-muted-foreground">
-                <div>• Economic forecasting</div>
-                <div>• Policy analysis</div>
-                <div>• Currency markets</div>
-                <div>• Global trade dynamics</div>
-              </div>
-            </div>
-
-            <div className="text-center">
-              <div className="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Briefcase className="w-8 h-8 text-orange-400" />
-              </div>
-              <h3 className="font-serif text-xl font-bold mb-3">Equity Research</h3>
-              <p className="text-muted-foreground mb-4">
-                Perform in-depth fundamental analysis of individual companies and sectors.
-              </p>
-              <div className="space-y-1 text-sm text-muted-foreground">
-                <div>• Company analysis</div>
-                <div>• Sector research</div>
-                <div>• Valuation modeling</div>
-                <div>• Investment theses</div>
-              </div>
-            </div>
+        </details>
+      </section>
+      <section className="join-contact" id="get-in-touch">
+        <div className="join-contact-intro">
+          <p className="eyebrow">Start a conversation</p>
+          <h2>Get in touch.</h2>
+          <p>
+            Questions about joining, partnerships, or our research? Send us a
+            message.
+          </p>
+          <a href="mailto:outreach@stgeorgecapital.ca">
+            outreach@stgeorgecapital.ca ↗
+          </a>
+          <div className="join-social">
+            <a
+              href="https://www.linkedin.com/company/101142532"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Linkedin size={18} aria-hidden="true" /> LinkedIn ↗
+            </a>
+            <a
+              href="https://www.instagram.com/st_george_capital"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Instagram size={18} aria-hidden="true" /> Instagram ↗
+            </a>
           </div>
         </div>
-      </Section>
-
-      <Section className="!py-12 !md:py-16">
-        <div className="grid lg:grid-cols-2 gap-16">
-          {/* Contact Form */}
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <h2 className="font-serif text-3xl font-bold mb-6">Send Us a Message</h2>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="firstName" className="block text-sm font-medium mb-2">
-                    First Name
-                  </label>
-                  <input
-                    type="text"
-                    id="firstName"
-                    value={formData.firstName}
-                    onChange={(e) =>
-                      setFormData({ ...formData, firstName: e.target.value })
-                    }
-                    required
-                    className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="lastName" className="block text-sm font-medium mb-2">
-                    Last Name
-                  </label>
-                  <input
-                    type="text"
-                    id="lastName"
-                    value={formData.lastName}
-                    onChange={(e) =>
-                      setFormData({ ...formData, lastName: e.target.value })
-                    }
-                    required
-                    className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  />
-                </div>
-              </div>
-
+        <div className="join-contact-form">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium mb-2">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
-                  className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="subject" className="block text-sm font-medium mb-2">
-                  Subject
+                <label
+                  htmlFor="firstName"
+                  className="block text-sm font-medium mb-2"
+                >
+                  First Name
                 </label>
                 <input
                   type="text"
-                  id="subject"
-                  value={formData.subject}
-                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                  id="firstName"
+                  value={formData.firstName}
+                  onChange={(e) =>
+                    setFormData({ ...formData, firstName: e.target.value })
+                  }
+                  required
                   className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
               </div>
-
               <div>
-                <label htmlFor="message" className="block text-sm font-medium mb-2">
-                  Message
+                <label
+                  htmlFor="lastName"
+                  className="block text-sm font-medium mb-2"
+                >
+                  Last Name
                 </label>
-                <textarea
-                  id="message"
-                  value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                <input
+                  type="text"
+                  id="lastName"
+                  value={formData.lastName}
+                  onChange={(e) =>
+                    setFormData({ ...formData, lastName: e.target.value })
+                  }
                   required
-                  rows={6}
-                  className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
+                  className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
               </div>
+            </div>
 
-              <Button type="submit" size="lg" className="w-full" loading={isSubmitting}>
-                <Send className="mr-2 h-5 w-5" />
-                Send Message
-              </Button>
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium mb-2">
+                Email Address
+              </label>
+              <input
+                type="email"
+                id="email"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                required
+                className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              />
+            </div>
 
-              {submitStatus === 'success' && (
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
-                  Thank you for your message! We'll get back to you as soon as possible.
-                </div>
-              )}
+            <div>
+              <label
+                htmlFor="subject"
+                className="block text-sm font-medium mb-2"
+              >
+                Subject
+              </label>
+              <input
+                type="text"
+                id="subject"
+                value={formData.subject}
+                onChange={(e) =>
+                  setFormData({ ...formData, subject: e.target.value })
+                }
+                className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              />
+            </div>
 
-              {submitStatus === 'error' && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
-                  Something went wrong. Please try again or email us directly.
-                </div>
-              )}
-            </form>
-          </motion.div>
+            <div>
+              <label
+                htmlFor="message"
+                className="block text-sm font-medium mb-2"
+              >
+                Message
+              </label>
+              <textarea
+                id="message"
+                value={formData.message}
+                onChange={(e) =>
+                  setFormData({ ...formData, message: e.target.value })
+                }
+                required
+                rows={6}
+                className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
+              />
+            </div>
 
-          {/* Contact Information */}
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <Card className="h-full">
-              <CardHeader>
-                <h2 className="font-serif text-3xl font-bold mb-6">Contact Information</h2>
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full"
+              loading={isSubmitting}
+            >
+              <Send className="mr-2 h-5 w-5" />
+              Send Message
+            </Button>
 
-                <div className="space-y-8">
-                  {/* Email */}
-                  <div>
-                    <div className="flex items-center space-x-3 mb-3">
-                      <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                        <Mail className="w-6 h-6 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-serif font-semibold">Email</h3>
-                        <p className="text-sm">Best way to reach us</p>
-                      </div>
-                    </div>
-                    <a
-                      href="mailto:outreach@stgeorgecapital.ca"
-                      className="text-primary hover:underline text-lg"
-                    >
-                      outreach@stgeorgecapital.ca
-                    </a>
-                  </div>
+            {submitStatus === "success" && (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
+                Thank you for your message! We'll get back to you as soon as
+                possible.
+              </div>
+            )}
 
-                  {/* Address */}
-                  <div>
-                    <div className="flex items-center space-x-3 mb-3">
-                      <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                        <MapPin className="w-6 h-6 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-serif font-semibold">Address</h3>
-                        <p className="text-sm">Our location</p>
-                      </div>
-                    </div>
-                    <p>
-                      Bahen Centre for Information Technology
-                      <br />
-                      40 St George St
-                      <br />
-                      Toronto, ON M5S 2E4
-                    </p>
-                  </div>
-
-                  {/* Social Media */}
-                  <div>
-                    <h3 className="font-serif font-semibold mb-4">Connect With Us</h3>
-                    <div className="flex space-x-4">
-                      <a
-                        href="https://www.linkedin.com/company/101142532"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-12 h-12 flex items-center justify-center rounded-full border border-border hover:border-primary hover:bg-primary/10 transition-all"
-                        aria-label="LinkedIn"
-                      >
-                        <Linkedin className="w-5 h-5" />
-                      </a>
-                      <a
-                        href="https://www.instagram.com/st_george_capital"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-12 h-12 flex items-center justify-center rounded-full border border-border hover:border-primary hover:bg-primary/10 transition-all"
-                        aria-label="Instagram"
-                      >
-                        <Instagram className="w-5 h-5" />
-                      </a>
-                    </div>
-                  </div>
-
-                  {/* Office Hours */}
-                  <div className="pt-6 border-t border-border">
-                    <h3 className="font-serif font-semibold mb-3">Office Hours</h3>
-                    <p className="mb-2">
-                      We typically respond within 24-48 hours during the academic year.
-                    </p>
-                    <p className="text-sm">
-                      For urgent matters, please indicate so in your message subject line.
-                    </p>
-                  </div>
-                </div>
-              </CardHeader>
-            </Card>
-          </motion.div>
+            {submitStatus === "error" && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
+                Something went wrong. Please try again or email us directly.
+              </div>
+            )}
+          </form>
         </div>
-      </Section>
-
-      {/* Map Section */}
-      <Section dark className="!py-12 !md:py-16">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="font-serif text-4xl font-bold mb-6">Visit Us</h2>
-          <p className="text-xl mb-8">
-            We're located at the Bahen Centre at the University of Toronto's St. George campus. Stop by during our office hours or attend one of our events.
-          </p>
-          <div className="aspect-video rounded-lg overflow-hidden border border-white/10">
-            <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2886.234!2d-79.39768!3d43.65954!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x882b34c8a4c5e5c5%3A0x5a5f5a5f5a5f5a5f!2sBahen%20Centre%20for%20Information%20Technology!5e0!3m2!1sen!2sca!4v1234567890"
-              width="100%"
-              height="100%"
-              style={{ border: 0 }}
-              allowFullScreen
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
-          </div>
-        </div>
-      </Section>
-
-    </>
+      </section>
+    </div>
   );
 }
 
@@ -455,13 +318,15 @@ function JobPostingsSection() {
 
   const fetchJobPostings = async () => {
     try {
-      const response = await fetch('/api/job-postings/public', { cache: 'no-store' });
+      const response = await fetch("/api/job-postings/public", {
+        cache: "no-store",
+      });
       if (response.ok) {
         const data = await response.json();
         setJobPostings(data);
       }
     } catch (error) {
-      console.error('Error fetching job postings:', error);
+      console.error("Error fetching job postings:", error);
     } finally {
       setLoading(false);
     }
@@ -481,10 +346,13 @@ function JobPostingsSection() {
             We don't have any open positions at the moment.
           </p>
           <p className="text-sm text-white/80">
-            Check back soon for new opportunities, or send us your resume at{' '}
-            <a href="mailto:outreach@stgeorgecapital.ca" className="text-blue-400 hover:text-blue-300 hover:underline">
+            Check back soon for new opportunities, or send us your resume at{" "}
+            <a
+              href="mailto:outreach@stgeorgecapital.ca"
+              className="text-blue-400 hover:text-blue-300 hover:underline"
+            >
               outreach@stgeorgecapital.ca
-            </a>{' '}
+            </a>{" "}
             for future consideration.
           </p>
         </div>
@@ -503,13 +371,13 @@ function JobPostingCard({ posting }: { posting: JobPosting }) {
   const [showApplicationForm, setShowApplicationForm] = useState(false);
 
   const teamColors: Record<string, string> = {
-    quant_trading: 'bg-blue-100 text-blue-700 border-blue-200',
-    quant_research: 'bg-green-100 text-green-700 border-green-200',
-    macro: 'bg-purple-100 text-purple-700 border-purple-200',
-    equity: 'bg-orange-100 text-orange-700 border-orange-200',
-    macro_equity: 'bg-purple-100 text-purple-700 border-purple-200',
-    operations: 'bg-slate-100 text-slate-700 border-slate-200',
-    executive: 'bg-amber-100 text-amber-700 border-amber-200',
+    quant_trading: "bg-blue-100 text-blue-700 border-blue-200",
+    quant_research: "bg-green-100 text-green-700 border-green-200",
+    macro: "bg-purple-100 text-purple-700 border-purple-200",
+    equity: "bg-orange-100 text-orange-700 border-orange-200",
+    macro_equity: "bg-purple-100 text-purple-700 border-purple-200",
+    operations: "bg-slate-100 text-slate-700 border-slate-200",
+    executive: "bg-amber-100 text-amber-700 border-amber-200",
   };
 
   return (
@@ -523,7 +391,9 @@ function JobPostingCard({ posting }: { posting: JobPosting }) {
                   {posting.roleTag}
                 </Badge>
               )}
-              <Badge className={`${teamColors[posting.team as keyof typeof teamColors] || 'bg-gray-100 text-gray-700 border-gray-200'} border`}>
+              <Badge
+                className={`${teamColors[posting.team as keyof typeof teamColors] || "bg-gray-100 text-gray-700 border-gray-200"} border`}
+              >
                 {formatTeamLabel(posting.team)}
               </Badge>
             </div>
@@ -569,26 +439,34 @@ function JobPostingCard({ posting }: { posting: JobPosting }) {
   );
 }
 
-function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: () => void }) {
+function ApplicationModal({
+  posting,
+  onClose,
+}: {
+  posting: JobPosting;
+  onClose: () => void;
+}) {
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    faculty: '',
-    subfaculty: '',
-    internshipCount: '0',
+    name: "",
+    email: "",
+    faculty: "",
+    subfaculty: "",
+    internshipCount: "0",
     internshipFields: [] as string[],
-    resumeFile: '',
+    resumeFile: "",
   });
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const selectedFaculty = FACULTY_OPTIONS.find(f => f.value === formData.faculty);
+  const selectedFaculty = FACULTY_OPTIONS.find(
+    (f) => f.value === formData.faculty,
+  );
 
   const toggleInternshipField = (val: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       internshipFields: prev.internshipFields.includes(val)
-        ? prev.internshipFields.filter(f => f !== val)
+        ? prev.internshipFields.filter((f) => f !== val)
         : [...prev.internshipFields, val],
     }));
   };
@@ -597,22 +475,24 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
     setUploading(true);
     try {
       const formDataUpload = new FormData();
-      formDataUpload.append('file', file);
+      formDataUpload.append("file", file);
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
+      const response = await fetch("/api/upload", {
+        method: "POST",
         body: formDataUpload,
       });
 
       const data = await response.json();
       if (response.ok) {
-        setFormData(prev => ({ ...prev, resumeFile: data.url }));
+        setFormData((prev) => ({ ...prev, resumeFile: data.url }));
       } else {
-        alert(`Upload failed: ${data.error || 'Unknown error'}`);
+        alert(`Upload failed: ${data.error || "Unknown error"}`);
       }
     } catch (error) {
-      console.error('Error uploading resume:', error);
-      alert('Upload failed: could not reach the server. Check your internet connection and try again.');
+      console.error("Error uploading resume:", error);
+      alert(
+        "Upload failed: could not reach the server. Check your internet connection and try again.",
+      );
     } finally {
       setUploading(false);
     }
@@ -622,7 +502,9 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 4 * 1024 * 1024) {
-        alert(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Please keep your resume under 4MB — try exporting as PDF with reduced image quality, or use a PDF compressor like smallpdf.com.`);
+        alert(
+          `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Please keep your resume under 4MB — try exporting as PDF with reduced image quality, or use a PDF compressor like smallpdf.com.`,
+        );
         return;
       }
       handleFileUpload(file);
@@ -634,9 +516,9 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
     setSubmitting(true);
 
     try {
-      const response = await fetch('/api/job-applications', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/job-applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           jobPostingId: posting.id,
           ...formData,
@@ -648,27 +530,31 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
         setSubmitted(true);
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to submit application');
+        alert(error.error || "Failed to submit application");
       }
     } catch (error) {
-      console.error('Error submitting application:', error);
-      alert('Failed to submit application');
+      console.error("Error submitting application:", error);
+      alert("Failed to submit application");
     } finally {
       setSubmitting(false);
     }
-  };  if (submitted) {
+  };
+  if (submitted) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle className="text-center">Application Submitted!</CardTitle>
+            <CardTitle className="text-center">
+              Application Submitted!
+            </CardTitle>
           </CardHeader>
           <CardContent className="text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Send className="w-8 h-8 text-green-600" />
             </div>
             <p className="text-muted-foreground mb-6">
-              Thank you for your interest in joining St. George Capital. We'll review your application and get back to you soon.
+              Thank you for your interest in joining St. George Capital. We'll
+              review your application and get back to you soon.
             </p>
             <Button onClick={onClose} className="w-full">
               Close
@@ -685,7 +571,8 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
         <CardHeader>
           <CardTitle>Apply for {posting.title}</CardTitle>
           <CardDescription>
-            {posting.roleTag ? `${posting.roleTag} · ` : ''}{formatTeamLabel(posting.team)} Team
+            {posting.roleTag ? `${posting.roleTag} · ` : ""}
+            {formatTeamLabel(posting.team)} Team
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -711,35 +598,47 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Full Name *</label>
+              <label className="block text-sm font-medium mb-2">
+                Full Name *
+              </label>
               <input
                 type="text"
                 value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, name: e.target.value }))
+                }
                 className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Email Address *</label>
+              <label className="block text-sm font-medium mb-2">
+                Email Address *
+              </label>
               <input
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, email: e.target.value }))
+                }
                 className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Resume/CV *</label>
+              <label className="block text-sm font-medium mb-2">
+                Resume/CV *
+              </label>
               <div className="border-2 border-dashed border-border rounded-lg p-4">
                 <div className="text-center">
                   <div className="space-y-2">
                     <label className="cursor-pointer">
                       <span className="text-sm text-muted-foreground">
-                        {uploading ? 'Uploading...' : 'Click to upload your resume'}
+                        {uploading
+                          ? "Uploading..."
+                          : "Click to upload your resume"}
                       </span>
                       <input
                         type="file"
@@ -751,7 +650,9 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
                       />
                     </label>
                     {formData.resumeFile && (
-                      <p className="text-sm text-green-600">Resume uploaded successfully</p>
+                      <p className="text-sm text-green-600">
+                        Resume uploaded successfully
+                      </p>
                     )}
                   </div>
                 </div>
@@ -763,32 +664,51 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Faculty *</label>
+                <label className="block text-sm font-medium mb-2">
+                  Faculty *
+                </label>
                 <select
                   required
                   value={formData.faculty}
-                  onChange={(e) => setFormData(prev => ({ ...prev, faculty: e.target.value, subfaculty: '' }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      faculty: e.target.value,
+                      subfaculty: "",
+                    }))
+                  }
                   className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 >
                   <option value="">Select faculty...</option>
-                  {FACULTY_OPTIONS.map(f => (
-                    <option key={f.value} value={f.value}>{f.label}</option>
+                  {FACULTY_OPTIONS.map((f) => (
+                    <option key={f.value} value={f.value}>
+                      {f.label}
+                    </option>
                   ))}
                 </select>
               </div>
 
               {selectedFaculty && selectedFaculty.subs.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium mb-2">Program *</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Program *
+                  </label>
                   <select
                     required
                     value={formData.subfaculty}
-                    onChange={(e) => setFormData(prev => ({ ...prev, subfaculty: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        subfaculty: e.target.value,
+                      }))
+                    }
                     className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                   >
                     <option value="">Select program...</option>
-                    {selectedFaculty.subs.map(s => (
-                      <option key={s.value} value={s.value}>{s.label}</option>
+                    {selectedFaculty.subs.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.label}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -796,30 +716,41 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Number of Previous Internships</label>
+              <label className="block text-sm font-medium mb-2">
+                Number of Previous Internships
+              </label>
               <select
                 value={formData.internshipCount}
-                onChange={(e) => setFormData(prev => ({ ...prev, internshipCount: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    internshipCount: e.target.value,
+                  }))
+                }
                 className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               >
-                {['0', '1', '2', '3', '4', '5'].map(n => (
-                  <option key={n} value={n}>{n === '5' ? '5 or more' : n}</option>
+                {["0", "1", "2", "3", "4", "5"].map((n) => (
+                  <option key={n} value={n}>
+                    {n === "5" ? "5 or more" : n}
+                  </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Field(s) of Internship (select all that apply)</label>
+              <label className="block text-sm font-medium mb-2">
+                Field(s) of Internship (select all that apply)
+              </label>
               <div className="flex flex-wrap gap-2">
-                {INTERNSHIP_FIELDS.map(f => (
+                {INTERNSHIP_FIELDS.map((f) => (
                   <button
                     key={f.value}
                     type="button"
                     onClick={() => toggleInternshipField(f.value)}
                     className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                       formData.internshipFields.includes(f.value)
-                        ? 'bg-blue-100 border-blue-300 text-blue-700'
-                        : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                        ? "bg-blue-100 border-blue-300 text-blue-700"
+                        : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
                     }`}
                   >
                     {f.label}
@@ -843,7 +774,7 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
                 className="flex-1"
                 disabled={submitting || !formData.resumeFile}
               >
-                {submitting ? 'Submitting...' : 'Submit Application'}
+                {submitting ? "Submitting..." : "Submit Application"}
               </Button>
             </div>
           </form>
@@ -856,41 +787,41 @@ function ApplicationModal({ posting, onClose }: { posting: JobPosting; onClose: 
 // ─── Resume Book Section ───────────────────────────────────────────────
 const FACULTY_OPTIONS = [
   {
-    value: 'engineering',
-    label: 'Engineering',
+    value: "engineering",
+    label: "Engineering",
     subs: [
-      { value: 'electrical_engineering', label: 'Electrical Engineering' },
-      { value: 'mechanical_engineering', label: 'Mechanical Engineering' },
-      { value: 'industrial_engineering', label: 'Industrial Engineering' },
-      { value: 'engineering_science', label: 'Engineering Science' },
-      { value: 'chemical_engineering', label: 'Chemical Engineering' },
-      { value: 'materials_engineering', label: 'Materials Engineering' },
-      { value: 'civil_engineering', label: 'Civil Engineering' },
+      { value: "electrical_engineering", label: "Electrical Engineering" },
+      { value: "mechanical_engineering", label: "Mechanical Engineering" },
+      { value: "industrial_engineering", label: "Industrial Engineering" },
+      { value: "engineering_science", label: "Engineering Science" },
+      { value: "chemical_engineering", label: "Chemical Engineering" },
+      { value: "materials_engineering", label: "Materials Engineering" },
+      { value: "civil_engineering", label: "Civil Engineering" },
     ],
   },
   {
-    value: 'arts_science',
-    label: 'Arts & Science',
+    value: "arts_science",
+    label: "Arts & Science",
     subs: [
-      { value: 'economics', label: 'Economics' },
-      { value: 'philosophy', label: 'Philosophy' },
-      { value: 'marketing', label: 'Marketing' },
-      { value: 'mathematics', label: 'Mathematics' },
-      { value: 'computer_science', label: 'Computer Science' },
+      { value: "economics", label: "Economics" },
+      { value: "philosophy", label: "Philosophy" },
+      { value: "marketing", label: "Marketing" },
+      { value: "mathematics", label: "Mathematics" },
+      { value: "computer_science", label: "Computer Science" },
     ],
   },
   {
-    value: 'rotman',
-    label: 'Rotman Commerce',
+    value: "rotman",
+    label: "Rotman Commerce",
     subs: [],
   },
 ];
 
 const INTERNSHIP_FIELDS = [
-  { value: 'finance', label: 'Finance' },
-  { value: 'tech', label: 'Technology' },
-  { value: 'research', label: 'Research' },
-  { value: 'other', label: 'Other' },
+  { value: "finance", label: "Finance" },
+  { value: "tech", label: "Technology" },
+  { value: "research", label: "Research" },
+  { value: "other", label: "Other" },
 ];
 
 function ResumeBookSection() {
@@ -898,66 +829,79 @@ function ResumeBookSection() {
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState({
-    name: '',
-    email: '',
-    faculty: '',
-    subfaculty: '',
-    internshipCount: '0',
+    name: "",
+    email: "",
+    faculty: "",
+    subfaculty: "",
+    internshipCount: "0",
     internshipFields: [] as string[],
-    resumeFile: '',
+    resumeFile: "",
   });
 
-  const selectedFaculty = FACULTY_OPTIONS.find(f => f.value === form.faculty);
+  const selectedFaculty = FACULTY_OPTIONS.find((f) => f.value === form.faculty);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 4 * 1024 * 1024) { alert(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Please keep your resume under 4MB — try exporting as PDF with reduced image quality, or use a PDF compressor like smallpdf.com.`); return; }
+    if (file.size > 4 * 1024 * 1024) {
+      alert(
+        `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Please keep your resume under 4MB — try exporting as PDF with reduced image quality, or use a PDF compressor like smallpdf.com.`,
+      );
+      return;
+    }
     setUploading(true);
     try {
       const fd = new FormData();
-      fd.append('file', file);
-      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
       const data = await res.json();
       if (res.ok) {
-        setForm(prev => ({ ...prev, resumeFile: data.url }));
+        setForm((prev) => ({ ...prev, resumeFile: data.url }));
       } else {
-        alert(`Upload failed: ${data.error || 'Unknown error'}`);
+        alert(`Upload failed: ${data.error || "Unknown error"}`);
       }
     } catch {
-      alert('Upload failed: could not reach the server. Check your internet connection and try again.');
+      alert(
+        "Upload failed: could not reach the server. Check your internet connection and try again.",
+      );
     } finally {
       setUploading(false);
     }
   };
 
   const toggleField = (val: string) => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
       internshipFields: prev.internshipFields.includes(val)
-        ? prev.internshipFields.filter(f => f !== val)
+        ? prev.internshipFields.filter((f) => f !== val)
         : [...prev.internshipFields, val],
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.resumeFile) { alert('Please upload your resume PDF first.'); return; }
+    if (!form.resumeFile) {
+      alert("Please upload your resume PDF first.");
+      return;
+    }
     setSubmitting(true);
     try {
-      const res = await fetch('/api/resume-book', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, internshipCount: Number(form.internshipCount) }),
+      const res = await fetch("/api/resume-book", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          internshipCount: Number(form.internshipCount),
+        }),
       });
       if (res.ok) {
         setSubmitted(true);
       } else {
         const err = await res.json();
-        alert(err.error || 'Submission failed.');
+        alert(err.error || "Submission failed.");
       }
     } catch {
-      alert('Submission failed. Please try again.');
+      alert("Submission failed. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -969,8 +913,13 @@ function ResumeBookSection() {
         <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
           <FileText className="w-8 h-8 text-green-400" />
         </div>
-        <h4 className="text-xl font-semibold text-white mb-2">Resume Submitted!</h4>
-        <p className="text-white/70">Thank you, {form.name}. We&apos;ll keep your resume on file for future opportunities.</p>
+        <h4 className="text-xl font-semibold text-white mb-2">
+          Resume Submitted!
+        </h4>
+        <p className="text-white/70">
+          Thank you, {form.name}. We&apos;ll keep your resume on file for future
+          opportunities.
+        </p>
       </div>
     );
   }
@@ -983,23 +932,31 @@ function ResumeBookSection() {
             {/* Name + Email */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-white/80 mb-1">Full Name *</label>
+                <label className="block text-sm font-medium text-white/80 mb-1">
+                  Full Name *
+                </label>
                 <input
                   type="text"
                   required
                   value={form.name}
-                  onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, name: e.target.value }))
+                  }
                   className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-white/50"
                   placeholder="Jane Smith"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-white/80 mb-1">Email *</label>
+                <label className="block text-sm font-medium text-white/80 mb-1">
+                  Email *
+                </label>
                 <input
                   type="email"
                   required
                   value={form.email}
-                  onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, email: e.target.value }))
+                  }
                   className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white placeholder-white/40 focus:outline-none focus:border-white/50"
                   placeholder="jane@mail.utoronto.ca"
                 />
@@ -1009,31 +966,47 @@ function ResumeBookSection() {
             {/* Faculty */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-white/80 mb-1">Faculty *</label>
+                <label className="block text-sm font-medium text-white/80 mb-1">
+                  Faculty *
+                </label>
                 <select
                   required
                   value={form.faculty}
-                  onChange={e => setForm(p => ({ ...p, faculty: e.target.value, subfaculty: '' }))}
+                  onChange={(e) =>
+                    setForm((p) => ({
+                      ...p,
+                      faculty: e.target.value,
+                      subfaculty: "",
+                    }))
+                  }
                   className="w-full px-3 py-2 bg-[#030116] border border-white/20 rounded-md text-white focus:outline-none focus:border-white/50"
                 >
                   <option value="">Select faculty…</option>
-                  {FACULTY_OPTIONS.map(f => (
-                    <option key={f.value} value={f.value}>{f.label}</option>
+                  {FACULTY_OPTIONS.map((f) => (
+                    <option key={f.value} value={f.value}>
+                      {f.label}
+                    </option>
                   ))}
                 </select>
               </div>
               {selectedFaculty && selectedFaculty.subs.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-white/80 mb-1">Program *</label>
+                  <label className="block text-sm font-medium text-white/80 mb-1">
+                    Program *
+                  </label>
                   <select
                     required
                     value={form.subfaculty}
-                    onChange={e => setForm(p => ({ ...p, subfaculty: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, subfaculty: e.target.value }))
+                    }
                     className="w-full px-3 py-2 bg-[#030116] border border-white/20 rounded-md text-white focus:outline-none focus:border-white/50"
                   >
                     <option value="">Select program…</option>
-                    {selectedFaculty.subs.map(s => (
-                      <option key={s.value} value={s.value}>{s.label}</option>
+                    {selectedFaculty.subs.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.label}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -1042,31 +1015,39 @@ function ResumeBookSection() {
 
             {/* Internship count */}
             <div>
-              <label className="block text-sm font-medium text-white/80 mb-1">Number of Previous Internships</label>
+              <label className="block text-sm font-medium text-white/80 mb-1">
+                Number of Previous Internships
+              </label>
               <select
                 value={form.internshipCount}
-                onChange={e => setForm(p => ({ ...p, internshipCount: e.target.value }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, internshipCount: e.target.value }))
+                }
                 className="w-full px-3 py-2 bg-[#030116] border border-white/20 rounded-md text-white focus:outline-none focus:border-white/50"
               >
-                {['0', '1', '2', '3', '4', '5'].map(n => (
-                  <option key={n} value={n}>{n === '5' ? '5 or more' : n}</option>
+                {["0", "1", "2", "3", "4", "5"].map((n) => (
+                  <option key={n} value={n}>
+                    {n === "5" ? "5 or more" : n}
+                  </option>
                 ))}
               </select>
             </div>
 
             {/* Internship fields */}
             <div>
-              <label className="block text-sm font-medium text-white/80 mb-2">Field(s) of Internship (select all that apply)</label>
+              <label className="block text-sm font-medium text-white/80 mb-2">
+                Field(s) of Internship (select all that apply)
+              </label>
               <div className="flex flex-wrap gap-2">
-                {INTERNSHIP_FIELDS.map(f => (
+                {INTERNSHIP_FIELDS.map((f) => (
                   <button
                     key={f.value}
                     type="button"
                     onClick={() => toggleField(f.value)}
                     className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
                       form.internshipFields.includes(f.value)
-                        ? 'bg-blue-500 border-blue-400 text-white'
-                        : 'bg-white/10 border-white/20 text-white/70 hover:bg-white/20'
+                        ? "bg-blue-500 border-blue-400 text-white"
+                        : "bg-white/10 border-white/20 text-white/70 hover:bg-white/20"
                     }`}
                   >
                     {f.label}
@@ -1077,33 +1058,62 @@ function ResumeBookSection() {
 
             {/* Resume upload */}
             <div>
-              <label className="block text-sm font-medium text-white/80 mb-1">Resume PDF *</label>
+              <label className="block text-sm font-medium text-white/80 mb-1">
+                Resume PDF *
+              </label>
               <div className="border-2 border-dashed border-white/20 rounded-lg p-5 text-center">
                 {form.resumeFile ? (
                   <div className="space-y-2">
-                    <p className="text-green-400 text-sm font-medium">✓ Resume uploaded</p>
-                    <a href={form.resumeFile} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline">
+                    <p className="text-green-400 text-sm font-medium">
+                      ✓ Resume uploaded
+                    </p>
+                    <a
+                      href={form.resumeFile}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-400 hover:underline"
+                    >
                       View uploaded file
                     </a>
                     <div>
                       <label className="cursor-pointer text-xs text-white/50 hover:text-white/70">
                         Replace file
-                        <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" disabled={uploading} />
+                        <input
+                          type="file"
+                          accept=".pdf"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                          disabled={uploading}
+                        />
                       </label>
                     </div>
                   </div>
                 ) : (
                   <label className="cursor-pointer">
                     <FileText className="w-10 h-10 text-white/30 mx-auto mb-2" />
-                    <p className="text-sm text-white/60">{uploading ? 'Uploading…' : 'Click to upload your resume (PDF, max 2MB)'}</p>
-                    <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" disabled={uploading} />
+                    <p className="text-sm text-white/60">
+                      {uploading
+                        ? "Uploading…"
+                        : "Click to upload your resume (PDF, max 2MB)"}
+                    </p>
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      disabled={uploading}
+                    />
                   </label>
                 )}
               </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={submitting || uploading}>
-              {submitting ? 'Submitting…' : 'Submit Resume'}
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={submitting || uploading}
+            >
+              {submitting ? "Submitting…" : "Submit Resume"}
             </Button>
           </form>
         </CardContent>
@@ -1113,29 +1123,31 @@ function ResumeBookSection() {
 }
 
 function NewsletterSubscribeSection() {
-  const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [message, setMessage] = useState('');
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
+  const [message, setMessage] = useState("");
 
   async function handleSubscribe(e: React.FormEvent) {
     e.preventDefault();
     if (!email) return;
-    setStatus('loading');
+    setStatus("loading");
 
-    const res = await fetch('/api/newsletter/subscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch("/api/newsletter/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, name }),
     });
     const data = await res.json();
 
     if (res.ok) {
-      setStatus('success');
+      setStatus("success");
       setMessage(data.message || "You're subscribed!");
     } else {
-      setStatus('error');
-      setMessage(data.error || 'Something went wrong.');
+      setStatus("error");
+      setMessage(data.error || "Something went wrong.");
     }
   }
 
@@ -1145,15 +1157,21 @@ function NewsletterSubscribeSection() {
         <div className="w-14 h-14 bg-blue-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <Mail className="w-7 h-7 text-blue-400" />
         </div>
-        <h3 className="font-serif text-2xl font-bold mb-2">Daily Market Snapshot</h3>
+        <h3 className="font-serif text-2xl font-bold mb-2">
+          Daily Market Snapshot
+        </h3>
         <p className="text-white/60 text-sm max-w-md mx-auto mb-6">
-          Get SGC&apos;s daily briefing — key macro developments, cross-asset moves, earnings, and central bank signals — delivered straight to your inbox.
+          Get SGC&apos;s daily briefing — key macro developments, cross-asset
+          moves, earnings, and central bank signals — delivered straight to your
+          inbox.
         </p>
 
-        {status === 'success' ? (
+        {status === "success" ? (
           <div className="bg-green-500/10 border border-green-500/20 rounded-xl px-6 py-4">
             <p className="text-green-400 font-medium">✓ {message}</p>
-            <p className="text-sm text-white/50 mt-1">You&apos;ll receive the next edition when it&apos;s published.</p>
+            <p className="text-sm text-white/50 mt-1">
+              You&apos;ll receive the next edition when it&apos;s published.
+            </p>
           </div>
         ) : (
           <form onSubmit={handleSubscribe} className="space-y-3">
@@ -1161,14 +1179,14 @@ function NewsletterSubscribeSection() {
               <input
                 type="text"
                 value={name}
-                onChange={e => setName(e.target.value)}
+                onChange={(e) => setName(e.target.value)}
                 placeholder="First name (optional)"
                 className="px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent"
               />
               <input
                 type="email"
                 value={email}
-                onChange={e => setEmail(e.target.value)}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="your@email.com"
                 required
                 className="px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent"
@@ -1176,12 +1194,14 @@ function NewsletterSubscribeSection() {
             </div>
             <button
               type="submit"
-              disabled={status === 'loading'}
+              disabled={status === "loading"}
               className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold rounded-xl text-sm transition-colors"
             >
-              {status === 'loading' ? 'Subscribing…' : 'Subscribe to Daily Snapshot'}
+              {status === "loading"
+                ? "Subscribing…"
+                : "Subscribe to Daily Snapshot"}
             </button>
-            {status === 'error' && (
+            {status === "error" && (
               <p className="text-red-400 text-xs">{message}</p>
             )}
           </form>

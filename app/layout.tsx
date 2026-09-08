@@ -1,18 +1,33 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Manrope } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 
-const inter = Inter({ 
+const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
   display: "swap",
 });
 
+const manrope = Manrope({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "St. George Capital | Canada's Premier Quantitative Student Group",
-  description: "St. George Capital is a dynamic organization at the University of Toronto, dedicated to empowering future financial experts by merging traditional and quantitative finance.",
-  keywords: ["finance", "quantitative", "trading", "research", "University of Toronto", "UofT", "student organization"],
+  description:
+    "St. George Capital is a dynamic organization at the University of Toronto, dedicated to empowering future financial experts by merging traditional and quantitative finance.",
+  keywords: [
+    "finance",
+    "quantitative",
+    "trading",
+    "research",
+    "University of Toronto",
+    "UofT",
+    "student organization",
+  ],
   authors: [{ name: "St. George Capital" }],
   icons: {
     icon: "/images/logo/sgc_logo.png",
@@ -24,7 +39,8 @@ export const metadata: Metadata = {
     url: "https://www.stgeorgecapital.ca",
     siteName: "St. George Capital",
     title: "St. George Capital | Canada's Premier Quantitative Student Group",
-    description: "Empowering future financial experts through rigorous training and real-world experience.",
+    description:
+      "Empowering future financial experts through rigorous training and real-world experience.",
     images: [
       {
         url: "/og-image.png",
@@ -48,11 +64,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={`${inter.variable} ${manrope.variable}`}>
       <body className="antialiased">
-        <Providers>
-          {children}
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

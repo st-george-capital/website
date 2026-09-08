@@ -39,7 +39,7 @@ export function buildNewsletterEmail(opts: {
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f7;">
     <tr>
       <td align="center" style="padding:32px 16px;">
-        <table width="640" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+        <table width="640" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;width:100%;background-color:#ffffff;border-radius:0;overflow:hidden;">
 
           <!-- HEADER -->
           <tr>
@@ -67,7 +67,7 @@ export function buildNewsletterEmail(opts: {
 
           <!-- GRADIENT DIVIDER -->
           <tr>
-            <td style="height:4px;background:linear-gradient(90deg,#1a56db 0%,#7e3af2 50%,#c81e1e 100%);"></td>
+            <td style="height:4px;background:#7189aa;"></td>
           </tr>
 
           ${marketTableHtml ? `
@@ -163,14 +163,14 @@ function buildMarketTable(rows: MarketRow[]): string {
     const groupHeader = `
       <tr>
         <td colspan="3" style="padding:${rowIdx === 0 ? '2px' : '10px'} 0 4px 0;">
-          <span style="font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6366f1;">${label}</span>
+          <span style="font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#46617f;">${label}</span>
         </td>
       </tr>`;
 
     const dataRows = groupRows.map(row => {
       const isUp = (row.changePercent ?? 0) >= 0;
       const isFlat = row.changePercent === null || (row.change !== null && Math.abs(row.change) < 0.0001);
-      const color = isFlat ? '#6b7280' : isUp ? '#15803d' : '#b91c1c';
+      const color = isFlat ? '#6b7280' : isUp ? '#32645c' : '#98515e';
       const bg = rowIdx++ % 2 === 0 ? '#ffffff' : '#f8fafc';
       const arrow = isFlat ? '—' : isUp ? '▲' : '▼';
 
@@ -186,7 +186,7 @@ function buildMarketTable(rows: MarketRow[]): string {
 
       return `<tr style="background-color:${bg};">
         <td style="padding:6px 8px 6px 0;font-size:12px;font-weight:600;color:#111827;white-space:nowrap;border-bottom:1px solid #f1f5f9;">${escapeHtml(row.name)}</td>
-        <td style="padding:6px 14px 6px 0;font-size:12px;font-family:monospace;color:#374151;text-align:right;white-space:nowrap;border-bottom:1px solid #f1f5f9;">${priceStr}</td>
+        <td style="padding:6px 14px 6px 0;font-size:12px;font-family:Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums;color:#172f50;text-align:right;white-space:nowrap;border-bottom:1px solid #f1f5f9;">${priceStr}</td>
         <td style="padding:6px 0;font-size:11px;font-weight:600;color:${color};text-align:right;white-space:nowrap;border-bottom:1px solid #f1f5f9;">${isFlat ? '—' : changePart}</td>
       </tr>`;
     }).join('');
@@ -247,7 +247,7 @@ function formatZScore(z: number | null | undefined, isUp: boolean): string {
   let color: string;
   let weight: string;
   if (abs >= 2) {
-    color = isUp ? '#15803d' : '#b91c1c';
+    color = isUp ? '#32645c' : '#98515e';
     weight = '700';
   } else if (abs >= 1) {
     color = '#6b7280';
@@ -340,7 +340,7 @@ function parseContent(raw: string): string {
 
     // ── Plain paragraph ────────────────────────────────────────────────────
     const clean = stripArtifacts(line);
-    if (clean) blocks.push(`<p style="margin:0 0 12px 0;font-size:14px;color:#374151;line-height:1.7;">${inlineFormat(clean)}</p>`);
+    if (clean) blocks.push(`<p style="margin:0 0 12px 0;font-size:14px;color:#172f50;line-height:1.7;">${inlineFormat(clean)}</p>`);
     i++;
   }
 
@@ -380,8 +380,8 @@ function renderBulletList(items: string[]): string {
     const clean = stripArtifacts(item);
     return `<tr><td style="padding:3px 0 3px 8px;vertical-align:top;">
       <table cellpadding="0" cellspacing="0" border="0"><tr>
-        <td style="padding-right:10px;padding-top:2px;vertical-align:top;color:#1a56db;font-size:16px;line-height:1;">•</td>
-        <td style="font-size:14px;color:#374151;line-height:1.65;">${inlineFormat(clean)}</td>
+        <td style="padding-right:10px;padding-top:2px;vertical-align:top;color:#214a79;font-size:16px;line-height:1;">•</td>
+        <td style="font-size:14px;color:#172f50;line-height:1.65;">${inlineFormat(clean)}</td>
       </tr></table>
     </td></tr>`;
   }).join('');
@@ -402,14 +402,14 @@ function renderMdTable(lines: string[]): string {
   const headers = parseRow(headerLine);
 
   const headerHtml = headers
-    .map(h => `<th style="padding:7px 12px;text-align:left;font-size:12px;font-weight:700;color:#374151;background:#f1f5f9;border-bottom:2px solid #e2e8f0;white-space:nowrap;">${inlineFormat(stripArtifacts(h))}</th>`)
+    .map(h => `<th style="padding:7px 12px;text-align:left;font-size:12px;font-weight:700;color:#172f50;background:#f1f5f9;border-bottom:2px solid #e2e8f0;white-space:nowrap;">${inlineFormat(stripArtifacts(h))}</th>`)
     .join('');
 
   const bodyHtml = bodyLines.map((l, ri) => {
     const cells = parseRow(l);
     const bg = ri % 2 === 0 ? '#ffffff' : '#f8fafc';
     const cellsHtml = cells
-      .map(c => `<td style="padding:6px 12px;font-size:13px;color:#374151;border-bottom:1px solid #f1f5f9;">${inlineFormat(stripArtifacts(c))}</td>`)
+      .map(c => `<td style="padding:6px 12px;font-size:13px;color:#172f50;border-bottom:1px solid #f1f5f9;">${inlineFormat(stripArtifacts(c))}</td>`)
       .join('');
     return `<tr style="background-color:${bg};">${cellsHtml}</tr>`;
   }).join('');
@@ -434,8 +434,8 @@ function inlineFormat(text: string): string {
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/__(.+?)__/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`(.+?)`/g, '<code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:12px;font-family:monospace;color:#0f172a;">$1</code>')
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" style="color:#1a56db;text-decoration:underline;">$1</a>');
+    .replace(/`(.+?)`/g, '<code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:12px;font-family:Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums;color:#0f172a;">$1</code>')
+    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" style="color:#214a79;text-decoration:underline;">$1</a>');
 }
 
 function escapeHtml(str: string): string {

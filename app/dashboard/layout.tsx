@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { signOut } from 'next-auth/react';
 import Link from 'next/link';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { DashboardLoadingState } from '@/components/dashboard-state';
 import { DashboardHelpButton } from '@/components/dashboard-help';
 import {
@@ -67,6 +67,17 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const reducedMotion = useReducedMotion();
+  const activeItem = [...navigation].sort((a, b) => b.href.length - a.href.length).find(item => pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/')));
+
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') setSidebarOpen(false); };
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', close);
+    return () => { document.body.style.overflow = previous; document.removeEventListener('keydown', close); };
+  }, [sidebarOpen]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -89,7 +100,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="dashboard-shell min-h-screen">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
@@ -100,7 +111,8 @@ export default function DashboardLayout({
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 z-50 h-full w-64 bg-[#030116] text-white transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        id="dashboard-sidebar"
+        className={`dashboard-sidebar fixed top-0 left-0 z-50 h-full w-64 bg-[#030116] text-white transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -109,10 +121,11 @@ export default function DashboardLayout({
           <div className="flex items-center justify-between p-6 border-b border-white/10">
             <Link href="/dashboard" className="flex items-center space-x-3">
               <span className="text-2xl font-bold">SGC</span>
-              <span className="text-xs text-white/60">Dashboard</span>
+              <span className="text-[10px] uppercase tracking-[0.18em] text-white/60">Workspace</span>
             </Link>
             <button
               onClick={() => setSidebarOpen(false)}
+              aria-label="Close navigation"
               className="lg:hidden text-white/60 hover:text-white"
             >
               <X size={24} />
@@ -135,7 +148,7 @@ export default function DashboardLayout({
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          <nav aria-label="Workspace navigation" className="dashboard-navigation flex-1 p-4 space-y-1 overflow-y-auto">
             {navigation.map((item) => {
               // Hide admin-only items from non-admins
               if (item.adminOnly && session.user.role !== 'admin') {
@@ -152,7 +165,8 @@ export default function DashboardLayout({
                   key={item.name}
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
-                  className="flex items-center space-x-3 px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                  aria-current={activeItem?.href === item.href ? 'page' : undefined}
+                  className="dashboard-nav-link flex items-center space-x-3 px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                 >
                   <item.icon size={20} />
                   <span>{item.name}</span>
@@ -177,14 +191,18 @@ export default function DashboardLayout({
       {/* Main Content */}
       <div className="lg:ml-64">
         {/* Top Bar */}
-        <header className="bg-white border-b border-border sticky top-0 z-30">
+        <header className="dashboard-topbar bg-white border-b border-border sticky top-0 z-30">
           <div className="flex items-center justify-between px-6 py-4">
             <button
+              aria-label="Open navigation"
+              aria-controls="dashboard-sidebar"
+              aria-expanded={sidebarOpen}
               onClick={() => setSidebarOpen(true)}
               className="lg:hidden text-gray-600 hover:text-gray-900"
             >
               <Menu size={24} />
             </button>
+            <div className="hidden sm:block text-sm font-medium text-[#172f50]">{activeItem?.name || 'Workspace'}</div>
             <div className="flex items-center space-x-4">
               <DashboardHelpButton topic="content" compact />
               <Link
@@ -198,14 +216,14 @@ export default function DashboardLayout({
         </header>
 
         {/* Page Content */}
-        <main className="p-6">
+        <main className="dashboard-main">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={pathname}
-              initial={{ opacity: 0, y: 12 }}
+              initial={reducedMotion ? false : { opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
+              exit={reducedMotion ? undefined : { opacity: 0 }}
+              transition={{ duration: reducedMotion ? 0 : 0.18, ease: 'easeOut' }}
             >
               {children}
             </motion.div>

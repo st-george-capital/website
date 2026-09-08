@@ -54,7 +54,7 @@ export function Footer() {
                 width={192}
                 height={48}
                 sizes="192px"
-                className="h-12 w-auto opacity-90 transition-opacity hover:opacity-100"
+                className="header-wordmark h-12 w-auto opacity-90 transition-opacity hover:opacity-100"
               />
             </Link>
             <p className="text-white/60 text-sm leading-relaxed mb-6 max-w-sm">

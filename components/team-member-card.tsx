@@ -1,9 +1,8 @@
-'use client';
+"use client";
 
-import { motion } from 'framer-motion';
-import Image from 'next/image';
-import { Card, CardHeader } from '@/components/card';
-import { Linkedin } from 'lucide-react';
+import { motion } from "framer-motion";
+import Image from "next/image";
+import { ArrowUpRight } from "lucide-react";
 
 interface TeamMember {
   id: string;
@@ -15,66 +14,66 @@ interface TeamMember {
   linkedin: string | null;
 }
 
-interface TeamMemberCardProps {
+export function TeamMemberCard({
+  member,
+  index,
+}: {
   member: TeamMember;
   index: number;
-}
-
-export function TeamMemberCard({ member, index }: TeamMemberCardProps) {
+}) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
+    <motion.article
+      className="team-portrait"
+      initial={{ opacity: 0, y: 18 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.6, delay: index * 0.05 }}
+      viewport={{ once: true, amount: 0.12 }}
+      transition={{ duration: 0.55, delay: (index % 4) * 0.06 }}
     >
-      <Card className="text-center h-full">
-        <CardHeader>
-          {/* Headshot */}
-          <div className="w-32 h-32 mx-auto mb-6 rounded-lg overflow-hidden bg-gradient-to-br from-primary/20 to-primary/5">
-            {member.headshot ? (
-              <Image
-                src={member.headshot}
-                alt={member.name}
-                width={128}
-                height={128}
-                sizes="128px"
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <span className="text-4xl font-bold text-primary">
-                  {member.name
-                    .split(' ')
-                    .map((n) => n[0])
-                    .join('')}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Name & Title */}
-          <h3 className="text-2xl font-bold mb-2">{member.name}</h3>
-          <p className="text-primary font-semibold mb-3">{member.title}</p>
-
-          {/* Program & Year */}
-          {member.program && <p className="text-muted-foreground mb-1">{member.program}</p>}
-          {member.year && <p className="text-sm text-muted-foreground mb-4">{member.year}</p>}
-
-          {/* LinkedIn Link */}
+      <div className="portrait-frame">
+        <div className="portrait-frame-heading">
+          <span>SGC / Leadership</span>
+          <span>{String(index + 1).padStart(2, "0")}</span>
+        </div>
+        <div className="portrait-image">
+          {member.headshot ? (
+            <Image
+              src={member.headshot}
+              alt={member.name}
+              fill
+              sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+              className="object-cover"
+            />
+          ) : (
+            <span className="portrait-initials">
+              {member.name
+                .split(" ")
+                .map((n) => n[0])
+                .join("")}
+            </span>
+          )}
           {member.linkedin && (
             <a
               href={member.linkedin}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center w-10 h-10 rounded-full border border-border hover:border-primary hover:bg-primary/10 transition-all"
+              className="portrait-social"
               aria-label={`${member.name}'s LinkedIn`}
             >
-              <Linkedin className="w-5 h-5" />
+              <ArrowUpRight size={20} />
             </a>
           )}
-        </CardHeader>
-      </Card>
-    </motion.div>
+        </div>
+      </div>
+      <div className="portrait-details">
+        <h3>{member.name}</h3>
+        <p className="portrait-title">{member.title}</p>
+        {member.program && (
+          <p className="portrait-program">
+            {member.program}
+            {member.year && <span> / {member.year}</span>}
+          </p>
+        )}
+      </div>
+    </motion.article>
   );
 }

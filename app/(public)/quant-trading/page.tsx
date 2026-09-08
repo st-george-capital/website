@@ -1,10 +1,10 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Hero } from '@/components/hero';
+import { ResearchHero } from '@/components/research-hero';
 import { Section, SectionHeader } from '@/components/section';
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/card';
-import { Button } from '@/components/button';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Brain, TrendingUp, Database, LineChart, ArrowRight } from 'lucide-react';
@@ -34,96 +34,95 @@ const focusAreas = [
 
 const projects = [
   {
-    title: 'Statistical Arbitrage Engine',
-    description: 'Pairs trading system using cointegration and mean reversion strategies across equity markets.',
-    tags: ['Python', 'TensorFlow', 'Time Series'],
+    title: 'CVaR Portfolio Optimizer',
+    description: 'A historical-scenario optimizer that minimizes portfolio tail risk while enforcing position, sector, region, and factor constraints, with optional turnover limits.',
+    tags: ['Linear Programming', 'Historical Scenarios', 'Portfolio Risk'],
   },
   {
-    title: 'Options Pricing Model',
-    description: 'Advanced options pricing and Greeks calculation using Monte Carlo simulation and finite difference methods.',
-    tags: ['C++', 'NumPy', 'Quantlib'],
+    title: 'Macro Research Engine',
+    description: 'An integrated workflow for macro data, factor construction, regime analysis, and signal research, with rolling train/test windows and a separate holdout period.',
+    tags: ['Regime Analysis', 'Factor Research', 'Walk-Forward Testing'],
   },
   {
-    title: 'Sentiment Analysis Pipeline',
-    description: 'NLP-based sentiment extraction from news, social media, and earnings calls for alpha generation.',
-    tags: ['Python', 'NLP', 'BERT'],
+    title: 'Trade Radar',
+    description: 'A research workspace that brings together watchlists, market signals, and briefing workflows to support the evaluation and monitoring of trade ideas.',
+    tags: ['Watchlists', 'Signals', 'Research Briefs'],
   },
   {
-    title: 'Portfolio Backtesting Framework',
-    description: 'High-performance backtesting engine with realistic transaction costs and slippage modeling.',
-    tags: ['Python', 'Pandas', 'Backtrader'],
+    title: 'Portfolio Analytics',
+    description: 'A connected portfolio workspace for holdings, trade history, benchmark comparisons, and portfolio snapshots.',
+    tags: ['Holdings', 'Benchmarks', 'Trade History'],
   },
 ];
 
 export default function QuantTradingPage() {
   return (
     <>
-      <Hero
-        title="Quantitative Trading"
-        breadcrumb="What We Do / Quantitative Trading"
-        height="small"
-        align="left"
-      />
+      <ResearchHero title="Quantitative Trading" discipline="trading" subtitle="Building systematic strategies. From research to practical implementation." />
 
-      <Section className="!py-12 !md:py-16">
+      {/* Overview — off-white */}
+      <Section id="overview" tone="offwhite" className="!py-12 !md:py-16">
         <div className="grid md:grid-cols-2 gap-20 items-start">
           <div>
-            <h2 className="font-serif text-5xl md:text-6xl font-bold">
-              Overview
+            <div className="text-[11px] uppercase tracking-widest font-semibold text-muted-foreground mb-4">
+              Quantitative Trading
+            </div>
+            <h2 className="font-serif text-4xl md:text-[44px] font-bold">
+              From research to implementation
             </h2>
           </div>
           <div className="space-y-6">
-            <p className="text-lg text-gray-600 leading-relaxed">
+            <p className="text-base md:text-[17px] text-muted-foreground leading-relaxed">
               Our Quantitative Trading division focuses on developing systematic trading strategies that leverage cutting-edge technology, mathematical models, and data science to identify and capture market opportunities.
             </p>
-            <p className="text-lg text-gray-600 leading-relaxed">
+            <p className="text-base md:text-[17px] text-muted-foreground leading-relaxed">
               We combine rigorous academic research with practical implementation, giving members hands-on experience in building production-grade trading systems.
             </p>
           </div>
         </div>
       </Section>
 
-      {/* Image + Content Section */}
-      <Section dark>
-        <div className="grid md:grid-cols-2 gap-16 items-center">
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="relative h-[400px] rounded-2xl overflow-hidden"
-          >
-            <Image
-              src="/images/webphotos/quanttrading.jpg" 
-              alt="Quantitative Trading Team" 
-              fill
-              sizes="(min-width: 768px) 50vw, 100vw"
-              className="object-cover"
-            />
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-          >
-            <h3 className="font-serif text-3xl md:text-4xl font-bold mb-6">
-              Building Systematic Strategies
-            </h3>
-            <p className="text-lg text-white/80 leading-relaxed">
-              Our members develop and backtest quantitative strategies, learning the full lifecycle of algorithmic trading from research to production deployment.
-            </p>
-          </motion.div>
-        </div>
-      </Section>
+      {/* Editorial image + content block */}
+      <div className="grid md:grid-cols-2">
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="relative h-[360px] md:h-auto md:min-h-[420px]"
+        >
+          <Image
+            src="/images/webphotos/quanttrading.jpg"
+            alt="Quantitative Trading Team"
+            fill
+            sizes="(min-width: 768px) 50vw, 100vw"
+            className="object-cover"
+          />
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, x: 30 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="bg-surface-navy text-white flex flex-col justify-center px-8 py-16 md:px-16"
+        >
+          <h3 className="font-serif text-3xl md:text-4xl font-bold mb-6">
+            Building Systematic Strategies
+          </h3>
+          <p className="text-base md:text-[17px] text-white/70 leading-relaxed">
+            Our members develop and backtest quantitative strategies, learning the full lifecycle of algorithmic trading from research to production deployment.
+          </p>
+        </motion.div>
+      </div>
 
-      <Section dark className="!py-12 !md:py-16">
+      {/* Focus Areas — 4-card grid, white */}
+      <Section tone="white" className="!py-12 !md:py-16">
         <SectionHeader
           title="Focus Areas"
           subtitle="Core competencies and research domains"
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {focusAreas.map((area, index) => (
             <motion.div
               key={area.title}
@@ -132,16 +131,16 @@ export default function QuantTradingPage() {
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: index * 0.1 }}
             >
-              <Card>
-                <CardHeader>
-                  <div className="w-14 h-14 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                    <area.icon className="w-7 h-7 text-primary" />
+              <Card flat className="h-full">
+                <CardHeader className="p-8">
+                  <div className="flex items-center gap-3 mb-4">
+                    <area.icon className="w-5 h-5 text-primary" />
+                    <div className="font-serif text-lg font-semibold text-muted-foreground/60">
+                      0{index + 1}
+                    </div>
                   </div>
-                  <div className="text-lg font-semibold text-primary mb-2">
-                    0{index + 1}
-                  </div>
-                  <CardTitle>{area.title}</CardTitle>
-                  <CardDescription className="text-base">
+                  <CardTitle className="text-xl mb-2">{area.title}</CardTitle>
+                  <CardDescription className="text-base leading-relaxed">
                     {area.description}
                   </CardDescription>
                 </CardHeader>
@@ -151,13 +150,14 @@ export default function QuantTradingPage() {
         </div>
       </Section>
 
-      <Section className="!py-12 !md:py-16">
+      {/* Featured Projects — blue-grey band, squared tag pills */}
+      <Section tone="blue-grey" className="!py-12 !md:py-16">
         <SectionHeader
-          title="Featured Projects"
-          subtitle="Recent and ongoing research initiatives"
+          title="Built at SGC"
+          subtitle="Research tools implemented in our member platform"
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {projects.map((project, index) => (
             <motion.div
               key={project.title}
@@ -166,17 +166,17 @@ export default function QuantTradingPage() {
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: index * 0.1 }}
             >
-              <Card className="h-full">
-                <CardHeader className="h-full flex flex-col">
-                  <CardTitle className="mb-3">{project.title}</CardTitle>
-                  <CardDescription className="mb-4 flex-grow">
+              <Card flat className="h-full bg-white">
+                <CardHeader className="h-full flex flex-col p-8">
+                  <CardTitle className="text-xl mb-3">{project.title}</CardTitle>
+                  <CardDescription className="mb-5 flex-grow text-base leading-relaxed">
                     {project.description}
                   </CardDescription>
                   <div className="flex flex-wrap gap-2">
                     {project.tags.map((tag) => (
                       <span
                         key={tag}
-                        className="px-3 py-1 text-sm bg-primary/10 text-primary rounded-full"
+                        className="inline-flex items-center border border-surface-border rounded-md px-3 py-1 text-xs text-muted-foreground bg-surface-offwhite"
                       >
                         {tag}
                       </span>
@@ -189,7 +189,8 @@ export default function QuantTradingPage() {
         </div>
       </Section>
 
-      <Section dark>
+      {/* CTA — navy */}
+      <Section tone="navy">
         <div className="max-w-4xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -200,16 +201,15 @@ export default function QuantTradingPage() {
             <h2 className="font-serif text-4xl md:text-5xl font-bold mb-6">
               Interested in Quantitative Strategies?
             </h2>
-            <p className="text-xl mb-10">
+            <p className="text-xl text-white/70 mb-10">
               Join our team and work on cutting-edge trading systems with industry-standard tools and methodologies.
             </p>
-            <Link 
-              href="/contact" 
-              className="inline-flex items-center justify-center px-8 py-4 text-lg rounded-lg bg-[#030116] text-white hover:bg-[#06041f] shadow-lg shadow-primary/20 hover:shadow-primary/30 font-medium transition-all duration-200"
-            >
-              <span>Contact Our Team</span>
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Link>
+            <Button size="lg" asChild>
+              <Link href="/contact">
+                Contact Our Team
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Link>
+            </Button>
           </motion.div>
         </div>
       </Section>

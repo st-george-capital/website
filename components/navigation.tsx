@@ -1,200 +1,215 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import Image from 'next/image';
-import { usePathname } from 'next/navigation';
-import { useState, useEffect } from 'react';
-import { Menu, X, ChevronDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
+import { Menu, X, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const navItems = [
   {
-    name: 'Who We Are',
-    href: '#',
+    name: "Who We Are",
+    href: "#",
     submenu: [
-      { name: 'Our Mission', href: '/' },
-      { name: "Culture & Where We've Worked", href: '/culture' },
-      { name: 'Charity & Impact', href: '/charity' },
+      { name: "Our Mission", href: "/" },
+      { name: "Culture & Where We've Worked", href: "/culture" },
+      { name: "Charity & Impact", href: "/charity" },
     ],
   },
   {
-    name: 'What We Do',
-    href: '#',
+    name: "What We Do",
+    href: "#",
     submenu: [
-      { name: 'Quant Trading', href: '/quant-trading' },
-      { name: 'Quant Research', href: '/quant-research' },
-      { name: 'Equity & Macro Research', href: '/equity-macro-research' },
-      { name: 'Our Holdings', href: '/holdings' },
-      { name: 'Strategy & Research', href: '/strategy' },
-      { name: 'Career Panels', href: '/career-panels' },
+      { name: "Quant Trading", href: "/quant-trading" },
+      { name: "Quant Research", href: "/quant-research" },
+      { name: "Equity & Macro Research", href: "/equity-macro-research" },
+      { name: "Our Holdings", href: "/holdings" },
+      { name: "Strategy & Research", href: "/strategy" },
+      { name: "Career Panels", href: "/career-panels" },
     ],
   },
   {
-    name: 'Research',
-    href: '#',
+    name: "Research",
+    href: "#",
     submenu: [
-      { name: 'Equity Research', href: '/equity-research' },
-      { name: 'Our Take', href: '/research' },
-      { name: 'Learning Hub', href: '/learn' },
+      { name: "Equity Research", href: "/equity-research" },
+      { name: "Our Take", href: "/research" },
+      { name: "Learning Hub", href: "/learn" },
     ],
   },
   {
-    name: 'Leadership',
-    href: '/team',
+    name: "Leadership",
+    href: "/team",
   },
   {
-    name: 'Join Us',
-    href: '/contact',
+    name: "Join Us",
+    href: "/contact",
   },
 ];
 
 export function Navigation() {
+  const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-  const [closeTimeout, setCloseTimeout] = useState<NodeJS.Timeout | null>(null);
-  const pathname = usePathname();
-
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    const scroll = () => setIsScrolled(window.scrollY > 20);
+    scroll();
+    window.addEventListener("scroll", scroll, { passive: true });
+    return () => window.removeEventListener("scroll", scroll);
   }, []);
-
-  const handleMouseEnter = (itemName: string) => {
-    if (closeTimeout) {
-      clearTimeout(closeTimeout);
-      setCloseTimeout(null);
-    }
-    setOpenDropdown(itemName);
-  };
-
-  const handleMouseLeave = () => {
-    const timeout = setTimeout(() => {
-      setOpenDropdown(null);
-    }, 200);
-    setCloseTimeout(timeout);
-  };
-
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+    setOpenDropdown(null);
+  }, [pathname]);
+  useEffect(() => {
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsMobileMenuOpen(false);
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener("keydown", escape);
+    const previous = document.body.style.overflow;
+    if (isMobileMenuOpen) document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", escape);
+      document.body.style.overflow = previous;
+    };
+  }, [isMobileMenuOpen]);
   return (
     <>
+      <a href="#main-content" className="skip-link">
+        Skip to content
+      </a>
       <nav
         className={cn(
-          'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
-          isScrolled
-            ? 'bg-[#030116]/95 backdrop-blur-md border-b border-white/10'
-            : 'bg-[#030116]/60 backdrop-blur-sm'
+          "site-nav",
+          (isScrolled || pathname !== "/") && "site-nav-solid",
         )}
+        aria-label="Main navigation"
       >
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            {/* Logo */}
-            <Link href="/" className="flex items-center group">
-              <Image
-                src="/images/logo/logo_cropped.png" 
-                alt="SGC Logo" 
-                width={192}
-                height={48}
-                sizes="192px"
-                className="h-12 w-auto opacity-90 transition-opacity group-hover:opacity-100"
-              />
-            </Link>
-
-            {/* Desktop Navigation */}
-            <div className="hidden lg:flex items-center space-x-1">
-              {navItems.map((item) => (
-                <div
-                  key={item.name}
-                  className="relative"
-                  onMouseEnter={() => item.submenu && handleMouseEnter(item.name)}
-                  onMouseLeave={handleMouseLeave}
-                >
+        <div className="site-nav-inner">
+          <Link href="/" aria-label="St. George Capital home">
+            <Image
+              src="/images/logo/logo_cropped.png"
+              alt="St. George Capital"
+              width={192}
+              height={48}
+              className="nav-logo header-wordmark"
+              priority
+            />
+          </Link>
+          <div className="desktop-links">
+            {navItems.map((item, index) => (
+              <div
+                key={item.name}
+                className="nav-group"
+                onMouseEnter={() => item.submenu && setOpenDropdown(item.name)}
+                onMouseLeave={() => setOpenDropdown(null)}
+                onBlur={(event) => {
+                  if (
+                    !event.currentTarget.contains(event.relatedTarget as Node)
+                  )
+                    setOpenDropdown(null);
+                }}
+              >
+                {item.submenu ? (
+                  <button
+                    className="nav-trigger"
+                    type="button"
+                    onClick={() =>
+                      setOpenDropdown(
+                        openDropdown === item.name ? null : item.name,
+                      )
+                    }
+                    aria-expanded={openDropdown === item.name}
+                    aria-controls={`nav-panel-${index}`}
+                  >
+                    {item.name}
+                    <ChevronDown size={12} />
+                  </button>
+                ) : (
                   <Link
                     href={item.href}
                     className={cn(
-                      'px-4 py-2 text-sm font-medium transition-all duration-200 inline-flex items-center space-x-1',
-                      pathname === item.href
-                        ? 'text-white'
-                        : 'text-white/80 hover:text-white'
+                      "nav-trigger",
+                      item.name === "Join Us" && "nav-join",
                     )}
+                    aria-current={pathname === item.href ? "page" : undefined}
                   >
-                    <span>{item.name}</span>
-                    {item.submenu && <ChevronDown className="w-4 h-4" />}
+                    {item.name}
+                    {item.name === "Join Us" && (
+                      <span aria-hidden="true">↗</span>
+                    )}
                   </Link>
-
-                  {/* Dropdown Menu */}
-                  {item.submenu && openDropdown === item.name && (
-                    <div 
-                      className="absolute top-full left-0 mt-0 w-56 bg-[#030116]/95 backdrop-blur-md border border-white/10 rounded-lg shadow-xl py-2"
-                      onMouseEnter={() => handleMouseEnter(item.name)}
-                      onMouseLeave={handleMouseLeave}
-                    >
-                      {item.submenu.map((subItem) => (
-                        <Link
-                          key={subItem.name}
-                          href={subItem.href}
-                          className="block px-4 py-2 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors"
-                        >
-                          {subItem.name}
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {/* Dashboard Link */}
-            <div className="hidden lg:flex items-center space-x-4">
-              <Link
-                href="/dashboard"
-                className="px-5 py-2 text-sm font-medium text-white border border-white/20 rounded-md hover:bg-white/10 transition-all duration-200"
-              >
-                Dashboard
-              </Link>
-            </div>
-
-            {/* Mobile Menu Button - only show on mobile */}
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden text-white p-2 ml-auto"
-              aria-label="Toggle menu"
-            >
-              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
+                )}
+                {item.submenu && (
+                  <div
+                    id={`nav-panel-${index}`}
+                    className="nav-dropdown"
+                    hidden={openDropdown !== item.name}
+                  >
+                    <span className="nav-dropdown-label">{item.name}</span>
+                    {item.submenu.map((sub) => (
+                      <Link
+                        key={sub.href}
+                        href={sub.href}
+                        onClick={() => setOpenDropdown(null)}
+                      >
+                        {sub.name}
+                        <span aria-hidden="true">↗</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+            <Link href="/dashboard" className="nav-dashboard">
+              Dashboard
+            </Link>
           </div>
+          <button
+            type="button"
+            className="mobile-toggle"
+            aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={isMobileMenuOpen}
+            aria-controls="mobile-navigation"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          >
+            {isMobileMenuOpen ? <X size={23} /> : <Menu size={23} />}
+          </button>
         </div>
-      </nav>
-
-      {/* Mobile Menu Overlay */}
-      <div
-        className={cn(
-          'fixed inset-0 z-40 bg-[#030116]/95 backdrop-blur-lg lg:hidden transition-opacity duration-300',
-          isMobileMenuOpen
-            ? 'opacity-100 pointer-events-auto'
-            : 'opacity-0 pointer-events-none'
-        )}
-      >
-        <div className="flex flex-col items-start justify-center h-full space-y-6 px-8 mt-10">
-          {navItems.map((item, index) => (
-            <div key={item.name} className="w-full">
+        <div
+          id="mobile-navigation"
+          className="mobile-navigation"
+          hidden={!isMobileMenuOpen}
+        >
+          {navItems.map((item) => (
+            <div key={item.name} className="mobile-nav-group">
               {item.submenu ? (
                 <>
-                  <div className="text-2xl font-medium text-white/60 mb-2">
+                  <button
+                    type="button"
+                    aria-expanded={openDropdown === item.name}
+                    onClick={() =>
+                      setOpenDropdown(
+                        openDropdown === item.name ? null : item.name,
+                      )
+                    }
+                  >
                     {item.name}
-                  </div>
-                  <div className="space-y-3 ml-4">
-                    {item.submenu.map((subItem) => (
+                    <ChevronDown size={18} />
+                  </button>
+                  <div hidden={openDropdown !== item.name}>
+                    {item.submenu.map((sub) => (
                       <Link
-                        key={subItem.name}
-                        href={subItem.href}
+                        key={sub.href}
+                        href={sub.href}
                         onClick={() => setIsMobileMenuOpen(false)}
-                        className="block text-xl text-white/80 hover:text-white transition-colors"
                       >
-                        {subItem.name}
+                        {sub.name}
                       </Link>
                     ))}
                   </div>
@@ -203,22 +218,22 @@ export function Navigation() {
                 <Link
                   href={item.href}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-2xl font-medium text-white/80 hover:text-white transition-colors"
                 >
                   {item.name}
+                  <span aria-hidden="true">↗</span>
                 </Link>
               )}
             </div>
           ))}
           <Link
             href="/dashboard"
+            className="mobile-dashboard"
             onClick={() => setIsMobileMenuOpen(false)}
-            className="px-8 py-3 text-lg font-medium text-white border border-white/20 rounded-md hover:bg-white/10 transition-all duration-200"
           >
-            Dashboard
+            Member Dashboard ↗
           </Link>
         </div>
-      </div>
+      </nav>
     </>
   );
 }

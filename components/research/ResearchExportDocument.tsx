@@ -1,3 +1,4 @@
+import { ResearchPriceChart } from './ResearchPriceChart';
 import type { ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -129,7 +130,7 @@ const EXPORT_DOCUMENT_STYLES = `
   }
 
   .pdf-doc {
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   }
 
   .pdf-doc .report-sans {
@@ -797,7 +798,7 @@ export function ResearchExportDocument({
       >
         <header className="min-h-[9.4in] flex flex-col justify-between">
           <div>
-            <div className="-mx-10 border-b border-slate-300 bg-[#0b1f3a] px-10 py-5 text-white">
+            <div className="report-brand-band -mx-10 border-b border-slate-300 px-10 py-5" style={{ backgroundColor: '#172f50', color: '#fff' }}>
               <div className="flex items-center justify-between gap-8">
                 <div className="flex items-center gap-4">
                   <img
@@ -826,7 +827,7 @@ export function ResearchExportDocument({
             <div className="mt-14 grid grid-cols-[1.45fr_0.75fr] gap-10">
               <div>
                 <div className="report-kicker">Initiation of Coverage</div>
-                <h1 className="mt-5 max-w-4xl font-serif text-[58px] leading-[0.96] text-slate-950">
+                <h1 className="mt-5 max-w-4xl report-sans font-medium text-[48px] leading-[0.96] text-slate-950">
                   {report.companyName}
                 </h1>
                 <div className="report-sans mt-5 text-[14px] font-medium uppercase tracking-[0.16em] text-slate-600">
@@ -1057,59 +1058,9 @@ export function ResearchExportDocument({
                   {report.priceChartImageUrl && !(report.priceHistory && report.priceHistory.length > 0) ? (
                     <img src={report.priceChartImageUrl} alt="Price Chart" className="w-full h-auto" />
                   ) : (
-                    <svg viewBox="0 0 800 220" className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
-                      {(() => {
-                        const chartData = (report.priceHistory || report.dcfInputs?.priceHistory || []).slice(0, 100);
-                        if (!chartData.length) return null;
-                        const prices = chartData.map((point: any) => point.close);
-                        const maxPrice = Math.max(...prices);
-                        const minPrice = Math.min(...prices);
-                        const range = Math.max(maxPrice - minPrice, 1);
-                        const parsedRange = parseFiftyTwoWeekRange(report.fiftyTwoWeekRange);
-                        const highMarker = parsedRange?.high ?? maxPrice;
-                        const lowMarker = parsedRange?.low ?? minPrice;
-                        const toY = (price: number) => 188 - ((price - minPrice) / range) * 150;
-                        const startPoint = chartData[0];
-                        const endPoint = chartData[chartData.length - 1];
-                        const points = chartData.map((point: any, index: number) => {
-                          const x = (chartData.length > 1 ? index / (chartData.length - 1) : 0) * 760 + 20;
-                          const y = toY(point.close);
-                          return `${x},${y}`;
-                        }).join(' ');
-                        return (
-                          <>
-                            {[highMarker, (highMarker + lowMarker) / 2, lowMarker].map((marker, index) => {
-                              const y = toY(marker);
-                              return (
-                                <g key={index}>
-                                  <line x1="20" y1={y} x2="780" y2={y} stroke="#e2e8f0" strokeWidth="1" strokeDasharray={index === 1 ? '0' : '4 5'} />
-                                  <text x="12" y={y + 4} textAnchor="end" fontSize="10" fill="#64748b" fontFamily="Helvetica, Arial, sans-serif">
-                                    ${marker.toFixed(0)}
-                                  </text>
-                                </g>
-                              );
-                            })}
-                            <polyline points={points} fill="none" stroke="#0f172a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                            <circle cx="20" cy={toY(startPoint.close)} r="3.8" fill="#0f172a" />
-                            <circle cx="780" cy={toY(endPoint.close)} r="3.8" fill="#0f172a" />
-                            <text x="20" y="206" textAnchor="start" fontSize="10" fill="#64748b" fontFamily="Helvetica, Arial, sans-serif">
-                              {formatChartDate(startPoint.date)}
-                            </text>
-                            <text x="780" y="206" textAnchor="end" fontSize="10" fill="#64748b" fontFamily="Helvetica, Arial, sans-serif">
-                              {formatChartDate(endPoint.date)}
-                            </text>
-                            <text x="28" y={toY(startPoint.close) - 8} fontSize="10" fill="#0f172a" fontFamily="Helvetica, Arial, sans-serif">
-                              Start ${startPoint.close.toFixed(2)}
-                            </text>
-                            <text x="772" y={toY(endPoint.close) - 8} textAnchor="end" fontSize="10" fill="#0f172a" fontFamily="Helvetica, Arial, sans-serif">
-                              End ${endPoint.close.toFixed(2)}
-                            </text>
-                          </>
-                        );
-                      })()}
-                    </svg>
+                    <ResearchPriceChart points={report.priceHistory?.length ? report.priceHistory : report.dcfInputs?.priceHistory || []} />
                   )}
-                  <div className="report-caption">Figure 1. Recent share-price trend with start and end markers, framed against the available trading range.</div>
+                  <div className="report-caption">Figure 1. Closing share prices over the available period. The endpoint labels the latest close.</div>
                 </div>
               ) : null}
             </div>
