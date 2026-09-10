@@ -67,9 +67,9 @@ const puppeteer = require("puppeteer-core");
       if (url.pathname === "/api/dashboard/market-movers")
         data = {
           mostActivelyTraded: [
-            { ticker: "MSFT", price: 410.2, changePercentage: 1.24 },
+            { ticker: "MSFT", name: "Microsoft Corporation", marketCap: 3000000000000, price: 410.2, changePercentage: 1.24 },
           ],
-          topGainers: [{ ticker: "TEST", price: 25, changePercentage: 5 }],
+          topGainers: [{ ticker: "TEST", name: "Test Company", marketCap: 2000000000, price: 25, changePercentage: 5 }],
           topLosers: [],
           lastUpdated: "Preview data",
         };
@@ -93,7 +93,7 @@ const puppeteer = require("puppeteer-core");
       "/dashboard/tools/dcf",
       "/dashboard/tools/sentiment",
       "/dashboard/tools/cvar-optimizer",
-    ]) {
+    ].filter(route => !process.env.VERIFY_DASHBOARD_ONLY || route === "/dashboard")) {
       await page.setViewport({ width: 1440, height: 1000 });
       const response = await page.goto(base + route, {
         waitUntil: "networkidle2",
@@ -111,7 +111,14 @@ const puppeteer = require("puppeteer-core");
         assert.match(await page.$eval('.workspace-benchmarks', node => node.textContent), /3.0 bp/);
         assert.match(await page.$eval('.workspace-daily', node => node.textContent), /Key Rate Duration/);
         await page.$eval('.workspace-benchmarks', node => window.scrollTo({top: node.getBoundingClientRect().top + scrollY - 160, behavior: 'instant'}));
+        await page.waitForFunction(() => document.querySelector('.workspace-market-table')?.textContent.includes('Microsoft Corporation (MSFT)'));
+        assert.ok(await page.$eval('.workspace-market-scope', n => n.textContent.includes('$1B')));
         await page.screenshot({path: '/tmp/sgc-market-daily.png'});
+        await page.evaluate(() => [...document.querySelectorAll('.workspace-tabs button')].find(n => n.textContent.trim() === 'Gainers').click());
+        await page.waitForFunction(() => document.querySelector('.workspace-market-table')?.textContent.includes('Test Company (TEST)'));
+        await page.evaluate(() => [...document.querySelectorAll('.workspace-tabs button')].find(n => n.textContent.trim() === 'Decliners').click());
+        await page.waitForFunction(() => document.querySelector('main')?.textContent.includes('No companies meeting the $1B minimum'));
+        await page.evaluate(() => [...document.querySelectorAll('.workspace-tabs button')].find(n => n.textContent.trim() === 'Most active').click());
 
         assert.equal(
           await page.$eval(".workspace-report-row", (n) =>

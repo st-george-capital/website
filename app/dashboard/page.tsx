@@ -30,11 +30,14 @@ type Event = {
   location?: string;
 };
 type Mover = {
+  name: string;
+  marketCap: number;
   ticker: string;
   price: number | null;
   changePercentage: number | null;
 };
 type Movers = {
+  coverageIncomplete?: boolean;
   topGainers: Mover[];
   topLosers: Mover[];
   mostActivelyTraded: Mover[];
@@ -334,13 +337,22 @@ export default function DashboardPage() {
             Decliners
           </button>
         </div>
+        <p className="workspace-market-scope">
+          Companies with market cap ≥ $1B USD · Filtered from the provider’s top
+          20 per list
+        </p>
+        {movers?.coverageIncomplete && (
+          <p className="workspace-market-scope">
+            Companies without verified names and USD market caps are omitted.
+          </p>
+        )}
         {marketLoading ? (
           <p className="workspace-empty">Loading market data…</p>
         ) : rows.length ? (
           <table className="workspace-market-table">
             <thead>
               <tr>
-                <th>Symbol</th>
+                <th>Company</th>
                 <th>Last price</th>
                 <th>Change</th>
               </tr>
@@ -348,7 +360,10 @@ export default function DashboardPage() {
             <tbody>
               {rows.map((r) => (
                 <tr key={r.ticker}>
-                  <td>{r.ticker}</td>
+                  <td className="workspace-market-company">
+                    {r.name || "Company name unavailable"}{" "}
+                    <span>({r.ticker})</span>
+                  </td>
                   <td>{r.price != null ? `$${r.price.toFixed(2)}` : "—"}</td>
                   <td
                     className={
@@ -367,7 +382,9 @@ export default function DashboardPage() {
           </table>
         ) : (
           <p className="workspace-empty">
-            Market data is unavailable right now.
+            {movers
+              ? "No companies meeting the $1B minimum are available in this list."
+              : "Market data is unavailable right now."}
           </p>
         )}
       </section>

@@ -1015,3 +1015,7 @@ html {
 .workshop-filters { display:flex; align-items:center; margin:0 0 24px; }
 .workshop-filters label { display:flex; align-items:center; gap:12px; color:#63768e; font-size:12px; }
 .workshop-filters select { min-width:150px; padding:10px 34px 10px 12px; border:1px solid #cbd8e8; border-radius:3px; background:#fff; color:#172f50; font-size:12px; }
+
+.workspace-market-scope { color:#63768e; font-size:11px; line-height:1.6; margin:12px 0; }
+.workspace-market-company { white-space:normal; overflow-wrap:anywhere; }
+.workspace-market-company span { color:#63768e; font-weight:400; }
