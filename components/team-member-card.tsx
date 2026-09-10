@@ -17,13 +17,15 @@ interface TeamMember {
 export function TeamMemberCard({
   member,
   index,
+  isAlumni = false,
 }: {
   member: TeamMember;
   index: number;
+  isAlumni?: boolean;
 }) {
   return (
     <motion.article
-      className="team-portrait"
+      className={`team-portrait${isAlumni ? " team-portrait-alumni" : ""}`}
       initial={{ opacity: 0, y: 18 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.12 }}
@@ -31,7 +33,7 @@ export function TeamMemberCard({
     >
       <div className="portrait-frame">
         <div className="portrait-frame-heading">
-          <span>SGC / Leadership</span>
+          <span>{isAlumni ? "SGC / Alumni" : "SGC / Leadership"}</span>
           <span>{String(index + 1).padStart(2, "0")}</span>
         </div>
         <div className="portrait-image">

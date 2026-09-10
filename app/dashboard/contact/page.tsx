@@ -3,11 +3,19 @@
 import { DashboardLoadError } from '@/components/dashboard-load-error';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/card';
 import { Button } from '@/components/button';
-import { Mail, Trash2, Reply, X } from 'lucide-react';
+import { Mail, Trash2, Reply, X, Pencil } from 'lucide-react';
+import {
+  CONTACT_REPLY_SUBJECT_KEY,
+  CONTACT_REPLY_TEMPLATE_KEY,
+  DEFAULT_CONTACT_REPLY_SUBJECT,
+  DEFAULT_CONTACT_REPLY_TEMPLATE,
+  renderContactReplyTemplate,
+} from '@/lib/contact-reply';
 
 interface ContactSubmission {
   id: string;
@@ -28,8 +36,17 @@ export default function ContactDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState('');
+  const [replySubject, setReplySubject] = useState(DEFAULT_CONTACT_REPLY_SUBJECT);
   const [replyMessage, setReplyMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [template, setTemplate] = useState(DEFAULT_CONTACT_REPLY_TEMPLATE);
+  const [subjectTemplate, setSubjectTemplate] = useState(DEFAULT_CONTACT_REPLY_SUBJECT);
+  const [editingTemplate, setEditingTemplate] = useState(false);
+  const [draftTemplate, setDraftTemplate] = useState(DEFAULT_CONTACT_REPLY_TEMPLATE);
+  const [draftSubject, setDraftSubject] = useState(DEFAULT_CONTACT_REPLY_SUBJECT);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<{ configured: boolean; from: string } | null>(null);
 
   const isAdmin = session?.user?.role === 'admin';
 
@@ -44,6 +61,17 @@ export default function ContactDashboardPage() {
   useEffect(() => {
     if (isAdmin) {
       fetchSubmissions();
+      fetch('/api/contact/email-status')
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => data && setEmailStatus(data))
+        .catch(() => setEmailStatus({ configured: false, from: '' }));
+      fetch('/api/settings', { cache: 'no-store' })
+        .then((res) => (res.ok ? res.json() : {}))
+        .then((data) => {
+          if (data[CONTACT_REPLY_TEMPLATE_KEY]) setTemplate(data[CONTACT_REPLY_TEMPLATE_KEY]);
+          if (data[CONTACT_REPLY_SUBJECT_KEY]) setSubjectTemplate(data[CONTACT_REPLY_SUBJECT_KEY]);
+        })
+        .catch(() => {});
     }
   }, [isAdmin]);
 
@@ -52,16 +80,23 @@ export default function ContactDashboardPage() {
     try {
       const res = await fetch('/api/contact');
       if (!res.ok) throw new Error("Request failed");
-      if (res.ok) {
-        const data = await res.json();
-        setSubmissions(data);
-      }
+      setSubmissions(await res.json());
     } catch (error) {
       setLoadError(true);
       console.error('Error fetching submissions:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const openReply = (submission: ContactSubmission) => {
+    setReplyingTo(submission.id);
+    setReplyTo(submission.email);
+    setReplySubject(subjectTemplate || DEFAULT_CONTACT_REPLY_SUBJECT);
+    setReplyMessage(renderContactReplyTemplate(template, submission));
+    setEditingTemplate(false);
+    setDraftTemplate(template);
+    setDraftSubject(subjectTemplate);
   };
 
   const handleDelete = async (id: string) => {
@@ -83,9 +118,41 @@ export default function ContactDashboardPage() {
     }
   };
 
+  const handleSaveTemplate = async () => {
+    setSavingTemplate(true);
+    try {
+      const responses = await Promise.all([
+        fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: CONTACT_REPLY_TEMPLATE_KEY, value: draftTemplate }),
+        }),
+        fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: CONTACT_REPLY_SUBJECT_KEY, value: draftSubject }),
+        }),
+      ]);
+      if (responses.some((res) => !res.ok)) throw new Error('Failed to save template');
+      setTemplate(draftTemplate);
+      setSubjectTemplate(draftSubject);
+      const submission = submissions.find((s) => s.id === replyingTo);
+      if (submission) {
+        setReplySubject(draftSubject);
+        setReplyMessage(renderContactReplyTemplate(draftTemplate, submission));
+      }
+      setEditingTemplate(false);
+    } catch (error) {
+      console.error('Error saving template:', error);
+      alert('Failed to save reply template');
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
   const handleReply = async (submission: ContactSubmission) => {
-    if (!replyMessage.trim()) {
-      alert('Please enter a reply message');
+    if (!replyTo.trim() || !replyMessage.trim()) {
+      alert('Please enter a recipient and reply message');
       return;
     }
 
@@ -95,8 +162,8 @@ export default function ContactDashboardPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          to: submission.email,
-          subject: `Re: Your message to St. George Capital`,
+          to: replyTo.trim(),
+          subject: replySubject,
           message: replyMessage,
         }),
       });
@@ -105,12 +172,9 @@ export default function ContactDashboardPage() {
         alert('Reply sent successfully!');
         setReplyingTo(null);
         setReplyMessage('');
-        
-        // Mark as read
-        const updatedSubmissions = submissions.map((s) =>
+        setSubmissions(submissions.map((s) =>
           s.id === submission.id ? { ...s, status: 'READ' } : s
-        );
-        setSubmissions(updatedSubmissions);
+        ));
       } else {
         const error = await res.json();
         alert(`Failed to send reply: ${error.error}`);
@@ -175,19 +239,25 @@ export default function ContactDashboardPage() {
 
   if (loadError) return <DashboardLoadError onRetry={() => fetchSubmissions()} />;
 
+  const activeSubmission = submissions.find((s) => s.id === replyingTo);
 
   return (
     <>
       <div className="space-y-8">
-        {/* Header */}
         <div>
           <h1 className="text-3xl font-bold mb-2">Contact Form Submissions</h1>
           <p className="text-muted-foreground">
-            Review and respond to contact requests • Auto-forwarded to outreach@stgeorgecapital.ca
+            Review and respond to contact requests. Click a submission to reply.
           </p>
+          {emailStatus && (
+            <p className={`mt-3 text-sm ${emailStatus.configured ? 'text-green-700' : 'text-amber-700'}`}>
+              {emailStatus.configured
+                ? `Replies send through Resend from ${emailStatus.from}.`
+                : 'Email is not connected. Set RESEND_API_KEY so replies actually send.'}
+            </p>
+          )}
         </div>
 
-        {/* Stats */}
         <div className="grid md:grid-cols-3 gap-6">
           <Card>
             <CardHeader>
@@ -213,7 +283,6 @@ export default function ContactDashboardPage() {
           </Card>
         </div>
 
-        {/* Filters & Sort */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <button
@@ -260,13 +329,16 @@ export default function ContactDashboardPage() {
           </div>
         </div>
 
-        {/* Submissions List */}
         <div className="space-y-4">
           {filteredSubmissions.map((submission) => (
             <Card key={submission.id}>
               <CardHeader>
                 <div className="flex items-start justify-between">
-                  <div className="flex-1">
+                  <button
+                    type="button"
+                    onClick={() => openReply(submission)}
+                    className="flex-1 text-left"
+                  >
                     <div className="flex items-center space-x-3 mb-2">
                       <Mail className="w-5 h-5 text-primary" />
                       <span className={`px-2 py-1 rounded text-xs ${getStatusColor(submission.status)}`}>
@@ -280,19 +352,17 @@ export default function ContactDashboardPage() {
                       {submission.firstName} {submission.lastName}
                     </CardTitle>
                     <div className="text-sm text-muted-foreground mb-3">
-                      <a href={`mailto:${submission.email}`} className="hover:text-primary">
-                        {submission.email}
-                      </a>
+                      {submission.email}
                     </div>
                     <CardDescription className="whitespace-pre-wrap">
                       {submission.message}
                     </CardDescription>
-                  </div>
+                  </button>
                   <div className="flex items-center space-x-2 ml-4">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setReplyingTo(submission.id)}
+                      onClick={() => openReply(submission)}
                     >
                       <Reply className="w-4 h-4 mr-1" />
                       Reply
@@ -319,16 +389,22 @@ export default function ContactDashboardPage() {
         </div>
       </div>
 
-      {/* Reply Modal */}
-      {replyingTo && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full">
+      {replyingTo && activeSubmission && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50">
+          <div
+            role="dialog"
+            aria-labelledby="contact-reply-title"
+            className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+          >
             <div className="p-6 border-b flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Reply to {submissions.find(s => s.id === replyingTo)?.firstName}</h2>
+              <h2 id="contact-reply-title" className="text-2xl font-bold">
+                Reply to {activeSubmission.firstName}
+              </h2>
               <button
                 onClick={() => {
                   setReplyingTo(null);
                   setReplyMessage('');
+                  setEditingTemplate(false);
                 }}
                 className="p-2 hover:bg-gray-100 rounded-lg"
               >
@@ -337,26 +413,90 @@ export default function ContactDashboardPage() {
             </div>
 
             <div className="p-6 space-y-4">
+              {emailStatus && !emailStatus.configured && (
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  Email is not connected, so this reply will not send until RESEND_API_KEY is set.
+                </p>
+              )}
+
               <div>
-                <label className="block text-sm font-medium mb-2">To:</label>
+                <label className="block text-sm font-medium mb-2" htmlFor="contact-reply-to">To:</label>
                 <input
-                  type="text"
-                  value={submissions.find(s => s.id === replyingTo)?.email || ''}
-                  disabled
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                  id="contact-reply-to"
+                  type="email"
+                  value={replyTo}
+                  onChange={(e) => setReplyTo(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Message:</label>
-                <textarea
-                  value={replyMessage}
-                  onChange={(e) => setReplyMessage(e.target.value)}
-                  rows={10}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="Type your reply here..."
+                <label className="block text-sm font-medium mb-2" htmlFor="contact-reply-subject">Subject:</label>
+                <input
+                  id="contact-reply-subject"
+                  type="text"
+                  value={replySubject}
+                  onChange={(e) => setReplySubject(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
+
+              {editingTemplate ? (
+                <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-medium">Edit default reply template</p>
+                  <p className="text-xs text-muted-foreground">
+                    Use {'{{firstName}}'}, {'{{lastName}}'}, {'{{fullName}}'}, or {'{{email}}'}.
+                  </p>
+                  <input
+                    type="text"
+                    value={draftSubject}
+                    onChange={(e) => setDraftSubject(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+                    aria-label="Default subject"
+                  />
+                  <textarea
+                    value={draftTemplate}
+                    onChange={(e) => setDraftTemplate(e.target.value)}
+                    rows={8}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+                    aria-label="Default reply template"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setEditingTemplate(false)} disabled={savingTemplate}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleSaveTemplate} disabled={savingTemplate}>
+                      {savingTemplate ? 'Saving...' : 'Save template'}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium" htmlFor="contact-reply-message">Message:</label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setDraftTemplate(template);
+                        setDraftSubject(subjectTemplate);
+                        setEditingTemplate(true);
+                      }}
+                    >
+                      <Pencil className="w-4 h-4 mr-1" />
+                      Edit template
+                    </Button>
+                  </div>
+                  <textarea
+                    id="contact-reply-message"
+                    value={replyMessage}
+                    onChange={(e) => setReplyMessage(e.target.value)}
+                    rows={10}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="Type your reply here..."
+                  />
+                </div>
+              )}
 
               <div className="flex items-center justify-end space-x-4 pt-4 border-t">
                 <Button
@@ -364,24 +504,23 @@ export default function ContactDashboardPage() {
                   onClick={() => {
                     setReplyingTo(null);
                     setReplyMessage('');
+                    setEditingTemplate(false);
                   }}
                   disabled={sending}
                 >
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => {
-                    const submission = submissions.find(s => s.id === replyingTo);
-                    if (submission) handleReply(submission);
-                  }}
-                  disabled={sending}
+                  onClick={() => handleReply(activeSubmission)}
+                  disabled={sending || editingTemplate}
                 >
                   {sending ? 'Sending...' : 'Send Reply'}
                 </Button>
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );

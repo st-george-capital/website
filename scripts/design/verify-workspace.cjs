@@ -112,12 +112,12 @@ const puppeteer = require("puppeteer-core");
         assert.match(await page.$eval('.workspace-daily', node => node.textContent), /Key Rate Duration/);
         await page.$eval('.workspace-benchmarks', node => window.scrollTo({top: node.getBoundingClientRect().top + scrollY - 160, behavior: 'instant'}));
         await page.waitForFunction(() => document.querySelector('.workspace-market-table')?.textContent.includes('Microsoft Corporation (MSFT)'));
-        assert.ok(await page.$eval('.workspace-market-scope', n => n.textContent.includes('$1B')));
+        assert.ok(await page.$eval('.workspace-market-scope', n => n.textContent.includes('$5B')));
         await page.screenshot({path: '/tmp/sgc-market-daily.png'});
         await page.evaluate(() => [...document.querySelectorAll('.workspace-tabs button')].find(n => n.textContent.trim() === 'Gainers').click());
         await page.waitForFunction(() => document.querySelector('.workspace-market-table')?.textContent.includes('Test Company (TEST)'));
         await page.evaluate(() => [...document.querySelectorAll('.workspace-tabs button')].find(n => n.textContent.trim() === 'Decliners').click());
-        await page.waitForFunction(() => document.querySelector('main')?.textContent.includes('No companies meeting the $1B minimum'));
+        await page.waitForFunction(() => document.querySelector('main')?.textContent.includes('No companies meeting the $5B minimum'));
         await page.evaluate(() => [...document.querySelectorAll('.workspace-tabs button')].find(n => n.textContent.trim() === 'Most active').click());
 
         assert.equal(

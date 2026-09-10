@@ -48,7 +48,12 @@ export default async function TeamPage({
         {members.length ? (
           <div className="portrait-grid">
             {members.map((member, index) => (
-              <TeamMemberCard member={member} index={index} key={member.id} />
+              <TeamMemberCard
+                member={member}
+                index={index}
+                isAlumni={isAlumni}
+                key={member.id}
+              />
             ))}
           </div>
         ) : (

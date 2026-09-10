@@ -120,7 +120,7 @@ export default function DashboardPage() {
           .includes(query.trim().toLowerCase()),
       )
     : [];
-  const rows = movers?.[marketTab]?.slice(0, 6) || [];
+  const rows = movers?.[marketTab]?.slice(0, 10) || [];
   return (
     <div className="workspace-home">
       <header className="workspace-heading">
@@ -338,8 +338,7 @@ export default function DashboardPage() {
           </button>
         </div>
         <p className="workspace-market-scope">
-          Companies with market cap ≥ $1B USD · Filtered from the provider’s top
-          20 per list
+          Companies with market cap ≥ $5B USD · Top 10 in this session
         </p>
         {movers?.coverageIncomplete && (
           <p className="workspace-market-scope">
@@ -383,7 +382,7 @@ export default function DashboardPage() {
         ) : (
           <p className="workspace-empty">
             {movers
-              ? "No companies meeting the $1B minimum are available in this list."
+              ? "No companies meeting the $5B minimum are available in this list."
               : "Market data is unavailable right now."}
           </p>
         )}

@@ -1,42 +1,50 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
+import { sendEmail, isEmailConfigured, CONTACT_FROM_ADDRESS } from "@/lib/email";
+import { requireAdmin } from "@/lib/auth";
 
-// Simple email sending endpoint
-// In production, you'd use a service like SendGrid, AWS SES, or Resend
+export const dynamic = "force-dynamic";
+
+export async function GET() {
+  try {
+    await requireAdmin();
+    return NextResponse.json({
+      configured: isEmailConfigured(),
+      from: CONTACT_FROM_ADDRESS,
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error.message || "Unauthorized" },
+      { status: error.message?.includes("Unauthorized") ? 403 : 500 },
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
+    await requireAdmin();
     const body = await request.json();
     const { to, subject, html } = body;
 
     if (!to || !subject || !html) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
+        { error: "Missing required fields" },
+        { status: 400 },
       );
     }
 
-    // For now, just log the email (you'll need to set up an email service)
-    console.log('📧 Email to send:');
-    console.log('To:', to);
-    console.log('Subject:', subject);
-    console.log('Body:', html);
-
-    // TODO: Implement actual email sending
-    // Example with Resend:
-    // const resend = new Resend(process.env.RESEND_API_KEY);
-    // await resend.emails.send({
-    //   from: 'outreach@stgeorgecapital.ca',
-    //   to,
-    //   subject,
-    //   html,
-    // });
-
+    await sendEmail({ to, subject, html });
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Send email error:', error);
+  } catch (error: any) {
+    console.error("Send email error:", error);
     return NextResponse.json(
-      { error: 'Failed to send email' },
-      { status: 500 }
+      { error: error.message || "Failed to send email" },
+      {
+        status: error.message?.includes("Unauthorized")
+          ? 403
+          : error.message?.includes("not configured")
+            ? 503
+            : 500,
+      },
     );
   }
 }
-
