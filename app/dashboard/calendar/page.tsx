@@ -1,5 +1,7 @@
 'use client';
 
+import { DashboardLoadError } from '@/components/dashboard-load-error';
+
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
@@ -59,6 +61,7 @@ export default function CalendarDashboardPage() {
   const { data: session } = useSession();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'year'>('month');
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'quant_trading' | 'quant_research' | 'macro' | 'equity'>('all');
@@ -72,6 +75,7 @@ export default function CalendarDashboardPage() {
   }, [currentDate, selectedCategory, viewMode]);
 
   const fetchEvents = async () => {
+    setLoadError(false);
     try {
       let startDate: Date, endDate: Date;
 
@@ -95,9 +99,11 @@ export default function CalendarDashboardPage() {
       }
 
       const response = await fetch(`/api/calendar?${params}`);
+      if (!response.ok) throw new Error("Request failed");
       const data = await response.json();
       setEvents(data);
     } catch (error) {
+      setLoadError(true);
       console.error('Failed to fetch events:', error);
     } finally {
       setLoading(false);
@@ -194,6 +200,9 @@ export default function CalendarDashboardPage() {
       console.error('Failed to delete event:', error);
     }
   };
+
+
+  if (loadError) return <DashboardLoadError onRetry={() => fetchEvents()} />;
 
   if (loading) {
     return (

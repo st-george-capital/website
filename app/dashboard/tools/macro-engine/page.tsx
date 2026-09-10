@@ -1,5 +1,6 @@
 'use client';
 
+import { chartTheme, chartTooltipStyle } from '@/lib/chart-theme';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -54,9 +55,9 @@ function tickerLabel(ticker: string) {
 // ─── Regime colors ─────────────────────────────────────────────────────────────
 
 const REGIME_PALETTE: Record<string, string> = {
-  credit:    '#ef4444',
+  credit:    chartTheme.negative,
   monetary:  '#f59e0b',
-  growth:    '#10b981',
+  growth:    chartTheme.positive,
   inflation: '#f97316',
   earnings:  '#6366f1',
   momentum:  '#0ea5e9',
@@ -537,13 +538,13 @@ function PerformanceChart() {
           {tab === 'cumulative' && (
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={chartData} onClick={handleClick}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <CartesianGrid stroke={chartTheme.grid} vertical={false} />
                 <XAxis dataKey="date" tickFormatter={fmtDateShort} tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
                 <YAxis tickFormatter={v => `${v > 0 ? '+' : ''}${v}%`} tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} width={50} />
-                <Tooltip content={tooltipContent} />
+                <Tooltip contentStyle={chartTooltipStyle} content={tooltipContent} />
                 <ReferenceLine y={0} stroke="#e2e8f0" />
-                <Line type="monotone" dataKey="portfolio" stroke="#10b981" strokeWidth={2} dot={false} name="Portfolio" />
-                <Line type="monotone" dataKey="spy" stroke="#94a3b8" strokeWidth={1.5} dot={false} strokeDasharray="4 2" name="SPY" />
+                <Line type="linear" dataKey="portfolio" stroke={chartTheme.positive} strokeWidth={2} dot={false} name="Portfolio" />
+                <Line type="linear" dataKey="spy" stroke="#94a3b8" strokeWidth={1.5} dot={false} strokeDasharray="4 2" name="SPY" />
                 <Legend iconType="line" iconSize={12} wrapperStyle={{ fontSize: 11, paddingTop: 6 }} />
               </LineChart>
             </ResponsiveContainer>
@@ -552,14 +553,14 @@ function PerformanceChart() {
           {tab === 'excess' && (
             <ResponsiveContainer width="100%" height={220}>
               <ComposedChart data={chartData} onClick={handleClick}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <CartesianGrid stroke={chartTheme.grid} vertical={false} />
                 <XAxis dataKey="date" tickFormatter={fmtDateShort} tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
                 <YAxis tickFormatter={v => `${v > 0 ? '+' : ''}${v.toFixed(1)}%`} tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} width={50} />
-                <Tooltip content={tooltipContent} />
+                <Tooltip contentStyle={chartTooltipStyle} content={tooltipContent} />
                 <ReferenceLine y={0} stroke="#cbd5e1" />
                 <Bar dataKey="excess" name="Excess return" radius={[2, 2, 0, 0]}>
                   {chartData.map((entry, i) => (
-                    <Cell key={i} fill={entry.excess >= 0 ? '#10b981' : '#ef4444'} fillOpacity={0.75} />
+                    <Cell key={i} fill={entry.excess >= 0 ? chartTheme.positive : chartTheme.negative} fillOpacity={0.75} />
                   ))}
                 </Bar>
               </ComposedChart>
@@ -569,13 +570,13 @@ function PerformanceChart() {
           {tab === 'sharpe' && (
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={rollingData} onClick={handleClick}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <CartesianGrid stroke={chartTheme.grid} vertical={false} />
                 <XAxis dataKey="date" tickFormatter={fmtDateShort} tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} width={40} />
-                <Tooltip content={tooltipContent} />
+                <Tooltip contentStyle={chartTooltipStyle} content={tooltipContent} />
                 <ReferenceLine y={0} stroke="#cbd5e1" />
-                <ReferenceLine y={0.5} stroke="#10b98144" strokeDasharray="4 2" label={{ value: '0.5', position: 'right', fontSize: 9, fill: '#10b981' }} />
-                <Line type="monotone" dataKey="rollingSharpe" stroke="#6366f1" strokeWidth={2} dot={false} connectNulls name="Rolling Sharpe (12-period)" />
+                <ReferenceLine y={0.5} stroke="#10b98144" strokeDasharray="4 2" label={{ value: '0.5', position: 'right', fontSize: 9, fill: chartTheme.positive }} />
+                <Line type="linear" dataKey="rollingSharpe" stroke={chartTheme.primary} strokeWidth={2} dot={false} connectNulls name="Rolling Sharpe (12-period)" />
               </LineChart>
             </ResponsiveContainer>
           )}
@@ -1964,10 +1965,10 @@ export default function MacroEnginePage() {
   const asOfDate = data?.asOfDate ? fmtDate(data.asOfDate.slice(0, 10)) : null;
 
   const FACTOR_DIMS = [
-    { key: 'zGrowth',    label: 'Growth',    desc: 'GDP / PMI momentum',   color: '#10b981' },
+    { key: 'zGrowth',    label: 'Growth',    desc: 'GDP / PMI momentum',   color: chartTheme.positive },
     { key: 'zInflation', label: 'Inflation', desc: 'CPI / PPI trend',       color: '#f97316' },
     { key: 'zMonetary',  label: 'Monetary',  desc: 'Rate path (Fed Funds)', color: '#f59e0b' },
-    { key: 'zCredit',    label: 'Credit',    desc: 'Spread dynamics',        color: '#ef4444' },
+    { key: 'zCredit',    label: 'Credit',    desc: 'Spread dynamics',        color: chartTheme.negative },
     { key: 'zCarry',     label: 'Momentum',  desc: '6m price vs universe',   color: '#0ea5e9' },
     { key: 'zEarnings',  label: 'Earnings',  desc: 'EPS revision momentum',  color: '#6366f1' },
   ] as const;
@@ -2094,7 +2095,7 @@ export default function MacroEnginePage() {
                             {!isPos && (
                               <div
                                 className="h-full rounded-l-full"
-                                style={{ width: `${barPct}%`, backgroundColor: '#ef4444' }}
+                                style={{ width: `${barPct}%`, backgroundColor: chartTheme.negative }}
                               />
                             )}
                           </div>

@@ -1,5 +1,7 @@
 'use client';
 
+import { DashboardLoadError } from '@/components/dashboard-load-error';
+
 import { useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
@@ -63,6 +65,7 @@ export default function ResumeBookPage() {
   const { data: session } = useSession();
   const [submissions, setSubmissions] = useState<ResumeSubmission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [drillFaculty, setDrillFaculty] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [backfilling, setBackfilling] = useState(false);
@@ -73,10 +76,14 @@ export default function ResumeBookPage() {
   useEffect(() => { if (isAdmin) fetchSubmissions(); }, [isAdmin]);
 
   const fetchSubmissions = async () => {
+    setLoading(true);
+    setLoadError(false);
     try {
       const res = await fetch('/api/resume-book');
+      if (!res.ok) throw new Error("Request failed");
       if (res.ok) setSubmissions(await res.json());
     } catch (e) {
+      setLoadError(true);
       console.error(e);
     } finally {
       setLoading(false);
@@ -89,6 +96,7 @@ export default function ResumeBookPage() {
     setBackfillResult(null);
     try {
       const res = await fetch('/api/resume-book/backfill', { method: 'POST' });
+      if (!res.ok) throw new Error('Backfill failed');
       const data = await res.json();
       setBackfillResult(data.message ?? 'Done');
       await fetchSubmissions();
@@ -176,6 +184,8 @@ export default function ResumeBookPage() {
       </div>
     );
   }
+
+  if (loadError) return <DashboardLoadError onRetry={fetchSubmissions} />;
 
   return (
     <div className="space-y-8">

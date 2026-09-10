@@ -1,3 +1,4 @@
+import { reviewedCourse } from '@/lib/learning/editorial';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin, getSession, isAdmin } from '@/lib/auth';
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    return NextResponse.json(course);
+    return NextResponse.json(reviewedCourse(course));
   } catch (error) {
     console.error('Error fetching course:', error);
     return NextResponse.json({ error: 'Failed to fetch course' }, { status: 500 });
@@ -54,7 +55,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       include: { lessons: { orderBy: { order: 'asc' } } },
     });
 
-    return NextResponse.json(course);
+    return NextResponse.json(reviewedCourse(course));
   } catch (error) {
     console.error('Error updating course:', error);
     return NextResponse.json({ error: 'Failed to update course' }, { status: 500 });

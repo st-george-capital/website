@@ -17,10 +17,10 @@ const sections = [
   {
     id: 'courses',
     name: 'SGC Courses',
-    description: 'Build internal lesson-based courses (options, macro, quant, and more)',
+    description: 'Study markets and research through guided lessons, interactive models and applied workshops',
     href: '/dashboard/learning/courses',
     icon: GraduationCap,
-    kinds: ['Create courses', 'Add lessons', 'Publish to members'],
+    kinds: ['Read the lessons', 'Explore the models', 'Apply what you learn'],
   },
 ];
 
@@ -30,7 +30,7 @@ export default function LearningHubPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Learning Tools</h1>
         <p className="text-gray-500 mt-1">
-          Curate external resources and build internal courses for SGC members.
+          Build your knowledge with SGC courses and a curated research library.
         </p>
       </div>
 

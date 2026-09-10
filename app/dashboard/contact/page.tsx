@@ -1,5 +1,7 @@
 'use client';
 
+import { DashboardLoadError } from '@/components/dashboard-load-error';
+
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -24,6 +26,7 @@ export default function ContactDashboardPage() {
   const [filter, setFilter] = useState<'all' | 'new' | 'read'>('all');
   const [sortBy, setSortBy] = useState<'latest' | 'oldest'>('latest');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyMessage, setReplyMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -45,13 +48,16 @@ export default function ContactDashboardPage() {
   }, [isAdmin]);
 
   const fetchSubmissions = async () => {
+    setLoadError(false);
     try {
       const res = await fetch('/api/contact');
+      if (!res.ok) throw new Error("Request failed");
       if (res.ok) {
         const data = await res.json();
         setSubmissions(data);
       }
     } catch (error) {
+      setLoadError(true);
       console.error('Error fetching submissions:', error);
     } finally {
       setLoading(false);
@@ -166,6 +172,9 @@ export default function ContactDashboardPage() {
   if (!isAdmin) {
     return null;
   }
+
+  if (loadError) return <DashboardLoadError onRetry={() => fetchSubmissions()} />;
+
 
   return (
     <>

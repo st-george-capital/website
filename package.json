@@ -4,11 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run prisma:migrations:check && prisma generate && npm run db:push:safe && next build",
+    "build": "npm run prisma:migrations:check && prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "db:push": "prisma db push",
-    "db:push:safe": "prisma db push || echo 'DB push failed - schema may be out of sync'",
+    "db:push:safe": "prisma db push",
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
     "prisma:migrations:check": "node scripts/check-prisma-migrations.js",
@@ -38,7 +38,11 @@
     "trade-radar:ingest": "npx tsx scripts/trade-radar/run-ingest.ts",
     "trade-radar:signals": "npx tsx scripts/trade-radar/run-signals.ts",
     "trade-radar:brief": "npx tsx scripts/trade-radar/run-brief.ts",
-    "trade-radar:verify": "npx tsx scripts/trade-radar/verify-data.ts"
+    "trade-radar:verify": "npx tsx scripts/trade-radar/verify-data.ts",
+    "workshop:setup": "node scripts/workshop/setup.cjs",
+    "courses:seed-quant": "node scripts/workshop/seed-courses.cjs",
+    "verify:workshop-api": "node scripts/workshop/verify-api.cjs",
+    "verify:workshop-browser": "node scripts/workshop/verify-browser.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

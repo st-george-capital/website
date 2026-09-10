@@ -27,6 +27,7 @@ export default function ResearchDashboardPage() {
   const router = useRouter();
   const [reports, setReports] = useState<ResearchReport[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [filter, setFilter] = useState<'all' | 'draft' | 'published'>('all');
 
   useEffect(() => {
@@ -34,6 +35,8 @@ export default function ResearchDashboardPage() {
   }, [filter]);
 
   const fetchReports = async () => {
+    setLoading(true);
+    setLoadError(false);
     try {
       const url = filter !== 'all' 
         ? `/api/research-reports?status=${filter}` 
@@ -46,6 +49,7 @@ export default function ResearchDashboardPage() {
       setReports(data);
     } catch (error) {
       console.error('Error fetching reports:', error);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -148,6 +152,11 @@ export default function ResearchDashboardPage() {
       {/* Reports List */}
       {loading ? (
         <div className="text-center py-12">Loading reports...</div>
+      ) : loadError ? (
+        <Card><CardContent className="text-center py-12">
+          <p className="text-gray-600 mb-4" role="alert">Research reports could not be loaded. Please try again.</p>
+          <Button onClick={fetchReports}>Retry</Button>
+        </CardContent></Card>
       ) : reports.length === 0 ? (
         <Card>
           <CardContent className="text-center py-12">

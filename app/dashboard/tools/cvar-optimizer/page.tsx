@@ -1,5 +1,6 @@
 'use client';
 
+import { ToolPageHeader } from '@/components/tool-page-header';
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
@@ -312,20 +313,7 @@ export default function CVaROptimizerPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">CVaR Portfolio Optimizer</h1>
-          <p className="text-muted-foreground">
-            Baseline late-cycle / recessionary regime tilt — CVaR minimization with sector, region, and factor constraints.
-          </p>
-        </div>
-        <Link href="/reports/regime-thesis">
-          <Button variant="outline" size="sm" className="border-gray-300 text-gray-700 hover:bg-gray-100">
-            <FileText className="w-4 h-4 mr-2" />
-            Methodology Report
-          </Button>
-        </Link>
-      </div>
+      <ToolPageHeader category="Portfolio construction" title="Portfolio optimizer" description="Evaluate downside risk under your allocation, sector, and factor constraints." actions={<Link href="/reports/regime-thesis" className="tool-secondary-link">Methodology <FileText size={15}/></Link>} />
 
       {/* Persistent disclaimer banner (plan Section 9, item 5) */}
       <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">

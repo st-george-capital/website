@@ -1,5 +1,7 @@
 'use client';
 
+import { DashboardLoadError } from '@/components/dashboard-load-error';
+
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
@@ -82,6 +84,7 @@ export default function InvestmentPitchesDashboardPage() {
   const { data: session } = useSession();
   const [pitches, setPitches] = useState<InvestmentPitch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [feedbackSaving, setFeedbackSaving] = useState(false);
   const [activeFeedbackPitchId, setActiveFeedbackPitchId] = useState<string | null>(null);
@@ -98,6 +101,7 @@ export default function InvestmentPitchesDashboardPage() {
   }, [filterSector, filterSubcategory, filterPublished]);
 
   const fetchPitches = async () => {
+    setLoadError(false);
     try {
       const params = new URLSearchParams();
       if (filterSector !== 'all') params.append('sector', filterSector);
@@ -105,11 +109,13 @@ export default function InvestmentPitchesDashboardPage() {
       if (filterPublished !== 'all') params.append('published', filterPublished);
 
       const response = await fetch(`/api/pitches?${params.toString()}`);
+      if (!response.ok) throw new Error("Request failed");
       if (response.ok) {
         const data = await response.json();
         setPitches(data);
       }
     } catch (error) {
+      setLoadError(true);
       console.error('Error fetching investment pitches:', error);
     } finally {
       setLoading(false);
@@ -214,6 +220,9 @@ export default function InvestmentPitchesDashboardPage() {
       .filter((sub): sub is string => sub !== null && sub !== undefined);
     return [...new Set(subcategories)].sort();
   };
+
+
+  if (loadError) return <DashboardLoadError onRetry={() => fetchPitches()} />;
 
   if (loading) {
     return <div className="p-8">Loading...</div>;

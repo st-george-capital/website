@@ -1,5 +1,7 @@
 'use client';
 
+import { DashboardLoadError } from '@/components/dashboard-load-error';
+
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
@@ -27,6 +29,7 @@ export default function WeeklyContentDashboardPage() {
   const { data: session } = useSession();
   const [weeklyContent, setWeeklyContent] = useState<WeeklyContent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterYear, setFilterYear] = useState<string>('all');
   const [filterSeason, setFilterSeason] = useState<string>('all');
@@ -39,6 +42,8 @@ export default function WeeklyContentDashboardPage() {
   }, [filterCategory, filterYear, filterSeason, filterPublished]);
 
   const fetchWeeklyContent = async () => {
+    setLoading(true);
+    setLoadError(false);
     try {
       const params = new URLSearchParams();
       if (filterCategory !== 'all') params.append('category', filterCategory);
@@ -47,11 +52,13 @@ export default function WeeklyContentDashboardPage() {
       if (filterPublished !== 'all') params.append('published', filterPublished);
 
       const response = await fetch(`/api/weekly?${params.toString()}`);
+      if (!response.ok) throw new Error("Request failed");
       if (response.ok) {
         const data = await response.json();
         setWeeklyContent(data);
       }
     } catch (error) {
+      setLoadError(true);
       console.error('Error fetching weekly content:', error);
     } finally {
       setLoading(false);
@@ -81,6 +88,8 @@ export default function WeeklyContentDashboardPage() {
     const years = weeklyContent.map(item => item.year);
     return [...new Set(years)].sort().reverse();
   };
+
+  if (loadError) return <DashboardLoadError onRetry={fetchWeeklyContent} />;
 
   if (loading) {
     return <div className="p-8">Loading...</div>;

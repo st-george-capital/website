@@ -1,5 +1,7 @@
 'use client';
 
+import { DashboardLoadError } from '@/components/dashboard-load-error';
+
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -41,6 +43,7 @@ export default function StrategyDashboardPage() {
   const router = useRouter();
   const [documents, setDocuments] = useState<StrategyDocument[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [filterType, setFilterType] = useState<'all' | 'investment_strategy' | 'industry_report'>('all');
   const [filterPublished, setFilterPublished] = useState<'all' | 'published' | 'draft'>('all');
 
@@ -51,15 +54,18 @@ export default function StrategyDashboardPage() {
   }, [filterType, filterPublished]);
 
   const fetchDocuments = async () => {
+    setLoadError(false);
     try {
       const params = new URLSearchParams();
       if (filterType !== 'all') params.append('type', filterType);
       if (filterPublished !== 'all') params.append('published', (filterPublished === 'published').toString());
 
       const response = await fetch(`/api/strategy?${params}`);
+      if (!response.ok) throw new Error("Request failed");
       const data = await response.json();
       setDocuments(data);
     } catch (error) {
+      setLoadError(true);
       console.error('Failed to fetch strategy documents:', error);
     } finally {
       setLoading(false);
@@ -97,6 +103,9 @@ export default function StrategyDashboardPage() {
       console.error('Failed to delete document:', error);
     }
   };
+
+
+  if (loadError) return <DashboardLoadError onRetry={() => fetchDocuments()} />;
 
   if (loading) {
     return (

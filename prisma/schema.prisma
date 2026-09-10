@@ -23,6 +23,10 @@ model User {
   tags             String[]    @default([])
   teamMember       TeamMember? @relation(fields: [teamMemberId], references: [id])
   tradeWatchlists  TradeWatchlist[]
+  workshopOwned WorkshopProject[] @relation("WorkshopOwner")
+  workshopMemberships WorkshopMember[]
+  workshopUpdates WorkshopUpdate[]
+  workshopMilestones WorkshopMilestone[]
 }
 
 model Article {
@@ -1210,4 +1214,60 @@ model SavedValidationBasketRun {
   createdAt         DateTime @default(now())
 
   @@index([createdAt])
+}
+
+model WorkshopProject {
+  id          String @id @default(cuid())
+  title       String
+  summary     String
+  hypothesis  String @default("")
+  plan        String @default("")
+  status      String @default("idea")
+  tags        String[] @default([])
+  githubUrl   String?
+  resources   Json @default("[]")
+  ownerId     String?
+  version     Int @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  owner       User? @relation("WorkshopOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  members     WorkshopMember[]
+  updates     WorkshopUpdate[]
+  milestones  WorkshopMilestone[]
+  @@index([status, updatedAt])
+  @@index([ownerId])
+}
+
+model WorkshopMember {
+  projectId String
+  userId String
+  project WorkshopProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([projectId, userId])
+  @@index([userId])
+}
+
+model WorkshopUpdate {
+  id String @id @default(cuid())
+  projectId String
+  authorId String?
+  kind String @default("progress")
+  content String
+  createdAt DateTime @default(now())
+  project WorkshopProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  @@index([projectId, createdAt])
+}
+
+model WorkshopMilestone {
+  id String @id @default(cuid())
+  projectId String
+  title String
+  completed Boolean @default(false)
+  dueAt DateTime?
+  assigneeId String?
+  createdAt DateTime @default(now())
+  project WorkshopProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee User? @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  @@index([projectId, createdAt])
 }

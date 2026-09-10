@@ -1,5 +1,7 @@
 'use client';
 
+import { DashboardLoadError } from '@/components/dashboard-load-error';
+
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
@@ -32,6 +34,7 @@ export default function InvestmentsDashboardPage() {
   const { data: session } = useSession();
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [filterType, setFilterType] = useState<string>('all');
   const [filterPublished, setFilterPublished] = useState<string>('all');
 
@@ -42,15 +45,18 @@ export default function InvestmentsDashboardPage() {
   }, [filterType, filterPublished]);
 
   const fetchInvestments = async () => {
+    setLoadError(false);
     try {
       const params = new URLSearchParams();
       if (filterType !== 'all') params.append('type', filterType);
       if (filterPublished !== 'all') params.append('published', filterPublished);
 
       const response = await fetch(`/api/investments?${params}`);
+      if (!response.ok) throw new Error("Request failed");
       const data = await response.json();
       setInvestments(data);
     } catch (error) {
+      setLoadError(true);
       console.error('Failed to fetch investments:', error);
     } finally {
       setLoading(false);
@@ -102,6 +108,9 @@ export default function InvestmentsDashboardPage() {
   const getTagsArray = (tags: string) => {
     return tags ? tags.split(',').map(tag => tag.trim()) : [];
   };
+
+
+  if (loadError) return <DashboardLoadError onRetry={() => fetchInvestments()} />;
 
   if (loading) {
     return (

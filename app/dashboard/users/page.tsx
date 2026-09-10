@@ -1,5 +1,7 @@
 'use client';
 
+import { DashboardLoadError } from '@/components/dashboard-load-error';
+
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
@@ -22,23 +24,26 @@ export default function UsersDashboardPage() {
   const { data: session } = useSession();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const isAdmin = session?.user?.role === 'admin';
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    if (isAdmin) fetchUsers();
+  }, [isAdmin]);
 
   const fetchUsers = async () => {
+    setLoading(true);
+    setLoadError(false);
     try {
       const response = await fetch('/api/users');
+      if (!response.ok) throw new Error("Request failed");
       if (response.ok) {
         const data = await response.json();
-        console.log('Fetched users:', data.length, 'users');
-        console.log('First user sample:', data[0]);
         setUsers(data);
       }
     } catch (error) {
+      setLoadError(true);
       console.error('Error fetching users:', error);
     } finally {
       setLoading(false);
@@ -135,6 +140,8 @@ export default function UsersDashboardPage() {
       </div>
     );
   }
+
+  if (loadError) return <DashboardLoadError onRetry={fetchUsers} />;
 
   return (
     <div className="space-y-8">

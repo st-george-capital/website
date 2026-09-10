@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-export const revalidate = 86400; // refresh once per day
+export const dynamic = 'force-dynamic'; // Choose the current UTC day's entry on each request.
 
 const TERMS: { term: string; definition: string; category: string }[] = [
   // ── Portfolio Theory ──────────────────────────────────────────────────────
@@ -15,7 +15,7 @@ const TERMS: { term: string; definition: string; category: string }[] = [
   { term: 'Tracking Error', definition: 'The standard deviation of the difference between portfolio returns and benchmark returns. Measures how closely a portfolio follows its benchmark. High tracking error = high active risk.', category: 'Portfolio Theory' },
   { term: 'Efficient Frontier', definition: 'The set of optimal portfolios offering the highest expected return for a given level of risk — derived from Markowitz\'s Modern Portfolio Theory. Points on the frontier are Pareto-optimal.', category: 'Portfolio Theory' },
   { term: 'CAPM', definition: 'Capital Asset Pricing Model: expected return = risk-free rate + beta × equity risk premium. The bedrock model linking systematic risk (beta) to required return and the foundation of much of modern finance.', category: 'Portfolio Theory' },
-  { term: 'Correlation', definition: 'Ranges from −1 to +1 and measures how two assets move relative to each other. A correlation of 0 indicates independence; −1 means perfect inverse movement. Diversification exploits low or negative correlation.', category: 'Portfolio Theory' },
+  { term: 'Correlation', definition: 'Ranges from −1 to +1 and measures how two assets move relative to each other. A correlation of 0 indicates no linear relationship; −1 means perfect inverse movement. Diversification exploits low or negative correlation.', category: 'Portfolio Theory' },
   { term: 'Covariance', definition: 'A statistical measure of how two assets move together. Positive covariance = same direction; negative = opposite. The building block of the portfolio variance calculation and correlation.', category: 'Portfolio Theory' },
   { term: 'Diversification', definition: 'The practice of spreading investments across uncorrelated assets to reduce idiosyncratic risk without sacrificing expected return. The only "free lunch" in finance, per Markowitz.', category: 'Portfolio Theory' },
   { term: 'Idiosyncratic Risk', definition: 'Company-specific risk that can be eliminated through diversification. Also called unsystematic risk. In a well-diversified portfolio, only systematic (market) risk remains.', category: 'Portfolio Theory' },
@@ -597,13 +597,39 @@ const TERMS: { term: string; definition: string; category: string }[] = [
   { term: 'Credit Spread Widening', definition: 'When the yield premium demanded by investors to hold corporate bonds over risk-free government bonds increases. Signals deteriorating credit conditions, recession risk, or flight to safety. Spread widening also tightens financial conditions by raising corporate borrowing costs.', category: 'Fixed Income' },
   { term: 'Dividend Payout Ratio', definition: 'Dividends per share divided by EPS — the proportion of earnings returned to shareholders as dividends. A high payout ratio limits reinvestment capacity. Investors watch the payout ratio to assess dividend sustainability — ratios above 75–80% can be unsustainable during earnings downturns.', category: 'Corporate Finance' },
   { term: 'Asset Allocation', definition: 'The process of dividing an investment portfolio among different asset classes (equities, fixed income, alternatives, cash) to balance risk and return. The single most important determinant of long-run portfolio performance. Strategic asset allocation sets the long-run target; tactical shifts are shorter-term.', category: 'Portfolio Theory' },
+  // Additional concepts for the daily learning rotation.
+  {"term": "Key Rate Duration", "definition": "Measures sensitivity to a yield change at a specific maturity while other curve points are held fixed. It reveals curve exposures that a single portfolio duration can conceal.", "category": "Fixed Income"},
+  {"term": "Term Premium", "definition": "The extra yield investors require to hold a long-term bond rather than repeatedly invest in short-term instruments. It is estimated rather than directly observed and can vary independently of expected policy rates.", "category": "Fixed Income"},
+  {"term": "Breakeven Inflation", "definition": "The yield difference between comparable nominal and inflation-linked bonds. It reflects inflation expectations alongside inflation-risk and liquidity premiums, so it is not a pure inflation forecast.", "category": "Macro"},
+  {"term": "Convexity Adjustment", "definition": "A correction for a nonlinear relationship between prices and rates. In bond analysis it improves the duration approximation, especially when yield changes are larger.", "category": "Fixed Income"},
+  {"term": "Curve Roll-Down", "definition": "The change in a bond’s valuation as it moves to a shorter maturity on an unchanged yield curve. The return depends on the curve’s shape and is not guaranteed when rates move.", "category": "Fixed Income"},
+  {"term": "Cross-Currency Basis", "definition": "The spread in a currency swap that adjusts the relative funding costs of two currencies. It can reflect funding demand, hedging flows, and limits to arbitrage.", "category": "Macro"},
+  {"term": "Dollar Duration", "definition": "The approximate monetary change in a position for a specified yield move. Expressing rate exposure in dollars helps compare positions with different market values.", "category": "Fixed Income"},
+  {"term": "Effective Sample Size", "definition": "The amount of independent information in a dataset. Correlated observations can make it much smaller than the number of recorded data points.", "category": "Quantitative"},
+  {"term": "Purged Cross-Validation", "definition": "A validation method that removes training observations whose information windows overlap the test window. It helps limit leakage when financial labels span multiple dates.", "category": "Quantitative"},
+  {"term": "Embargo Period", "definition": "A gap around a test window that excludes nearby training observations. It reduces leakage caused by overlapping information or serial dependence.", "category": "Quantitative"},
+  {"term": "Deflated Sharpe Ratio", "definition": "A statistical adjustment used to assess a Sharpe ratio while accounting for selection across multiple trials and non-normal returns. It helps evaluate whether apparent skill could be a product of repeated testing.", "category": "Quantitative"},
+  {"term": "Walk-Forward Validation", "definition": "Repeatedly fitting a model using earlier data and evaluating it on the next unseen period. The evaluation follows the order in which information would have become available.", "category": "Quantitative"},
+  {"term": "Feature Leakage", "definition": "When a model input contains information unavailable at the prediction time. Even an indirect leak, such as using subsequently revised economic data, can inflate backtest results.", "category": "Quantitative"},
+  {"term": "Probability Calibration", "definition": "The agreement between predicted probabilities and observed frequencies. Among events assigned a 70% probability by a well-calibrated model, roughly 70% should occur over many observations.", "category": "Quantitative"},
+  {"term": "Covariance Shrinkage", "definition": "Blending a noisy sample covariance matrix with a structured estimate. It can reduce estimation error and make portfolio weights less sensitive to small changes in the data.", "category": "Portfolio Theory"},
+  {"term": "Risk Contribution", "definition": "The portion of total portfolio risk attributed to a holding, accounting for both its size and its relationship with other holdings. A small allocation can still contribute substantial risk.", "category": "Portfolio Theory"},
+  {"term": "Turnover Constraint", "definition": "A limit on how much portfolio weights can change during rebalancing. It helps control trading costs and prevents small changes in forecasts from causing large trades.", "category": "Portfolio Theory"},
+  {"term": "Capacity Constraint", "definition": "The limit on strategy size imposed by liquidity, execution costs, or available opportunities. Returns observed on a small portfolio may not scale to a much larger one.", "category": "Trading"},
+  {"term": "Implementation Shortfall", "definition": "The difference between an ideal trade at the decision price and the actual outcome, including execution costs and missed trades. It measures the cost of implementing an investment decision.", "category": "Trading"},
+  {"term": "Participation Rate", "definition": "An order’s trading volume as a fraction of market volume over the same interval. Higher participation can accelerate execution while increasing market impact.", "category": "Trading"},
+  {"term": "Incremental Return on Invested Capital", "definition": "The additional operating profit generated relative to additional invested capital. It helps assess whether new investment is creating value rather than relying on returns from an established asset base.", "category": "Valuation"},
+  {"term": "Reinvestment Runway", "definition": "The extent to which a company can continue deploying capital at attractive returns. A high current return on capital is more valuable when there are opportunities to sustain it.", "category": "Valuation"},
+  {"term": "Index Concentration", "definition": "The share of an index represented by its largest constituents or common exposures. An index containing many stocks can still depend heavily on a small group of companies.", "category": "Portfolio Theory"},
 ];
 
+const UNIQUE_TERMS = TERMS.filter((entry, index, all) =>
+  all.findIndex(other => other.term.toLowerCase() === entry.term.toLowerCase()) === index
+);
+
 export async function GET() {
-  // Deterministic rotation: one new term per calendar day
-  const dayOfYear = Math.floor(
-    (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86_400_000
-  );
-  const term = TERMS[dayOfYear % TERMS.length];
-  return NextResponse.json(term);
+  // A continuous daily rotation reaches the full bank, including entries beyond day 365.
+  const day = Math.floor(Date.now() / 86_400_000);
+  const term = UNIQUE_TERMS[day % UNIQUE_TERMS.length];
+  return NextResponse.json({ ...term, totalConcepts: UNIQUE_TERMS.length });
 }

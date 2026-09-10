@@ -1,4 +1,5 @@
 'use client';
+import { DashboardLoadError } from '@/components/dashboard-load-error';
 
 import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
@@ -28,6 +29,8 @@ export default function SettingsPage() {
     benchmarkTicker: 'SPY',
   });
 
+  const [settingsLoadError, setSettingsLoadError] = useState(false);
+  const [logosLoadError, setLogosLoadError] = useState(false);
   const isAdmin = session?.user?.role === 'admin';
   const [logos, setLogos] = useState<EmployerLogo[]>([]);
   const [logoName, setLogoName] = useState('');
@@ -48,8 +51,10 @@ export default function SettingsPage() {
   }, []);
 
   const fetchSettings = async () => {
+    setSettingsLoadError(false);
     try {
       const res = await fetch('/api/settings', { cache: 'no-store' });
+      if (!res.ok) throw new Error("Request failed");
       if (res.ok) {
         const data = await res.json();
         setSettings({
@@ -63,15 +68,19 @@ export default function SettingsPage() {
         });
       }
     } catch (error) {
+      setSettingsLoadError(true);
       console.error('Error fetching settings:', error);
     }
   };
 
   const fetchLogos = async () => {
+    setLogosLoadError(false);
     try {
       const res = await fetch('/api/employer-logos');
+      if (!res.ok) throw new Error("Request failed");
       if (res.ok) setLogos(await res.json());
     } catch (error) {
+      setLogosLoadError(true);
       console.error('Error fetching logos:', error);
     }
   };
@@ -184,6 +193,8 @@ export default function SettingsPage() {
   if (!isAdmin) {
     return null;
   }
+
+  if (settingsLoadError || logosLoadError) return <DashboardLoadError onRetry={() => { fetchSettings(); fetchLogos(); }} />;
 
   return (
     <div className="p-8 max-w-4xl mx-auto">

@@ -1,5 +1,7 @@
 'use client';
 
+import { DashboardLoadError } from '@/components/dashboard-load-error';
+
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
@@ -101,6 +103,7 @@ export default function HoldingsPage() {
   const [holdings, setHoldings] = useState<EnrichedHolding[]>([]);
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showTradeModal, setShowTradeModal] = useState(false);
   const [tradeRefreshKey, setTradeRefreshKey] = useState(0);
@@ -130,14 +133,17 @@ export default function HoldingsPage() {
 
   const fetchPortfolio = useCallback(async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
+    setLoadError(false);
     try {
       const response = await fetch('/api/portfolio/summary');
+      if (!response.ok) throw new Error("Request failed");
       if (response.ok) {
         const data = await response.json();
         setHoldings(data.holdings);
         setSummary(data.summary);
       }
     } catch (error) {
+      setLoadError(true);
       console.error('Failed to fetch portfolio:', error);
     } finally {
       setLoading(false);
@@ -333,6 +339,9 @@ export default function HoldingsPage() {
   };
 
   const latestDecision = committeeData?.decisions[0] || null;
+
+
+  if (loadError) return <DashboardLoadError onRetry={() => fetchPortfolio()} />;
 
   if (loading) {
     return (

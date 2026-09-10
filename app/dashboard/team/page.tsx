@@ -1,5 +1,7 @@
 'use client';
 
+import { DashboardLoadError } from '@/components/dashboard-load-error';
+
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
@@ -47,6 +49,7 @@ export default function TeamDashboardPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string>('all');
   const [deletingUser, setDeletingUser] = useState<string | null>(null);
   const [editingMember, setEditingMember] = useState<string | null>(null);
@@ -64,11 +67,15 @@ export default function TeamDashboardPage() {
   }, [activeTab]);
 
   const fetchUsers = async () => {
+    setLoading(true);
+    setLoadError(false);
     try {
       const response = await fetch('/api/users');
+      if (!response.ok) throw new Error("Request failed");
       const data = await response.json();
       setUsers(data);
     } catch (error) {
+      setLoadError(true);
       console.error('Failed to fetch users:', error);
     } finally {
       setLoading(false);
@@ -76,11 +83,15 @@ export default function TeamDashboardPage() {
   };
 
   const fetchTeamMembers = async () => {
+    setLoading(true);
+    setLoadError(false);
     try {
       const response = await fetch('/api/team');
+      if (!response.ok) throw new Error("Request failed");
       const data = await response.json();
       setTeamMembers(data);
     } catch (error) {
+      setLoadError(true);
       console.error('Failed to fetch team members:', error);
     } finally {
       setLoading(false);
@@ -279,6 +290,8 @@ export default function TeamDashboardPage() {
   };
 
   const stats = activeTab === 'users' ? userStats : memberStats;
+
+  if (loadError) return <DashboardLoadError onRetry={() => activeTab === 'users' ? fetchUsers() : fetchTeamMembers()} />;
 
   if (loading) {
     return (

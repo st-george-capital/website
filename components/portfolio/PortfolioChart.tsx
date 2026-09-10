@@ -1,5 +1,6 @@
 'use client';
 
+import { chartTheme, chartTooltipStyle } from '@/lib/chart-theme';
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card';
 import { Button } from '@/components/button';
@@ -217,7 +218,7 @@ export function PortfolioChart({ isAdmin, refreshKey }: PortfolioChartProps) {
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <RechartsLineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <CartesianGrid stroke={chartTheme.grid} vertical={false} />
                 <XAxis
                   dataKey="date"
                   tick={{ fontSize: 12 }}
@@ -242,16 +243,16 @@ export function PortfolioChart({ isAdmin, refreshKey }: PortfolioChartProps) {
                 />
                 <Legend />
                 <Line
-                  type="monotone"
+                  type="linear"
                   dataKey="portfolio"
-                  stroke="#2563eb"
+                  stroke={chartTheme.primary}
                   strokeWidth={2}
                   dot={false}
                   name="Portfolio"
                 />
                 {showBenchmark && (
                   <Line
-                    type="monotone"
+                    type="linear"
                     dataKey="spy"
                     stroke="#9ca3af"
                     strokeWidth={2}

@@ -1,5 +1,7 @@
 'use client';
 
+import { DashboardLoadError } from '@/components/dashboard-load-error';
+
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
@@ -57,6 +59,7 @@ export default function PostingsDashboardPage() {
   const [postings, setPostings] = useState<JobPosting[]>([]);
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const isAdmin = session?.user?.role === 'admin';
 
@@ -69,13 +72,17 @@ export default function PostingsDashboardPage() {
   }, [activeTab]);
 
   const fetchPostings = async () => {
+    setLoading(true);
+    setLoadError(false);
     try {
       const response = await fetch('/api/job-postings');
+      if (!response.ok) throw new Error("Request failed");
       if (response.ok) {
         const data = await response.json();
         setPostings(data);
       }
     } catch (error) {
+      setLoadError(true);
       console.error('Error fetching postings:', error);
     } finally {
       setLoading(false);
@@ -83,13 +90,17 @@ export default function PostingsDashboardPage() {
   };
 
   const fetchApplications = async () => {
+    setLoading(true);
+    setLoadError(false);
     try {
       const response = await fetch('/api/job-applications');
+      if (!response.ok) throw new Error("Request failed");
       if (response.ok) {
         const data = await response.json();
         setApplications(data);
       }
     } catch (error) {
+      setLoadError(true);
       console.error('Error fetching applications:', error);
     } finally {
       setLoading(false);
@@ -144,6 +155,8 @@ export default function PostingsDashboardPage() {
       </div>
     );
   }
+
+  if (loadError) return <DashboardLoadError onRetry={() => activeTab === 'applications' ? fetchApplications() : fetchPostings()} />;
 
   return (
     <div className="space-y-8">

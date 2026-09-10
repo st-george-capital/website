@@ -1,4 +1,5 @@
 'use client';
+import { DashboardLoadError } from '@/components/dashboard-load-error';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -30,17 +31,24 @@ export default function NewsletterDashboard() {
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [activeTab, setActiveTab] = useState<'editions' | 'subscribers'>('editions');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
-  useEffect(() => {
-    Promise.all([
-      fetch('/api/newsletter/editions').then(r => r.json()),
-      fetch('/api/newsletter/subscribers').then(r => r.json()),
-    ]).then(([eds, subs]) => {
-      setEditions(Array.isArray(eds) ? eds : []);
-      setSubscribers(Array.isArray(subs) ? subs : []);
-      setLoading(false);
-    });
-  }, []);
+  const loadLists = async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const lists = await Promise.all(['/api/newsletter/editions', '/api/newsletter/subscribers'].map(async url => {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Request failed');
+        const data = await response.json();
+        if (!Array.isArray(data)) throw new Error('Invalid list response');
+        return data;
+      }));
+      setEditions(lists[0]); setSubscribers(lists[1]);
+    } catch { setLoadError(true); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { loadLists(); }, []);
 
   async function deleteEdition(id: string) {
     if (!confirm('Delete this edition?')) return;
@@ -59,6 +67,8 @@ export default function NewsletterDashboard() {
   }
 
   const activeCount = subscribers.filter(s => s.active).length;
+
+  if (loadError) return <DashboardLoadError onRetry={loadLists} />;
 
   return (
     <div className="max-w-5xl mx-auto">

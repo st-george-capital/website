@@ -1,5 +1,7 @@
 'use client';
 
+import { DashboardLoadError } from '@/components/dashboard-load-error';
+
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -67,6 +69,7 @@ export default function CuratedPage() {
   const router = useRouter();
   const [items, setItems] = useState<CuratedItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [activeKind, setActiveKind] = useState<Kind | 'all'>('all');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -84,11 +87,14 @@ export default function CuratedPage() {
   }, []);
 
   const fetchItems = async () => {
+    setLoadError(false);
     try {
       const res = await fetch('/api/learning/curated');
+      if (!res.ok) throw new Error("Request failed");
       const data = await res.json();
       setItems(Array.isArray(data) ? data : []);
     } catch (e) {
+      setLoadError(true);
       console.error(e);
     } finally {
       setLoading(false);
@@ -163,6 +169,9 @@ export default function CuratedPage() {
 
   const filtered =
     activeKind === 'all' ? items : items.filter((i) => i.kind === activeKind);
+
+  if (loadError) return <DashboardLoadError onRetry={() => fetchItems()} />;
+
 
   return (
     <div className="p-6 max-w-5xl mx-auto">

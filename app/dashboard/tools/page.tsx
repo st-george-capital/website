@@ -1,77 +1,121 @@
-'use client';
+"use client";
+import Link from "next/link";
+import { useState } from "react";
+import { ArrowUpRight, Search, Pin } from "lucide-react";
+import { toolCatalog } from "@/lib/tool-catalog";
+import { useWorkspacePins } from "@/components/workspace-pins";
 
-import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ToolsHubReadingGuide } from '@/components/tool-reading-guide';
-import { dashboardFadeInUp, staggerContainer } from '@/lib/motion-variants';
-import { toolCatalog as tools } from '@/lib/tool-catalog';
-
+const groups = [
+  {
+    name: "Valuation & research",
+    ids: ["dcf", "equity-research", "sentiment-tool", "supplementary-tools"],
+  },
+  {
+    name: "Markets & positioning",
+    ids: [
+      "capital-flows",
+      "country-health",
+      "macro-engine",
+      "trade-radar",
+      "g10-rates",
+      "equity-positioning",
+    ],
+  },
+  { name: "Portfolio construction", ids: ["cvar-optimizer"] },
+  { name: "Learning", ids: ["interview-tool"] },
+];
 export default function ToolsDashboardPage() {
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("All tools");
+  const { pins, toggle } = useWorkspacePins();
+  const visible = toolCatalog.filter((t) =>
+    `${t.name} ${t.description} ${t.features.join(" ")}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
+  );
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center">
+    <div className="workspace-tool-library">
+      <header className="workspace-heading">
         <div>
-          <h1 className="text-3xl font-bold">Research Tools</h1>
-          <p className="text-muted-foreground">
-            Pick a tool by the question you are trying to answer — each page now starts with a plain-English summary.
-          </p>
+          <p className="workspace-eyebrow">Research workspace</p>
+          <h1>Tools for the next question.</h1>
+          <p>Value a company. Understand a market. Build a portfolio.</p>
         </div>
+      </header>
+      <div className="workspace-search">
+        <Search size={18} />
+        <input
+          aria-label="Search tools"
+          placeholder="Search tools, capabilities, or markets…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <span>{visible.length} tools</span>
       </div>
-
-      <ToolsHubReadingGuide />
-
-      <motion.div
-        className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
-        initial="hidden"
-        animate="visible"
-        variants={staggerContainer}
-      >
-        {tools.map((tool) => (
-          <motion.div key={tool.id} variants={dashboardFadeInUp}>
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <tool.icon className="w-6 h-6 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <CardTitle className="text-lg">{tool.name}</CardTitle>
-                  <CardDescription className="mt-1">
-                    {tool.description}
-                  </CardDescription>
-                  {'plainSummary' in tool && tool.plainSummary ? (
-                    <p className="mt-2 text-sm font-medium text-slate-700">{tool.plainSummary}</p>
-                  ) : null}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <h4 className="text-sm font-medium mb-2">Features:</h4>
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    {tool.features.map((feature, index) => (
-                      <li key={index} className="flex items-center">
-                        <span className="w-1.5 h-1.5 bg-primary rounded-full mr-2 flex-shrink-0"></span>
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <Link href={tool.href}>
-                  <Button className="w-full">
-                    Open {tool.name}
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-          </motion.div>
+      <div className="workspace-tabs" aria-label="Tool categories">
+        {["All tools", ...groups.map((g) => g.name)].map((name) => (
+          <button
+            key={name}
+            onClick={() => setCategory(name)}
+            aria-pressed={category === name}
+          >
+            {name}
+          </button>
         ))}
-
-      </motion.div>
+      </div>
+      {groups
+        .filter((g) => category === "All tools" || category === g.name)
+        .map((g) => {
+          const tools = visible.filter((t) => g.ids.includes(t.id));
+          if (!tools.length) return null;
+          return (
+            <section key={g.name}>
+              <div className="workspace-section-heading">
+                <h2>{g.name}</h2>
+                <span className="workspace-count">
+                  {tools.length.toString().padStart(2, "0")}
+                </span>
+              </div>
+              <div className="workspace-tool-grid">
+                {tools.map((t) => (
+                  <article className="workspace-tool-card" key={t.id}>
+                    <div className="workspace-tool-card-top">
+                      <t.icon size={24} />
+                      <button
+                        aria-label={`${pins.includes(t.id) ? "Unpin" : "Pin"} ${t.name}`}
+                        aria-pressed={pins.includes(t.id)}
+                        onClick={() => toggle(t.id)}
+                      >
+                        <Pin size={16} />
+                      </button>
+                    </div>
+                    <Link href={t.href}>
+                      <h3>
+                        {t.name}
+                        <ArrowUpRight size={17} />
+                      </h3>
+                      <p>{t.description}</p>
+                    </Link>
+                    <div className="workspace-tool-tags">
+                      {t.features.slice(0, 2).map((f) => (
+                        <span key={f}>{f}</span>
+                      ))}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+          );
+        })}
+      {!visible.some(
+        (t) =>
+          category === "All tools" ||
+          groups.find((g) => g.name === category)?.ids.includes(t.id),
+      ) && (
+        <p className="workspace-empty">
+          No matching tools. Try another category or search.
+        </p>
+      )}
     </div>
   );
 }

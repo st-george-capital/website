@@ -1,5 +1,7 @@
 'use client';
 
+import { DashboardLoadError } from '@/components/dashboard-load-error';
+
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -26,6 +28,7 @@ export default function ArticlesPage() {
   const router = useRouter();
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const isAdmin = session?.user?.role === 'admin';
 
@@ -40,11 +43,14 @@ export default function ArticlesPage() {
   }, []);
 
   const fetchArticles = async () => {
+    setLoadError(false);
     try {
       const res = await fetch('/api/articles');
+      if (!res.ok) throw new Error("Request failed");
       const data = await res.json();
       setArticles(data);
     } catch (error) {
+      setLoadError(true);
       console.error('Error fetching articles:', error);
     } finally {
       setLoading(false);
@@ -81,6 +87,9 @@ export default function ArticlesPage() {
       </div>
     );
   }
+
+  if (loadError) return <DashboardLoadError onRetry={() => fetchArticles()} />;
+
 
   return (
     <div className="p-8">

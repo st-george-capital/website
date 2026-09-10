@@ -1,5 +1,6 @@
 'use client';
 
+import { ToolPageHeader } from '@/components/tool-page-header';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -319,19 +320,7 @@ export default function SentimentToolPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div>
-          <Link href="/dashboard/tools" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900">
-            <ArrowLeft className="h-4 w-4" />
-            Back to tools
-          </Link>
-          <h1 className="mt-3 text-3xl font-bold text-slate-950">Sentiment Tool</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            Pull live Alpha Vantage news sentiment for a ticker or company, organize the recent tape into bullish and bearish drivers,
-            and translate the flow into an investment-focused memo view.
-          </p>
-        </div>
-      </div>
+      <ToolPageHeader category="Research" title="News & sentiment" description="Read the news flow, compare the drivers, and build a view on a company." />
 
       {getToolReadingGuide('sentiment') ? (
         <ToolReadingGuide
@@ -342,14 +331,14 @@ export default function SentimentToolPage() {
         />
       ) : null}
 
-      <Card hover={false} className="overflow-visible border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_45%,#eef4ff_100%)]">
+      <Card hover={false} className="overflow-visible border-slate-200 bg-white">
         <CardHeader>
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0b1f3a] text-white">
               <MessageSquareText className="h-6 w-6" />
             </div>
             <div>
-              <CardTitle className="text-2xl">Live News Read</CardTitle>
+              <CardTitle className="text-2xl">Research inputs</CardTitle>
               <CardDescription>
                 Ticker-first analysis with optional keyword narrowing.
               </CardDescription>
@@ -656,7 +645,7 @@ export default function SentimentToolPage() {
           </div>
 
           {result.socialOverlay && (
-            <Card hover={false} className="border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_45%,#eef4ff_100%)]">
+            <Card hover={false} className="border-slate-200 bg-white">
               <CardHeader>
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex items-center gap-3">
