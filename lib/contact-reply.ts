@@ -11,6 +11,12 @@ Thank you for reaching out to St. George Capital. We received your message and a
 Best regards,
 The St. George Capital Team`;
 
+export function settingValue(data: unknown, key: string) {
+  if (!data || typeof data !== "object") return "";
+  const value = (data as Record<string, unknown>)[key];
+  return typeof value === "string" ? value : "";
+}
+
 export function renderContactReplyTemplate(
   template: string,
   person: { firstName: string; lastName: string; email: string },

@@ -15,6 +15,7 @@ import {
   DEFAULT_CONTACT_REPLY_SUBJECT,
   DEFAULT_CONTACT_REPLY_TEMPLATE,
   renderContactReplyTemplate,
+  settingValue,
 } from '@/lib/contact-reply';
 
 interface ContactSubmission {
@@ -67,9 +68,11 @@ export default function ContactDashboardPage() {
         .catch(() => setEmailStatus({ configured: false, from: '' }));
       fetch('/api/settings', { cache: 'no-store' })
         .then((res) => (res.ok ? res.json() : {}))
-        .then((data) => {
-          if (data[CONTACT_REPLY_TEMPLATE_KEY]) setTemplate(data[CONTACT_REPLY_TEMPLATE_KEY]);
-          if (data[CONTACT_REPLY_SUBJECT_KEY]) setSubjectTemplate(data[CONTACT_REPLY_SUBJECT_KEY]);
+        .then((data: unknown) => {
+          const savedTemplate = settingValue(data, CONTACT_REPLY_TEMPLATE_KEY);
+          const savedSubject = settingValue(data, CONTACT_REPLY_SUBJECT_KEY);
+          if (savedTemplate) setTemplate(savedTemplate);
+          if (savedSubject) setSubjectTemplate(savedSubject);
         })
         .catch(() => {});
     }

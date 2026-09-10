@@ -2,7 +2,9 @@ const assert = require("node:assert/strict");
 require("sucrase/register/ts");
 const {
   DEFAULT_CONTACT_REPLY_TEMPLATE,
+  CONTACT_REPLY_TEMPLATE_KEY,
   renderContactReplyTemplate,
+  settingValue,
 } = require("../../lib/contact-reply.ts");
 
 const rendered = renderContactReplyTemplate(DEFAULT_CONTACT_REPLY_TEMPLATE, {
@@ -20,4 +22,7 @@ assert.equal(
   }),
   "Hi Alex Morgan (alex@example.com)",
 );
+assert.equal(settingValue({ contactReplyTemplate: "Hello {{firstName}}," }, CONTACT_REPLY_TEMPLATE_KEY), "Hello {{firstName}},");
+assert.equal(settingValue({}, CONTACT_REPLY_TEMPLATE_KEY), "");
+assert.equal(settingValue(null, CONTACT_REPLY_TEMPLATE_KEY), "");
 console.log("PASS contact reply template personalization");
