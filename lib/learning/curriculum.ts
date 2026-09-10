@@ -1,3 +1,4 @@
+import { researchWorkshops } from "./research-workshops";
 import { quantWorkshops } from "./quant-workshops";
 export type LabKind =
   "options" | "valuation" | "bonds" | "fx" | "execution" | "regime" | "process";
@@ -25,6 +26,7 @@ export interface Workshop {
 }
 export const curriculum: Record<string, Workshop> = {
   ...quantWorkshops,
+  ...researchWorkshops,
   "options-foundations": {
     track: "Markets",
     level: "Foundation",

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run prisma:migrations:check && prisma generate && next build",
+    "build": "npm run verify:content && npm run prisma:migrations:check && prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "db:push": "prisma db push",
@@ -42,7 +42,8 @@
     "workshop:setup": "node scripts/workshop/setup.cjs",
     "courses:seed-quant": "node scripts/workshop/seed-courses.cjs",
     "verify:workshop-api": "node scripts/workshop/verify-api.cjs",
-    "verify:workshop-browser": "node scripts/workshop/verify-browser.cjs"
+    "verify:workshop-browser": "node scripts/workshop/verify-browser.cjs",
+    "verify:content": "node scripts/workshop/verify-content.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

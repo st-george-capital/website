@@ -282,3 +282,7 @@ For questions or issues:
 - [ ] Member portal
 - [ ] Event management system
 - [ ] Newsletter integration
+
+## Adding courses and research projects
+
+Read [the course and project authoring guide](docs/contributing/courses-and-projects.md) before contributing learning content or Workshop starters. It includes the architecture, source-verification procedure, LLM prompt template, publication steps and checks. Coding assistants should also read [AGENTS.md](AGENTS.md).

@@ -35,7 +35,7 @@ export function ProjectForm({
     ),
     [github, setGithub] = useState(project?.githubUrl || "");
   const [resources, setResources] = useState<ProjectResource[]>(
-      project?.resources || [],
+      project?.resources || template?.resources || [],
     ),
     [memberIds, setMemberIds] = useState<string[]>(
       project?.members.map((m) => m.userId) || [],

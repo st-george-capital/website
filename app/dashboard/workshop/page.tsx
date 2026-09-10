@@ -11,6 +11,7 @@ import {
   alphaVantageDocs,
   type ProjectTemplate,
 } from "@/lib/workshop/templates";
+import { alphaVantageSources } from "@/lib/workshop/alpha-vantage-sources";
 import { projectStatuses, statusLabels } from "@/lib/workshop/schema";
 import type { WorkshopProjectView } from "@/lib/workshop/types";
 export default function WorkshopPage() {
@@ -21,6 +22,7 @@ export default function WorkshopPage() {
     [loading, setLoading] = useState(true),
     [error, setError] = useState(false);
   const [tab, setTab] = useState<"projects" | "ideas">("projects"),
+    [starterTrack, setStarterTrack] = useState("All"),
     [stage, setStage] = useState("all"),
     [query, setQuery] = useState(""),
     [mine, setMine] = useState(false),
@@ -227,40 +229,101 @@ export default function WorkshopPage() {
               Alpha Vantage documentation ↗
             </a>
           </div>
+          <div className="workshop-filters">
+            <label>
+              Research area{" "}
+              <select
+                aria-label="Research area"
+                value={starterTrack}
+                onChange={(e) => setStarterTrack(e.target.value)}
+              >
+                {["All", "Macro", "Equity", "Quant"].map((track) => (
+                  <option key={track}>{track}</option>
+                ))}
+              </select>
+            </label>
+          </div>
           <div className="workshop-project-grid">
-            {projectTemplates.map((t) => (
-              <article className="workshop-project-card" key={t.id}>
-                <div className="course-eyebrow">{t.level}</div>
-                <h2>{t.title}</h2>
-                <p>{t.summary}</p>
-                <div className="workshop-data-note">
-                  <strong>Data plan</strong>
-                  {t.data}
-                </div>
-                <div className="workshop-tags">
-                  {t.tags.map((tag) => (
-                    <span key={tag}>{tag}</span>
-                  ))}
-                </div>
-                <footer>
-                  <Link
-                    href={`/dashboard/learning/courses/by-slug/${t.course}`}
-                  >
-                    Related course ↗
-                  </Link>
-                  <button
-                    className="workshop-text-button"
-                    onClick={() => {
-                      setTemplate(t);
-                      setCreating(true);
-                    }}
-                  >
-                    Use starter
-                    <ArrowRight size={14} />
-                  </button>
-                </footer>
-              </article>
-            ))}
+            {projectTemplates
+              .filter(
+                (t) =>
+                  starterTrack === "All" ||
+                  (t.tags.find((tag) =>
+                    ["Macro", "Equity", "Quant"].includes(tag),
+                  ) || "Quant") === starterTrack,
+              )
+              .map((t) => (
+                <article className="workshop-project-card" key={t.id}>
+                  <div className="course-eyebrow">{t.level}</div>
+                  <h2>{t.title}</h2>
+                  <p>{t.summary}</p>
+                  <div className="workshop-data-note">
+                    <strong>Data plan</strong>
+                    {t.data}
+                  </div>
+                  {t.sourceIds && (
+                    <details className="workshop-source-guide">
+                      <summary>Verified sources & request instructions</summary>
+                      {t.sourceIds.map((id) => {
+                        const source =
+                          alphaVantageSources[
+                            id as keyof typeof alphaVantageSources
+                          ];
+                        return (
+                          <div key={id}>
+                            <a
+                              href={source.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {source.function} ↗
+                            </a>
+                            <code>
+                              {new URLSearchParams({
+                                function: source.function,
+                                ...source.params,
+                              }).toString()}
+                            </code>
+                            <p>{source.caveat}</p>
+                            <small>
+                              Documentation checked {source.checkedAt}.{" "}
+                              {source.demoCheck}.
+                            </small>
+                          </div>
+                        );
+                      })}
+                      <p>
+                        Use your key server-side; cache the first valid response
+                        and check current access limits. Full build steps and
+                        acceptance checks are included when you use this
+                        starter.
+                      </p>
+                    </details>
+                  )}
+                  <div className="workshop-tags">
+                    {t.tags.map((tag) => (
+                      <span key={tag}>{tag}</span>
+                    ))}
+                  </div>
+                  <footer>
+                    <Link
+                      href={`/dashboard/learning/courses/by-slug/${t.course}`}
+                    >
+                      Related course ↗
+                    </Link>
+                    <button
+                      className="workshop-text-button"
+                      onClick={() => {
+                        setTemplate(t);
+                        setCreating(true);
+                      }}
+                    >
+                      Use starter
+                      <ArrowRight size={14} />
+                    </button>
+                  </footer>
+                </article>
+              ))}
           </div>
         </>
       )}

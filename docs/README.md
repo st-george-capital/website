@@ -9,3 +9,5 @@ Repository documentation is organized by purpose so operational notes do not clu
 - `debug/` — DCF diagnostic notes.
 
 The dashboard’s **Help & guides** button provides the current, member-facing workflows for adding team members, managing permissions, publishing content, and generating marketing materials.
+
+- [Course and project authoring](contributing/courses-and-projects.md) — required implementation guide for human and LLM contributors.

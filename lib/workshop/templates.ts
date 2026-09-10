@@ -1,4 +1,7 @@
+import { researchTemplates } from "./research-templates";
 export interface ProjectTemplate {
+  resources?: { label: string; url: string }[];
+  sourceIds?: string[];
   id: string;
   title: string;
   summary: string;
@@ -194,5 +197,6 @@ Reject the trading interpretation if the relationship is unstable, the spread do
       "Evaluate stability and write a rejection or continuation memo",
     ],
   },
+  ...researchTemplates,
 ];
 export const alphaVantageDocs = "https://www.alphavantage.co/documentation/";

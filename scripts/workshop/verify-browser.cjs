@@ -158,7 +158,30 @@ const { encode } = require("next-auth/jwt");
     );
     assert.equal(
       await page.$$eval(".workshop-project-card", (ns) => ns.length),
-      6,
+      projectTemplates.length,
+    );
+    for (const area of ["Macro", "Equity", "Quant"]) {
+      await page.select('select[aria-label="Research area"]', area);
+      const expected = projectTemplates.filter(
+        (t) =>
+          (t.tags.find((tag) => ["Macro", "Equity", "Quant"].includes(tag)) ||
+            "Quant") === area,
+      ).length;
+      await page.waitForFunction(
+        (n) => document.querySelectorAll(".workshop-project-card").length === n,
+        {},
+        expected,
+      );
+    }
+    await page.select('select[aria-label="Research area"]', "Macro");
+    await page.waitForFunction(
+      () => document.querySelectorAll(".workshop-project-card").length === 3,
+    );
+    await page.click(".workshop-source-guide summary");
+    assert.ok(
+      await page.$eval(".workshop-source-guide", (n) =>
+        n.textContent.includes("maturity=10year"),
+      ),
     );
     await page.screenshot({ path: "/tmp/sgc-workshop-starters.png" });
     await page.evaluate(() =>
@@ -167,6 +190,10 @@ const { encode } = require("next-auth/jwt");
         .click(),
     );
     await page.waitForSelector("dialog[open]");
+    assert.equal(
+      await page.$eval('input[aria-label="Resource 1 URL"]', (n) => n.value),
+      "https://www.alphavantage.co/documentation/#treasury-yield",
+    );
     await page.$eval(".workshop-member-picker", (n) =>
       [...n.querySelectorAll("label")]
         .find((l) => l.textContent.includes("Jamie"))
@@ -247,7 +274,13 @@ const { encode } = require("next-auth/jwt");
       "Project mobile overflow",
     );
     await page.click('button[aria-label="Open navigation"]');
-    await page.waitForFunction(() => Math.abs(document.querySelector("#dashboard-sidebar").getBoundingClientRect().left) < 1);
+    await page.waitForFunction(
+      () =>
+        Math.abs(
+          document.querySelector("#dashboard-sidebar").getBoundingClientRect()
+            .left,
+        ) < 1,
+    );
     assert.ok(await page.$('section[aria-label="Learning & projects"]'));
     await page.click('button[aria-label="Close navigation"]');
     await page.evaluate(() =>
@@ -264,7 +297,7 @@ const { encode } = require("next-auth/jwt");
     await page.screenshot({ path: "/tmp/sgc-workshop-mobile.png" });
     assert.deepEqual(errors, []);
     console.log(
-      "PASS starter/course links, sidebar groups, create, collaborators, milestones, updates, reload, failed save and mobile",
+      "PASS research filters, verified source instructions, copied resources, starter/course links, sidebar groups, create, collaborators, milestones, updates, reload, failed save and mobile",
     );
   } catch (error) {
     await page.screenshot({ path: "/tmp/sgc-workshop-failure.png" });

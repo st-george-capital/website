@@ -1,3 +1,4 @@
+import { researchCourses } from "./research-courses";
 export interface QuantCourseSeed {
   title: string;
   slug: string;
@@ -624,4 +625,5 @@ In Workshop, assign one collaborator to the data and one to the independent vali
       },
     ],
   },
+  ...researchCourses,
 ];
