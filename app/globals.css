@@ -402,7 +402,8 @@ html {
 .portrait-frame { padding: 15px 24px 0; background: linear-gradient(140deg,#eef2f7,#e2e8f0); }
 .portrait-frame-heading { display: flex; justify-content: space-between; font-size: 8px; text-transform: uppercase; letter-spacing: .13em; color: #708098; padding-bottom: 18px; }
 .portrait-frame .portrait-image { width: 156px; max-width: 100%; height: 186px; aspect-ratio: auto; margin: auto; }
-.team-portrait-alumni .portrait-image img { filter: grayscale(1); }
+.team-portrait .portrait-image img { filter: none; }
+.team-portrait-alumni .portrait-image img,
 .team-portrait-alumni:hover .portrait-image img { filter: grayscale(1); }
 .portrait-details { padding: 19px 20px 23px; border-top: 2px solid #1e3a8a; }
 .public-site .portrait-details h3 { font-size: 18px; }
