@@ -125,9 +125,8 @@ export default function PrivacyPolicyPage() {
               </p>
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p><strong>St. George Capital</strong></p>
-                <p>University of Toronto</p>
-                <p>Bahen Centre for Information Technology</p>
-                <p>40 St. George Street, Toronto, ON M5S 2E4</p>
+                <p>University of Toronto, St. George Campus</p>
+                <p>Toronto, ON</p>
                 <p>Email: outreach@stgeorgecapital.ca</p>
               </div>
 

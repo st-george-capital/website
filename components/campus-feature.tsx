@@ -50,15 +50,15 @@ export function CampusFeature() {
         <figure className="campus-building">
           <motion.div style={{ y: reduced ? 0 : imageY }}>
             <Image
-              src="/images/campus/bahen-centre.jpg"
-              alt="Bahen Centre for Information Technology at the University of Toronto"
+              src="/images/campus/front-campus.jpg"
+              alt="Front campus and University College at the University of Toronto"
               fill
               sizes="(min-width: 768px) 70vw, 100vw"
               className="object-cover"
             />
           </motion.div>
           <figcaption>
-            Bahen Centre <span>University of Toronto</span>
+            Front Campus <span>University of Toronto</span>
           </figcaption>
         </figure>
         <figure className="campus-team">
@@ -85,21 +85,20 @@ export function CampusFeature() {
       <p className="campus-credit">
         Campus photograph:{" "}
         <a
-          href="https://commons.wikimedia.org/wiki/File:Bahen_Front_View.jpg"
+          href="https://commons.wikimedia.org/wiki/File:View_of_campus_from_King's_College_Circle.jpg"
           target="_blank"
           rel="noreferrer"
         >
-          Sabrerider
+          Sarbjit Bahga
         </a>{" "}
         /{" "}
         <a
-          href="https://creativecommons.org/licenses/by-sa/3.0/"
+          href="https://creativecommons.org/licenses/by-sa/4.0/"
           target="_blank"
           rel="noreferrer"
         >
-          CC BY-SA 3.0
+          CC BY-SA 4.0
         </a>
-
       </p>
     </section>
   );
