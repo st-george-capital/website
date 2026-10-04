@@ -35,6 +35,8 @@
     "research:prices": "sucrase-node scripts/macro-engine/ingest-research-prices.ts",
     "research:prices:dry": "sucrase-node scripts/macro-engine/ingest-research-prices.ts --dry-run",
     "research:backtest": "sucrase-node scripts/macro-engine/run-research-backtest.ts",
+    "consigliere:smoke": "npx tsx --env-file=.env scripts/consigliere/smoke.ts",
+    "consigliere:agent-smoke": "npx tsx --env-file=.env scripts/consigliere/agent-smoke.ts",
     "trade-radar:ingest": "npx tsx scripts/trade-radar/run-ingest.ts",
     "trade-radar:signals": "npx tsx scripts/trade-radar/run-signals.ts",
     "trade-radar:brief": "npx tsx scripts/trade-radar/run-brief.ts",

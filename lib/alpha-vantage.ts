@@ -610,6 +610,15 @@ export async function fetchAlphaVantageHistoricalOptions(
   };
 }
 
+/** Raw OVERVIEW payload (string fields). Empty object for symbols AV has no fundamentals for, e.g. most ETFs. */
+export async function fetchAlphaVantageOverview(ticker: string): Promise<Record<string, string>> {
+  const data = await fetchAlphaVantage({
+    function: 'OVERVIEW',
+    symbol: ticker,
+  });
+  return data as Record<string, string>;
+}
+
 export async function fetchAlphaVantageTopGainersLosers(): Promise<AlphaVantageTopMoversResponse> {
   const data = await fetchAlphaVantage({
     function: 'TOP_GAINERS_LOSERS',

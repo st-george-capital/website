@@ -11,3 +11,4 @@ Repository documentation is organized by purpose so operational notes do not clu
 The dashboard’s **Help & guides** button provides the current, member-facing workflows for adding team members, managing permissions, publishing content, and generating marketing materials.
 
 - [Course and project authoring](contributing/courses-and-projects.md) — required implementation guide for human and LLM contributors.
+- [Consigliere](setup/CONSIGLIERE.md) — local-model research advisor: browser permission, Ollama origins, model list, data allowlist and checks.

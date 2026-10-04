@@ -1,4 +1,4 @@
-import { Brain, Calculator, FileText, GitBranch, Globe, MessageSquareText, Sparkles, TrendingUp, Radar, Crosshair, ShieldAlert, LineChart, type LucideIcon } from 'lucide-react';
+import { Bot, Brain, Calculator, FileText, GitBranch, Globe, MessageSquareText, Sparkles, TrendingUp, Radar, Crosshair, ShieldAlert, LineChart, type LucideIcon } from 'lucide-react';
 
 export interface ToolCatalogEntry {
   id: string;
@@ -11,6 +11,21 @@ export interface ToolCatalogEntry {
 }
 
 export const toolCatalog: ToolCatalogEntry[] = [
+  {
+    id: 'consigliere',
+    name: 'Consigliere',
+    description: "The fund's research advisor: runs free on your laptop with Ollama and answers from SGC data, Alpha Vantage, FRED and portfolio math",
+    plainSummary: 'Use when you want a question answered from fund data, markets or macro without opening each tool.',
+    href: '/dashboard/tools/consigliere',
+    icon: Bot,
+    features: [
+      'Runs locally: no API cost',
+      'Reads approved SGC tables',
+      'Alpha Vantage and FRED lookups',
+      'Portfolio optimization and backtests',
+      'Model picked for your laptop',
+    ],
+  },
   {
     id: 'dcf',
     name: 'DCF Valuation Tool',

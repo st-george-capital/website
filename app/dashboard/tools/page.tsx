@@ -6,6 +6,7 @@ import { toolCatalog } from "@/lib/tool-catalog";
 import { useWorkspacePins } from "@/components/workspace-pins";
 
 const groups = [
+  { name: "Assistant", ids: ["consigliere"] },
   {
     name: "Valuation & research",
     ids: ["dcf", "equity-research", "sentiment-tool", "supplementary-tools"],
