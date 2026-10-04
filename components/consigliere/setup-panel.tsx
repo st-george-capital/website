@@ -7,6 +7,8 @@ import type { ConnectionState } from './use-consigliere-laptop';
 
 type Os = 'mac' | 'windows' | 'linux';
 
+const MAC_SCRIPT_FILE = 'consigliere-setup-mac.sh';
+
 function detectOs(): Os {
   const platform = `${navigator.userAgent} ${navigator.platform}`.toLowerCase();
   if (platform.includes('win')) return 'windows';
@@ -156,6 +158,23 @@ export function SetupPanel({ connection, host, onConnect }: { connection: Connec
                 </div>
                 <CopyCommand command={commands[os].command} label={commands[os].label} />
                 <p className="mt-2 text-xs leading-5 text-slate-500">{commands[os].after}</p>
+                {os === 'mac' && (
+                  <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs leading-5 text-slate-600">
+                    <p>
+                      Terminal printed HTML or &ldquo;syntax error near unexpected token&rdquo;? The site is behind a login (for example
+                      a Vercel preview), so Terminal can&rsquo;t fetch the script. Download it with your browser instead, then run it:
+                    </p>
+                    <a
+                      href="/consigliere/setup-mac.sh"
+                      download={MAC_SCRIPT_FILE}
+                      className="mt-1.5 inline-flex items-center gap-1.5 font-medium text-[#0b1f3a] hover:underline"
+                    >
+                      <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                      Download {MAC_SCRIPT_FILE}
+                    </a>
+                    <CopyCommand command={`bash ~/Downloads/${MAC_SCRIPT_FILE} ${origin}`} label="downloaded script command" />
+                  </div>
+                )}
               </>
             )}
           </div>

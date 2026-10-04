@@ -2,6 +2,8 @@
 # Consigliere setup for macOS.
 # Lets the SGC website talk to Ollama on this Mac and downloads a model sized for its memory.
 #   curl -fsSL https://www.stgeorgecapital.ca/consigliere/setup-mac.sh | bash -s -- https://www.stgeorgecapital.ca [model]
+# Sites behind a login (e.g. Vercel previews) return a login page to curl; download this file in the browser and run
+#   bash ~/Downloads/consigliere-setup-mac.sh https://<preview-host>
 set -euo pipefail
 
 ORIGIN="${1:-https://www.stgeorgecapital.ca}"
@@ -52,7 +54,15 @@ echo "OLLAMA_ORIGINS=$origins (kept after restarts via $AGENT_PLIST)"
 step "3/4  Restarting Ollama"
 if [[ -d /Applications/Ollama.app ]]; then
   osascript -e 'quit app "Ollama"' >/dev/null 2>&1 || true
-  sleep 2
+  # The quit request can be ignored (e.g. when the app runs hidden), and a running server keeps its old origins.
+  for _ in $(seq 1 10); do
+    pgrep -f '/Applications/Ollama.app/Contents/' >/dev/null || break
+    sleep 1
+  done
+  if pgrep -f '/Applications/Ollama.app/Contents/' >/dev/null; then
+    pkill -TERM -f '/Applications/Ollama.app/Contents/' || true
+    sleep 2
+  fi
   open -a Ollama
 else
   echo "Ollama was installed without the app. Restart 'ollama serve' (or 'brew services restart ollama') in another terminal."
