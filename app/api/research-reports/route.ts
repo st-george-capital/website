@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { canLinkDcfModel, reportVisibilityWhere } from '@/lib/research/access';
 
 
 export async function GET(req: NextRequest) {
@@ -18,9 +20,13 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status');
     const ticker = searchParams.get('ticker');
 
-    const where: any = {};
-    if (status) where.status = status;
-    if (ticker) where.ticker = ticker;
+    const where: Prisma.EquityResearchReportWhereInput = {
+      AND: [
+        reportVisibilityWhere({ userId: session.user.id, role: session.user.role }),
+        ...(status ? [{ status }] : []),
+        ...(ticker ? [{ ticker }] : []),
+      ],
+    };
 
     const reports = await prisma.equityResearchReport.findMany({
       where,
@@ -70,6 +76,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
+      );
+    }
+
+    if (dcfModelId && !(await canLinkDcfModel(String(dcfModelId), { userId: session.user.id, role: session.user.role }))) {
+      return NextResponse.json(
+        { error: 'You can only link your own DCF models' },
+        { status: 403 }
       );
     }
 

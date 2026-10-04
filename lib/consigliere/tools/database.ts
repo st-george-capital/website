@@ -56,8 +56,9 @@ export const SGC_TABLES: Record<string, TableSpec> = {
   },
   research_reports: {
     model: 'equityResearchReport',
-    description: 'Equity research reports: recommendation, current/target price, upside, thesis, bull/bear case, risks.',
+    description: 'Published equity research reports: recommendation, current/target price, upside, thesis, bull/bear case, risks. For your own drafts use get_research_reports.',
     fields: { companyName: 'string', ticker: 'string', sector: 'string', industry: 'string', reportDate: 'date', analysts: 'string[]', recommendation: 'string', currentPrice: 'number', targetPrice: 'number', impliedUpside: 'number', timeHorizon: 'string', status: 'string', published: 'boolean', valuationMethod: 'string', investmentThesis: 'json', bullCase: 'string', bearCase: 'string', keyRisks: 'json', catalystsNearTerm: 'json', marketCap: 'number', peRatio: 'number', forwardPE: 'number' },
+    baseWhere: { published: true },
     defaultOrder: ['reportDate', 'desc'],
   },
   investments: {
@@ -508,7 +509,7 @@ export async function getMacroRegime() {
     : [];
   const transitions = latest
     ? await prisma.regimeTransition.findMany({
-        where: { fromLabel: latest.regimeLabel },
+        where: { fromLabel: latest.regimeLabel, fitId: latest.fitId },
         select: { toLabel: true, prob63Day: true, prob126Day: true, prob252Day: true },
         orderBy: { prob63Day: 'desc' },
         take: 6,

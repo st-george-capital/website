@@ -1,5 +1,5 @@
 import { chat, type OllamaMessage } from './ollama';
-import type { ConsigliereToolSpec } from './types';
+import { withoutProposal, type ConsigliereToolSpec } from './types';
 
 const MAX_TOOL_ROUNDS = 8;
 const OLD_TOOL_RESULT_CHARS = 600;
@@ -126,7 +126,7 @@ export async function runTurn(opts: TurnOptions): Promise<OllamaMessage[]> {
       messages.push({
         role: 'tool',
         tool_name: trace.name,
-        content: JSON.stringify(outcome.ok ? outcome.result : { error: outcome.error }),
+        content: JSON.stringify(outcome.ok ? withoutProposal(outcome.result) : { error: outcome.error }),
       });
     }
   }

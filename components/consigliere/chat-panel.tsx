@@ -6,7 +6,8 @@ import { LessonContent } from '@/components/learning/lesson-content';
 import { runTurn, type ToolTrace } from '@/lib/consigliere/agent';
 import type { OllamaMessage } from '@/lib/consigliere/ollama';
 import { buildSystemPrompt } from '@/lib/consigliere/prompt';
-import type { ConsigliereToolGroup, ConsigliereToolSpec } from '@/lib/consigliere/types';
+import { proposalFrom, withoutProposal, type ConsigliereToolGroup, type ConsigliereToolSpec } from '@/lib/consigliere/types';
+import { SaveProposalCard } from './save-proposal-card';
 
 interface ChatEntry {
   id: string;
@@ -22,9 +23,10 @@ interface ChatEntry {
 const SUGGESTIONS: Array<{ text: string; groups: ConsigliereToolGroup[] }> = [
   { text: 'What does the fund hold right now, and how is it doing?', groups: ['sgc_data'] },
   { text: 'Which macro regime are we in, and what does the engine overweight?', groups: ['macro'] },
+  { text: 'Run a DCF on AAPL and compare it with MSFT, GOOGL and META on multiples.', groups: ['research'] },
   { text: 'Latest US CPI inflation and 10-year Treasury yield from FRED.', groups: ['macro'] },
   { text: 'Compare risk parity, HRP and min variance for SPY, TLT, GLD and EFA.', groups: ['portfolio'] },
-  { text: 'Summarize our most recent research reports.', groups: ['sgc_data'] },
+  { text: 'Summarize our most recent research reports.', groups: ['research'] },
   { text: "What's the news sentiment on NVDA, and when are its next earnings?", groups: ['markets'] },
 ];
 
@@ -62,7 +64,7 @@ function ToolTraceList({ tools }: { tools: ToolTrace[] }) {
               <div>
                 <p className="font-semibold text-slate-600">{t.error ? 'Error' : 'Result'}</p>
                 <pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] text-slate-700">
-                  {t.error ?? formatJson(t.result)}
+                  {t.error ?? formatJson(withoutProposal(t.result))}
                 </pre>
               </div>
             )}
@@ -195,6 +197,10 @@ export function ChatPanel({
     }
   }
 
+  function rememberSave(note: string) {
+    history.current = [...history.current, { role: 'system', content: note }];
+  }
+
   function reset() {
     abort.current?.abort();
     history.current = [];
@@ -268,6 +274,10 @@ export function ChatPanel({
                       <LessonContent content={entry.content} />
                     </div>
                   )}
+                  {entry.tools.map((t) => {
+                    const proposal = t.status === 'ok' ? proposalFrom(t.result) : null;
+                    return proposal ? <SaveProposalCard key={`save-${t.id}`} proposal={proposal} onSaved={rememberSave} /> : null;
+                  })}
                   {entry.status === 'stopped' && <p className="mt-2 text-xs text-slate-500">Stopped.</p>}
                   {entry.error && (
                     <p role="alert" className="mt-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

@@ -619,6 +619,26 @@ export async function fetchAlphaVantageOverview(ticker: string): Promise<Record<
   return data as Record<string, string>;
 }
 
+export interface AlphaVantageStatements {
+  symbol: string | null;
+  /** Newest first; values are Alpha Vantage strings ("None" when missing). */
+  annualReports: Record<string, string>[];
+  quarterlyReports: Record<string, string>[];
+}
+
+async function fetchAlphaVantageStatement(fn: 'INCOME_STATEMENT' | 'BALANCE_SHEET' | 'CASH_FLOW', ticker: string): Promise<AlphaVantageStatements> {
+  const data = await fetchAlphaVantage({ function: fn, symbol: ticker });
+  return {
+    symbol: typeof data.symbol === 'string' ? data.symbol : null,
+    annualReports: Array.isArray(data.annualReports) ? data.annualReports : [],
+    quarterlyReports: Array.isArray(data.quarterlyReports) ? data.quarterlyReports : [],
+  };
+}
+
+export const fetchAlphaVantageIncomeStatement = (ticker: string) => fetchAlphaVantageStatement('INCOME_STATEMENT', ticker);
+export const fetchAlphaVantageBalanceSheet = (ticker: string) => fetchAlphaVantageStatement('BALANCE_SHEET', ticker);
+export const fetchAlphaVantageCashFlow = (ticker: string) => fetchAlphaVantageStatement('CASH_FLOW', ticker);
+
 export async function fetchAlphaVantageTopGainersLosers(): Promise<AlphaVantageTopMoversResponse> {
   const data = await fetchAlphaVantage({
     function: 'TOP_GAINERS_LOSERS',

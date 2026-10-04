@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { ResearchExportDocument } from '@/components/research/ResearchExportDocument';
 import { getResearchExportReport } from '@/lib/research-export/get-report';
+import { canViewReport } from '@/lib/research/access';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +20,7 @@ export default async function ResearchExportPage({
 
   const report = await getResearchExportReport(params.id);
 
-  if (!report) {
+  if (!report || !canViewReport(report, { userId: session.user.id, role: session.user.role })) {
     notFound();
   }
 

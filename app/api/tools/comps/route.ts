@@ -1,38 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+import { compsRowFromOverview, fetchFmpPeers, type CompsRow } from '@/lib/comps';
+
+export type { CompsRow };
 
 const AV_KEY = process.env.ALPHA_VANTAGE_API_KEY || '';
-const FMP_KEY = process.env.FMP_API_KEY || '';
-
-export interface CompsRow {
-  ticker: string;
-  name: string;
-  isSubject: boolean;
-  sector: string | null;
-  industry: string | null;
-  marketCap: number | null;       // in millions
-  evToEBITDA: number | null;
-  evToRevenue: number | null;
-  peTrailing: number | null;
-  peForward: number | null;
-  priceToSales: number | null;
-  priceToBook: number | null;
-  revenueGrowthYoY: number | null; // as decimal, e.g. 0.12 = 12%
-  operatingMargin: number | null;  // as decimal
-  ebitdaMargin: number | null;     // as decimal (EBITDA / Revenue)
-  beta: number | null;
-  revenueTTM: number | null;       // in millions
-  ebitda: number | null;           // in millions
-}
-
-function toNum(v: string | undefined | null): number | null {
-  if (!v || v === 'None' || v === '-') return null;
-  const n = parseFloat(v);
-  return isNaN(n) ? null : n;
-}
 
 async function fetchAVOverview(ticker: string): Promise<CompsRow | null> {
   try {
-    const url = `https://www.alphavantage.co/query?function=OVERVIEW&symbol=${ticker}&apikey=${AV_KEY}`;
+    const url = `https://www.alphavantage.co/query?function=OVERVIEW&symbol=${encodeURIComponent(ticker)}&apikey=${AV_KEY}`;
     const res = await fetch(url, { next: { revalidate: 3600 } });
     const data = await res.json();
 
@@ -41,57 +18,19 @@ async function fetchAVOverview(ticker: string): Promise<CompsRow | null> {
       throw Object.assign(new Error('RATE_LIMIT'), { isRateLimit: true, raw: data.Note || data.Information });
     }
 
-    if (data['Error Message'] || !data.Symbol) return null;
-
-    const revenueTTM = toNum(data.RevenueTTM);
-    const ebitda = toNum(data.EBITDA);
-    const operatingMargin = toNum(data.OperatingMarginTTM);
-
-    // Approximate EBITDA margin = EBITDA / Revenue
-    const ebitdaMargin = revenueTTM && ebitda && revenueTTM !== 0 ? ebitda / revenueTTM : null;
-
-    return {
-      ticker: data.Symbol,
-      name: data.Name || ticker,
-      isSubject: false,
-      sector: data.Sector || null,
-      industry: data.Industry || null,
-      marketCap: toNum(data.MarketCapitalization) !== null ? (toNum(data.MarketCapitalization)! / 1e6) : null,
-      evToEBITDA: toNum(data.EVToEBITDA),
-      evToRevenue: toNum(data.EVToRevenue),
-      peTrailing: toNum(data.TrailingPE) ?? toNum(data.PERatio),
-      peForward: toNum(data.ForwardPE),
-      priceToSales: toNum(data.PriceToSalesRatioTTM),
-      priceToBook: toNum(data.PriceToBookRatio),
-      revenueGrowthYoY: toNum(data.QuarterlyRevenueGrowthYOY),
-      operatingMargin,
-      ebitdaMargin,
-      beta: toNum(data.Beta),
-      revenueTTM: revenueTTM !== null ? revenueTTM / 1e6 : null,
-      ebitda: ebitda !== null ? ebitda / 1e6 : null,
-    };
+    if (data['Error Message']) return null;
+    return compsRowFromOverview(data, ticker);
   } catch (err: any) {
     if (err.isRateLimit) throw err;
     return null;
   }
 }
 
-async function fetchFMPPeers(ticker: string): Promise<string[]> {
-  if (!FMP_KEY) return [];
-  try {
-    const url = `https://financialmodelingprep.com/api/v4/stock_peers?symbol=${ticker}&apikey=${FMP_KEY}`;
-    const res = await fetch(url, { next: { revalidate: 86400 } });
-    const data = await res.json();
-    if (Array.isArray(data) && data[0]?.peersList) {
-      return (data[0].peersList as string[]).slice(0, 8);
-    }
-    return [];
-  } catch {
-    return [];
-  }
-}
-
 export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { subject, peers: manualPeers } = await req.json() as { subject: string; peers?: string[] };
 
@@ -106,7 +45,7 @@ export async function POST(req: NextRequest) {
     if (manualPeers && manualPeers.length > 0) {
       peerTickers = manualPeers.map(t => t.toUpperCase()).filter(t => t !== subjectTicker);
     } else {
-      peerTickers = await fetchFMPPeers(subjectTicker);
+      peerTickers = await fetchFmpPeers(subjectTicker);
     }
 
     const allTickers = [subjectTicker, ...peerTickers];
@@ -116,7 +55,7 @@ export async function POST(req: NextRequest) {
 
     const rows: CompsRow[] = results
       .filter((r): r is CompsRow => r !== null)
-      .map((r, i) => ({ ...r, isSubject: allTickers[i] === subjectTicker }));
+      .map((r) => ({ ...r, isSubject: r.ticker.toUpperCase() === subjectTicker }));
 
     return NextResponse.json({ rows, peersSource: manualPeers?.length ? 'manual' : (peerTickers.length > 0 ? 'fmp' : 'none') });
   } catch (err: any) {

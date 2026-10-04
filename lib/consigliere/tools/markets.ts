@@ -1,6 +1,5 @@
 import {
   fetchAlphaVantageEarningsHistory,
-  fetchAlphaVantageNewsSentiment,
   fetchAlphaVantageOverview,
   fetchAlphaVantageQuote,
   fetchAlphaVantageSymbolSearch,
@@ -45,31 +44,6 @@ export async function getCompanyOverview({ ticker }: { ticker: string }) {
   for (const f of OVERVIEW_FIELDS) out[f] = num(info[f]);
   out.Description = (info.Description ?? '').slice(0, 600);
   return out;
-}
-
-export async function getNewsSentiment({ ticker, limit = 8 }: { ticker: string; limit?: number }) {
-  const t = oneTicker(ticker);
-  const articles = await fetchAlphaVantageNewsSentiment({ tickers: t, sort: 'LATEST', limit: 50 });
-  const picked = articles.slice(0, Math.min(Math.max(limit, 1), 15));
-  const tickerScores = picked.flatMap((a) => a.tickerSentiment.filter((s) => s.ticker === t).map((s) => s.sentimentScore));
-  return {
-    ticker: t,
-    articles: picked.map((a) => {
-      const ts = a.tickerSentiment.find((s) => s.ticker === t);
-      return {
-        published: a.timePublished.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2}).*/, '$1-$2-$3 $4:$5'),
-        title: a.title,
-        source: a.source,
-        overall_sentiment: a.overallSentimentLabel,
-        ...(ts ? { ticker_sentiment: ts.sentimentLabel, ticker_relevance: round(ts.relevanceScore, 2) } : {}),
-        summary: a.summary.slice(0, 280),
-        url: a.url,
-      };
-    }),
-    ...(tickerScores.length
-      ? { average_ticker_sentiment_score: round(tickerScores.reduce((s, x) => s + x, 0) / tickerScores.length, 3), score_scale: '-1 bearish … +1 bullish' }
-      : {}),
-  };
 }
 
 export async function getEarningsHistory({ ticker, quarters = 8 }: { ticker: string; quarters?: number }) {

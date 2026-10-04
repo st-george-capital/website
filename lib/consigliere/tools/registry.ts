@@ -13,12 +13,25 @@ import {
   getCompanyOverview,
   getEarningsHistory,
   getFredSeries,
-  getNewsSentiment,
   getPriceHistory,
   getStockQuote,
   searchFredSeries,
   searchTicker,
 } from './markets';
+import { getComps, getResearchReports, listMyDcfModels, runDcf } from './valuation';
+import {
+  getEarningsCallSummary,
+  getEarningsEstimates,
+  getEarningsReactions,
+  getInsiderActivity,
+  getInstitutionalHoldings,
+  getNewsSentiment,
+  getOptionsPositioning,
+} from './research';
+import { getG10Rates, getLatestCvarRun, getMacroOutlook, getTradeSignalsSummary } from './dashboards';
+import type { ToolContext } from './context';
+import { draftResearchReport, editResearchReport } from './drafting';
+import { RECOMMENDATIONS } from '@/lib/consigliere/report-draft';
 import { analyzePortfolio, compareMethods, getSectors, optimizePortfolio, METHODS } from '@/lib/consigliere/portfolio/tools';
 import { COV_METHODS } from '@/lib/consigliere/portfolio/risk';
 import type { ConsigliereToolGroup, ConsigliereToolSpec } from '@/lib/consigliere/types';
@@ -28,13 +41,70 @@ interface ConsigliereTool {
   group: ConsigliereToolGroup;
   description: string;
   schema: z.AnyZodObject;
-  run: (args: any) => Promise<unknown>;
+  run: (args: any, ctx: ToolContext) => Promise<unknown>;
 }
 
 const opt = lenient.optional;
+const lenientBoolean = z.preprocess((v) => (v === 'true' ? true : v === 'false' ? false : v), z.boolean());
 const ticker = z.string().describe('Ticker symbol, e.g. AAPL');
 const decimal = (description: string, min = 0, max = 1) =>
   opt(lenient.number(z.number().min(min).max(max))).describe(description);
+/** One value for every forecast year, or a list with one value per year. */
+const perYear = (description: string, min: number, max: number) =>
+  opt(
+    z.preprocess(
+      (v) => (typeof v === 'number' || (typeof v === 'string' && !v.trim().startsWith('[')) ? [v] : v),
+      lenient.array(lenient.number(z.number().min(min).max(max)))
+    )
+  ).describe(description);
+
+const dcfOverrides = {
+  forecast_years: opt(lenient.number(z.number().int().min(3).max(10))).describe('Forecast years, default 5'),
+  revenue_growth: perYear('Annual revenue growth as a decimal (0.08 = 8%), one number for all years or one per year', -0.5, 1),
+  ebit_margin: perYear('EBIT margin as a decimal, one number or one per year', -0.5, 0.8),
+  capex_pct_revenue: decimal('Capex as a share of revenue (decimal)', 0, 0.6),
+  tax_rate: decimal('Tax rate (decimal)', 0, 0.5),
+  risk_free_rate: decimal('Risk-free rate (decimal)', 0, 0.15),
+  equity_risk_premium: decimal('Equity risk premium (decimal)', 0, 0.15),
+  beta: opt(lenient.number(z.number().min(0).max(4))).describe('Equity beta'),
+  terminal_growth: decimal('Perpetual growth after the forecast (decimal)', -0.02, 0.06),
+  exit_multiple: opt(lenient.number(z.number().min(1).max(60))).describe('Terminal EV/EBITDA multiple'),
+  terminal_method: opt(z.enum(['perpetual', 'multiple', 'both'])).describe('Terminal value: perpetual growth, exit multiple, or both'),
+};
+
+const level = z.preprocess((v) => {
+  const s = String(v ?? '').toLowerCase();
+  return s.startsWith('h') ? 'high' : s.startsWith('l') ? 'low' : 'medium';
+}, z.enum(['low', 'medium', 'high']));
+const clipped = (max: number) => z.preprocess((v) => (typeof v === 'string' ? v.slice(0, max) : v ?? ''), z.string());
+/** Small models often send a plain sentence where an object is expected; accept both. */
+const thesisPoint = z.preprocess(
+  (v) => (typeof v === 'string' ? { claim: v } : v),
+  z.object({
+    title: opt(clipped(300)).describe('Short heading'),
+    claim: clipped(4000).describe('The claim'),
+    driver: opt(clipped(4000)).describe('What drives it, only if the notes say'),
+    mispricing: opt(clipped(4000)).describe('Why the market misprices it, only if the notes say'),
+  })
+);
+const catalystItem = z.preprocess(
+  (v) => (typeof v === 'string' ? { event: v } : v),
+  z.object({
+    event: clipped(1000).describe('The event'),
+    mechanism: opt(clipped(4000)).describe('How it moves the stock'),
+    probability: opt(level).describe('low | medium | high'),
+    timeframe: opt(clipped(200)).describe('e.g. "Q1 2027"'),
+  })
+);
+const riskItem = z.preprocess(
+  (v) => (typeof v === 'string' ? { title: v } : v),
+  z.object({
+    title: clipped(300).describe('The risk'),
+    description: opt(clipped(4000)),
+    impact: opt(level).describe('low | medium | high'),
+    mitigation: opt(clipped(4000)).describe('Only if the user gave one'),
+  })
+);
 
 const filterSchema = z.object({
   field: z.string().describe('Column name from list_sgc_tables'),
@@ -113,6 +183,32 @@ const TOOLS: ConsigliereTool[] = [
     run: searchFredSeries,
   },
   {
+    name: 'get_macro_outlook',
+    group: 'macro',
+    description: "SGC Macro Allocation Engine outlook: chance the current regime persists over 1, 3, 6 and 12 months, the top-ranked stocks in overweight sectors, and the engine's backtest record vs SPY.",
+    schema: z.object({}),
+    run: () => getMacroOutlook(),
+  },
+  {
+    name: 'get_g10_rates',
+    group: 'macro',
+    description: 'SGC G10 Rates Monitor: policy rate, 2-year and 10-year yields, curve shape, and the hikes/cuts the front end is pricing for each G10 country (FRED).',
+    schema: z.object({ country: opt(z.string()).describe('Optional country name or code, e.g. "Japan" or "JP"; default all') }),
+    run: getG10Rates,
+  },
+  {
+    name: 'get_trade_signals',
+    group: 'macro',
+    description: 'SGC Trade Shift Radar: latest aggregated trade-flow shift signals (supply-chain moves, sourcing substitution, theme accelerations) with severity and affected market themes.',
+    schema: z.object({
+      country: opt(z.string()).describe('Optional source country filter'),
+      theme: opt(z.string()).describe('Optional theme key filter'),
+      query: opt(z.string()).describe('Optional keyword search'),
+      limit: opt(lenient.number(z.number().int().min(1).max(15))).describe('Default 8'),
+    }),
+    run: getTradeSignalsSummary,
+  },
+  {
     name: 'get_stock_quote',
     group: 'markets',
     description: 'Latest price, daily change and volume for a ticker (Alpha Vantage).',
@@ -129,8 +225,8 @@ const TOOLS: ConsigliereTool[] = [
   {
     name: 'get_news_sentiment',
     group: 'markets',
-    description: 'Recent news headlines about a ticker with Alpha Vantage sentiment labels and an average sentiment score.',
-    schema: z.object({ ticker, limit: opt(lenient.number(z.number().int().min(1).max(15))).describe('Articles to return, default 8') }),
+    description: 'News sentiment for a ticker using the SGC Sentiment Tool method: relevance-weighted score, label, bullish/bearish article counts, top headlines and the price move over the window.',
+    schema: z.object({ ticker, days: opt(lenient.number(z.number().int().min(1).max(30))).describe('Window: 3, 7 or 30 days. Default 7') }),
     run: getNewsSentiment,
   },
   {
@@ -153,6 +249,155 @@ const TOOLS: ConsigliereTool[] = [
     description: 'Adjusted price history summary for a ticker over a period: total return, volatility, max drawdown, high/low and sampled closes.',
     schema: z.object({ ticker, period: opt(z.enum(['1m', '3m', '6m', '1y', '3y', '5y', '10y'])).describe('Default 1y') }),
     run: getPriceHistory,
+  },
+  {
+    name: 'run_dcf',
+    group: 'research',
+    description:
+      'Run the SGC DCF Valuation Tool: intrinsic value per share, upside vs price, bear/base/bull, WACC, a WACC x terminal-growth sensitivity grid and every assumption with its source. Auto-fills from the latest financial statements and the 10-year Treasury yield; pass overrides for any assumption, or saved_model_id to rerun one of your saved models. Use for any valuation, fair value or price target question.',
+    schema: z.object({
+      ticker: opt(z.string()).describe('Ticker to value, e.g. AAPL'),
+      saved_model_id: opt(z.string()).describe('Id from list_my_dcf_models, instead of ticker'),
+      ...dcfOverrides,
+      capex_pct_revenue: decimal('Capex as a share of revenue (decimal)'),
+      da_pct_revenue: decimal('Depreciation & amortization as a share of revenue (decimal)'),
+      nwc_pct_revenue_change: decimal('Net working capital investment as a share of the revenue change (decimal)', -1, 1),
+      tax_rate: decimal('Tax rate (decimal)', 0, 0.5),
+      risk_free_rate: decimal('Risk-free rate (decimal)', 0, 0.2),
+      cost_of_debt: decimal('Pre-tax cost of debt (decimal)', 0, 0.3),
+      debt_weight: decimal('Debt share of capital, D/(D+E) (decimal)', 0, 0.95),
+      terminal_method: opt(z.enum(['perpetual', 'multiple', 'both'])).describe('Terminal value method; default both (50/50 perpetual growth and exit multiple, like the DCF tool)'),
+      mid_year_convention: opt(z.boolean()).describe('Discount cash flows at mid-year'),
+    }),
+    run: runDcf,
+  },
+  {
+    name: 'draft_research_report',
+    group: 'research',
+    description:
+      'Start a draft SGC equity research report for a ticker, in two steps. Step 1: call with just the ticker (and any notes); it returns proposed DCF assumptions to ask the user about, and drafts nothing. Step 2: after the user answers, call again with assumptions_confirmed=true plus only the assumptions they changed, or with saved_model_id if they want one of their saved DCF models. Step 2 runs the DCF, comps, EPS history, price performance and news sentiment and fills every data section. Write qualitative sections ONLY from the notes the user pasted; leave a section out rather than inventing facts. Nothing is saved until the user clicks Save in the chat.',
+    schema: z.object({
+      ticker,
+      assumptions_confirmed: opt(lenientBoolean).describe('true only after the user has answered the assumption questions (or said to use the proposed ones)'),
+      saved_model_id: opt(z.string()).describe("Use this saved DCF model instead of asking, when the user says to use their saved DCF (ids come from step 1's saved_models or list_my_dcf_models)"),
+      recommendation: opt(z.enum(RECOMMENDATIONS)).describe("Only the user's own rating if they gave one; otherwise leave it out and it is set from the upside to target (buy above +10%, sell below -10%, else hold)"),
+      target_price: opt(lenient.number(z.number().gt(0))).describe("The user's price target if they gave one; default the DCF value"),
+      peers: opt(lenient.tickers()).describe("3-6 comparable company tickers, e.g. ['MSFT','GOOGL']"),
+      ...dcfOverrides,
+      investment_thesis: opt(lenient.array(thesisPoint)).describe('2-4 thesis points taken from the notes (not risks or catalysts)'),
+      business_model: opt(z.string()).describe('Markdown: how the company makes money, from the notes'),
+      industry_analysis: opt(z.string()).describe('Markdown: industry and competitive landscape, from the notes'),
+      economic_moat: opt(z.string()).describe('Markdown: durable advantages, from the notes'),
+      valuation_commentary: opt(z.string()).describe(
+        "Only if the notes discuss valuation: the user's valuation view. Do not state prices, multiples or upside; the DCF results and tables are added automatically"
+      ),
+      catalysts_near_term: opt(lenient.array(catalystItem)).describe('Catalysts in the next 6 months, from the notes'),
+      catalysts_medium_term: opt(lenient.array(catalystItem)).describe('Catalysts in 6-24 months, from the notes'),
+      key_risks: opt(lenient.array(riskItem)).describe(
+        'Every risk the notes mention (e.g. after "Risk:"), one item each; leave mitigation out unless the notes give one. Put risks here even if they also shape the bear case'
+      ),
+      bull_case: opt(z.string()).describe('Markdown bull case narrative from the notes; DCF bull values are added automatically'),
+      bear_case: opt(z.string()).describe('Markdown bear case narrative from the notes; DCF bear values are added automatically'),
+      conclusion: opt(z.string()).describe('Short concluding paragraph from the notes. Do not claim upside or cite prices: you have not seen the DCF result yet'),
+    }),
+    run: draftResearchReport,
+  },
+  {
+    name: 'edit_research_report',
+    group: 'research',
+    description:
+      "Change one of the user's existing DRAFT research reports, for the user to review and save. Only pass what the user asked to change. Text is added below the existing section unless the user explicitly asked to rewrite or replace it. Thesis points, catalysts and risks are only ever added, never removed. It cannot delete reports or edit published ones. Nothing changes until the user clicks Save changes; the previous version is kept in the report history.",
+    schema: z.object({
+      report_id: opt(z.string()).describe('Report id from get_research_reports or an earlier draft; otherwise pass ticker'),
+      ticker: opt(z.string()).describe("Ticker of the user's draft to edit (their most recent draft for it)"),
+      replace_text: opt(lenientBoolean).describe('true ONLY if the user explicitly asked to rewrite or replace a section; default adds text below'),
+      recommendation: opt(z.enum(RECOMMENDATIONS)).describe('New rating, only if the user asked'),
+      target_price: opt(lenient.number(z.number().gt(0))).describe('New price target, only if the user asked'),
+      business_model: opt(z.string()).describe('Markdown to add to the business model section'),
+      industry_analysis: opt(z.string()).describe('Markdown to add to the industry analysis'),
+      economic_moat: opt(z.string()).describe('Markdown to add to the economic moat section'),
+      valuation_commentary: opt(z.string()).describe('Markdown added below the valuation tables (never replaces them)'),
+      bull_case: opt(z.string()).describe('Markdown to add to the bull case'),
+      bear_case: opt(z.string()).describe('Markdown to add to the bear case'),
+      conclusion: opt(z.string()).describe('Markdown to add to the conclusion'),
+      add_thesis_points: opt(lenient.array(thesisPoint)).describe('New thesis points to add'),
+      add_catalysts_near_term: opt(lenient.array(catalystItem)).describe('New catalysts in the next 6 months'),
+      add_catalysts_medium_term: opt(lenient.array(catalystItem)).describe('New catalysts in 6-24 months'),
+      add_key_risks: opt(lenient.array(riskItem)).describe('New risks to add'),
+    }),
+    run: editResearchReport,
+  },
+  {
+    name: 'list_my_dcf_models',
+    group: 'research',
+    description: "The signed-in member's own saved DCF models (name, ticker, value per share, upside, WACC, bear/bull, id). Pass an id to run_dcf as saved_model_id to rerun one.",
+    schema: z.object({
+      ticker: opt(z.string()).describe('Only models for this ticker'),
+      limit: opt(lenient.number(z.number().int().min(1).max(25))).describe('Default 10'),
+    }),
+    run: listMyDcfModels,
+  },
+  {
+    name: 'get_comps',
+    group: 'research',
+    description: 'Trading comparables: P/E, forward P/E, EV/EBITDA, EV/revenue, P/S, P/B, growth, margins and beta for a company and its peers, with peer medians.',
+    schema: z.object({
+      ticker,
+      peers: lenient.tickers().describe("2-8 peer tickers, e.g. ['MSFT','GOOGL','META']"),
+    }),
+    run: getComps,
+  },
+  {
+    name: 'get_research_reports',
+    group: 'research',
+    description: "SGC equity research reports: published reports plus the member's own drafts, with rating, price target, thesis summary and link.",
+    schema: z.object({
+      ticker: opt(z.string()).describe('Only reports on this ticker'),
+      limit: opt(lenient.number(z.number().int().min(1).max(15))).describe('Default 5'),
+    }),
+    run: getResearchReports,
+  },
+  {
+    name: 'get_earnings_reactions',
+    group: 'research',
+    description: 'Equity Positioning earnings view: EPS beat/miss history with the stock\'s 5- and 20-day reaction, beat rate, and estimate revision momentum.',
+    schema: z.object({ ticker, quarters: opt(lenient.number(z.number().int().min(1).max(12))).describe('Default 8') }),
+    run: getEarningsReactions,
+  },
+  {
+    name: 'get_options_positioning',
+    group: 'research',
+    description: 'Equity Positioning options view: put/call ratios, at-the-money implied volatility, put skew, positioning bias and unusual contracts. Needs a premium Alpha Vantage key.',
+    schema: z.object({ ticker }),
+    run: getOptionsPositioning,
+  },
+  {
+    name: 'get_insider_activity',
+    group: 'research',
+    description: 'Recent insider buys and sells for a ticker with a summary (Supplementary Tools).',
+    schema: z.object({ ticker, limit: opt(lenient.number(z.number().int().min(1).max(20))).describe('Transactions to list, default 10') }),
+    run: getInsiderActivity,
+  },
+  {
+    name: 'get_earnings_estimates',
+    group: 'research',
+    description: 'Analyst EPS and revenue estimates for upcoming quarters and years, analyst counts and 30-day revision direction (Supplementary Tools).',
+    schema: z.object({ ticker }),
+    run: getEarningsEstimates,
+  },
+  {
+    name: 'get_earnings_call_summary',
+    group: 'research',
+    description: 'Earnings call transcript summary: management tone, key topics, notable quotes and short excerpts (Supplementary Tools). Defaults to the latest quarter.',
+    schema: z.object({ ticker, quarter: opt(z.string()).describe('Quarter like 2026Q2; default latest') }),
+    run: getEarningsCallSummary,
+  },
+  {
+    name: 'get_institutional_holdings',
+    group: 'research',
+    description: 'Institutional ownership: holder count, ownership %, largest holders and biggest buyers/sellers (Supplementary Tools). May need a premium Alpha Vantage key.',
+    schema: z.object({ ticker }),
+    run: getInstitutionalHoldings,
   },
   {
     name: 'analyze_portfolio',
@@ -221,6 +466,13 @@ const TOOLS: ConsigliereTool[] = [
     schema: z.object({ tickers: lenient.tickers() }),
     run: getSectors,
   },
+  {
+    name: 'get_latest_cvar_run',
+    group: 'portfolio',
+    description: "Latest saved run of the SGC CVaR Portfolio Optimizer on the fund: expected CVaR vs benchmark, target weights, sector/region weights, suggested trades and stress tests.",
+    schema: z.object({}),
+    run: () => getLatestCvarRun(),
+  },
 ];
 
 const BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
@@ -233,16 +485,29 @@ export function consigliereToolSpecs(): ConsigliereToolSpec[] {
   }));
 }
 
+const BURST = /burst pattern|spreading out your API requests/i;
+
 export type ToolOutcome = { ok: true; result: unknown } | { ok: false; error: string };
 
-export async function runConsigliereTool(name: string, rawArgs: unknown): Promise<ToolOutcome> {
+export async function runConsigliereTool(name: string, rawArgs: unknown, ctx: ToolContext): Promise<ToolOutcome> {
   const tool = BY_NAME.get(name);
   if (!tool) return { ok: false, error: `Unknown tool '${name}'. Available: ${TOOLS.map((t) => t.name).join(', ')}` };
   const parsed = tool.schema.safeParse(rawArgs ?? {});
   if (!parsed.success) return { ok: false, error: `Invalid arguments: ${formatZodError(parsed.error)}` };
   try {
-    return { ok: true, result: await tool.run(parsed.data) };
+    try {
+      return { ok: true, result: await tool.run(parsed.data, ctx) };
+    } catch (err) {
+      // Alpha Vantage rejects bursts across all callers of the shared key; one spaced retry usually clears it.
+      if (!(err instanceof Error && BURST.test(err.message))) throw err;
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+      return { ok: true, result: await tool.run(parsed.data, ctx) };
+    }
   } catch (err) {
+    if ((err as { code?: string })?.code === 'P2021') {
+      console.error(`[consigliere] ${name}: table missing in this database`);
+      return { ok: false, error: `The data behind ${name} has not been set up in this SGC database yet, so it cannot answer this. Tell the user.` };
+    }
     if (err instanceof Error && err.name.startsWith('Prisma')) {
       console.error(`[consigliere] ${name} database error:`, err.message);
       return { ok: false, error: 'The database query failed. Try simpler filters or another table.' };

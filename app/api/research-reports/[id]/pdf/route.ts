@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { launchPdfBrowser } from '@/lib/pdf/browser';
+import { findReportAccess } from '@/lib/research/access';
 import type { Browser } from 'puppeteer-core';
 
 export const runtime = 'nodejs';
@@ -31,6 +32,10 @@ export async function GET(
 
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  if (!(await findReportAccess(params.id, { userId: session.user.id, role: session.user.role }))) {
+    return NextResponse.json({ error: 'Report not found' }, { status: 404 });
   }
 
   const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host');

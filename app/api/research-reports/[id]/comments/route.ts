@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { findReportAccess } from '@/lib/research/access';
 
 
 export async function GET(
@@ -15,6 +16,10 @@ export async function GET(
         { error: 'Unauthorized' },
         { status: 401 }
       );
+    }
+
+    if (!(await findReportAccess(params.id, { userId: session.user.id, role: session.user.role }))) {
+      return NextResponse.json({ error: 'Report not found' }, { status: 404 });
     }
 
     const comments = await prisma.reportComment.findMany({
@@ -45,11 +50,21 @@ export async function POST(
       );
     }
 
+    if (!(await findReportAccess(params.id, { userId: session.user.id, role: session.user.role }))) {
+      return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+    }
+
     const { section, content } = await req.json();
 
-    if (!section || !content) {
+    if (typeof section !== 'string' || typeof content !== 'string' || !section || !content) {
       return NextResponse.json(
         { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+    if (section.length > 100 || content.length > 5000) {
+      return NextResponse.json(
+        { error: 'Comment is too long (5,000 characters max)' },
         { status: 400 }
       );
     }
@@ -87,12 +102,27 @@ export async function PATCH(
       );
     }
 
-    const { commentId, resolved } = await req.json();
+    const access = await findReportAccess(params.id, { userId: session.user.id, role: session.user.role });
+    if (!access) {
+      return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+    }
+    if (!access.canEdit) {
+      return NextResponse.json({ error: 'Only the author, collaborators or an admin can resolve comments' }, { status: 403 });
+    }
 
-    const comment = await prisma.reportComment.update({
-      where: { id: commentId },
+    const { commentId, resolved } = await req.json();
+    if (typeof commentId !== 'string' || typeof resolved !== 'boolean') {
+      return NextResponse.json({ error: 'commentId and resolved are required' }, { status: 400 });
+    }
+
+    const result = await prisma.reportComment.updateMany({
+      where: { id: commentId, reportId: params.id },
       data: { resolved },
     });
+    if (result.count === 0) {
+      return NextResponse.json({ error: 'Comment not found' }, { status: 404 });
+    }
+    const comment = await prisma.reportComment.findUnique({ where: { id: commentId } });
 
     return NextResponse.json(comment);
   } catch (error) {

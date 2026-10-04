@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { findReportAccess } from '@/lib/research/access';
 
 
 export async function GET(
@@ -15,6 +16,10 @@ export async function GET(
         { error: 'Unauthorized' },
         { status: 401 }
       );
+    }
+
+    if (!(await findReportAccess(params.id, { userId: session.user.id, role: session.user.role }))) {
+      return NextResponse.json({ error: 'Report not found' }, { status: 404 });
     }
 
     const versions = await prisma.reportVersion.findMany({
@@ -43,6 +48,14 @@ export async function POST(
         { error: 'Unauthorized' },
         { status: 401 }
       );
+    }
+
+    const access = await findReportAccess(params.id, { userId: session.user.id, role: session.user.role });
+    if (!access) {
+      return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+    }
+    if (!access.canEdit) {
+      return NextResponse.json({ error: 'Only the author, collaborators or an admin can save versions' }, { status: 403 });
     }
 
     const { changeLog } = await req.json();

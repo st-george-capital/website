@@ -28,89 +28,13 @@ import {
   AreaChart
 } from 'recharts';
 import Link from 'next/link';
+import { calculateDCF, getDefaultInputs, normalizeInputsForForecastYears, type DCFInputs, type DCFOutputs } from '@/lib/dcf/model';
 
 function formatNumber(num: number, decimals: number = 0): string {
   return num.toLocaleString('en-US', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals
   });
-}
-
-// DCF Calculation Types
-interface DCFInputs {
-  // Company Setup
-  companyName: string;
-  ticker: string;
-  currency: string;
-  currentPrice: number;
-  sharesOutstanding: number;
-  sharesDiluted: number;
-  totalDebt: number;
-  cashEquivalents: number;
-  preferredEquity: number;
-  minorityInterest: number;
-  nonOperatingAssets: number;
-
-  // Forecast Horizon
-  forecastYears: number;
-  midYearConvention: boolean; // Advanced mode only
-
-  // Operating Forecast
-  forecastMode: 'simple' | 'advanced';
-  startingRevenue: number;
-  revenueGrowth: number[]; // One per year
-
-  // Simple Mode
-  ebitMargin: number[]; // One per year
-  capexPercentOfRevenue: number; // Fixed %
-  depreciationPercentOfRevenue: number; // Fixed %
-  nwcChangePercentOfRevenueChange: number; // Fixed %
-  cashTaxRate: number;
-
-  // Advanced Mode
-  ebitMarginAdvanced?: number[]; // By year (optional, falls back to simple)
-  capexByYear?: number[]; // Capex as % of revenue by year
-  depreciationByYear?: number[]; // D&A as % of revenue by year
-  nwcChangeByYear?: number[]; // ΔNWC as % of revenue change by year
-  cashTaxRateByYear?: number[]; // Tax rate by year
-
-  // Discount Rate (WACC)
-  riskFreeRate: number;
-  equityRiskPremium: number;
-  beta: number;
-  costOfDebt: number;
-  taxRate: number;
-  targetDebtRatio: number; // or D/E ratio
-
-  // Terminal Value
-  terminalMethod: 'perpetual' | 'multiple' | 'both';
-  terminalWeighting: number; // For 'both' method: % perpetual vs % multiple (0.5 = 50/50)
-  perpetualGrowth: number;
-  exitMultiple: number;
-  exitMultipleMetric: 'ebitda' | 'ebit' | 'fcf';
-}
-
-interface DCFOutputs {
-  // Cash Flows
-  revenues: number[];
-  ebit: number[];
-  nopat: number[];
-  freeCashFlow: number[];
-
-  // Valuation
-  terminalValue: number;
-  pvOfFcff: number;
-  pvOfTerminalValue: number;
-  enterpriseValue: number;
-  equityValue: number;
-  intrinsicValuePerShare: number;
-  upsideDownside: number;
-  terminalValueContribution: number;
-
-  // WACC
-  costOfEquity: number;
-  afterTaxCostOfDebt: number;
-  wacc: number;
 }
 
 // Export Functions
@@ -504,84 +428,6 @@ function printSnapshot(inputs: DCFInputs, outputs: DCFOutputs) {
   printWindow.document.write(content);
   printWindow.document.close();
   printWindow.print();
-}
-
-// Default inputs for example company
-const getDefaultInputs = (): DCFInputs => ({
-  companyName: 'Example Corp',
-  ticker: 'EXAM',
-  currency: 'USD',
-  currentPrice: 50.00,
-  sharesOutstanding: 100000000,
-  sharesDiluted: 105000000,
-  totalDebt: 500000000,
-  cashEquivalents: 200000000,
-  preferredEquity: 0,
-  minorityInterest: 0,
-  nonOperatingAssets: 0,
-
-  forecastYears: 5,
-  midYearConvention: false, // Default to year-end for simplicity
-
-  forecastMode: 'simple',
-  startingRevenue: 2000000000,
-  revenueGrowth: [0.15, 0.12, 0.10, 0.08, 0.06], // 15%, 12%, 10%, 8%, 6%
-
-  // Simple Mode
-  ebitMargin: [0.25, 0.26, 0.27, 0.28, 0.29], // Improving margins
-  capexPercentOfRevenue: 0.08, // 8% of revenue
-  depreciationPercentOfRevenue: 0.05, // 5% of revenue
-  nwcChangePercentOfRevenueChange: 0.02, // 2% of revenue change
-  cashTaxRate: 0.25,
-
-  // Advanced Mode (undefined by default)
-  ebitMarginAdvanced: undefined,
-  capexByYear: undefined,
-  depreciationByYear: undefined,
-  nwcChangeByYear: undefined,
-  cashTaxRateByYear: undefined,
-
-  riskFreeRate: 0.0425, // 4.25%
-  equityRiskPremium: 0.06, // 6%
-  beta: 1.2,
-  costOfDebt: 0.055, // 5.5%
-  taxRate: 0.25,
-  targetDebtRatio: 0.3, // 30% debt
-
-  terminalMethod: 'both',
-  terminalWeighting: 0.5, // 50/50 split
-  perpetualGrowth: 0.025, // 2.5%
-  exitMultiple: 12,
-  exitMultipleMetric: 'ebitda',
-});
-
-function resizeYearArray(values: number[] | undefined, forecastYears: number, fallbackValue: number): number[] | undefined {
-  if (values == null) return undefined;
-
-  const resized = values.slice(0, forecastYears);
-  const fillValue = resized.length > 0 ? resized[resized.length - 1] : fallbackValue;
-
-  while (resized.length < forecastYears) {
-    resized.push(fillValue);
-  }
-
-  return resized;
-}
-
-function normalizeInputsForForecastYears(inputs: DCFInputs): DCFInputs {
-  const forecastYears = Math.max(1, Math.floor(inputs.forecastYears || 5));
-
-  return {
-    ...inputs,
-    forecastYears,
-    revenueGrowth: resizeYearArray(inputs.revenueGrowth, forecastYears, 0.05) ?? Array(forecastYears).fill(0.05),
-    ebitMargin: resizeYearArray(inputs.ebitMargin, forecastYears, 0.15) ?? Array(forecastYears).fill(0.15),
-    ebitMarginAdvanced: resizeYearArray(inputs.ebitMarginAdvanced, forecastYears, inputs.ebitMargin[inputs.ebitMargin.length - 1] ?? 0.15),
-    capexByYear: resizeYearArray(inputs.capexByYear, forecastYears, inputs.capexPercentOfRevenue),
-    depreciationByYear: resizeYearArray(inputs.depreciationByYear, forecastYears, inputs.depreciationPercentOfRevenue),
-    nwcChangeByYear: resizeYearArray(inputs.nwcChangeByYear, forecastYears, inputs.nwcChangePercentOfRevenueChange),
-    cashTaxRateByYear: resizeYearArray(inputs.cashTaxRateByYear, forecastYears, inputs.cashTaxRate),
-  };
 }
 
 // Financial data extracted from uploaded files
@@ -1089,6 +935,10 @@ export default function DCFToolPage() {
   const [manageModelsList, setManageModelsList] = useState<any[]>([]);
   const [modelsLoadError, setModelsLoadError] = useState(false);
   const [showAllModels, setShowAllModels] = useState(false);
+  const [openingModelId, setOpeningModelId] = useState<string | null>(null);
+  const [openModelError, setOpenModelError] = useState<string | null>(null);
+  // Market ERP arrives asynchronously on mount and must not overwrite an opened model's saved assumptions.
+  const modelOpenedRef = useRef(false);
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === 'admin';
 
@@ -1119,7 +969,7 @@ export default function DCFToolPage() {
       setMarketData(fetchedMarketData);
 
       // Update ERP in inputs with calculated value (even if using fallbacks)
-      updateInput('equityRiskPremium', fetchedMarketData.erp);
+      if (!modelOpenedRef.current) updateInput('equityRiskPremium', fetchedMarketData.erp);
 
     } catch (error) {
       console.warn('Failed to fetch market data for ERP:', error);
@@ -1165,6 +1015,40 @@ export default function DCFToolPage() {
   useEffect(() => {
     fetchManageModels();
   }, [isAdmin, showAllModels]);
+
+  const openSavedModel = async (id: string) => {
+    setOpeningModelId(id);
+    setOpenModelError(null);
+    try {
+      const res = await fetch(`/api/dcf-models/${encodeURIComponent(id)}`);
+      if (!res.ok) throw new Error(res.status === 404 ? 'That model no longer exists.' : res.status === 403 ? 'You do not have access to that model.' : 'The model could not be loaded.');
+      const model = await res.json();
+      const { comps, ...savedInputs } = (model.inputs ?? {}) as Partial<DCFInputs> & { comps?: CompsRow[] };
+      modelOpenedRef.current = true;
+      setInputs(normalizeInputsForForecastYears({ ...getDefaultInputs(), ...savedInputs }));
+      setCompsData(Array.isArray(comps) ? comps : []);
+      setFinancialData(model.financialData ?? null);
+      setSelectedCompany(null);
+      setQuote(null);
+      setEarningsData(null);
+      setPriceHistory(null);
+      setAnalysisError(null);
+      setSavedModelId(model.id);
+      setModelName(model.name ?? '');
+      setActiveTab('valuation');
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'The model could not be loaded.';
+      setOpenModelError(message);
+      setAnalysisError(`Saved model: ${message}`);
+    } finally {
+      setOpeningModelId(null);
+    }
+  };
+
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('model');
+    if (id) openSavedModel(id);
+  }, []);
 
   const updateInput = (field: keyof DCFInputs, value: any) => {
     setInputs(prev => {
@@ -1236,10 +1120,10 @@ export default function DCFToolPage() {
         ...financialData,
         sector: selectedCompany?.sector || financialData.sector,
         industry: selectedCompany?.industry || financialData.industry,
-        fiscalYearEnd: selectedCompany?.fiscalYearEnd,
-        week52High: selectedCompany?.week52High,
-        week52Low: selectedCompany?.week52Low,
-        sharesOutstanding: selectedCompany?.sharesOutstanding,
+        fiscalYearEnd: selectedCompany?.fiscalYearEnd ?? financialData.fiscalYearEnd,
+        week52High: selectedCompany?.week52High ?? financialData.week52High,
+        week52Low: selectedCompany?.week52Low ?? financialData.week52Low,
+        sharesOutstanding: selectedCompany?.sharesOutstanding ?? financialData.sharesOutstanding,
       } : null;
       
       console.log('Saving DCF model with financialData:', {
@@ -1293,10 +1177,10 @@ export default function DCFToolPage() {
         ...financialData,
         sector: selectedCompany?.sector || financialData.sector,
         industry: selectedCompany?.industry || financialData.industry,
-        fiscalYearEnd: selectedCompany?.fiscalYearEnd,
-        week52High: selectedCompany?.week52High,
-        week52Low: selectedCompany?.week52Low,
-        sharesOutstanding: selectedCompany?.sharesOutstanding,
+        fiscalYearEnd: selectedCompany?.fiscalYearEnd ?? financialData.fiscalYearEnd,
+        week52High: selectedCompany?.week52High ?? financialData.week52High,
+        week52Low: selectedCompany?.week52Low ?? financialData.week52Low,
+        sharesOutstanding: selectedCompany?.sharesOutstanding ?? financialData.sharesOutstanding,
       } : null;
       
       const response = await fetch(`/api/dcf-models/${savedModelId}`, {
@@ -1324,6 +1208,11 @@ export default function DCFToolPage() {
   };
 
   const handleCompanySelect = async (company: CompanyOverview) => {
+    if (savedModelId && company.symbol.toUpperCase() !== inputs.ticker.toUpperCase()) {
+      setSavedModelId(null);
+      setModelName('');
+      modelOpenedRef.current = false;
+    }
     setSelectedCompany(company);
     setAnalysisError(null);
     await runFullAnalysis(company.symbol);
@@ -2123,6 +2012,7 @@ export default function DCFToolPage() {
               <span className="text-sm">Show all models (all users)</span>
             </label>
           )}
+          {openModelError && <p className="text-sm text-red-700 mb-3" role="alert">{openModelError}</p>}
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {modelsLoadError ? (<p className="text-sm text-slate-600" role="alert">Saved models could not be loaded. Use Refresh to try again.</p>) : manageModelsList.length === 0 ? (
               <p className="text-sm text-gray-500">No saved models.</p>
@@ -2135,16 +2025,31 @@ export default function DCFToolPage() {
                   <div>
                     <span className="font-medium">{m.name}</span>
                     <span className="text-gray-500 text-sm ml-2">{m.ticker} • {new Date(m.updatedAt).toLocaleDateString()}</span>
+                    {savedModelId === m.id && <Badge variant="outline" className="ml-2">Open</Badge>}
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="text-red-600 border-red-200 hover:bg-red-50"
-                    onClick={() => deleteDCFModel(m.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-gray-700"
+                      disabled={openingModelId === m.id}
+                      onClick={() => openSavedModel(m.id)}
+                      aria-label={`Open ${m.name}`}
+                    >
+                      {openingModelId === m.id ? 'Opening…' : 'Open'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600 border-red-200 hover:bg-red-50"
+                      onClick={() => deleteDCFModel(m.id)}
+                      aria-label={`Delete ${m.name}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               ))
             )}
@@ -4951,149 +4856,6 @@ function DCFFinalPresentation({ inputs, outputs }: { inputs: DCFInputs; outputs:
       </div>
     </div>
   );
-}
-
-// DCF Calculation Logic
-function calculateDCF(inputs: DCFInputs): DCFOutputs {
-  const normalizedInputs = normalizeInputsForForecastYears(inputs);
-  const revenues: number[] = [];
-  const ebit: number[] = [];
-  const nopat: number[] = [];
-  const freeCashFlow: number[] = [];
-
-  // Calculate operating forecasts
-  let revenue = normalizedInputs.startingRevenue;
-
-  for (let year = 0; year < normalizedInputs.forecastYears; year++) {
-    revenue *= (1 + normalizedInputs.revenueGrowth[year]);
-    revenues.push(revenue);
-
-    // EBIT calculation - use advanced mode if available, otherwise simple mode
-    const ebitMargin = normalizedInputs.forecastMode === 'advanced' && normalizedInputs.ebitMarginAdvanced
-      ? normalizedInputs.ebitMarginAdvanced[year]
-      : normalizedInputs.ebitMargin[year];
-    const ebitValue = revenue * ebitMargin;
-    ebit.push(ebitValue);
-
-    // Tax rate - use advanced mode if available, otherwise simple mode
-    const taxRate = normalizedInputs.forecastMode === 'advanced' && normalizedInputs.cashTaxRateByYear
-      ? normalizedInputs.cashTaxRateByYear[year]
-      : normalizedInputs.cashTaxRate;
-    const nopatValue = ebitValue * (1 - taxRate);
-    nopat.push(nopatValue);
-
-    // Working capital changes
-    let nwcChange = 0;
-    if (year === 0) {
-      // First year: assume NWC builds from zero
-      const revenueChange = revenue - normalizedInputs.startingRevenue;
-      nwcChange = revenueChange * (normalizedInputs.forecastMode === 'advanced' && normalizedInputs.nwcChangeByYear
-        ? normalizedInputs.nwcChangeByYear[year]
-        : normalizedInputs.nwcChangePercentOfRevenueChange);
-    } else {
-      // Subsequent years: change based on revenue growth
-      const revenueChange = revenues[year] - revenues[year - 1];
-      nwcChange = revenueChange * (normalizedInputs.forecastMode === 'advanced' && normalizedInputs.nwcChangeByYear
-        ? normalizedInputs.nwcChangeByYear[year]
-        : normalizedInputs.nwcChangePercentOfRevenueChange);
-    }
-
-    // Depreciation
-    const depreciation = revenue * (normalizedInputs.forecastMode === 'advanced' && normalizedInputs.depreciationByYear
-      ? normalizedInputs.depreciationByYear[year]
-      : normalizedInputs.depreciationPercentOfRevenue);
-
-    // Capex
-    const capex = revenue * (normalizedInputs.forecastMode === 'advanced' && normalizedInputs.capexByYear
-      ? normalizedInputs.capexByYear[year]
-      : normalizedInputs.capexPercentOfRevenue);
-
-    // FCFF calculation
-    const fcff = nopatValue + depreciation - capex - nwcChange;
-    freeCashFlow.push(fcff);
-  }
-
-  // Calculate WACC
-  const costOfEquity = normalizedInputs.riskFreeRate + normalizedInputs.beta * normalizedInputs.equityRiskPremium;
-  const afterTaxCostOfDebt = normalizedInputs.costOfDebt * (1 - normalizedInputs.taxRate);
-  const wacc = costOfEquity * (1 - normalizedInputs.targetDebtRatio) + afterTaxCostOfDebt * normalizedInputs.targetDebtRatio;
-
-  // Calculate terminal value
-  let terminalValue = 0;
-  const lastFCFF = freeCashFlow[freeCashFlow.length - 1];
-  const lastRevenue = revenues[revenues.length - 1];
-  const lastEBIT = ebit[ebit.length - 1];
-  // Use terminal-year D&A rate (respects advanced mode)
-  const terminalDepRate = normalizedInputs.forecastMode === 'advanced' && normalizedInputs.depreciationByYear
-    ? normalizedInputs.depreciationByYear[normalizedInputs.depreciationByYear.length - 1]
-    : normalizedInputs.depreciationPercentOfRevenue;
-
-  if (normalizedInputs.terminalMethod === 'perpetual') {
-    terminalValue = lastFCFF * (1 + normalizedInputs.perpetualGrowth) / (wacc - normalizedInputs.perpetualGrowth);
-  } else if (normalizedInputs.terminalMethod === 'multiple') {
-    let exitMetric = 0;
-    if (normalizedInputs.exitMultipleMetric === 'ebitda') {
-      exitMetric = lastEBIT + lastRevenue * terminalDepRate;
-    } else if (normalizedInputs.exitMultipleMetric === 'ebit') {
-      exitMetric = lastEBIT;
-    } else {
-      exitMetric = lastFCFF;
-    }
-    terminalValue = exitMetric * normalizedInputs.exitMultiple;
-  } else if (normalizedInputs.terminalMethod === 'both') {
-    // Perpetuity component
-    const perpetualTV = lastFCFF * (1 + normalizedInputs.perpetualGrowth) / (wacc - normalizedInputs.perpetualGrowth);
-
-    // Multiple component
-    let exitMetric = 0;
-    if (normalizedInputs.exitMultipleMetric === 'ebitda') {
-      exitMetric = lastEBIT + lastRevenue * terminalDepRate;
-    } else if (normalizedInputs.exitMultipleMetric === 'ebit') {
-      exitMetric = lastEBIT;
-    } else {
-      exitMetric = lastFCFF;
-    }
-    const multipleTV = exitMetric * normalizedInputs.exitMultiple;
-
-    // Weighted average
-    terminalValue = (perpetualTV * normalizedInputs.terminalWeighting) + (multipleTV * (1 - normalizedInputs.terminalWeighting));
-  }
-
-  // Calculate present values (with mid-year convention if enabled)
-  let pvFcff = 0;
-  for (let i = 0; i < freeCashFlow.length; i++) {
-    const discountPeriod = normalizedInputs.midYearConvention ? i + 0.5 : i + 1;
-    pvFcff += freeCashFlow[i] / Math.pow(1 + wacc, discountPeriod);
-  }
-  const pvTerminal = terminalValue / Math.pow(1 + wacc, normalizedInputs.forecastYears);
-
-  // Calculate enterprise and equity value
-  const enterpriseValue = pvFcff + pvTerminal;
-  const netDebt = normalizedInputs.totalDebt - normalizedInputs.cashEquivalents;
-  const equityValue = enterpriseValue - netDebt - normalizedInputs.preferredEquity - normalizedInputs.minorityInterest + normalizedInputs.nonOperatingAssets;
-  const sharesDiluted = normalizedInputs.sharesDiluted || 100000000; // Default if not set
-  const intrinsicValuePerShare = equityValue / sharesDiluted;
-  const upsideDownside = normalizedInputs.currentPrice !== 0 ? (intrinsicValuePerShare - normalizedInputs.currentPrice) / normalizedInputs.currentPrice : 0;
-  // PV of terminal value as % of EV — the meaningful sensitivity indicator
-  const terminalValueContribution = enterpriseValue > 0 ? pvTerminal / enterpriseValue : 0;
-
-  return {
-    revenues,
-    ebit,
-    nopat,
-    freeCashFlow,
-    terminalValue,
-    pvOfFcff: pvFcff,
-    pvOfTerminalValue: pvTerminal,
-    enterpriseValue,
-    equityValue,
-    intrinsicValuePerShare,
-    upsideDownside,
-    terminalValueContribution,
-    costOfEquity,
-    afterTaxCostOfDebt,
-    wacc,
-  };
 }
 
 // Ticker Search Component with Autocomplete

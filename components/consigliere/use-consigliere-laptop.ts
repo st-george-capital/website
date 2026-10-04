@@ -15,13 +15,17 @@ import type { ConsigliereToolGroup } from '@/lib/consigliere/types';
 
 const STORAGE_KEY = 'sgc-consigliere-laptop-v1';
 const MODEL_NAME = /^[a-z0-9][a-z0-9._-]*(\/[a-z0-9][a-z0-9._-]*)?(:[a-z0-9][a-z0-9._-]*)?$/i;
-export const ALL_GROUPS: ConsigliereToolGroup[] = ['sgc_data', 'markets', 'macro', 'portfolio'];
+export const ALL_GROUPS: ConsigliereToolGroup[] = ['sgc_data', 'markets', 'research', 'macro', 'portfolio'];
+// Settings saved before seenGroups existed only knew these, so anything newer starts switched on.
+const ORIGINAL_GROUPS: string[] = ['sgc_data', 'markets', 'macro', 'portfolio'];
 
 export interface LaptopSettings {
   host: string;
   ramGB: number;
   model: string | null;
   groups: ConsigliereToolGroup[];
+  /** Groups that existed when the member last saved, so tool groups added later default to on. */
+  seenGroups: ConsigliereToolGroup[];
   think: boolean;
 }
 
@@ -33,17 +37,20 @@ export interface PullState {
   status: string;
 }
 
-const DEFAULTS: LaptopSettings = { host: DEFAULT_OLLAMA_HOST, ramGB: 16, model: null, groups: ALL_GROUPS, think: false };
+const DEFAULTS: LaptopSettings = { host: DEFAULT_OLLAMA_HOST, ramGB: 16, model: null, groups: ALL_GROUPS, seenGroups: ALL_GROUPS, think: false };
 
 function loadSettings(): LaptopSettings {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null');
     if (!saved || typeof saved !== 'object') return DEFAULTS;
+    const seen: string[] = Array.isArray(saved.seenGroups) ? saved.seenGroups : ORIGINAL_GROUPS;
+    const kept: string[] = Array.isArray(saved.groups) ? saved.groups : ALL_GROUPS;
     return {
       host: typeof saved.host === 'string' && saved.host ? saved.host : DEFAULTS.host,
       ramGB: Number.isFinite(saved.ramGB) ? saved.ramGB : DEFAULTS.ramGB,
       model: typeof saved.model === 'string' ? saved.model : null,
-      groups: Array.isArray(saved.groups) ? saved.groups.filter((g: string) => ALL_GROUPS.includes(g as ConsigliereToolGroup)) : ALL_GROUPS,
+      groups: ALL_GROUPS.filter((g) => kept.includes(g) || !seen.includes(g)),
+      seenGroups: ALL_GROUPS,
       think: Boolean(saved.think),
     };
   } catch {
